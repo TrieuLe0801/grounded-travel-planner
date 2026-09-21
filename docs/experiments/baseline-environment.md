@@ -1,7 +1,7 @@
 # Baseline Environment
 
 Last updated: 2026-09-21  
-Status: Draft — environment details pending
+Status: Planned toolchain selected — actual machine versions pending
 
 ## Project state
 
@@ -27,25 +27,48 @@ Week 0 records the pre-implementation baseline:
 - local development environment;
 - planned metrics and verification commands.
 
-## MacBook environment — pending
+## MacBook M1 environment
 
 - Device: MacBook M1
 - Architecture: arm64
 - macOS version: TODO
 - RAM: TODO
-- Python version: TODO
-- Package manager: TODO
+- Python requirement: `>=3.10`
+- Installed Python version: TODO — capture on the target MacBook
+- Python package and environment manager: `uv`
+- Installed `uv` version: TODO — capture on the target MacBook
 - Git version: TODO
-- Container runtime: TODO
-- Docker/Compose version: TODO
+- Container runtime: Docker Desktop
+- Docker Engine/Compose versions: TODO — capture on the target MacBook
 
-## Candidate development tooling — pending decision
+## Confirmed development tooling
 
-- Python package manager: TODO
-- Test framework: TODO
-- Formatter/linter: TODO
-- Dependency lock strategy: TODO
-- Local environment strategy: TODO
+- Python: `>=3.10`
+- Package and virtual-environment manager: `uv`
+- Test framework: `pytest`
+- Formatter and linter: Ruff
+- Dependency lock strategy: commit `uv.lock` after dependencies are introduced
+- Local environment strategy: project-local `.venv` managed by `uv`
+- Container runtime: Docker Desktop using arm64-compatible images where
+  available
+
+The project has not selected an exact Python minor version yet. The interpreter
+used on the MacBook must satisfy `>=3.10`, and its exact version must be recorded
+before the first executable baseline is accepted.
+
+## Planned verification commands
+
+These commands become active after `pyproject.toml` and application code exist:
+
+```bash
+uv sync
+uv run pytest
+uv run ruff check .
+uv run ruff format --check .
+docker compose config
+```
+
+They are currently planned commands, not successful verification results.
 
 ## Target control flow — initial sketch
 

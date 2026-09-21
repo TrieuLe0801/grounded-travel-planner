@@ -73,10 +73,14 @@ project context before implementing LangGraph.
 - Keep long-term memory outside the MVP until experiments demonstrate value.
 - Keep all durable decisions in the repository, not only in chat or browser
   storage.
+- Use Python `>=3.10`, `uv`, `pytest`, Ruff and Docker Desktop as the development
+  baseline for the MacBook M1.
 
 ## Open questions
 
-- Which Python version and package manager will be used on the MacBook M1?
+- Which exact Python minor version satisfying `>=3.10` is installed on the
+  MacBook M1?
+- Which exact macOS, `uv`, Git, Docker Engine and Compose versions are installed?
 - Which checkpointer will be used after the in-memory learning spike?
 - What typed fields are minimally sufficient for accessibility and dietary
   constraints?
@@ -86,7 +90,7 @@ project context before implementing LangGraph.
 
 ## Next learning session
 
-1. Capture the MacBook M1 environment.
+1. Capture the exact MacBook M1 environment versions.
 2. Define metric formulas without measured values.
 3. Create the JSONL schema and first five happy-path evaluation cases.
 
@@ -126,4 +130,3 @@ What am I trying to understand or prove?
 
 - One concrete follow-up action.
 ```
-

@@ -50,6 +50,13 @@ they have been written to the repository.
 
 ## Working agreements
 
+- Support Python `>=3.10`.
+- Use `uv` for dependency management, virtual environments and command
+  execution. Commit `uv.lock` after dependencies are introduced.
+- Use `pytest` for automated tests.
+- Use Ruff for formatting and linting.
+- Use Docker Desktop for local containers and prefer arm64-compatible images for
+  the MacBook M1.
 - Prefer small, typed, testable Python modules and deterministic fixtures.
 - Keep network and model calls out of unit tests.
 - Bound all agent and repair loops explicitly.
@@ -57,13 +64,15 @@ they have been written to the repository.
   raw sensitive preferences.
 - Do not claim tests, metrics or providers exist until the corresponding
   executable artifact exists.
-- Do not select Python, package-manager or container versions on the user's
-  behalf while the baseline still marks those decisions as pending.
+- Do not invent the installed Python, `uv`, Docker or Compose versions; record
+  them from the target MacBook.
 - Update `PROJECT_STATUS.md`, the current learning log and
   `docs/progress/roadmap-progress.json` when a checklist item is completed.
 - Add or update an ADR when changing a confirmed architectural decision.
 - Run the narrowest relevant checks after a change, then the full available
   suite. If no executable checks exist, report that status as `N/A`.
+- Once the Python project exists, use `uv run pytest`, `uv run ruff check .` and
+  `uv run ruff format --check .` as the standard verification commands.
 
 ## Completion evidence
 

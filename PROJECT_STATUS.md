@@ -6,7 +6,7 @@ Last updated: 2026-09-21
 
 Week 0 — Project charter, constraints and baseline.
 
-Artifact-backed progress: **22 / 34 checklist items (65%)**.
+Artifact-backed progress: **23 / 34 checklist items (68%)**.
 
 This is an independent LangChain/LangGraph/LangSmith learning project. Only
 architecture, baselines, workflow outcomes and invariants recorded in this
@@ -21,7 +21,7 @@ into the repository.
 | Session | Completed | Total | Status |
 |---|---:|---:|---|
 | 0.1 Project charter | 6 | 6 | Complete |
-| 0.2 Technical baseline | 3 | 5 | In progress |
+| 0.2 Technical baseline | 4 | 5 | In progress |
 | 0.3 Golden set V0 | 2 | 8 | In progress |
 | 0.4 Hard constraints | 5 | 9 | In progress |
 | 0.5 Codex context | 6 | 6 | Complete |
@@ -44,6 +44,9 @@ into the repository.
 - Sketched the target flow from input normalization through LangChain tools,
   LangGraph orchestration, deterministic validation and final output.
 - Listed core product/evidence invariants and explicit workflow outcomes.
+- Selected the MacBook M1 toolchain: Python `>=3.10`, `uv`, `pytest`, Ruff and
+  Docker Desktop. Exact installed versions remain to be captured on the target
+  machine.
 
 ### Initial evaluation design
 
@@ -63,14 +66,16 @@ into the repository.
 
 ## Now
 
-- Capture the actual MacBook M1 environment and choose the local Python tooling.
+- Capture the actual macOS, RAM, Python, `uv`, Git, Docker and Compose versions
+  on the MacBook M1.
 - Define evaluation metrics before assigning any measured values.
 - Convert charter scenarios into a versioned JSONL golden set.
 - Turn accessibility and dietary policies into typed schemas.
 
 ## Next
 
-1. On the MacBook M1, complete `docs/experiments/baseline-environment.md`.
+1. On the MacBook M1, fill the remaining version fields in
+   `docs/experiments/baseline-environment.md`.
 2. Create `docs/evaluation-metrics.md` with metric names, formulas and expected
    inputs; do not invent measurements.
 3. Create `data/eval/travel-scenarios-v0.jsonl` with structured expected

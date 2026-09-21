@@ -62,9 +62,9 @@
   </main>
   <div class="saved" id="saved">Đã lưu cục bộ</div>
   <script>
-    const STORAGE_KEY="grounded-travel-planner-plan-v5";
-    const LEGACY_STORAGE_KEY="grounded-travel-planner-plan-v4";
-    const AUDITED_DONE={"w0s1-0":true,"w0s1-1":true,"w0s1-2":true,"w0s1-3":true,"w0s1-4":true,"w0s1-5":true,"w0s2-0":true,"w0s2-1":true,"w0s2-3":true,"w0s3-1":true,"w0s3-4":true,"w0s4-1":true,"w0s4-4":true,"w0s4-5":true,"w0s4-6":true,"w0s4-8":true,"w0s5-0":true,"w0s5-1":true,"w0s5-2":true,"w0s5-3":true,"w0s5-4":true,"w0s5-5":true};
+    const STORAGE_KEY="grounded-travel-planner-plan-v6";
+    const LEGACY_STORAGE_KEY="grounded-travel-planner-plan-v5";
+    const AUDITED_DONE={"w0s1-0":true,"w0s1-1":true,"w0s1-2":true,"w0s1-3":true,"w0s1-4":true,"w0s2-4":true,"w0s1-5":true,"w0s2-0":true,"w0s2-1":true,"w0s2-3":true,"w0s3-1":true,"w0s3-4":true,"w0s4-1":true,"w0s4-4":true,"w0s4-5":true,"w0s4-6":true,"w0s4-8":true,"w0s5-0":true,"w0s5-1":true,"w0s5-2":true,"w0s5-3":true,"w0s5-4":true,"w0s5-5":true};
     const links={graph:"https://docs.langchain.com/oss/python/langgraph/graph-api",thinking:"https://docs.langchain.com/oss/python/langgraph/thinking-in-langgraph",agents:"https://docs.langchain.com/oss/python/langchain/agents",tools:"https://docs.langchain.com/oss/python/langchain/tools",memory:"https://docs.langchain.com/oss/python/langgraph/add-memory",interrupts:"https://docs.langchain.com/oss/python/langgraph/interrupts",longMemory:"https://docs.langchain.com/oss/python/langchain/long-term-memory",observability:"https://docs.langchain.com/langsmith/observability-concepts",evaluation:"https://docs.langchain.com/langsmith/evaluation-concepts",multi:"https://docs.langchain.com/oss/python/langchain/multi-agent",subgraphs:"https://docs.langchain.com/oss/python/langgraph/use-subgraphs",agentsMd:"https://learn.chatgpt.com/docs/agent-configuration/agents-md"};
     const weeks=[
       {id:"w0",label:"Tuần 0",title:"Project charter, constraints và baseline",hours:"7–10 giờ",goal:"Có scope, hard-constraint policy, accessibility/dietary policy, Codex note workflow, baseline report và golden set V0 trước khi thêm framework.",sessions:[
@@ -115,8 +115,8 @@
         {id:"w8s4",title:"8.4 · Final verification",tasks:["Narrow tests rồi full suite.","Compose từ môi trường sạch.","Secret/data/trace không vào image.","Trace không có PII.","Diễn tập demo và ghi câu hỏi mở."]}]}
     ];
     const $=id=>document.getElementById(id);
-    function fresh(seed=true){return{version:5,done:seed?{...AUDITED_DONE}:{},notes:{},global:"",closed:{},theme:matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light",updated:null}}
-    function load(){try{const current=JSON.parse(localStorage.getItem(STORAGE_KEY));if(current)return Object.assign(fresh(false),current);const legacy=JSON.parse(localStorage.getItem(LEGACY_STORAGE_KEY))||{};return Object.assign(fresh(true),legacy,{version:5,done:{...(legacy.done||{}),...AUDITED_DONE}})}catch(e){return fresh(true)}}
+    function fresh(seed=true){return{version:6,done:seed?{...AUDITED_DONE}:{},notes:{},global:"",closed:{},theme:matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light",updated:null}}
+    function load(){try{const current=JSON.parse(localStorage.getItem(STORAGE_KEY));if(current)return Object.assign(fresh(false),current);const legacy=JSON.parse(localStorage.getItem(LEGACY_STORAGE_KEY))||{};return Object.assign(fresh(true),legacy,{version:6,done:{...(legacy.done||{}),...AUDITED_DONE}})}catch(e){return fresh(true)}}
     let state=load(),saveTimer;
     function save(show=true){state.updated=new Date().toISOString();localStorage.setItem(STORAGE_KEY,JSON.stringify(state));if(show){$("saved").classList.add("show");clearTimeout(saveTimer);saveTimer=setTimeout(()=>$("saved").classList.remove("show"),1000)}}
     function esc(v){return String(v).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;")}

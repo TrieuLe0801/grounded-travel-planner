@@ -8,7 +8,7 @@ implementation intentionally has not started yet.
 
 ## Current progress
 
-- Week 0: **22 / 34 items complete (65%)**
+- Week 0: **23 / 34 items complete (68%)**
 - Project charter: accepted for MVP
 - Code, tests and measured runtime metrics: `N/A` until implementation begins
 
@@ -57,6 +57,23 @@ docker compose version
 Copy the results into `docs/experiments/baseline-environment.md`. Values that
 are not installed should remain explicit `TODO` items; do not invent them.
 
+The selected development baseline is:
+
+- Python `>=3.10`
+- `uv` for dependencies and virtual environments
+- `pytest` for tests
+- Ruff for formatting and linting
+- Docker Desktop for local containers
+
+Once `pyproject.toml` exists, the expected local workflow will be:
+
+```bash
+uv sync
+uv run pytest
+uv run ruff check .
+uv run ruff format --check .
+```
+
 Codex automatically reads repository-level `AGENTS.md` when a new session is
 started from this repository. A useful first prompt is:
 
@@ -73,9 +90,14 @@ the source of truth. Exported progress belongs in
 `docs/progress/roadmap-progress.json`, and completed work must be supported by a
 repository artifact.
 
-## Git setup
+## Git repository
 
-This folder is initialized as a local Git repository but contains no commit and
-no remote. Review the files, then add your remote and create the first commit
-when ready.
+- Remote: `https://github.com/TrieuLe0801/grounded-travel-planner.git`
+- Default branch: `main`
+- Visibility: private
 
+After committing local changes, publish them with:
+
+```bash
+git push origin main
+```
