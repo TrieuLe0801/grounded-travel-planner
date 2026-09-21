@@ -1,0 +1,40 @@
+{
+  "version": 5,
+  "done": {
+    "w0s1-0": true,
+    "w0s1-1": true,
+    "w0s1-2": true,
+    "w0s1-3": true,
+    "w0s1-4": true,
+    "w0s1-5": true,
+    "w0s2-0": true,
+    "w0s2-1": true,
+    "w0s2-3": true,
+    "w0s3-1": true,
+    "w0s3-4": true,
+    "w0s4-1": true,
+    "w0s4-4": true,
+    "w0s4-5": true,
+    "w0s4-6": true,
+    "w0s4-8": true,
+    "w0s5-0": true,
+    "w0s5-1": true,
+    "w0s5-2": true,
+    "w0s5-3": true,
+    "w0s5-4": true,
+    "w0s5-5": true
+  },
+  "notes": {
+    "w0s1": "Project charter reviewed and accepted for MVP on 2026-09-21.",
+    "w0s2": "Greenfield baseline and target LangChain/LangGraph flow are recorded. Metric definitions and MacBook environment details are pending.",
+    "w0s3": "Clarification and step-free scenarios are described in the charter. The complete JSONL golden set is still pending.",
+    "w0s4": "Core input, workflow-outcome and source-validation policies are documented. Structured accessibility/dietary schemas and memory update/forget behavior are pending.",
+    "w0s5": "AGENTS.md, PROJECT_STATUS.md, the Week 0 learning log, durable Markdown rules and an importable progress JSON now exist. Codex's required reading order is recorded in AGENTS.md."
+  },
+  "global": "Artifact audit on 2026-09-21: Week 0 is 22/34 items complete (65%). This is an independent LangChain/LangGraph/LangSmith project. See PROJECT_STATUS.md for evidence and next actions.",
+  "closed": {
+    "w0": false
+  },
+  "theme": "light",
+  "updated": "2026-09-21T13:41:59.3621051+07:00"
+}
