@@ -1,0 +1,18 @@
+{
+  "description": "Format Python files edited through Codex apply_patch, then check them with flake8.",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "^apply_patch$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$(git rev-parse --show-toplevel)/.codex/hooks/format_python.py\"",
+            "timeout": 120,
+            "statusMessage": "Running isort, Black, and flake8 on edited Python files"
+          }
+        ]
+      }
+    ]
+  }
+}

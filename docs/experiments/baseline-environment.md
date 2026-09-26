@@ -1,16 +1,16 @@
 # Baseline Environment
 
-Last updated: 2026-09-21  
-Status: Planned toolchain selected — actual machine versions pending
+Last updated: 2026-09-26
+Status: Local toolchain captured; Docker Engine pending
 
 ## Project state
 
 This is a greenfield project.
 
-- Application implementation: not started.
+- Travel-planner application implementation: not started.
 - LangGraph workflow: not implemented.
-- Unit/integration tests: not created.
-- Executable quality baseline: not available.
+- Travel-planner unit/integration tests: not created.
+- Development-hook tests and quality checks: available.
 - Measured latency, token usage and cost: not available.
 
 These values are `N/A`, not failed checks. No test or metric result should be
@@ -31,44 +31,52 @@ Week 0 records the pre-implementation baseline:
 
 - Device: MacBook M1
 - Architecture: arm64
-- macOS version: TODO
-- RAM: TODO
+- macOS version: 26.6.2 (build 25G83), captured with `sw_vers`
+- RAM: 16 GiB, captured with `sysctl -n hw.memsize`
 - Python requirement: `>=3.10`
-- Installed Python version: TODO — capture on the target MacBook
+- Installed project Python version: CPython 3.10.21, managed by `uv`
+- System `python3`: 3.9.6; the hook script supports this interpreter
 - Python package and environment manager: `uv`
-- Installed `uv` version: TODO — capture on the target MacBook
-- Git version: TODO
+- Installed `uv` version: 0.12.19
+- Git version: 2.54.0 (Apple Git-157)
 - Container runtime: Docker Desktop
-- Docker Engine/Compose versions: TODO — capture on the target MacBook
+- Docker CLI version: 20.10.18
+- Docker Engine version: TODO — daemon was unavailable on 2026-09-26
+- Docker Compose version: v5.0.0-desktop.1
 
 ## Confirmed development tooling
 
 - Python: `>=3.10`
 - Package and virtual-environment manager: `uv`
 - Test framework: `pytest`
-- Formatter and linter: Ruff
+- Formatters: isort and Black; linters: flake8 and Ruff
 - Dependency lock strategy: commit `uv.lock` after dependencies are introduced
 - Local environment strategy: project-local `.venv` managed by `uv`
 - Container runtime: Docker Desktop using arm64-compatible images where
   available
 
-The project has not selected an exact Python minor version yet. The interpreter
-used on the MacBook must satisfy `>=3.10`, and its exact version must be recorded
-before the first executable baseline is accepted.
+The project uses Python 3.10 locally through `.python-version`, while retaining
+`>=3.10` as its declared support range. See
+`docs/adr/0001-python-development-tooling.md` for the tooling decision.
 
 ## Planned verification commands
 
-These commands become active after `pyproject.toml` and application code exist:
+The Python tooling checks are active. Docker verification requires a running
+daemon and a future Compose contract:
 
 ```bash
 uv sync
 uv run pytest
-uv run ruff check .
-uv run ruff format --check .
+uv run isort --check-only . .codex/hooks/format_python.py
+uv run black --check . .codex/hooks/format_python.py
+uv run flake8 . .codex/hooks/format_python.py
+uv run ruff check . .codex/hooks/format_python.py
 docker compose config
 ```
 
-They are currently planned commands, not successful verification results.
+The pytest suite currently covers only the formatting hook, not application
+behavior. Verification results for this tooling change are recorded in the
+current learning log.
 
 ## Target control flow — initial sketch
 
@@ -98,7 +106,8 @@ measured values begin after the first executable baseline exists.
 
 | Check | Status | Reason |
 |---|---|---|
-| Unit tests | N/A | No implementation exists |
+| Travel-planner unit tests | N/A | No application implementation exists |
+| Development-hook tests | Available | See `tests/test_format_python_hook.py` |
 | Integration tests | N/A | No implementation exists |
 | Evaluation run | N/A | Dataset and executable target do not exist |
 | Container build | N/A | Container contract not created |

@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-09-21
+Last updated: 2026-09-26
 
 ## Current milestone
 
@@ -45,8 +45,13 @@ into the repository.
   LangGraph orchestration, deterministic validation and final output.
 - Listed core product/evidence invariants and explicit workflow outcomes.
 - Selected the MacBook M1 toolchain: Python `>=3.10`, `uv`, `pytest`, Ruff and
-  Docker Desktop. Exact installed versions remain to be captured on the target
-  machine.
+  Docker Desktop. The local macOS, RAM, Python, `uv`, Git, Docker CLI and Compose
+  versions were captured on 2026-09-26; Docker Engine remains pending because
+  its daemon was unavailable.
+- Added project-scoped Codex manager/planner/coding/testing agents, a Python
+  formatting hook, `uv`-locked isort/Black/flake8/pytest/Ruff tooling and hook
+  tests. This is development support, not the travel planner's runtime agent
+  implementation.
 
 ### Initial evaluation design
 
@@ -66,15 +71,14 @@ into the repository.
 
 ## Now
 
-- Capture the actual macOS, RAM, Python, `uv`, Git, Docker and Compose versions
-  on the MacBook M1.
+- Capture the Docker Engine version when Docker Desktop is running.
 - Define evaluation metrics before assigning any measured values.
 - Convert charter scenarios into a versioned JSONL golden set.
 - Turn accessibility and dietary policies into typed schemas.
 
 ## Next
 
-1. On the MacBook M1, fill the remaining version fields in
+1. When Docker Desktop is running, fill the remaining Engine version field in
    `docs/experiments/baseline-environment.md`.
 2. Create `docs/evaluation-metrics.md` with metric names, formulas and expected
    inputs; do not invent measurements.
@@ -88,12 +92,12 @@ into the repository.
 
 ## Blockers and deferred dependencies
 
-- The actual macOS, RAM, Python, Git and container versions can only be recorded
-  on the target MacBook.
+- Docker Engine version is pending because the daemon was unavailable on
+  2026-09-26.
 - Live flight, lodging and availability providers are intentionally deferred.
 - The synthetic pricing fixture schema and sample routes are not implemented.
-- Executable tests and measured metrics begin after the remaining Week 0
-  specification artifacts are complete.
+- Travel-planner behavior tests and measured metrics begin after the remaining
+  Week 0 specification artifacts are complete. Development-hook tests now run.
 
 ## Important files
 

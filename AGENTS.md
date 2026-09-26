@@ -50,11 +50,19 @@ they have been written to the repository.
 
 ## Working agreements
 
+- The primary Codex session manages development requests: assign bounded
+  planning, implementation and verification work to the project-scoped
+  `planner`, `coding` and `testing` agents when those roles are needed; wait for
+  their results and integrate them. Keep shared-file edits coordinated.
+- These Codex development agents are separate from the travel planner's runtime
+  single-agent-first architecture. See `docs/adr/0001-python-development-tooling.md`.
+
 - Support Python `>=3.10`.
 - Use `uv` for dependency management, virtual environments and command
   execution. Commit `uv.lock` after dependencies are introduced.
 - Use `pytest` for automated tests.
-- Use Ruff for formatting and linting.
+- Use isort and Black for Python formatting, flake8 for PEP 8 checks, and Ruff
+  for supplementary lint checks. See `docs/adr/0001-python-development-tooling.md`.
 - Use Docker Desktop for local containers and prefer arm64-compatible images for
   the MacBook M1.
 - Prefer small, typed, testable Python modules and deterministic fixtures.
@@ -71,8 +79,11 @@ they have been written to the repository.
 - Add or update an ADR when changing a confirmed architectural decision.
 - Run the narrowest relevant checks after a change, then the full available
   suite. If no executable checks exist, report that status as `N/A`.
-- Once the Python project exists, use `uv run pytest`, `uv run ruff check .` and
-  `uv run ruff format --check .` as the standard verification commands.
+- Once the Python project exists, use `uv run pytest`, `uv run isort --check-only
+  . .codex/hooks/format_python.py`, `uv run black --check .
+  .codex/hooks/format_python.py`, `uv run flake8 .
+  .codex/hooks/format_python.py` and `uv run ruff check .
+  .codex/hooks/format_python.py` as the standard verification commands.
 
 ## Completion evidence
 
