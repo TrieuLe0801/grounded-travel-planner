@@ -1,6 +1,6 @@
 # Baseline Environment
 
-Last updated: 2026-09-26
+Last updated: 2026-09-28
 Status: Local toolchain captured; Docker Engine pending
 
 ## Project state
@@ -11,7 +11,12 @@ This is a greenfield project.
 - LangGraph workflow: not implemented.
 - Travel-planner unit/integration tests: not created.
 - Development-hook tests and quality checks: available.
+- Streamlit UI: not implemented.
 - Measured latency, token usage and cost: not available.
+
+The project was rebaselined to a three-week POC on 2026-09-22. Missing Docker
+or Compose details do not block the local `uv` vertical slice. The available
+runtime versions are recorded below; only Docker Engine remains pending.
 
 These values are `N/A`, not failed checks. No test or metric result should be
 invented before an executable baseline exists.
@@ -50,6 +55,7 @@ Week 0 records the pre-implementation baseline:
 - Package and virtual-environment manager: `uv`
 - Test framework: `pytest`
 - Formatters: isort and Black; linters: flake8 and Ruff
+- POC UI framework: Streamlit (selected, not installed yet)
 - Dependency lock strategy: commit `uv.lock` after dependencies are introduced
 - Local environment strategy: project-local `.venv` managed by `uv`
 - Container runtime: Docker Desktop using arm64-compatible images where

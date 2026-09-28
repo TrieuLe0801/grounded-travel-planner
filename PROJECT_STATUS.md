@@ -1,109 +1,120 @@
 # Project Status
 
-Last updated: 2026-09-26
+Last updated: 2026-09-28
 
 ## Current milestone
 
-Week 0 — Project charter, constraints and baseline.
+Week 1 of the three-week POC — executable vertical slice.
 
-Artifact-backed progress: **23 / 34 checklist items (68%)**.
+Delivery window: **2026-09-22 to 2026-10-12**.
 
-This is an independent LangChain/LangGraph/LangSmith learning project. Only
-architecture, baselines, workflow outcomes and invariants recorded in this
-repository apply.
+The active plan is `docs/poc-3-week-plan.md`. The earlier Week 0 + eight-week
+roadmap has been replaced because only three weeks remain.
 
-This percentage is based on files present in this repository. Browser-only
-checkboxes or notes stored in `localStorage` are not evidence unless exported
-into the repository.
+## Progress snapshot
 
-## Session status
+| View | Progress | Interpretation |
+|---|---:|---|
+| Three-week roadmap | 10 / 53 (19%) | Scope plus four evidenced tooling/scaffold items are complete |
+| Rebaseline session | 6 / 6 (100%) | Scope and acceptance target are complete |
+| Executable POC | 0% | Development tooling exists, but no application package, graph, fixture or measured metric exists yet |
+
+Planning progress must not be reported as implementation progress.
+
+## Three-week session status
 
 | Session | Completed | Total | Status |
 |---|---:|---:|---|
-| 0.1 Project charter | 6 | 6 | Complete |
-| 0.2 Technical baseline | 4 | 5 | In progress |
-| 0.3 Golden set V0 | 2 | 8 | In progress |
-| 0.4 Hard constraints | 5 | 9 | In progress |
-| 0.5 Codex context | 6 | 6 | Complete |
+| 1.1 Rebaseline and acceptance | 6 | 6 | Complete |
+| 1.2 Project scaffold and contracts | 4 | 6 | In progress |
+| 1.3 Deterministic graph slice | 0 | 6 | Not started |
+| Week 2 Grounded planner | 0 | 18 | Not started |
+| Week 3 Streamlit UI, evaluation and demo | 0 | 17 | Not started |
 
 ## Done
 
-### Project charter
+### Retained decisions
 
-- Defined target users, primary journey, MVP scope and non-goals.
-- Defined research questions for orchestration, multi-agent and memory.
-- Accepted ISO-date, traveler-count, total-budget and recommendation contracts.
-- Defined deterministic synthetic flight/lodging pricing for the MVP.
-- Defined accessibility, dietary, severe-allergy and evidence policies.
-- Reviewed and accepted `docs/project-charter.md` for MVP.
+- Accepted the focused input/output contract.
+- Defined ISO-date, traveler defaults, total-budget and synthetic-pricing rules.
+- Defined four POC workflow outcomes and eight acceptance scenarios.
+- Selected Python `>=3.10`, `uv`, `pytest`, Ruff and Docker Desktop as the
+  broader development baseline.
+- Created durable Codex instructions, learning log and progress artifacts.
 
-### Technical and quality baseline
+### Three-week rebaseline
 
-- Recorded the project as greenfield: code, tests and measured metrics are
-  currently `N/A`, not failed checks.
-- Sketched the target flow from input normalization through LangChain tools,
-  LangGraph orchestration, deterministic validation and final output.
-- Listed core product/evidence invariants and explicit workflow outcomes.
-- Selected the MacBook M1 toolchain: Python `>=3.10`, `uv`, `pytest`, Ruff and
-  Docker Desktop. The local macOS, RAM, Python, `uv`, Git, Docker CLI and Compose
-  versions were captured on 2026-09-26; Docker Engine remains pending because
-  its daemon was unavailable.
-- Added project-scoped Codex manager/planner/coding/testing agents, a Python
-  formatting hook, `uv`-locked isort/Black/flake8/pytest/Ruff tooling and hook
-  tests. This is development support, not the travel planner's runtime agent
-  implementation.
+- Fixed the delivery window and reduced the plan to P0/P1/P2 priorities.
+- Selected one primary offline fixture journey: TP.HCM → Đà Nẵng, 3 days.
+- Selected a single LangGraph workflow, structured input and CLI/demo output.
+- Reduced POC acceptance to one recommended plan and eight high-value cases.
+- Selected a one-page Streamlit UI with CLI fallback for the final demo.
+- Deferred Chainlit, multi-agent, long-term memory, live providers, FastAPI,
+  persistent storage, Docker/CI and expanded evaluation.
+- Added deadline stop rules and a feature freeze from 2026-10-09.
+- Recorded the decisions in ADRs 0002 and 0003.
 
-### Initial evaluation design
+### Development tooling and environment
 
-- Defined at least three clarification situations.
-- Defined a wheelchair and step-free acceptance scenario.
-- Recorded 22 scenario descriptions in the charter; these are not yet a
-  machine-readable evaluation dataset.
-
-### Durable project context
-
-- Added repository-level `AGENTS.md` with project boundaries, invariants and the
-  required reading order for Codex.
-- Added `docs/learning-log/week-00.md` using the learn–try–result–decision model.
-- Added this Done / Now / Next / Blockers status file.
-- Kept Markdown as the durable source of truth and exported roadmap state to
-  `docs/progress/roadmap-progress.json`.
+- Captured the MacBook M1 runtime versions; Docker Engine remains pending and
+  does not block the POC.
+- Added `pyproject.toml`, `.python-version` and a committed `uv.lock`.
+- Configured pytest, isort, Black, flake8 and Ruff.
+- Added project-scoped Codex development agents, a Python formatting hook and
+  two passing hook tests. These support development; they are not application
+  code or the travel planner's runtime topology.
 
 ## Now
 
-- Capture the Docker Engine version when Docker Desktop is running.
-- Define evaluation metrics before assigning any measured values.
-- Convert charter scenarios into a versioned JSONL golden set.
-- Turn accessibility and dietary policies into typed schemas.
+1. Create the application package plus `data/eval` layout and an import smoke
+   test.
+2. Add LangGraph and the minimum runtime dependencies to `pyproject.toml`, then
+   refresh `uv.lock`.
+3. Define the smallest typed request, evidence, state and outcome contracts.
+4. Create the first TP.HCM → Đà Nẵng fixture.
+5. Compile the first deterministic LangGraph path.
 
 ## Next
 
-1. When Docker Desktop is running, fill the remaining Engine version field in
-   `docs/experiments/baseline-environment.md`.
-2. Create `docs/evaluation-metrics.md` with metric names, formulas and expected
-   inputs; do not invent measurements.
-3. Create `data/eval/travel-scenarios-v0.jsonl` with structured expected
-   outcomes, constraints, evidence requirements and forbidden claims.
-4. Add the missing happy-path, impossible-budget, tool-failure, stale-evidence,
-   severe-allergy-boundary and memory-conflict cases.
-5. Define typed accessibility and dietary constraint schemas.
-6. Specify consent, update and forget behavior for sensitive preferences.
-7. Create ADRs for single-agent-first and deterministic synthetic pricing.
+1. Implement required-input and date validation.
+2. Route valid input to fixture research and missing input to clarification.
+3. Add a loop limit and tests for ready, clarify and invalid-date paths.
+4. Start the golden set with 3–5 cases; grow to eight only after the vertical
+   slice runs.
 
-## Blockers and deferred dependencies
+## Blockers and risks
 
 - Docker Engine version is pending because the daemon was unavailable on
-  2026-09-26.
-- Live flight, lodging and availability providers are intentionally deferred.
-- The synthetic pricing fixture schema and sample routes are not implemented.
-- Travel-planner behavior tests and measured metrics begin after the remaining
-  Week 0 specification artifacts are complete. Development-hook tests now run.
+  2026-09-26; it is explicitly non-blocking for this POC.
+- No application package or executable graph exists yet; Week 1 remains at the
+  development-tooling stage despite the passing hook tests.
+- Real model/provider credentials may not be available. The deterministic path
+  remains the acceptance path and must not depend on an API key.
+- Scope expansion is the main deadline risk. P1/P2 work is blocked while any P0
+  test is red.
+- Streamlit must stay a thin adapter; chat, multipage navigation and visual
+  polish are cut first if the graph/eval schedule slips.
+
+## Deferred after 2026-10-12
+
+- Live travel providers and real availability/price research.
+- Persistent checkpointing and restart/resume.
+- LangSmith experiments beyond an optional synthetic-data spike.
+- Chainlit/chat-first UX, FastAPI, multipage/custom UI, Docker, CI/CD and
+  deployment.
+- Long-term memory, durable feedback and multi-agent experiments.
+- Accessibility/dietary support, full bilingual behavior, natural-language
+  parsing and a larger dataset.
 
 ## Important files
 
-- `AGENTS.md`
+- `docs/poc-3-week-plan.md`
+- `docs/adr/0002-three-week-poc-scope.md`
+- `docs/adr/0003-streamlit-poc-ui.md`
+- `docs/ui-plan.md`
 - `docs/project-charter.md`
-- `docs/learning-log/week-00.md`
-- `docs/experiments/baseline-environment.md`
+- `docs/learning-log/week-01.md`
+- `docs/learning-log/week-00.md` (legacy baseline)
 - `docs/progress/roadmap-progress.json`
 - `docs/roadmap.html`
+- `AGENTS.md`

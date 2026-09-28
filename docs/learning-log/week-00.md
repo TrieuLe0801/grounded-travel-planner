@@ -1,7 +1,7 @@
 # Learning Log — Week 00
 
-Last updated: 2026-09-26
-Status: In progress
+Last updated: 2026-09-28
+Status: Closed as legacy baseline; active work moved to the three-week POC
 
 ## Week objective
 
@@ -89,9 +89,55 @@ project context before implementing LangGraph.
 
 ## Next learning session
 
-1. Capture the Docker Engine version when its daemon is available.
-2. Define metric formulas without measured values.
-3. Create the JSONL schema and first five happy-path evaluation cases.
+1. Finish the application package/data layout and add an import smoke test.
+2. Define the smallest typed request, state, evidence and outcome contracts.
+3. Compile a deterministic LangGraph vertical slice before expanding research.
+
+### 2026-09-22 — Rebaseline to a three-week POC
+
+**Question**
+
+How can the project produce a credible, testable LangGraph POC in three weeks
+from a specification-heavy but code-free starting point?
+
+**Learned**
+
+- The 68% Week 0 figure describes specification artifacts, not executable POC
+  progress.
+- Completing every original baseline item before coding would put the delivery
+  at risk.
+- One deterministic fixture-first vertical slice can demonstrate state,
+  routing, bounded repair and evidence validation without live-provider risk.
+
+**Tried**
+
+- Audited repository artifacts, Git history and the original nine-phase
+  roadmap.
+- Separated P0, P1 and P2 work and added calendar stop rules.
+
+**Result**
+
+- Created `docs/poc-3-week-plan.md`.
+- Accepted ADR 0002 for the reduced delivery scope.
+- Selected TP.HCM → Đà Nẵng, 3 days as the primary fixture journey.
+- Recorded executable POC progress as 0% at rebaseline.
+
+**Decision**
+
+- Build one single-graph, structured-input, offline POC.
+- Move multi-agent, long-term memory, live providers, Chainlit/FastAPI/full UI,
+  persistent storage, Docker/CI and expanded evaluation after the POC. ADR 0003
+  later adds one minimal Streamlit page to P0.
+
+**Evidence**
+
+- `docs/poc-3-week-plan.md`
+- `docs/adr/0002-three-week-poc-scope.md`
+- `PROJECT_STATUS.md`
+
+**Next**
+
+- Finish the application scaffold and build the first deterministic graph path.
 
 ### 2026-09-26 — Coding/testing agents and Python formatting hook
 

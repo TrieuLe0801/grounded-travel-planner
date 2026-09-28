@@ -1,41 +1,34 @@
 {
   "version": 8,
   "done": {
-    "w0s1-0": true,
-    "w0s1-1": true,
-    "w0s1-2": true,
-    "w0s1-3": true,
-    "w0s1-4": true,
-    "w0s1-5": true,
-    "w0s2-0": true,
-    "w0s2-1": true,
-    "w0s2-3": true,
-    "w0s2-4": true,
-    "w0s3-1": true,
-    "w0s3-4": true,
-    "w0s4-1": true,
-    "w0s4-4": true,
-    "w0s4-5": true,
-    "w0s4-6": true,
-    "w0s4-8": true,
-    "w0s5-0": true,
-    "w0s5-1": true,
-    "w0s5-2": true,
-    "w0s5-3": true,
-    "w0s5-4": true,
-    "w0s5-5": true
+    "w1s1-0": true,
+    "w1s1-1": true,
+    "w1s1-2": true,
+    "w1s1-3": true,
+    "w1s1-4": true,
+    "w1s1-5": true,
+    "w1s2-0": true,
+    "w1s2-1": true,
+    "w1s2-3": true,
+    "w1s2-4": true
   },
   "notes": {
-    "w0s1": "Project charter reviewed and accepted for MVP on 2026-09-21.",
-    "w0s2": "Greenfield baseline and target LangChain/LangGraph flow are recorded. Python 3.10.21, uv, pytest, isort, Black, flake8 and Ruff are configured. Docker Engine version and metric definitions remain pending.",
-    "w0s3": "Clarification and step-free scenarios are described in the charter. The complete JSONL golden set is still pending.",
-    "w0s4": "Core input, workflow-outcome and source-validation policies are documented. Structured accessibility/dietary schemas and memory update/forget behavior are pending.",
-    "w0s5": "AGENTS.md, PROJECT_STATUS.md, the Week 0 learning log, durable Markdown rules and an importable progress JSON now exist. Codex's required reading order is recorded in AGENTS.md."
+    "w1s1": "Rebaseline completed on 2026-09-22. The active delivery window is 2026-09-22 to 2026-10-12. P0/P1/P2, the TP.HCM to Da Nang fixture journey, minimal Streamlit UI, Definition of Done, stop rules and post-POC backlog are recorded in docs/poc-3-week-plan.md, docs/ui-plan.md and ADRs 0002-0003.",
+    "w1s2": "4/6 complete: machine versions, pyproject.toml, uv.lock and pytest/Ruff tooling are recorded. Next: create the application/data layout and an import smoke test.",
+    "w1s3": "Next: define the smallest typed state and compile a deterministic graph path before adding model or network dependencies.",
+    "w2s1": "Deferred until the Week 1 graph slice runs.",
+    "w2s2": "Deterministic builder and validators are P0. A real model path is optional.",
+    "w2s3": "Target exactly 8 high-value offline failure-mode groups.",
+    "w3s1": "P1 only: add interrupt/resume after P0 is green.",
+    "w3s2": "Feature freeze starts on 2026-10-09.",
+    "w3s3": "Final deliverables are a one-page Streamlit UI, CLI fallback, at least two AppTest cases, evaluation report, limitations and ordered backlog."
   },
-  "global": "Artifact audit on 2026-09-26: Week 0 remains 23/34 items complete (68%). Codex manager/planner/coding/testing development agents, explicit model assignments, and uv-locked Python formatting tooling were added outside the roadmap checklist. See PROJECT_STATUS.md and docs/learning-log/week-00.md for evidence.",
+  "global": "Reconciled with origin/main on 2026-09-28. The shortened three-week roadmap is 10/53 (19%): scope/rebaseline is 6/6 and development tooling/scaffold is 4/6. Hook tests pass, but executable travel-planner progress remains 0% because no application package, graph, fixture, UI or measured metric exists yet. Acceptance uses 8 offline cases and at least 2 Streamlit AppTest cases.",
   "closed": {
-    "w0": false
+    "w1": false,
+    "w2": false,
+    "w3": false
   },
   "theme": "light",
-  "updated": "2026-09-26T11:23:55+07:00"
+  "updated": "2026-09-28T10:41:05.3250272+07:00"
 }
