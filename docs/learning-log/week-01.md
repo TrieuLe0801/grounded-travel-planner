@@ -209,3 +209,19 @@ three-week POC rebaseline already in the working tree?
 
 - Create the application/data layout and import smoke test, then implement the
   typed state and first deterministic LangGraph path.
+
+### 2026-09-29 — Commit dependency setup and entrypoint smoke test
+
+**Result**
+
+- Added LangChain, OpenAI, Tavily and dotenv dependencies with an updated lockfile.
+- Added a minimal `src/main.py` entrypoint and corrected its dotenv call.
+- This is dependency setup only; no travel-planning graph, search workflow or
+  application test exists yet.
+
+**Verification**
+
+- `uv lock --check`: passed.
+- `uv run python src/main.py`: printed `Hello World!`.
+- `uv run pytest`: 2 passed (development-hook tests).
+- isort, Black, flake8 and Ruff standard checks: passed.
