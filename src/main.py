@@ -1,4 +1,5 @@
 from dotenv import load_dotenv
+from typing import List
 load_dotenv()
 
 from langchain.agents import create_agent
@@ -6,29 +7,25 @@ from langchain.tools import tool
 from langchain_core.messages import HumanMessage
 from langchain_tavily import TavilySearch
 from tavily import TavilyClient
+from pydantic import BaseModel, Field
 
+# Apply Pydantic
+class Sources(BaseModel):
+    """Schema for sources used by agent"""
+    url: str = Field(description="The URL of the source")
 
-# Intialize Tavily
-tavily_client = TavilyClient()
+class AgentResponse(BaseModel):
+    """Schema for Agent responsing the answer and sources"""
+    answer: str = Field(description="The agent's answer to the query")
+    sources: List[Sources] = Field(default_factory=list, description="List of resources")
 
-# Initialize tools
-@tool
-def search(query: str) -> str:
-    """
-    Tool that searches over internet
-    Args:
-        query: The query to search for
-    Returns:
-        The search result
-    """
-    print(f"Result for {query}")
-    return str(tavily_client.search(query=query))
 
 # initialize the agent first
 agent = create_agent(
         model="openai:gpt-5.5", 
-        tools=[search], 
+        tools=[TavilySearch()], 
         system_prompt="You are a helpful assistant. Be concise and accurate.",
+        response_format=AgentResponse
     )
 
 

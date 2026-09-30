@@ -4,19 +4,24 @@
 
 - This repository is an independent LangChain, LangGraph and LangSmith learning
   project.
+- The active delivery target is the three-week POC in
+  `docs/poc-3-week-plan.md`. Broader charter goals are post-POC unless the plan
+  marks them P0 or P1.
 - Use only decisions and artifacts recorded in this repository as project
   context unless the user explicitly supplies another source.
-- The MVP is a grounded travel-planning proof of concept, not a booking system.
+- The active product is a three-week, fixture-first proof of concept, not a
+  booking system or a broader travel platform.
 
 ## Read before making changes
 
 Before editing code or project decisions, read these files in order:
 
 1. `PROJECT_STATUS.md`
-2. `docs/project-charter.md`
-3. the current file under `docs/learning-log/`
-4. relevant records under `docs/adr/`, when they exist
-5. `docs/experiments/baseline-environment.md` for environment-dependent work
+2. `docs/poc-3-week-plan.md`
+3. `docs/project-charter.md`
+4. the current file under `docs/learning-log/`
+5. relevant records under `docs/adr/`, when they exist
+6. `docs/experiments/baseline-environment.md` for environment-dependent work
 
 Treat repository Markdown as the durable source of truth. Browser
 `localStorage`, chat history and assumptions are not project evidence unless
@@ -31,8 +36,12 @@ they have been written to the repository.
   exists.
 - Start with a deterministic single-agent workflow. Add specialist agents only
   after a controlled comparison demonstrates value.
-- Keep short-term trip state separate from long-term user memory. Long-term
-  memory is post-MVP unless an ADR changes that decision.
+- For the three-week POC, use one parent graph, one offline fixture journey and
+  structured input. Do not add multi-agent, live providers, long-term memory,
+  Chainlit, FastAPI, persistent storage, Docker or CI unless all P0 work is
+  complete and the plan explicitly allows the task.
+- The P0 UI is one Streamlit page. Keep it as a thin adapter over typed
+  graph/domain interfaces; never duplicate business rules in UI code.
 - External providers must be behind typed, provider-independent interfaces.
 
 ## Product invariants
@@ -42,10 +51,9 @@ they have been written to the repository.
   include their fixture ID; do not attach a fake URL.
 - A supplied total-trip budget is a hard limit and includes flight, lodging,
   food, local transport and activities.
-- `UNKNOWN` evidence never satisfies an accessibility or dietary hard
-  constraint.
-- Current-request constraints override stored preferences.
-- Severe-allergy recommendations and safety guarantees are outside the MVP.
+- Unsupported route or duration must return `PLAN_UNAVAILABLE`; do not invent
+  fixture data.
+- Missing, stale or conflicting evidence must not become a guessed fact.
 - Preserve the workflow outcomes defined in `docs/project-charter.md`.
 
 ## Working agreements
@@ -67,6 +75,8 @@ they have been written to the repository.
   the MacBook M1.
 - Prefer small, typed, testable Python modules and deterministic fixtures.
 - Keep network and model calls out of unit tests.
+- Use Streamlit `AppTest` for the minimum UI checks after graph/eval P0 is
+  stable. Keep the CLI as a fallback and debugging entry point.
 - Bound all agent and repair loops explicitly.
 - Store secrets only in ignored environment files; never commit credentials or
   raw sensitive preferences.
@@ -76,6 +86,8 @@ they have been written to the repository.
   them from the target MacBook.
 - Update `PROJECT_STATUS.md`, the current learning log and
   `docs/progress/roadmap-progress.json` when a checklist item is completed.
+- Use `docs/poc-3-week-plan.md` as the delivery gate and apply its stop rules
+  before starting P1 or P2 work.
 - Add or update an ADR when changing a confirmed architectural decision.
 - Run the narrowest relevant checks after a change, then the full available
   suite. If no executable checks exist, report that status as `N/A`.
