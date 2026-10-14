@@ -1,103 +1,60 @@
 # Grounded Travel Planner
 
-A personal learning project and proof of concept for building a grounded travel
-planning agent with LangChain, LangGraph and LangSmith.
+Một webapp gợi ý điểm tham quan và lịch trình theo địa điểm/thành phố, ngày bắt
+đầu và số ngày. AI tìm thông tin qua Tavily; người dùng chat để sửa ngày giờ,
+đổi thứ tự, thêm, bỏ hoặc thay điểm tham quan.
 
-The project is currently in **Week 1 of a three-week POC** running from
-2026-09-22 to 2026-10-12. Application implementation has not started yet; the
-next milestone is an executable deterministic LangGraph vertical slice.
+Yêu cầu mới ngày **2026-10-14** thay thế toàn bộ scope POC trước đây. Tài liệu
+hiện hành là [product charter](docs/project-charter.md) và
+[kế hoạch triển khai](docs/implementation-plan.md). Chưa có deadline mới.
 
-## Current progress
+## Phạm vi và stack AI đã chốt
 
-- Active three-week roadmap: **10 / 53 items complete (19%)**
-- Scope/rebaseline session: **6 / 6 complete**
-- Project scaffold/tooling session: **4 / 6 complete**
-- Executable POC: **0%** — development-hook tests pass, but no application
-  package, graph, fixture or measured metric exists yet
-- Focused POC charter: accepted for the three-week deadline
+| Thành phần | Vai trò |
+|---|---|
+| LangChain | Tích hợp model, agents, tools và output có cấu trúc |
+| LangGraph | State, định tuyến, bàn giao và giới hạn vòng sửa |
+| Tavily | Tìm thông tin và nguồn cho các điểm tham quan |
+| LangSmith | Trace toàn bộ lượt chat, agent và tool calls, nhóm theo phiên |
+| `gpt-5.5` | Model dùng chung cho Coordinator và Planner |
 
-See `PROJECT_STATUS.md` for the current Done / Now / Next / Blockers view.
+Bản đầu có hai agent: **Coordinator** chat với người dùng, hỏi lại, giao tác vụ
+và giải thích kết quả; **Planner** tìm thông tin, đề xuất và cập nhật lịch trình.
+Kiểm tra ngày giờ và nguồn dùng code trước khi áp dụng bản lịch mới.
 
-## Three-week POC
+Lịch trình và hội thoại chỉ tồn tại trong phiên app hiện tại. Trace được gửi
+đến LangSmith và có thể còn sau khi phiên kết thúc; app không dùng trace để
+khôi phục chuyến đi. Streamlit là đề xuất giao diện một trang có form, lịch
+trình và chat.
 
-The delivery target is a single offline, fixture-first LangGraph workflow with
-a one-page Streamlit UI for a TP.HCM → Đà Nẵng three-day demo. It accepts
-structured input, routes missing requirements to clarification, builds one
-grounded plan, validates budget and citations, and exposes
-incomplete/unavailable outcomes without guessing.
+## Trạng thái thực tế
 
-The POC uses Streamlit, a CLI fallback and eight offline eval cases. Chainlit,
-multi-agent, long-term memory, live providers, FastAPI, persistent storage,
-Docker/CI and expanded LangSmith evaluation are deferred.
+Đã ghi nhận yêu cầu, kiến trúc, các bước triển khai và cấu hình mẫu. Repository
+có Python development tooling cùng hook tests; chưa có application package,
+hai runtime agents, Tavily integration, webapp hoặc LangSmith trace chạy thật.
+Xem [PROJECT_STATUS.md](PROJECT_STATUS.md) để tiếp tục từ đúng trạng thái.
 
-See `docs/poc-3-week-plan.md` for weekly outcomes, Definition of Done and stop
-rules. See `docs/ui-plan.md` for the Streamlit/Chainlit comparison and minimal UI
-contract.
+## Tài liệu hiện hành
 
-## Repository map
+- [Product charter và acceptance scenarios](docs/project-charter.md)
+- [Kế hoạch triển khai ba bước và kiến trúc hai agent](docs/implementation-plan.md)
+- [Đề xuất giao diện](docs/ui-plan.md)
+- [ADR 0004: Scope mới và stack AI](docs/adr/0004-city-sightseeing-webapp.md)
+- [Learning log hiện tại](docs/learning-log/2026-10-14-scope-reset.md)
+- [Roadmap](docs/roadmap.html) và [progress JSON](docs/progress/roadmap-progress.json)
+- [Hướng dẫn cho Codex](AGENTS.md)
+- [Tài liệu lịch sử đã thay thế](docs/archive/2026-10-14/README.md)
 
-```text
-.
-├── .codex/                               # Development agents, config and hook
-├── .flake8, .python-version              # Python tool configuration
-├── AGENTS.md                              # Durable instructions for Codex
-├── PROJECT_STATUS.md                      # Current state and next actions
-├── README.md
-├── pyproject.toml, uv.lock                 # Locked development dependencies
-├── data/eval/                             # Machine-readable eval cases (pending)
-├── docs/
-│   ├── adr/                               # Architecture decisions
-│   ├── experiments/baseline-environment.md
-│   ├── learning-log/week-00.md            # Legacy specification baseline
-│   ├── learning-log/week-01.md            # Active implementation log
-│   ├── poc-3-week-plan.md                 # Active delivery plan and scope
-│   ├── progress/roadmap-progress.json
-│   ├── project-charter.md
-│   ├── ui-plan.md                         # Streamlit UI decision and contract
-│   └── roadmap.html                       # Interactive learning roadmap
-├── src/                                   # Application code (not started)
-└── tests/                                 # Development-hook tests
-```
+## Cấu hình và phát triển
 
-## Continue on a MacBook M1
+[.env.example](.env.example) liệt kê cấu hình model, Tavily và LangSmith.
+Điền cấu hình thực tế vào file `.env` được Git ignore. Cấu hình mẫu không xác
+nhận tài khoản đã có quyền truy cập model hoặc các provider.
 
-After pushing this folder to a Git host, clone it on the Mac and open Codex from
-the repository root:
+Development tooling hiện có dùng Python `>=3.10`, `uv`, `pytest`, isort,
+Black, flake8 và Ruff. Các lệnh kiểm tra:
 
 ```bash
-git clone <repository-url>
-cd grounded-travel-planner
-```
-
-The local machine baseline is recorded in
-`docs/experiments/baseline-environment.md`. To refresh it, run:
-
-```bash
-sw_vers
-uname -m
-python3 --version
-git --version
-docker --version
-docker compose version
-```
-
-Copy the results into `docs/experiments/baseline-environment.md`. Values that
-are unavailable should remain explicit `TODO` items.
-
-The selected development baseline is:
-
-- Python `>=3.10`
-- `uv` for dependencies and virtual environments
-- `pytest` for tests
-- isort and Black for formatting; flake8 and Ruff for linting
-- Streamlit for the one-page POC UI
-- Docker Desktop for later local-container work; Docker is not required for the
-  three-week POC
-
-The development tooling is configured in `pyproject.toml`. Run:
-
-```bash
-uv sync
 uv run pytest
 uv run isort --check-only . .codex/hooks/format_python.py
 uv run black --check . .codex/hooks/format_python.py
@@ -105,56 +62,15 @@ uv run flake8 . .codex/hooks/format_python.py
 uv run ruff check . .codex/hooks/format_python.py
 ```
 
-The Streamlit command will be added after the application package and UI
-dependency exist; it is not part of the current tooling-only baseline.
+Lệnh chạy webapp sẽ được bổ sung khi entrypoint và runtime dependencies đã
+được triển khai. Các Codex development agents trong `.codex/` hỗ trợ phát triển;
+chúng tách biệt với Coordinator/Planner của webapp. Tooling được ghi ở
+[ADR 0001](docs/adr/0001-python-development-tooling.md).
 
-The trusted project `.codex/config.toml` sets the primary Codex session to
-`gpt-6-sol`. It receives development requests and coordinates these agents:
-
-| Agent | Model | Work |
-|---|---|---|
-| `manager` | `gpt-6-sol` | Delegate tasks and integrate results when invoked explicitly |
-| `planner` | `gpt-5.6-terra` | Plan code changes from repository evidence |
-| `coding` | `gpt-5.5` | Implement assigned changes |
-| `testing` | `gpt-5.5` | Write and run deterministic tests |
-
-The primary session acts as manager through `AGENTS.md`; the separate `manager`
-definition supports explicit delegation to a manager subagent. The manager
-assigns bounded tasks, waits for results, and coordinates edits to shared files.
-These are development roles and do not change the travel planner's
-single-agent-first runtime architecture. Start a new trusted Codex session to
-load project configuration and agent files.
-
-The `.codex/hooks.json` `PostToolUse` hook runs isort, Black and flake8 on Python
-files changed through Codex `apply_patch`. In a new Codex session, use `/hooks`
-to review and trust this project hook. For Python files changed outside
-`apply_patch`, run `uv run isort <files>`, `uv run black <files>` and
-`uv run flake8 <files>` manually.
-
-Codex automatically reads repository-level `AGENTS.md` when a new session is
-started from this repository. A useful first prompt is:
+Một prompt tiếp tục phù hợp:
 
 ```text
-Read AGENTS.md, PROJECT_STATUS.md, docs/poc-3-week-plan.md,
-docs/project-charter.md and docs/learning-log/week-01.md. Summarize the current
-three-week POC status and implement only the first incomplete P0 action.
-```
-
-## Roadmap state
-
-`docs/roadmap.html` is a convenient interactive view. Its browser state is not
-the source of truth. Exported progress belongs in
-`docs/progress/roadmap-progress.json`, and completed work must be supported by a
-repository artifact.
-
-## Git repository
-
-- Remote: `https://github.com/TrieuLe0801/grounded-travel-planner.git`
-- Default branch: `main`
-- Visibility: private
-
-After committing local changes, publish them with:
-
-```bash
-git push origin main
+Đọc AGENTS.md, PROJECT_STATUS.md, docs/project-charter.md,
+docs/implementation-plan.md và docs/learning-log/2026-10-14-scope-reset.md.
+Triển khai bước chưa hoàn thành đầu tiên của kế hoạch mới.
 ```

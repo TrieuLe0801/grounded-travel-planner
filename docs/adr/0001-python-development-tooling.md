@@ -10,7 +10,9 @@ not yet exist. The development workflow now needs Codex coding/testing helpers
 and automatic PEP 8 formatting with isort, Black and flake8.
 
 These are development assistants. They are separate from the travel planner's
-runtime agent topology, which remains single-agent-first.
+runtime agent topology. Update 2026-10-14: the current Coordinator/Planner
+runtime is defined by [ADR 0004](0004-city-sightseeing-webapp.md); the tooling
+decision in this record remains accepted.
 
 ## Decision
 
@@ -44,8 +46,8 @@ runtime agent topology, which remains single-agent-first.
   they run. The hook only covers `apply_patch`; Python files edited by other
   means need the documented manual commands.
 - Project `.codex/config.toml` and custom agents load in trusted Codex project
-  sessions. The manager workflow does not alter the application's runtime
-  single-agent-first decision.
+  sessions. The manager workflow does not determine the application's runtime
+  topology, which is governed by the current product ADR.
 - `uv` may sync the environment when a hook first runs. Hook failures appear in
   Codex as a warning; they do not undo the source edit.
 - The baseline verification commands are `uv run pytest`, `uv run isort

@@ -1,7 +1,10 @@
 # Learning Log — Week 01
 
 Period: 2026-09-22 to 2026-09-28
-Status: In progress
+Status: Historical log; previous product scope superseded on 2026-10-14
+
+Current work is recorded in [2026-10-14-scope-reset.md](2026-10-14-scope-reset.md).
+The objectives, next steps and progress below belong to the earlier scope.
 
 ## Week objective
 

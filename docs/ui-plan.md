@@ -1,145 +1,52 @@
-# UI Plan — Streamlit for the Three-Week POC
+# UI Plan — Sightseeing Webapp
 
-Last updated: 2026-09-22
-Status: Accepted
+Last updated: 2026-10-14
+Status: Proposed interface for the accepted new product scope.
 
-## Recommendation
+See [the charter](project-charter.md) and [implementation plan](implementation-plan.md)
+for current requirements. The former UI plan is a
+[historical snapshot](archive/2026-10-14/ui-plan.md).
 
-Use **Streamlit** for the POC UI.
+## One-page layout
 
-The current product contract is form-first: origin, destination, dates,
-traveler counts and optional budget are structured fields. The output is also
-structured: outcome, itinerary, cost, evidence and data gaps. Streamlit maps
-directly to that interaction without adding a conversational event layer.
+Streamlit is the current proposal:
 
-Keep **Chainlit** as a post-POC option if the product later becomes chat-first or
-if visible agent steps, token streaming and conversational clarification become
-the primary experience.
+1. Form: destination/place, concrete start date and number of sightseeing days.
+2. Current itinerary: suggested places, reasons, dates, time slots, estimated
+   duration/travel, source links and unverified information.
+3. Chat: ordinary conversation with Coordinator and requests to move, add,
+   remove or replace places.
 
-## Streamlit versus Chainlit
+UI submits initial requests/chat turns to the same LangGraph workflow. Domain
+validation and Tavily access remain outside rendering code.
 
-| Criterion | Streamlit | Chainlit | POC decision |
-|---|---|---|---|
-| Structured trip input | Native widgets and `st.form` batch submission | Chat settings/widgets are possible, but the main model is message-driven | Streamlit |
-| Result presentation | Flexible cards, tabs, tables, metrics and expanders | Strong message/step presentation | Streamlit |
-| Clarification UX | Render validation errors and preserve current form values | `AskUserMessage` is a natural conversational pause | Streamlit for POC; Chainlit later |
-| LangGraph integration | Invoke the graph through a thin Python adapter | Official LangChain/LangGraph integration and callback handler | Either works |
-| Session state | `st.session_state` across reruns in one browser session | Chat lifecycle and user session | Streamlit is sufficient |
-| Resume after reload | Not guaranteed; Session State is tied to the WebSocket | Full resume requires authentication and data persistence | Out of scope for both |
-| Automated UI tests | Official `streamlit.testing.v1.AppTest` | Testing/debugging support exists, but the POC would add another async surface | Streamlit |
-| Three-week delivery risk | Low for a one-page form/result app | Higher because the app becomes chat/event/async-first | Streamlit |
+## Session and tracing behavior
 
-## Minimal UI scope
+Keep the current graph state and chat in the current browser session, isolated
+from other sessions. A new/lost session starts empty. With Streamlit, refreshing
+the page can reset Session State; communicate that behavior.
 
-One page only.
+Show that conversations are traced with LangSmith. Traces may outlive the app
+session according to service configuration; they do not restore a trip.
 
-### Input form
+## Result behavior
 
-- Origin: fixed/selectable TP.HCM.
-- Destination: fixed/selectable Đà Nẵng.
-- Start and end dates.
-- Adult and child counts.
-- Optional budget in VND.
-- `Tạo kế hoạch` submit button.
+- Show safe processing status such as searching, planning and checking.
+- Render the canonical committed plan alongside the conversation.
+- Explain what changed after a successful edit.
+- On clarification, conflicts or provider failures, explain the issue and retain
+  the prior plan as a reference rather than claiming the edit succeeded.
+- Clearly distinguish estimated timing and source-supported facts.
+- Keep credentials and internal reasoning out of the user interface.
 
-Use `st.form` so inputs are sent to the Python backend together on submit.
+## Verification targets
 
-### Execution status
+Cover initial planning, ordinary chat, each edit type, conflicting edits,
+provider failures and session isolation. Confirm that model/tool calls occur
+only on explicit submit/chat events, not every rerender.
 
-- Show a running status while the graph executes.
-- Do not expose hidden prompts or internal chain-of-thought.
-- May show safe node labels such as validate, research fixtures and validate
-  plan.
-
-### Result rendering
-
-- Outcome banner:
-  - success for `PLAN_READY`;
-  - info/warning for `NEEDS_CLARIFICATION`;
-  - warning for `RESEARCH_INCOMPLETE`;
-  - error for `PLAN_UNAVAILABLE`.
-- Trip summary and assumptions.
-- Day-by-day itinerary.
-- Accommodation and food/place recommendations.
-- Cost breakdown and total/range estimate.
-- Sources/fixture IDs.
-- Data gaps or validation errors.
-
-### Session behavior
-
-Use `st.session_state` only for:
-
-- the latest submitted request;
-- the latest graph result;
-- a generated local `thread_id` if the optional in-memory clarification flow is
-  implemented.
-
-Do not treat Streamlit Session State as durable persistence. Reloading or losing
-the WebSocket can reset it.
-
-## Integration boundary
-
-```text
-Streamlit widgets
-  -> UI adapter builds TripRequest
-  -> graph.invoke(...) or graph.stream(...)
-  -> typed TravelResult
-  -> pure result-rendering functions
-```
-
-The UI must not duplicate date, budget, evidence or routing rules. Those remain
-in domain/graph modules and are tested without Streamlit.
-
-## File target
-
-Suggested layout:
-
-```text
-src/grounded_travel_planner/ui/streamlit_app.py
-src/grounded_travel_planner/ui/render.py
-tests/ui/test_streamlit_app.py
-```
-
-Run locally:
-
-```bash
-uv run streamlit run src/grounded_travel_planner/ui/streamlit_app.py
-```
-
-## UI acceptance checks
-
-- App starts without a model key or network access.
-- Submitting the supported journey renders `PLAN_READY` sections.
-- Missing/invalid dates render clarification errors and do not show a plan.
-- Impossible budget renders `PLAN_UNAVAILABLE`.
-- Fixture/source IDs and `synthetic_estimate` labels are visible.
-- No business-rule implementation exists only in the UI layer.
-- At least two Streamlit `AppTest` cases cover successful and invalid input.
-
-## Explicit non-goals
-
-- Chat interface or free-text trip parsing.
-- Multipage navigation.
-- Authentication or user accounts.
-- Durable chat/session history.
-- Custom React components, custom JavaScript or extensive CSS.
-- Mobile-perfect responsive design.
-- Public deployment.
-
-## Delivery rule
-
-Build the UI only after the graph and eight offline eval cases are stable. If
-the graph is not green by the Week 3 feature freeze, keep the UI to the input
-form, outcome banner and raw structured-result renderer; do not add visual
-polish or chat behavior.
-
-## Official references
+## References
 
 - [Streamlit forms](https://docs.streamlit.io/develop/api-reference/execution-flow/st.form)
-- [Streamlit Session State](https://docs.streamlit.io/develop/api-reference/caching-and-state/st.session_state)
-- [Streamlit chat elements](https://docs.streamlit.io/develop/api-reference/chat)
-- [Streamlit AppTest](https://docs.streamlit.io/develop/api-reference/app-testing)
-- [Chainlit overview](https://docs.chainlit.io/get-started/overview)
-- [Chainlit chat lifecycle](https://docs.chainlit.io/concepts/chat-lifecycle)
-- [Chainlit AskUserMessage](https://docs.chainlit.io/api-reference/ask/ask-for-input)
-- [Chainlit LangChain/LangGraph integration](https://docs.chainlit.io/integrations/langchain)
+- [Streamlit chat](https://docs.streamlit.io/develop/api-reference/chat)
+- [Session State](https://docs.streamlit.io/develop/api-reference/caching-and-state/st.session_state)

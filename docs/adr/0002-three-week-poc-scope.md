@@ -1,7 +1,10 @@
 # ADR 0002: Rebaseline thành POC 3 tuần
 
 Date: 2026-09-22
-Status: Accepted
+Status: Superseded by ADR 0004 on 2026-10-14
+
+This is a historical decision. Use [ADR 0004](0004-city-sightseeing-webapp.md)
+and the [current implementation plan](../implementation-plan.md) for new work.
 
 ## Context
 

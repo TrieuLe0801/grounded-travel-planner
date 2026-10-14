@@ -1,0 +1,34 @@
+{
+  "version": 8,
+  "done": {
+    "w1s1-0": true,
+    "w1s1-1": true,
+    "w1s1-2": true,
+    "w1s1-3": true,
+    "w1s1-4": true,
+    "w1s1-5": true,
+    "w1s2-0": true,
+    "w1s2-1": true,
+    "w1s2-3": true,
+    "w1s2-4": true
+  },
+  "notes": {
+    "w1s1": "Rebaseline completed on 2026-09-22. The active delivery window is 2026-09-22 to 2026-10-12. P0/P1/P2, the TP.HCM to Da Nang fixture journey, minimal Streamlit UI, Definition of Done, stop rules and post-POC backlog are recorded in docs/poc-3-week-plan.md, docs/ui-plan.md and ADRs 0002-0003.",
+    "w1s2": "4/6 complete: machine versions, pyproject.toml, uv.lock and pytest/Ruff tooling are recorded. Next: create the application/data layout and an import smoke test.",
+    "w1s3": "Next: define the smallest typed state and compile a deterministic graph path before adding model or network dependencies.",
+    "w2s1": "Deferred until the Week 1 graph slice runs.",
+    "w2s2": "Deterministic builder and validators are P0. A real model path is optional.",
+    "w2s3": "Target exactly 8 high-value offline failure-mode groups.",
+    "w3s1": "P1 only: add interrupt/resume after P0 is green.",
+    "w3s2": "Feature freeze starts on 2026-10-09.",
+    "w3s3": "Final deliverables are a one-page Streamlit UI, CLI fallback, at least two AppTest cases, evaluation report, limitations and ordered backlog."
+  },
+  "global": "Reconciled with origin/main on 2026-09-28. The shortened three-week roadmap is 10/53 (19%): scope/rebaseline is 6/6 and development tooling/scaffold is 4/6. Hook tests pass, but executable travel-planner progress remains 0% because no application package, graph, fixture, UI or measured metric exists yet. Acceptance uses 8 offline cases and at least 2 Streamlit AppTest cases.",
+  "closed": {
+    "w1": false,
+    "w2": false,
+    "w3": false
+  },
+  "theme": "light",
+  "updated": "2026-09-28T10:41:05.3250272+07:00"
+}

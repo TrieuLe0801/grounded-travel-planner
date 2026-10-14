@@ -1,7 +1,12 @@
 # Baseline Environment
 
 Last updated: 2026-09-28
-Status: Local toolchain captured; Docker Engine pending
+Status: Historical environment snapshot; Docker Engine was pending at capture
+
+The measurements and project-state notes below describe the earlier environment
+and scope. See [current status](../../PROJECT_STATUS.md) and the
+[new implementation plan](../implementation-plan.md) for ongoing work. Preserve
+these captured versions; verify the actual target environment before execution.
 
 ## Project state
 

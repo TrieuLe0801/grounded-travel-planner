@@ -1,120 +1,75 @@
 # Project Status
 
-Last updated: 2026-09-28
+Last updated: 2026-10-14
 
 ## Current milestone
 
-Week 1 of the three-week POC — executable vertical slice.
+Yêu cầu và kế hoạch mới đã được ghi vào repository. Bước tiếp theo là triển
+khai luồng tạo lịch trình có tìm kiếm thật với hai agent.
 
-Delivery window: **2026-09-22 to 2026-10-12**.
+Active plan: [docs/implementation-plan.md](docs/implementation-plan.md).
+Active charter: [docs/project-charter.md](docs/project-charter.md).
+Current log: [2026-10-14-scope-reset.md](docs/learning-log/2026-10-14-scope-reset.md).
 
-The active plan is `docs/poc-3-week-plan.md`. The earlier Week 0 + eight-week
-roadmap has been replaced because only three weeks remain.
-
-## Progress snapshot
-
-| View | Progress | Interpretation |
-|---|---:|---|
-| Three-week roadmap | 10 / 53 (19%) | Scope plus four evidenced tooling/scaffold items are complete |
-| Rebaseline session | 6 / 6 (100%) | Scope and acceptance target are complete |
-| Executable POC | 0% | Development tooling exists, but no application package, graph, fixture or measured metric exists yet |
-
-Planning progress must not be reported as implementation progress.
-
-## Three-week session status
-
-| Session | Completed | Total | Status |
-|---|---:|---:|---|
-| 1.1 Rebaseline and acceptance | 6 | 6 | Complete |
-| 1.2 Project scaffold and contracts | 4 | 6 | In progress |
-| 1.3 Deterministic graph slice | 0 | 6 | Not started |
-| Week 2 Grounded planner | 0 | 18 | Not started |
-| Week 3 Streamlit UI, evaluation and demo | 0 | 17 | Not started |
+Scope, deadline và số liệu tiến độ của POC cũ đã được thay thế. Chưa chốt
+deadline mới; tiến độ triển khai mới không kế thừa các mục đã đánh dấu của
+roadmap cũ.
 
 ## Done
 
-### Retained decisions
+- Ghi nhận đầu vào: địa điểm/thành phố, ngày bắt đầu, số ngày.
+- Chốt AI tìm kiếm trước khi gợi ý; chat sửa ngày giờ, đổi thứ tự, thêm/bỏ/thay điểm.
+- Chốt LangChain, LangGraph, Tavily, LangSmith và `gpt-5.5` cho hai runtime agents.
+- Chốt state app chỉ trong phiên; trace LangSmith dùng cho quan sát.
+- Đồng bộ charter, kế hoạch, UI proposal, ADR 0004, README và hướng dẫn Codex.
+- Thay roadmap/progress hiện hành; giữ snapshot kế hoạch trước trong archive.
+- Thêm `.env.example`; giữ nguyên `.env` và development tooling sẵn có.
 
-- Accepted the focused input/output contract.
-- Defined ISO-date, traveler defaults, total-budget and synthetic-pricing rules.
-- Defined four POC workflow outcomes and eight acceptance scenarios.
-- Selected Python `>=3.10`, `uv`, `pytest`, Ruff and Docker Desktop as the
-  broader development baseline.
-- Created durable Codex instructions, learning log and progress artifacts.
+## Implementation status
 
-### Three-week rebaseline
+| Bước | Trạng thái | Bằng chứng hiện có |
+|---|---|---|
+| 1. Hai agent, graph, Tavily và tạo lịch trình | Chưa triển khai | Kế hoạch và acceptance scenarios |
+| 2. Chỉnh sửa lịch trình qua chat | Chưa triển khai | Phạm vi thao tác đã chốt |
+| 3. Webapp, cách ly phiên và kiểm chứng trace | Chưa triển khai | Đề xuất UI và tiêu chí kiểm chứng |
 
-- Fixed the delivery window and reduced the plan to P0/P1/P2 priorities.
-- Selected one primary offline fixture journey: TP.HCM → Đà Nẵng, 3 days.
-- Selected a single LangGraph workflow, structured input and CLI/demo output.
-- Reduced POC acceptance to one recommended plan and eight high-value cases.
-- Selected a one-page Streamlit UI with CLI fallback for the final demo.
-- Deferred Chainlit, multi-agent, long-term memory, live providers, FastAPI,
-  persistent storage, Docker/CI and expanded evaluation.
-- Added deadline stop rules and a feature freeze from 2026-10-09.
-- Recorded the decisions in ADRs 0002 and 0003.
-
-### Development tooling and environment
-
-- Captured the MacBook M1 runtime versions; Docker Engine remains pending and
-  does not block the POC.
-- Added `pyproject.toml`, `.python-version` and a committed `uv.lock`.
-- Configured pytest, isort, Black, flake8 and Ruff.
-- Added project-scoped Codex development agents, a Python formatting hook and
-  two passing hook tests. These support development; they are not application
-  code or the travel planner's runtime topology.
+Development-hook tests không phải test của travel planner. Chưa có code
+application, dữ liệu tìm kiếm thật hoặc live trace trong repository này.
 
 ## Now
 
-1. Create the application package plus `data/eval` layout and an import smoke
-   test.
-2. Add LangGraph and the minimum runtime dependencies to `pyproject.toml`, then
-   refresh `uv.lock`.
-3. Define the smallest typed request, evidence, state and outcome contracts.
-4. Create the first TP.HCM → Đà Nẵng fixture.
-5. Compile the first deterministic LangGraph path.
+1. Tạo application package và typed request/plan/source/state contracts.
+2. Thêm runtime dependencies cho LangChain, LangGraph, model, Tavily và giao diện.
+3. Tạo Coordinator và Planner với prompt/trách nhiệm riêng, dùng chung `gpt-5.5`.
+4. Nối graph, Tavily, validation và tracing cho luồng tạo lịch trình đầu tiên.
 
 ## Next
 
-1. Implement required-input and date validation.
-2. Route valid input to fixture research and missing input to clarification.
-3. Add a loop limit and tests for ready, clarify and invalid-date paths.
-4. Start the golden set with 3–5 cases; grow to eight only after the vertical
-   slice runs.
+- Thêm các thao tác chỉnh sửa bằng chat trên cùng state và luồng xử lý.
+- Gắn giao diện một trang; giữ hội thoại và lịch trình theo từng phiên.
+- Chạy kiểm thử offline bằng provider giả lập và smoke test với API thật riêng.
+- Kiểm tra root/child traces nhóm đúng phiên trên LangSmith.
 
-## Blockers and risks
+## Dependencies and limits
 
-- Docker Engine version is pending because the daemon was unavailable on
-  2026-09-26; it is explicitly non-blocking for this POC.
-- No application package or executable graph exists yet; Week 1 remains at the
-  development-tooling stage despite the passing hook tests.
-- Real model/provider credentials may not be available. The deterministic path
-  remains the acceptance path and must not depend on an API key.
-- Scope expansion is the main deadline risk. P1/P2 work is blocked while any P0
-  test is red.
-- Streamlit must stay a thin adapter; chat, multipage navigation and visual
-  polish are cut first if the graph/eval schedule slips.
+Quyền truy cập `gpt-5.5`, Tavily và LangSmith chưa được kiểm chứng trong công
+việc cập nhật tài liệu này. Giao diện Streamlit và các giới hạn vòng gọi tool
+trong kế hoạch là đề xuất triển khai. Thời gian di chuyển là ước tính khi chưa
+có dữ liệu tuyến đường; giờ mở cửa phụ thuộc nguồn tìm được.
 
-## Deferred after 2026-10-12
+## Verification of this update
 
-- Live travel providers and real availability/price research.
-- Persistent checkpointing and restart/resume.
-- LangSmith experiments beyond an optional synthetic-data spike.
-- Chainlit/chat-first UX, FastAPI, multipage/custom UI, Docker, CI/CD and
-  deployment.
-- Long-term memory, durable feedback and multi-agent experiments.
-- Accessibility/dietary support, full bilingual behavior, natural-language
-  parsing and a larger dataset.
+- Tài liệu: 61 liên kết nội bộ được kiểm tra; không có link thiếu đích.
+- Progress JSON hợp lệ: 3 bước, 12 task triển khai đều chưa hoàn thành.
+- Roadmap hiện hành không còn seed/localStorage hay task IDs của checklist cũ.
+- Cấu hình mẫu dùng `gpt-5.5`, credential placeholders trống; `.env` được ignore
+  và `.env.example` được phép theo dõi bằng Git.
+- `uv lock --check`: passed.
+- `uv run pytest`: 2 passed (development-hook tests).
+- isort, Black, flake8 và Ruff theo lệnh chuẩn: passed.
+- `git diff --check`: passed.
+- Kiểm tra độc lập: passed; 65 links gồm tài liệu lịch sử hợp lệ, 5 archive
+  snapshots khớp phiên bản trước và các quyết định đã chốt được giữ đầy đủ.
 
-## Important files
-
-- `docs/poc-3-week-plan.md`
-- `docs/adr/0002-three-week-poc-scope.md`
-- `docs/adr/0003-streamlit-poc-ui.md`
-- `docs/ui-plan.md`
-- `docs/project-charter.md`
-- `docs/learning-log/week-01.md`
-- `docs/learning-log/week-00.md` (legacy baseline)
-- `docs/progress/roadmap-progress.json`
-- `docs/roadmap.html`
-- `AGENTS.md`
+Application tests và live model/Tavily/LangSmith checks: N/A / chưa chạy vì
+công việc này cập nhật kế hoạch, không triển khai ứng dụng.

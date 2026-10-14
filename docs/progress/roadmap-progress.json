@@ -1,34 +1,106 @@
 {
-  "version": 8,
-  "done": {
-    "w1s1-0": true,
-    "w1s1-1": true,
-    "w1s1-2": true,
-    "w1s1-3": true,
-    "w1s1-4": true,
-    "w1s1-5": true,
-    "w1s2-0": true,
-    "w1s2-1": true,
-    "w1s2-3": true,
-    "w1s2-4": true
+  "version": 9,
+  "plan_id": "city-sightseeing-2026-10-14",
+  "updated": "2026-10-14",
+  "planning_status": "recorded",
+  "implementation_status": "not_started",
+  "active_charter": "docs/project-charter.md",
+  "active_plan": "docs/implementation-plan.md",
+  "current_log": "docs/learning-log/2026-10-14-scope-reset.md",
+  "deadline": null,
+  "completed_artifacts": [
+    "docs/project-charter.md",
+    "docs/implementation-plan.md",
+    "docs/adr/0004-city-sightseeing-webapp.md",
+    ".env.example"
+  ],
+  "phases": [
+    {
+      "id": "create",
+      "title": "Tạo lịch trình từ tìm kiếm thật",
+      "status": "not_started",
+      "tasks": [
+        {
+          "id": "contracts",
+          "done": false
+        },
+        {
+          "id": "two_agents_and_graph",
+          "done": false
+        },
+        {
+          "id": "tavily_and_validation",
+          "done": false
+        },
+        {
+          "id": "initial_planning_and_trace",
+          "done": false
+        }
+      ]
+    },
+    {
+      "id": "edit",
+      "title": "Chỉnh sửa lịch trình qua chat",
+      "status": "not_started",
+      "tasks": [
+        {
+          "id": "reschedule_and_reorder",
+          "done": false
+        },
+        {
+          "id": "add_remove_replace",
+          "done": false
+        },
+        {
+          "id": "atomic_plan_update",
+          "done": false
+        },
+        {
+          "id": "clarification_and_conflicts",
+          "done": false
+        }
+      ]
+    },
+    {
+      "id": "webapp",
+      "title": "Webapp và kiểm chứng",
+      "status": "not_started",
+      "tasks": [
+        {
+          "id": "form_itinerary_chat",
+          "done": false
+        },
+        {
+          "id": "session_isolation",
+          "done": false
+        },
+        {
+          "id": "offline_behavior_checks",
+          "done": false
+        },
+        {
+          "id": "live_integrations_and_thread_traces",
+          "done": false
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "status": "passed",
+    "document_links": 61,
+    "progress_schema": "passed",
+    "environment_template": "passed",
+    "existing_hook_tests": "2 passed",
+    "lock": "passed",
+    "isort": "passed",
+    "black": "passed",
+    "flake8": "passed",
+    "ruff": "passed",
+    "diff_check": "passed",
+    "application_checks": "N/A - no application implemented",
+    "live_provider_checks": "not_run",
+    "independent_review": "passed - 65 local links, approved drafts and 5 historical snapshots verified"
   },
-  "notes": {
-    "w1s1": "Rebaseline completed on 2026-09-22. The active delivery window is 2026-09-22 to 2026-10-12. P0/P1/P2, the TP.HCM to Da Nang fixture journey, minimal Streamlit UI, Definition of Done, stop rules and post-POC backlog are recorded in docs/poc-3-week-plan.md, docs/ui-plan.md and ADRs 0002-0003.",
-    "w1s2": "4/6 complete: machine versions, pyproject.toml, uv.lock and pytest/Ruff tooling are recorded. Next: create the application/data layout and an import smoke test.",
-    "w1s3": "Next: define the smallest typed state and compile a deterministic graph path before adding model or network dependencies.",
-    "w2s1": "Deferred until the Week 1 graph slice runs.",
-    "w2s2": "Deterministic builder and validators are P0. A real model path is optional.",
-    "w2s3": "Target exactly 8 high-value offline failure-mode groups.",
-    "w3s1": "P1 only: add interrupt/resume after P0 is green.",
-    "w3s2": "Feature freeze starts on 2026-10-09.",
-    "w3s3": "Final deliverables are a one-page Streamlit UI, CLI fallback, at least two AppTest cases, evaluation report, limitations and ordered backlog."
-  },
-  "global": "Reconciled with origin/main on 2026-09-28. The shortened three-week roadmap is 10/53 (19%): scope/rebaseline is 6/6 and development tooling/scaffold is 4/6. Hook tests pass, but executable travel-planner progress remains 0% because no application package, graph, fixture, UI or measured metric exists yet. Acceptance uses 8 offline cases and at least 2 Streamlit AppTest cases.",
-  "closed": {
-    "w1": false,
-    "w2": false,
-    "w3": false
-  },
-  "theme": "light",
-  "updated": "2026-09-28T10:41:05.3250272+07:00"
+  "historical_snapshot": "docs/archive/2026-10-14/roadmap-progress.json",
+  "note": "Old completion counts and delivery dates do not apply to the new scope. Development tooling is retained and is not runtime implementation progress."
 }

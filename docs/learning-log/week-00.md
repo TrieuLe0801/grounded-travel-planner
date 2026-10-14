@@ -1,7 +1,10 @@
 # Learning Log — Week 00
 
 Last updated: 2026-09-28
-Status: Closed as legacy baseline; active work moved to the three-week POC
+Status: Historical baseline; previous product scope superseded on 2026-10-14
+
+Current work is recorded in [2026-10-14-scope-reset.md](2026-10-14-scope-reset.md).
+The entries below preserve decisions and observations from the earlier scope.
 
 ## Week objective
 
