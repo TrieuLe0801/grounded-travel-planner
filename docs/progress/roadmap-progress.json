@@ -1,34 +1,50 @@
 {
-  "version": 8,
-  "done": {
-    "w1s1-0": true,
-    "w1s1-1": true,
-    "w1s1-2": true,
-    "w1s1-3": true,
-    "w1s1-4": true,
-    "w1s1-5": true,
-    "w1s2-0": true,
-    "w1s2-1": true,
-    "w1s2-3": true,
-    "w1s2-4": true
+  "version": 11,
+  "updated": "2026-10-14T15:55:00+07:00",
+  "active_scope": "city-place-sightseeing-webapp",
+  "current_milestone": "Milestone 1: executable city/place sightseeing vertical slice",
+  "completed": {
+    "scope_reset_docs": true,
+    "adr_0004": true,
+    "core_runtime_package": true,
+    "streamlit_ui": true,
+    "mocked_tests": true,
+    "live_provider_verification": true,
+    "local_container": true
   },
-  "notes": {
-    "w1s1": "Rebaseline completed on 2026-09-22. The active delivery window is 2026-09-22 to 2026-10-12. P0/P1/P2, the TP.HCM to Da Nang fixture journey, minimal Streamlit UI, Definition of Done, stop rules and post-POC backlog are recorded in docs/poc-3-week-plan.md, docs/ui-plan.md and ADRs 0002-0003.",
-    "w1s2": "4/6 complete: machine versions, pyproject.toml, uv.lock and pytest/Ruff tooling are recorded. Next: create the application/data layout and an import smoke test.",
-    "w1s3": "Next: define the smallest typed state and compile a deterministic graph path before adding model or network dependencies.",
-    "w2s1": "Deferred until the Week 1 graph slice runs.",
-    "w2s2": "Deterministic builder and validators are P0. A real model path is optional.",
-    "w2s3": "Target exactly 8 high-value offline failure-mode groups.",
-    "w3s1": "P1 only: add interrupt/resume after P0 is green.",
-    "w3s2": "Feature freeze starts on 2026-10-09.",
-    "w3s3": "Final deliverables are a one-page Streamlit UI, CLI fallback, at least two AppTest cases, evaluation report, limitations and ordered backlog."
+  "evidence": {
+    "scope_reset_docs": [
+      "docs/project-charter.md",
+      "docs/implementation-plan.md",
+      "docs/learning-log/2026-10-14-scope-reset.md"
+    ],
+    "adr_0004": [
+      "docs/adr/0004-city-sightseeing-two-agent-runtime.md"
+    ],
+    "core_runtime_package": [
+      "src/grounded_travel_planner/",
+      "src/utils/"
+    ],
+    "streamlit_ui": [
+      "src/grounded_travel_planner/ui/streamlit_app.py",
+      "tests/test_streamlit_ui.py"
+    ],
+    "mocked_tests": [
+      "tests/test_two_agent_core.py",
+      "19 passed"
+    ],
+    "live_provider_verification": [
+      "scripts/live_smoke.py",
+      "docs/experiments/2026-10-14-live-two-agent-smoke.md"
+    ],
+    "local_container": [
+      "Dockerfile",
+      ".dockerignore",
+      "compose.yaml",
+      "docs/experiments/2026-10-14-local-container-smoke.md",
+      "container pytest 19 passed",
+      "container health HTTP 200"
+    ]
   },
-  "global": "Reconciled with origin/main on 2026-09-28. The shortened three-week roadmap is 10/53 (19%): scope/rebaseline is 6/6 and development tooling/scaffold is 4/6. Hook tests pass, but executable travel-planner progress remains 0% because no application package, graph, fixture, UI or measured metric exists yet. Acceptance uses 8 offline cases and at least 2 Streamlit AppTest cases.",
-  "closed": {
-    "w1": false,
-    "w2": false,
-    "w3": false
-  },
-  "theme": "light",
-  "updated": "2026-09-28T10:41:05.3250272+07:00"
+  "notes": "Milestone 1 is executable and verified on the host and in a local non-root container. Old POC counts remain archived background and are not carried into this scope. Next work is evaluation quality, especially source relevance/domain diversity and live edit coverage."
 }

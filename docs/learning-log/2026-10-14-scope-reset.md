@@ -1,0 +1,57 @@
+# Learning Log - 2026-10-14 Scope Reset
+
+The active repository scope was reset from the older three-week POC to a
+city/place sightseeing webapp.
+
+## Decisions Recorded
+
+- The current product is a session-only Streamlit travel-planning webapp.
+- Runtime roles are limited to Coordinator and Planner for the first vertical
+  slice.
+- Planner is the only runtime role that may call Tavily search and propose plan
+  mutations.
+- Coordinator is user-facing and explains only validated committed results.
+- The requested default model is exactly `gpt-5.5`.
+- External model, search and trace providers stay behind typed interfaces.
+- LangSmith traces are observability data and not application state.
+
+## Evidence
+
+- New charter and implementation plan describe the active product.
+- ADR 0004 records the accepted two-agent runtime architecture.
+- Phase 1A added the importable Coordinator/Planner runtime, typed provider
+  boundaries and deterministic validators.
+- Phase 1B added the session-only Streamlit form/chat adapter.
+- Nineteen offline tests passed, including core routing/commit behavior and two
+  Streamlit AppTests.
+- The final live smoke committed a Hue plan with five Tavily-returned citations;
+  all 14 matching LangSmith root/child runs carried the same `thread_id`.
+- The Docker test target passed 19/19 tests on Linux/Python 3.10.22. The non-root
+  Compose runtime reached health 200 and committed a live Hue plan from inside
+  the container.
+
+## Open Risks
+
+- Live providers still require local credentials and network access.
+- Tavily results may not include opening hours; those hours must remain labeled
+  unverified.
+- Live source provenance is verified, but source editorial quality and domain
+  diversity are not yet scored.
+
+## Integration Learnings
+
+- Tavily content must be bounded before Pydantic validation; one live snippet
+  exceeded 1,000 characters.
+- `ChatOpenAI.with_structured_output` needed `method="function_calling"` because
+  strict response-format validation rejected Pydantic `HttpUrl`'s `uri` format.
+- Search-call counters must advance at tool-attempt time, not only after a later
+  model call succeeds.
+- Edit validation must prove the requested add/remove/replace/reorder/day/time
+  change was applied; generic schedule validity alone is not enough.
+- Versioned uv derived-image tag names change with supported distro variants;
+  copying a pinned uv binary into an official Python slim base was more robust.
+- Container verification should cover both safe rejection and a successful live
+  plan; provider reachability alone does not demonstrate commit behavior.
+- Unverified hours are a permissible grounded data gap. Planner grounding must
+  normalize them to `unverified`; only deterministic policy errors may block a
+  commit, not advisory issues authored by the model.

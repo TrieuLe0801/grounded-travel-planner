@@ -1,38 +1,34 @@
 # Grounded Travel Planner
 
-A personal learning project and proof of concept for building a grounded travel
-planning agent with LangChain, LangGraph and LangSmith.
-
-The project is currently in **Week 1 of a three-week POC** running from
-2026-09-22 to 2026-10-12. Application implementation has not started yet; the
-next milestone is an executable deterministic LangGraph vertical slice.
+A city/place sightseeing webapp built with LangChain, LangGraph, LangSmith,
+Tavily and Streamlit. The active scope was reset on 2026-10-14; older
+three-week POC documents are historical background.
 
 ## Current progress
 
-- Active three-week roadmap: **10 / 53 items complete (19%)**
-- Scope/rebaseline session: **6 / 6 complete**
-- Project scaffold/tooling session: **4 / 6 complete**
-- Executable POC: **0%** — development-hook tests pass, but no application
-  package, graph, fixture or measured metric exists yet
-- Focused POC charter: accepted for the three-week deadline
+- Scope-reset charter, implementation plan and ADR 0004 exist.
+- Core runtime has exactly two agent roles: `Coordinator` and `Planner`.
+- Both agents use the exact default model identifier `gpt-5.5` through an
+  injectable LangChain structured-output boundary.
+- Tavily, OpenAI and LangSmith integrations sit behind typed provider adapters.
+- The one-page Streamlit app stores the canonical plan in session state only.
+- Deterministic tests use fakes and never call live services.
 
 See `PROJECT_STATUS.md` for the current Done / Now / Next / Blockers view.
 
-## Three-week POC
+## Active product
 
-The delivery target is a single offline, fixture-first LangGraph workflow with
-a one-page Streamlit UI for a TP.HCM → Đà Nẵng three-day demo. It accepts
-structured input, routes missing requirements to clarification, builds one
-grounded plan, validates budget and citations, and exposes
-incomplete/unavailable outcomes without guessing.
+The user supplies a destination/place, concrete start date and one-to-seven-day
+duration. Coordinator classifies and delegates; Planner is the only runtime
+role that searches or proposes a plan mutation. Deterministic code validates
+input, schedule overlap/range, returned-source provenance and supported opening
+hours before committing a candidate.
 
-The POC uses Streamlit, a CLI fallback and eight offline eval cases. Chainlit,
-multi-agent, long-term memory, live providers, FastAPI, persistent storage,
-Docker/CI and expanded LangSmith evaluation are deferred.
+Chat supports create, add/remove/replace/reorder and day/time change intents.
+Ordinary chat does not search or mutate the plan. A rejected edit preserves the
+previous canonical plan.
 
-See `docs/poc-3-week-plan.md` for weekly outcomes, Definition of Done and stop
-rules. See `docs/ui-plan.md` for the Streamlit/Chainlit comparison and minimal UI
-contract.
+See `docs/project-charter.md`, `docs/implementation-plan.md` and ADR 0004.
 
 ## Repository map
 
@@ -43,26 +39,23 @@ contract.
 ├── AGENTS.md                              # Durable instructions for Codex
 ├── PROJECT_STATUS.md                      # Current state and next actions
 ├── README.md
-├── pyproject.toml, uv.lock                 # Locked development dependencies
-├── data/eval/                             # Machine-readable eval cases (pending)
+├── pyproject.toml, uv.lock                 # Locked runtime/dev dependencies
 ├── docs/
 │   ├── adr/                               # Architecture decisions
 │   ├── experiments/baseline-environment.md
-│   ├── learning-log/week-00.md            # Legacy specification baseline
-│   ├── learning-log/week-01.md            # Active implementation log
-│   ├── poc-3-week-plan.md                 # Active delivery plan and scope
+│   ├── learning-log/2026-10-14-scope-reset.md
+│   ├── implementation-plan.md             # Active phased delivery plan
 │   ├── progress/roadmap-progress.json
 │   ├── project-charter.md
-│   ├── ui-plan.md                         # Streamlit UI decision and contract
-│   └── roadmap.html                       # Interactive learning roadmap
-├── src/                                   # Application code (not started)
-└── tests/                                 # Development-hook tests
+│   └── roadmap.html                       # Current milestone summary
+├── src/grounded_travel_planner/           # Agents, graph, policies, UI
+├── src/utils/                              # Reusable domain-free helpers
+└── tests/                                 # Offline core and Streamlit tests
 ```
 
 ## Continue on a MacBook M1
 
-After pushing this folder to a Git host, clone it on the Mac and open Codex from
-the repository root:
+Clone the repository on the Mac and open Codex from the repository root:
 
 ```bash
 git clone <repository-url>
@@ -90,9 +83,8 @@ The selected development baseline is:
 - `uv` for dependencies and virtual environments
 - `pytest` for tests
 - isort and Black for formatting; flake8 and Ruff for linting
-- Streamlit for the one-page POC UI
-- Docker Desktop for later local-container work; Docker is not required for the
-  three-week POC
+- Streamlit for the one-page session-only UI
+- Docker Desktop for the verified local container workflow
 
 The development tooling is configured in `pyproject.toml`. Run:
 
@@ -105,8 +97,56 @@ uv run flake8 . .codex/hooks/format_python.py
 uv run ruff check . .codex/hooks/format_python.py
 ```
 
-The Streamlit command will be added after the application package and UI
-dependency exist; it is not part of the current tooling-only baseline.
+Copy `.env.example` to an ignored `.env`, fill the local credentials, then run:
+
+```bash
+uv run --env-file .env streamlit run src/grounded_travel_planner/ui/streamlit_app.py
+```
+
+Automated tests do not load credentials or call live services. Live OpenAI,
+Tavily and LangSmith gates are recorded separately when executed.
+
+## Verification recorded on 2026-10-14
+
+- `uv run pytest`: 19 passed.
+- isort, Black, flake8, Ruff, `uv lock --check` and `git diff --check`: passed.
+- Streamlit local-only startup: HTTP 200 health response.
+- Live `gpt-5.5` + Tavily flow: committed one Hue plan with five returned
+  citations, one search and one bounded repair.
+- LangSmith: 14 matching root/child runs; all carried the same `thread_id`.
+
+See `docs/experiments/2026-10-14-live-two-agent-smoke.md` for sanitized live
+evidence and the integration defects found during the smoke.
+
+## Run with Docker locally
+
+The runtime image is non-root and receives `.env` only when Compose starts the
+container; credentials are never build arguments or image layers.
+
+```bash
+docker build --target test -t grounded-travel-planner:test .
+docker compose build
+docker compose up -d --wait
+```
+
+The default URL is `http://127.0.0.1:8501`. To avoid a local port conflict in
+PowerShell:
+
+```powershell
+$env:GTP_PORT = "8513"
+docker compose up -d --wait
+```
+
+Stop only this project while retaining the local images:
+
+```bash
+docker compose down
+```
+
+Verified locally on 2026-10-14: container pytest 19/19, health HTTP 200,
+UID/GID 10001, no `/app/.env`, no secret-pattern matches in history/logs and a
+live Hue plan committed with six Tavily-returned citations. See
+`docs/experiments/2026-10-14-local-container-smoke.md`.
 
 The trusted project `.codex/config.toml` sets the primary Codex session to
 `gpt-6-sol`. It receives development requests and coordinates these agents:
@@ -121,9 +161,9 @@ The trusted project `.codex/config.toml` sets the primary Codex session to
 The primary session acts as manager through `AGENTS.md`; the separate `manager`
 definition supports explicit delegation to a manager subagent. The manager
 assigns bounded tasks, waits for results, and coordinates edits to shared files.
-These are development roles and do not change the travel planner's
-single-agent-first runtime architecture. Start a new trusted Codex session to
-load project configuration and agent files.
+These are development roles and are separate from the webapp runtime
+Coordinator and Planner. Start a new trusted Codex session to load project
+configuration and agent files.
 
 The `.codex/hooks.json` `PostToolUse` hook runs isort, Black and flake8 on Python
 files changed through Codex `apply_patch`. In a new Codex session, use `/hooks`
@@ -135,9 +175,10 @@ Codex automatically reads repository-level `AGENTS.md` when a new session is
 started from this repository. A useful first prompt is:
 
 ```text
-Read AGENTS.md, PROJECT_STATUS.md, docs/poc-3-week-plan.md,
-docs/project-charter.md and docs/learning-log/week-01.md. Summarize the current
-three-week POC status and implement only the first incomplete P0 action.
+Read AGENTS.md, PROJECT_STATUS.md, docs/project-charter.md,
+docs/implementation-plan.md and docs/learning-log/2026-10-14-scope-reset.md.
+Continue the first incomplete active-scope milestone without using archived POC
+completion counts.
 ```
 
 ## Roadmap state
@@ -153,8 +194,8 @@ repository artifact.
 - Default branch: `main`
 - Visibility: private
 
-After committing local changes, publish them with:
+Publish the current feature branch with:
 
 ```bash
-git push origin main
+git push origin feature/travel-ground-planner
 ```

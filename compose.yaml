@@ -1,0 +1,15 @@
+name: grounded-travel-planner
+
+services:
+  app:
+    image: grounded-travel-planner:local
+    build:
+      context: .
+      target: runtime
+    env_file:
+      - .env
+    init: true
+    restart: "no"
+    ports:
+      - "127.0.0.1:${GTP_PORT:-8503}:8501"
+    stop_grace_period: 10s
