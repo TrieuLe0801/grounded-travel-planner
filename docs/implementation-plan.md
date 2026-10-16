@@ -179,3 +179,23 @@ Docker test suites each passed 47/47.
 Black, isort, flake8, Ruff and `uv lock --check` passed. The rebuilt Compose
 runtime reached healthy status on `127.0.0.1:8503`. Real-browser visual
 inspection of the SVG has not been recorded.
+
+## Phase 1H - Async Session Turns — Implemented, Browser Navigation QA Pending
+
+Acceptance:
+
+- Submit create/edit turns to a bounded background executor without blocking
+  Streamlit page navigation.
+- Capture deep copies of thread ID, message, current plan and request; workers
+  never access Session State.
+- Keep one pending turn per session, disable competing actions and integrate the
+  response exactly once after polling.
+- Preserve the captured plan and show a safe Vietnamese response if a worker
+  fails unexpectedly.
+- Continue the pending turn when the user visits the graph page and collect the
+  result immediately after returning to chat.
+
+ADR 0007 records the execution and ownership boundary. Nine focused async/UI
+tests and the full 50-test host and Docker suites passed on 2026-10-16. AppTest
+verifies a whole-page rerun as the page-return equivalent; real sidebar
+multipage navigation remains a manual browser acceptance check.

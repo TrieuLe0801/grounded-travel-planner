@@ -17,7 +17,7 @@ background only.
 | Scope reset | Complete | Charter, implementation plan, current log and ADR 0004 |
 | Runtime package | Complete | Coordinator/Planner graph, typed providers and validators |
 | Streamlit app | Complete | Session-only itinerary/chat plus read-only graph page |
-| Tests | 47 passed | Core, graph-image, photo, chat-edit/source eval and AppTest coverage |
+| Tests | 50 passed | Core, async UI, graph-image, photo, chat-edit/source eval and AppTest coverage |
 | Live integration | Passed | OpenAI/Tavily/LangSmith smoke recorded under `docs/experiments/` |
 | Local container | Passed | Test/runtime images, health, non-root and live provider checks |
 | Chat editing | Passed | Successful UI edit, eight offline eval cases and live two-turn smoke |
@@ -25,6 +25,7 @@ background only.
 | Vietnamese chat | Passed | Vietnamese AppTest/fallback and live add-place response |
 | Visual itinerary | Complete | Source-backed photos; route map removed by user request |
 | Graph inspection | Complete | `get_graph_image()` PNG on separate page; SVG fallback; offline AppTest |
+| Async page navigation | Implemented | Background Future, exact-once session integration; browser QA pending |
 
 Planning progress is not implementation progress. Only executable artifacts and
 actual checks count as completion evidence.
@@ -82,12 +83,18 @@ actual checks count as completion evidence.
 - After the graph-image update, host and Docker test targets each passed 47 tests;
   Black, isort, flake8, Ruff and `uv lock --check` passed. The Compose runtime
   was rebuilt and reached healthy status on `127.0.0.1:8503`.
+- Added a bounded background turn runner and session-owned pending Future so a
+  model/search turn continues while the user visits another Streamlit page.
+  Nine focused async/UI tests and the full 50-test host and Docker suites passed;
+  ADR 0007 records exact-once result integration and process-restart limits.
 
 ## Now
 
-1. Label sources from representative live plans and measure relevance, place
+1. Manually verify chat → graph page → chat navigation in a real browser while
+   a live provider turn is pending; AppTest cannot drive multipage navigation.
+2. Label sources from representative live plans and measure relevance, place
    coverage and host diversity before a broad demo.
-2. Exercise additional live edit intents, especially reorder and replace, with
+3. Exercise additional live edit intents, especially reorder and replace, with
    separate evidence from the offline gate.
 
 ## Next
@@ -118,6 +125,9 @@ actual checks count as completion evidence.
   sample yet.
 - Public photo APIs can be unavailable. The app caps photo lookups at 12 stops
   and retains the text/source itinerary when no licensed image is resolved.
+- Pending turns are in-process and session-only. A Streamlit process restart,
+  browser-session loss or container replacement drops them; active Python
+  threads cannot be safely cancelled from the UI.
 - A Docker test-target rebuild hit intermittent Docker Hub DNS failure; the
   normal runtime image rebuilt, started healthy and served HTTP 200.
 - The delegated independent testing agent could not start its shell because of
@@ -146,6 +156,7 @@ actual checks count as completion evidence.
 - `docs/experiments/2026-10-16-visual-itinerary-smoke.md`
 - `docs/adr/0005-visual-itinerary-enrichment.md`
 - `docs/adr/0006-photo-only-itinerary-and-graph-inspection.md`
+- `docs/adr/0007-session-owned-background-turns.md`
 - `Dockerfile`
 - `compose.yaml`
 - `docs/progress/roadmap-progress.json`

@@ -16,6 +16,8 @@ three-week POC documents are historical background.
 - Deterministic tests use fakes and never call live services.
 - Chat edits are covered by eight versioned offline cases, a successful/rejected
   Streamlit AppTest sequence and a separate live create-then-remove smoke.
+- Planning turns run in a bounded background pool, remain owned by the browser
+  session and can continue while the user visits another Streamlit page.
 
 See `PROJECT_STATUS.md` for the current Done / Now / Next / Blockers view.
 
@@ -167,6 +169,14 @@ Use the separate **Kiến trúc LangGraph** page in Streamlit's navigation to
 inspect the PNG produced by `TravelPlannerService.get_graph_image()` from the
 compiled workflow. It shows the runtime nodes, conditional branches and repair
 loop without running a planning turn; an SVG fallback handles render outages.
+
+## Background chat turns
+
+Creating or editing a plan submits one background turn for the current session.
+The chat page shows a waiting state and disables competing mutations. The user
+can visit the graph page; returning to chat polls the same Future and applies
+its response once. The canonical plan changes only after a committed response.
+This mechanism is session-only and does not survive a Streamlit process restart.
 
 UI guidance is installed at `.codex/skills/ui-ux-pro-max/` (upstream MIT,
 version `2.15.0`) and adapted in `docs/ui-visual-itinerary.md`. The earlier

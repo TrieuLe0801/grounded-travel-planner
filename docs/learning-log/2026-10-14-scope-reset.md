@@ -45,6 +45,15 @@ city/place sightseeing webapp.
   its token overlap caused repeated false rejections. URL provenance and the
   remaining deterministic source/hour checks stay enabled. Do not restore this
   issue code until a better relevance matcher is accepted.
+- The user reported that navigating away from chat abandoned a synchronous
+  planning turn. ADR 0007 moves `handle_turn()` to a bounded background worker,
+  stores one pending Future in the originating session and polls it immediately
+  on page return plus once per second while chat stays open. The worker receives
+  copied inputs and never mutates Session State.
+- Nine focused async/UI tests simulated leaving and returning through a
+  whole-page rerun; the full host and Docker suites passed 50 tests. Streamlit
+  AppTest cannot exercise actual sidebar navigation, so a real-browser
+  cross-page check remains.
 
 ## Evidence
 

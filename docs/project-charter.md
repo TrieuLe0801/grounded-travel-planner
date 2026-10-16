@@ -32,6 +32,10 @@ Both roles use the configured LangChain model boundary with the requested
 default model name `gpt-5.5`. The webapp keeps only session-local state. It does
 not use LangSmith traces as state storage.
 
+Model/search turns run as bounded background jobs so they can continue while a
+user navigates between app pages. Each session owns at most one pending turn and
+integrates its result exactly once when the chat page polls or is reopened.
+
 ## Invariants
 
 - Accept destination/place, a concrete start date and a selected day count.
@@ -44,6 +48,8 @@ not use LangSmith traces as state storage.
 - Validate input, schedule range, overlaps and known opening-hour conflicts
   before committing a candidate.
 - Preserve the previous current plan when validation fails.
+- Do not mutate the canonical plan from a background worker. Integrate a
+  completed result only in its originating UI session.
 - Ordinary chat should not mutate the plan or perform unnecessary search.
 - Bound every turn to 8 graph steps, 2 search calls and 1 repair attempt.
 - Keep provider secrets out of model prompts, traces, logs and tracked files.

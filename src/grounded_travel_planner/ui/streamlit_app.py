@@ -17,6 +17,7 @@ from grounded_travel_planner.contracts import (
     visible_schedule_entries,
 )
 from grounded_travel_planner.service import TravelPlannerService
+from grounded_travel_planner.ui.turn_runner import PendingTurn, TurnRunner
 from grounded_travel_planner.visuals import (
     MAX_VISUAL_STOPS,
     PlaceVisual,
@@ -55,6 +56,13 @@ def get_visual_service() -> VisualEnrichmentService:
     return VisualEnrichmentService.from_environment()
 
 
+@st.cache_resource
+def get_turn_runner() -> TurnRunner:
+    """Share a bounded worker pool; pending turns remain session-local."""
+
+    return TurnRunner()
+
+
 def _ensure_session(service: TravelPlannerService) -> None:
     if "thread_id" not in st.session_state:
         st.session_state.thread_id = service.create_session()
@@ -62,6 +70,7 @@ def _ensure_session(service: TravelPlannerService) -> None:
     st.session_state.setdefault("conversation", [])
     st.session_state.setdefault("last_response", None)
     st.session_state.setdefault("visuals_by_revision", {})
+    st.session_state.setdefault("pending_turn", None)
 
 
 def _reset_session(service: TravelPlannerService) -> None:
@@ -70,10 +79,18 @@ def _reset_session(service: TravelPlannerService) -> None:
     st.session_state.conversation = []
     st.session_state.last_response = None
     st.session_state.visuals_by_revision = {}
+    st.session_state.pending_turn = None
 
 
-def _record_turn(user_message: str, response: AgentResponse) -> None:
+def _record_submitted_turn(user_message: str) -> None:
+    """Show submitted text at once while its bounded worker is running."""
+
     st.session_state.conversation.append({"role": "user", "content": user_message})
+
+
+def _record_completed_turn(response: AgentResponse) -> None:
+    """Commit a worker result once it has returned to the UI session."""
+
     st.session_state.conversation.append(
         {"role": "assistant", "content": response.message}
     )
@@ -84,6 +101,55 @@ def _record_turn(user_message: str, response: AgentResponse) -> None:
         st.session_state.current_plan = response.current_plan
         st.session_state.visuals_by_revision = {}
     st.session_state.last_response = response
+
+
+def _submit_turn(
+    runner: TurnRunner,
+    service: TravelPlannerService,
+    *,
+    message: str,
+    request: TripRequest | None = None,
+) -> None:
+    """Capture the canonical plan and enqueue exactly one session turn."""
+
+    if st.session_state.pending_turn is not None:
+        return
+    st.session_state.pending_turn = runner.submit(
+        service,
+        thread_id=st.session_state.thread_id,
+        message=message,
+        current_plan=st.session_state.current_plan,
+        request=request,
+    )
+    _record_submitted_turn(message)
+
+
+def _collect_completed_turn() -> bool:
+    """Integrate one completed result and report whether state changed."""
+
+    pending: PendingTurn | None = st.session_state.pending_turn
+    if pending is None:
+        return False
+    response = TurnRunner.collect(pending)
+    if response is None:
+        return False
+    active: PendingTurn | None = st.session_state.pending_turn
+    if active is None or active.token != pending.token:
+        return False
+    st.session_state.pending_turn = None
+    _record_completed_turn(response)
+    return True
+
+
+@st.fragment(run_every=1.0)
+def _poll_pending_turn() -> None:
+    """Integrate a completed worker result without blocking page navigation."""
+
+    if _collect_completed_turn():
+        st.rerun()
+    if st.session_state.pending_turn is None:
+        return
+    st.info("Đang xử lý yêu cầu. Bạn có thể chuyển trang và quay lại sau.")
 
 
 def _safe_external_url(value: str | None) -> str | None:
@@ -205,27 +271,39 @@ def main(
 ) -> None:
     runtime_service = service or get_service()
     runtime_visual_service = visual_service or get_visual_service()
+    turn_runner = get_turn_runner()
     _ensure_session(runtime_service)
+    if _collect_completed_turn():
+        st.rerun()
 
     st.set_page_config(page_title="Trợ lý lập lịch tham quan", layout="wide")
     st.title("Trợ lý lập lịch tham quan")
     st.caption(
         "Coordinator + Planner · lịch chỉ lưu trong phiên · gợi ý có nguồn tham khảo"
     )
-    if st.button("Chuyến đi mới"):
+    turn_pending = st.session_state.pending_turn is not None
+    if st.button("Chuyến đi mới", disabled=turn_pending):
         _reset_session(runtime_service)
         st.rerun()
 
     with st.form("trip_request"):
-        destination = st.text_input("Điểm đến hoặc địa điểm", placeholder="Huế")
+        destination = st.text_input(
+            "Điểm đến hoặc địa điểm", placeholder="Huế", disabled=turn_pending
+        )
         start_date = st.date_input(
             "Ngày bắt đầu",
             value=datetime.now().astimezone().date(),
+            disabled=turn_pending,
         )
         day_count = st.number_input(
-            "Số ngày", min_value=1, max_value=7, value=2, step=1
+            "Số ngày",
+            min_value=1,
+            max_value=7,
+            value=2,
+            step=1,
+            disabled=turn_pending,
         )
-        submitted = st.form_submit_button("Tạo lịch tham quan")
+        submitted = st.form_submit_button("Tạo lịch tham quan", disabled=turn_pending)
 
     if submitted:
         try:
@@ -238,13 +316,13 @@ def main(
                 f"Hãy tạo lịch trình tham quan {request.day_count} ngày tại "
                 f"{request.destination}, bắt đầu ngày {request.start_date.isoformat()}."
             )
-            response = runtime_service.handle_turn(
-                thread_id=st.session_state.thread_id,
+            _submit_turn(
+                turn_runner,
+                runtime_service,
                 message=message,
-                current_plan=st.session_state.current_plan,
                 request=request,
             )
-            _record_turn(message, response)
+            st.rerun()
         except ValidationError as error:
             st.error(f"Thông tin chuyến đi không hợp lệ: {error.errors()[0]['msg']}")
 
@@ -266,15 +344,14 @@ def main(
             with st.chat_message(turn["role"]):
                 st.write(turn["content"])
 
-    user_message = st.chat_input("Nhắn tin hoặc yêu cầu thay đổi lịch trình")
+    user_message = st.chat_input(
+        "Nhắn tin hoặc yêu cầu thay đổi lịch trình", disabled=turn_pending
+    )
     if user_message:
-        response = runtime_service.handle_turn(
-            thread_id=st.session_state.thread_id,
-            message=user_message,
-            current_plan=st.session_state.current_plan,
-        )
-        _record_turn(user_message, response)
+        _submit_turn(turn_runner, runtime_service, message=user_message)
         st.rerun()
+
+    _poll_pending_turn()
 
 
 if __name__ == "__main__":

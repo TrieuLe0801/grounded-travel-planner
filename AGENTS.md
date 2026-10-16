@@ -35,6 +35,9 @@ Read these records in order:
   the same `thread_id` metadata to root and child runs in a session.
 - App conversation/trip state is session-only and isolated between users.
   LangSmith traces are observability data and are not used to resume app state.
+- A bounded background turn may continue across Streamlit page navigation, but
+  its Future and result integration remain owned by the originating session.
+  Only one turn may be in flight per session; workers never mutate Session State.
 - Typed provider interfaces keep model/search integration separate from UI.
 - Streamlit is the current one-page UI proposal, not a reason to duplicate
   domain logic or add persistence.
@@ -44,7 +47,9 @@ Read these records in order:
 - Accept destination/place, a concrete start date and user-selected day count.
 - Search for actual information before claiming sourced recommendations.
 - Never fabricate source URLs, opening hours or tool results. Source references
-  must originate from actual search results and match the recommended place.
+  must originate from actual search results. The `source_place_mismatch` token
+  overlap gate is temporarily disabled because it rejected valid sources; do
+  not restore it without a new user decision and a better matching strategy.
 - Label estimated visit/travel times and information that remains unverified.
 - Reject or explain overlapping/out-of-range schedule entries and known
   opening-hour conflicts before treating an edit as successful.

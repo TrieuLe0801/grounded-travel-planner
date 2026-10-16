@@ -1,6 +1,6 @@
 {
-  "version": 20,
-  "updated": "2026-10-16T17:10:00+07:00",
+  "version": 21,
+  "updated": "2026-10-16T17:35:00+07:00",
   "active_scope": "city-place-sightseeing-webapp",
   "current_milestone": "Milestone 1: executable city/place sightseeing vertical slice",
   "completed": {
@@ -20,7 +20,9 @@
     "visual_itinerary_implementation": true,
     "route_map_removed": true,
     "graph_inspection_page": true,
-    "source_place_mismatch_temporarily_disabled": true
+    "source_place_mismatch_temporarily_disabled": true,
+    "async_session_turns": true,
+    "async_multipage_browser_qa": false
   },
   "evidence": {
     "scope_reset_docs": [
@@ -130,6 +132,19 @@
       "tests/test_two_agent_core.py",
       "ADR 0004 temporary amendment",
       "URL provenance and opening-hours gates retained"
+    ],
+    "async_session_turns": [
+      "docs/adr/0007-session-owned-background-turns.md",
+      "src/grounded_travel_planner/ui/turn_runner.py",
+      "src/grounded_travel_planner/ui/streamlit_app.py",
+      "tests/test_turn_runner.py",
+      "tests/test_async_streamlit_ui.py",
+      "focused async/UI pytest 9 passed",
+      "host pytest 50 passed",
+      "container pytest 50 passed"
+    ],
+    "async_multipage_browser_qa": [
+      "pending real-browser chat-to-graph-to-chat navigation during a live turn"
     ]
   },
   "notes": "Milestone 1 and chat editing have offline and live evidence. The itinerary now keeps source-attributed photos and omits the route map at the user's request. A separate read-only page displays the compiled LangGraph PNG returned by get_graph_image(), with an SVG fallback; host/container tests passed. Vietnamese is the default webapp chat language. Source-quality metrics still have a synthetic baseline and live relevance remains unmeasured. Old POC counts are archived."

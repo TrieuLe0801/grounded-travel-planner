@@ -155,6 +155,15 @@ def _imperial_city_start_time(app: AppTest) -> time:
     )
 
 
+def _integrate_pending_turn(app: AppTest) -> None:
+    """Wait for the offline worker, then let the UI own result integration."""
+
+    pending = app.session_state.pending_turn
+    if pending is not None:
+        pending.future.result(timeout=5)
+        app.run(timeout=10)
+
+
 def test_app_loads_without_live_provider_calls() -> None:
     app = AppTest.from_file(APP_PATH).run(timeout=10)
 
@@ -168,6 +177,7 @@ def test_create_and_failed_chat_edit_render_canonical_plan() -> None:
     app.text_input[0].set_value("Hue")
     submit = next(button for button in app.button if "Tạo lịch" in button.label)
     submit.click().run(timeout=10)
+    _integrate_pending_turn(app)
 
     text = _page_text(app)
     assert "Lịch tham quan đã được cập nhật" in text
@@ -186,6 +196,7 @@ def test_create_and_failed_chat_edit_render_canonical_plan() -> None:
     assert any("Điểm 2 · 08:00" in item.label for item in app.get("expander"))
 
     app.chat_input[0].set_value("Chuyển điểm 1 sang 11:00 ngày 1").run(timeout=10)
+    _integrate_pending_turn(app)
     text = _page_text(app)
     assert "Đã chuyển Imperial City sang 11:00" in text
     assert "Lịch trình hiện tại · phiên bản 2" in text
@@ -197,6 +208,7 @@ def test_create_and_failed_chat_edit_render_canonical_plan() -> None:
     assert ("plan_ui", 1) not in app.session_state.visuals_by_revision
 
     app.chat_input[0].set_value("Đổi giờ để trùng lịch").run(timeout=10)
+    _integrate_pending_turn(app)
     text = _page_text(app)
     assert "Lịch trình trước đó đã được giữ nguyên" in text
     assert "schedule_overlap" in text
