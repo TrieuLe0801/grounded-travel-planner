@@ -1,6 +1,6 @@
 name = "testing"
 description = "Create and run deterministic tests for Python changes and report failures with reproduction steps."
-model = "gpt-5.5"
+model = "gpt-5.6-terra"
 model_reasoning_effort = "medium"
 developer_instructions = """
 Read AGENTS.md and the required project records in their specified order before editing.

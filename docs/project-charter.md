@@ -15,6 +15,11 @@ The chat accepts Vietnamese requests and responds in Vietnamese by default.
 Place names and source titles retain their original spelling; internal intent
 codes, source evidence and validation rules remain language-independent.
 
+The itinerary also presents source-attributed place photos and a geographic
+view of stops where reliable media and coordinates are available. Selecting a
+mapped stop moves a car marker toward it. Straight connectors represent visit
+order, not road directions; missing visual data leaves the text itinerary usable.
+
 ## Runtime Scope
 
 The runtime starts with exactly two roles:
@@ -42,6 +47,8 @@ not use LangSmith traces as state storage.
 - Ordinary chat should not mutate the plan or perform unnecessary search.
 - Bound every turn to 8 graph steps, 2 search calls and 1 repair attempt.
 - Keep provider secrets out of model prompts, traces, logs and tracked files.
+- Visual enrichment never changes or blocks the validated current plan. Do not
+  invent photos, coordinates or road routes; show image credit and map attribution.
 
 ## Non-Goals
 

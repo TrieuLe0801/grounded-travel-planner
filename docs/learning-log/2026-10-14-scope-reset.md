@@ -20,6 +20,9 @@ city/place sightseeing webapp.
 - The Vietnamese UI and fallback paths passed AppTest/pytest (40 total tests).
   A live Vietnamese add request inside the container committed revision 2 and
   produced a Vietnamese assistant reply with one search and no repair.
+- On 2026-10-16 the user requested source-backed place images, a mapped route
+  view, and a car moving to a clicked itinerary stop. ADR 0005 keeps these
+  presentation features separate from the canonical plan and two-agent graph.
 
 ## Evidence
 

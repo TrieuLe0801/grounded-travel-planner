@@ -142,3 +142,23 @@ Evidence: `uv run pytest` passed 40 tests on 2026-10-16; the full formatting and
 lint suite passed. A live Vietnamese add-place turn in the rebuilt container
 committed Lô Lô Chải at revision 2 and received a Vietnamese assistant reply.
 See `docs/experiments/2026-10-16-vietnamese-chat-smoke.md`.
+
+## Phase 1G - Visual Itinerary — In Progress
+
+Acceptance:
+
+- Install the project-local UI/UX Pro Max skill and apply its accessible,
+  responsive design guidance to the Streamlit page.
+- Add actual place photos with visible source and license credit, or a clear
+  unavailable state.
+- Show only source-backed coordinates on an attributed map. Keep route-order
+  connectors explicitly illustrative until road geometry is available.
+- Selecting a map stop moves a car marker to that stop; keyboard and reduced-
+  motion interactions reach the same final state.
+- Failed visual lookups never block plan creation/chat edits or change the
+  canonical session plan.
+- Verify provider parsing with mocks, UI behavior with AppTest and animation
+  in a real browser separately.
+
+ADR 0005 records the provider and visualization boundary. Implementation and
+verification evidence will be added only after executable artifacts pass.
