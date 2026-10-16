@@ -14,6 +14,12 @@ city/place sightseeing webapp.
 - The requested default model is exactly `gpt-5.5`.
 - External model, search and trace providers stay behind typed interfaces.
 - LangSmith traces are observability data and not application state.
+- On 2026-10-16 the user selected Vietnamese as the default language for
+  webapp chat requests and replies. Proper place names and source titles remain
+  as provided by users and search results.
+- The Vietnamese UI and fallback paths passed AppTest/pytest (40 total tests).
+  A live Vietnamese add request inside the container committed revision 2 and
+  produced a Vietnamese assistant reply with one search and no repair.
 
 ## Evidence
 
@@ -29,6 +35,15 @@ city/place sightseeing webapp.
 - The Docker test target passed 19/19 tests on Linux/Python 3.10.22. The non-root
   Compose runtime reached health 200 and committed a live Hue plan from inside
   the container.
+- On 2026-10-15 the user prioritized post-plan chat editing. The offline suite
+  passed 39 tests, including eight versioned chat-edit cases and UI success/reject
+  coverage. A live create-then-remove turn committed revision 2 on the same
+  session and preserved the four untargeted stops.
+- Added a separate, offline source-quality baseline with 16 manually labelled
+  synthetic citations. The labels expose relevance and host-diversity metrics
+  but do not measure live Tavily quality or change runtime commit rules.
+- Migrated the original smoke to LangSmith v2 `runs.query()` and verified a
+  live Hue run with 25 matching runs carrying the same `thread_id`.
 
 ## Open Risks
 
@@ -55,3 +70,13 @@ city/place sightseeing webapp.
 - Unverified hours are a permissible grounded data gap. Planner grounding must
   normalize them to `unverified`; only deterministic policy errors may block a
   commit, not advisory issues authored by the model.
+- Reorder indices must match the chronological order visible in the UI;
+  changing only the stored list order does not meet a user's reorder request.
+- A repair must carry forward only trusted search/current-plan sources. Copying
+  candidate references into that pool can launder a fabricated URL.
+- Exact casefolded place-name comparison rejects benign Vietnamese accent and
+  village-descriptor variants. Bound alias matching and ask Planner to retain
+  the requested name; preserve old stops when validating an addition. The
+  initial Lô Lô Chải live recheck hit OpenAI HTTP 429 `billing_not_active`.
+  On 2026-10-16, a representative container flow added Lô Lô Chải, preserved
+  the existing stop and committed revision 2 with one search and no repair.

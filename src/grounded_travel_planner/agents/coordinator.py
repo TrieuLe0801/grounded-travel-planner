@@ -12,6 +12,7 @@ from grounded_travel_planner.contracts import (
     SightseeingPlan,
     TripRequest,
     ValidationIssue,
+    visible_schedule_context,
 )
 from grounded_travel_planner.providers import StructuredChatModel
 
@@ -41,10 +42,17 @@ class CoordinatorAgent:
             "Use ordinary_chat for conversation that does not request a plan "
             "mutation. Plan mutations are create_trip, add_place, remove_place, "
             "replace_place, reorder_places, change_day or change_time. Do not "
-            "invent a plan.\n"
+            "invent a plan. Understand Vietnamese requests and preserve the "
+            "user's place names and diacritics in the structured intent. "
+            "Reorder from_index and to_index are zero-based "
+            "positions in the chronological itinerary the user sees, sorted by "
+            "day, start time, end time, then entry ID. When the user names a "
+            "user-facing Stop N, set its internal index to N - 1 using the "
+            "current visible itinerary.\n"
             f"User message: {message[:4000]}\n"
             f"Structured request supplied: {request is not None}\n"
-            f"Current plan exists: {current_plan is not None}"
+            f"Current plan exists: {current_plan is not None}\n"
+            f"Current visible itinerary: {visible_schedule_context(current_plan)}"
         )
         decision = self._model.generate_structured(
             prompt,
@@ -81,7 +89,9 @@ class CoordinatorAgent:
     ) -> str:
         issue_text = "; ".join(f"{issue.code}: {issue.message}" for issue in issues)
         prompt = (
-            "Explain the validated result to the user concisely. Never claim a "
+            "Respond entirely in natural Vietnamese, regardless of the user's "
+            "input language. Preserve proper place names, times and source "
+            "titles. Explain the validated result concisely. Never claim a "
             "candidate was applied when committed is false. If validation failed, "
             "say the previous plan was preserved. Mention that visit/travel times "
             "are estimates and hours are unverified when relevant.\n"

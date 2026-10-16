@@ -1,6 +1,6 @@
 {
-  "version": 11,
-  "updated": "2026-10-14T15:55:00+07:00",
+  "version": 16,
+  "updated": "2026-10-16T09:56:11+07:00",
   "active_scope": "city-place-sightseeing-webapp",
   "current_milestone": "Milestone 1: executable city/place sightseeing vertical slice",
   "completed": {
@@ -10,7 +10,13 @@
     "streamlit_ui": true,
     "mocked_tests": true,
     "live_provider_verification": true,
-    "local_container": true
+    "local_container": true,
+    "chat_edit_hardening": true,
+    "source_quality_offline_baseline": true,
+    "langsmith_v2_query": true,
+    "add_place_alias_offline_fix": true,
+    "add_place_alias_live_recheck": true,
+    "vietnamese_chat": true
   },
   "evidence": {
     "scope_reset_docs": [
@@ -44,7 +50,51 @@
       "docs/experiments/2026-10-14-local-container-smoke.md",
       "container pytest 19 passed",
       "container health HTTP 200"
+    ],
+    "chat_edit_hardening": [
+      "data/eval/chat-edit-v1.jsonl",
+      "tests/test_chat_edit_eval.py",
+      "tests/test_streamlit_ui.py",
+      "scripts/live_chat_edit_smoke.py",
+      "docs/experiments/2026-10-15-live-chat-edit-smoke.md",
+      "offline pytest 40 passed",
+      "live revision 1 to 2 with one place removed"
+    ],
+    "source_quality_offline_baseline": [
+      "data/eval/source-quality-v1.jsonl",
+      "src/grounded_travel_planner/evaluation/source_quality.py",
+      "scripts/evaluate_source_quality.py",
+      "docs/experiments/2026-10-15-source-quality-baseline.md",
+      "16 synthetic labelled citations across 5 plans"
+    ],
+    "langsmith_v2_query": [
+      "scripts/live_smoke.py",
+      "tests/test_live_smoke_trace.py",
+      "docs/experiments/2026-10-15-langsmith-query-v2-smoke.md",
+      "live v2 query: 25 runs with matching thread_id"
+    ],
+    "add_place_alias_offline_fix": [
+      "src/grounded_travel_planner/policies/change_validation.py",
+      "src/grounded_travel_planner/agents/planner.py",
+      "tests/test_two_agent_core.py",
+      "docs/experiments/2026-10-15-lo-lo-chai-add-regression.md",
+      "offline pytest 40 passed",
+      "runtime container healthy HTTP 200"
+    ],
+    "add_place_alias_live_recheck": [
+      "scripts/live_lo_lo_chai_smoke.py",
+      "docs/experiments/2026-10-16-live-lo-lo-chai-add.md",
+      "live container edit committed revision 2 with one Planner search"
+    ],
+    "vietnamese_chat": [
+      "docs/project-charter.md",
+      "src/grounded_travel_planner/ui/streamlit_app.py",
+      "src/grounded_travel_planner/agents/coordinator.py",
+      "tests/test_streamlit_ui.py",
+      "docs/experiments/2026-10-16-vietnamese-chat-smoke.md",
+      "offline pytest 40 passed",
+      "live Vietnamese add-place response and revision 2 commit"
     ]
   },
-  "notes": "Milestone 1 is executable and verified on the host and in a local non-root container. Old POC counts remain archived background and are not carried into this scope. Next work is evaluation quality, especially source relevance/domain diversity and live edit coverage."
+  "notes": "Milestone 1 and chat editing have offline and live evidence. Vietnamese is the default webapp chat language, verified by AppTest and one live add-place reply. The Lô Lô Chải name-variant fix passed in a representative live container edit; the user's original session was not replayed. Source-quality metrics have a synthetic offline baseline; live relevance remains unmeasured. LangSmith v2 query was verified live. Old POC counts are archived."
 }

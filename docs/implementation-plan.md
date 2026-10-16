@@ -71,3 +71,74 @@ Acceptance:
 - Dockerfile and uv base images retain Linux arm64 support for the Mac M1.
 
 Evidence: `docs/experiments/2026-10-14-local-container-smoke.md`.
+
+## Phase 1E - Chat Editing Hardening — Verified
+
+Acceptance:
+
+- Number itinerary stops in the same chronological order used by Coordinator,
+  Planner and reorder validation.
+- Commit a chat edit only when the requested visible change is applied; reject
+  no-op edits and preserve the prior plan on failure.
+- Keep only provider-returned or previously committed sources across a repair.
+- Exercise successful and rejected chat edits through Streamlit AppTest and a
+  versioned offline evaluation set.
+- Run a separate live create-then-edit service smoke with the same session ID.
+
+Evidence:
+
+- `uv run pytest`: 39 passed on 2026-10-15, including eight
+  `data/eval/chat-edit-v1.jsonl` cases.
+- isort, Black, flake8, Ruff, `uv lock --check` and `git diff --check` passed.
+- `scripts/live_chat_edit_smoke.py` committed a Hue plan then removed one stop
+  through chat, advancing revision 1 to 2 and preserving the other four stops.
+- Detailed live evidence: `docs/experiments/2026-10-15-live-chat-edit-smoke.md`.
+
+## Phase 1F - Source Quality Measurement — Offline Baseline Verified
+
+Acceptance:
+
+- Keep provenance validation as the runtime commit rule.
+- Use a versioned, manually labelled corpus to measure citation relevance,
+  relevant-place coverage, source classes and normalized host diversity.
+- Keep synthetic fixture metrics separate from live-source quality claims.
+
+Evidence: 16 labelled synthetic citations in `data/eval/source-quality-v1.jsonl`,
+offline evaluator and three focused tests, and
+`docs/experiments/2026-10-15-source-quality-baseline.md`. The next acceptance
+step is labelling representative live results before a broad demo.
+
+## Trace Query Maintenance — Verified
+
+The original live smoke now uses LangSmith `Client.runs.query()` in place of
+deprecated `list_runs()`. Two offline fake-client tests passed. A new live run
+found 25 matching root/child runs and the same `thread_id` on all of them.
+Evidence: `docs/experiments/2026-10-15-langsmith-query-v2-smoke.md`.
+
+## Add-Place Name Variant Follow-Up — Live Rechecked
+
+An add request for `Lô Lô Chải` may be proposed as `Lo Lo Chai Village` by a
+model. The validator now accepts this bounded spelling/descriptor variant,
+requires a newly added matching place and keeps the prior stops. A focused
+regression and the full offline suite passed. The rebuilt runtime container is
+healthy. The initial live recheck stopped at OpenAI HTTP 429
+`billing_not_active` before Planner ran; on 2026-10-16, a representative
+container flow committed Lô Lô Chải at revision 2 with one Planner search and
+no validation issues. The original user session was not replayed. Evidence:
+`docs/experiments/2026-10-15-lo-lo-chai-add-regression.md` and
+`docs/experiments/2026-10-16-live-lo-lo-chai-add.md`.
+
+## Vietnamese Chat — Verified For Representative Flow
+
+Acceptance:
+
+- Accept Vietnamese chat requests and present the webapp's form/chat guidance
+  in Vietnamese.
+- Reply in Vietnamese for normal and committed turns, with Vietnamese
+  deterministic fallback messages on model or graph failure.
+- Keep place names and source titles faithful to user input and search results.
+
+Evidence: `uv run pytest` passed 40 tests on 2026-10-16; the full formatting and
+lint suite passed. A live Vietnamese add-place turn in the rebuilt container
+committed Lô Lô Chải at revision 2 and received a Vietnamese assistant reply.
+See `docs/experiments/2026-10-16-vietnamese-chat-smoke.md`.

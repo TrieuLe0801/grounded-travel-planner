@@ -29,7 +29,7 @@ def _plan() -> SightseeingPlan:
     place = PlaceRecommendation(
         place_id="place_ui",
         name="Imperial City",
-        description="A sourced historic-place recommendation.",
+        description="Một địa điểm lịch sử có nguồn tham khảo.",
         source_references=[source],
         visit_minutes_estimate=90,
         travel_minutes_estimate=20,
@@ -42,15 +42,32 @@ def _plan() -> SightseeingPlan:
         day_count=2,
         entries=[
             ScheduleEntry(
+                id="entry_day_two",
+                day_index=2,
+                start_time=time(8),
+                end_time=time(9, 30),
+                place=place,
+            ),
+            ScheduleEntry(
                 id="entry_ui",
                 day_index=1,
                 start_time=time(9),
                 end_time=time(10, 30),
                 place=place,
-            )
+            ),
         ],
-        summary="A grounded two-day plan.",
+        summary="Lịch tham quan hai ngày có nguồn tham khảo.",
     )
+
+
+def _edited_plan() -> SightseeingPlan:
+    plan = _plan().model_copy(deep=True)
+    plan.revision = 2
+    edited_entry = next(entry for entry in plan.entries if entry.id == "entry_ui")
+    edited_entry.start_time = time(11)
+    edited_entry.end_time = time(12, 30)
+    plan.summary = "Imperial City được chuyển sang 11:00."
+    return plan
 
 
 class FakeService:
@@ -59,23 +76,31 @@ class FakeService:
 
     def handle_turn(self, **kwargs) -> AgentResponse:
         current_plan = kwargs.get("current_plan")
-        if "overlap" in kwargs["message"]:
+        if "trùng lịch" in kwargs["message"]:
             return AgentResponse(
                 status=ResponseStatus.REJECTED,
-                message="The previous plan was preserved.",
+                message="Lịch trình trước đó đã được giữ nguyên.",
                 current_plan=current_plan,
                 validation_issues=[
                     ValidationIssue(
                         code="schedule_overlap",
-                        message="The requested edit overlaps another entry.",
+                        message="Thay đổi này trùng thời gian với một điểm khác.",
                     )
                 ],
                 graph_steps=8,
                 repair_attempts=1,
             )
+        if current_plan is not None:
+            return AgentResponse(
+                status=ResponseStatus.COMMITTED,
+                message="Đã chuyển Imperial City sang 11:00.",
+                current_plan=_edited_plan(),
+                committed=True,
+                graph_steps=5,
+            )
         return AgentResponse(
             status=ResponseStatus.COMMITTED,
-            message="The validated sightseeing plan was updated.",
+            message="Lịch tham quan đã được cập nhật sau khi kiểm tra.",
             current_plan=_plan(),
             committed=True,
             graph_steps=5,
@@ -101,29 +126,52 @@ def _page_text(app: AppTest) -> str:
     return "\n".join(values)
 
 
+def _imperial_city_start_time(app: AppTest) -> time:
+    return next(
+        entry.start_time
+        for entry in app.session_state.current_plan.entries
+        if entry.id == "entry_ui"
+    )
+
+
 def test_app_loads_without_live_provider_calls() -> None:
     app = AppTest.from_file(APP_PATH).run(timeout=10)
 
-    assert "Grounded Sightseeing Planner" in _page_text(app)
-    assert app.text_input[0].label == "Destination or place"
+    assert "Trợ lý lập lịch tham quan" in _page_text(app)
+    assert app.text_input[0].label == "Điểm đến hoặc địa điểm"
     assert app.number_input[0].value == 2
 
 
 def test_create_and_failed_chat_edit_render_canonical_plan() -> None:
     app = AppTest.from_file(APP_PATH).run(timeout=10)
     app.text_input[0].set_value("Hue")
-    submit = next(button for button in app.button if "Create" in button.label)
+    submit = next(button for button in app.button if "Tạo lịch" in button.label)
     submit.click().run(timeout=10)
 
     text = _page_text(app)
-    assert "validated sightseeing plan was updated" in text
-    assert "Current plan · revision 1" in text
-    assert "Estimated visit: 90 min" in text
-    assert "Opening hours: unverified" in text
+    assert "Lịch tham quan đã được cập nhật" in text
+    assert "Lịch trình hiện tại · phiên bản 1" in text
+    assert "Tham quan ước tính: 90 phút" in text
+    assert "Giờ mở cửa: chưa xác minh" in text
     assert "https://travel.example/hue/imperial-city" in text
+    assert "Nhắn tin để sửa lịch" in text
+    assert any("Điểm 1" in item.label for item in app.get("expander"))
+    assert any("Điểm 2 · 08:00" in item.label for item in app.get("expander"))
 
-    app.chat_input[0].set_value("make an overlap").run(timeout=10)
+    app.chat_input[0].set_value("Chuyển điểm 1 sang 11:00 ngày 1").run(timeout=10)
     text = _page_text(app)
-    assert "previous plan was preserved" in text
+    assert "Đã chuyển Imperial City sang 11:00" in text
+    assert "Lịch trình hiện tại · phiên bản 2" in text
+    assert "Imperial City được chuyển sang 11:00" in text
+    assert any("11:00–12:30" in item.label for item in app.get("expander"))
+    assert app.session_state.current_plan.revision == 2
+    assert _imperial_city_start_time(app) == time(11)
+
+    app.chat_input[0].set_value("Đổi giờ để trùng lịch").run(timeout=10)
+    text = _page_text(app)
+    assert "Lịch trình trước đó đã được giữ nguyên" in text
     assert "schedule_overlap" in text
-    assert "Current plan · revision 1" in text
+    assert "Lịch trình hiện tại · phiên bản 2" in text
+    assert any("11:00–12:30" in item.label for item in app.get("expander"))
+    assert app.session_state.current_plan.revision == 2
+    assert _imperial_city_start_time(app) == time(11)

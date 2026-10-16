@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-10-15
+Last updated: 2026-10-16
 
 ## Current Milestone
 
@@ -17,9 +17,12 @@ background only.
 | Scope reset | Complete | Charter, implementation plan, current log and ADR 0004 |
 | Runtime package | Complete | Coordinator/Planner graph, typed providers and validators |
 | Streamlit app | Complete | One-page session-only UI backed by the same service/graph |
-| Tests | 19 passed | Core, provider-boundary, graph, service and AppTest coverage |
+| Tests | 40 passed | Core, chat-edit/source eval, graph, service and AppTest coverage |
 | Live integration | Passed | OpenAI/Tavily/LangSmith smoke recorded under `docs/experiments/` |
 | Local container | Passed | Test/runtime images, health, non-root and live provider checks |
+| Chat editing | Passed | Successful UI edit, eight offline eval cases and live two-turn smoke |
+| Source quality evaluation | Offline baseline | 16 labelled synthetic citations; live relevance not measured |
+| Vietnamese chat | Passed | Vietnamese AppTest/fallback and live add-place response |
 
 Planning progress is not implementation progress. Only executable artifacts and
 actual checks count as completion evidence.
@@ -46,18 +49,38 @@ actual checks count as completion evidence.
 - Added a multi-stage, locked Docker build with an in-image test target and a
   non-root Streamlit runtime. The container test ran 19/19 tests; Compose health,
   safe failure and live Hue commit checks passed locally.
+- Aligned reorder validation with the chronological order shown in Streamlit;
+  list-only reorder and no-op edit claims are rejected.
+- Kept repair sources tied to actual provider results or the committed plan;
+  fabricated candidate URLs cannot become trusted during repair.
+- Added eight versioned offline chat-edit eval cases and AppTest coverage for a
+  successful edit followed by a rejected edit that preserves the new plan.
+- Verified a live Hue create-then-remove chat flow on one session: revision 1
+  with five entries became revision 2 with four, keeping all other entries.
+- Added an offline source-quality evaluator and 16 labelled synthetic citations
+  across five plans. It reports relevance, place coverage, source classes and
+  host diversity without changing runtime commit policy.
+- Migrated the original smoke to LangSmith `runs.query()`; a live Hue run found
+  25 matching runs with the same session `thread_id`.
+- Added an offline regression for `Lô Lô Chải`/`Lo Lo Chai Village` add-place
+  matching and rebuilt the healthy local runtime container with the fix.
+- Rechecked the exact `gpt-5.5` model and a representative Lô Lô Chải add
+  request in the container. The plan committed revision 2, preserved the
+  prior stop and passed validation with one Planner search.
+- Set Vietnamese as the default chat/UI language, including model instructions
+  and safe fallback responses; a live Vietnamese add request received a
+  Vietnamese reply and committed the requested place.
 
 ## Now
 
-1. Add a versioned evaluation set for source relevance and edit quality.
-2. Decide whether to add domain-quality scoring before broad demo use.
+1. Label sources from representative live plans and measure relevance, place
+   coverage and host diversity before a broad demo.
+2. Exercise additional live edit intents, especially reorder and replace, with
+   separate evidence from the offline gate.
 
 ## Next
 
-1. Add live chat-edit smoke coverage without weakening the offline test gate.
-2. Migrate the smoke script from deprecated `list_runs()` before its 2027
-   removal.
-3. Add deployment/authentication only under a separate decision.
+1. Add deployment/authentication only under a separate decision.
 
 ## Blockers And Risks
 
@@ -69,6 +92,18 @@ actual checks count as completion evidence.
   source result explicitly supports them.
 - Live results can include broad travel pages or video sources. Current code
   validates provenance/place match, not editorial quality or domain diversity.
+- The new live chat-edit smoke verifies a two-turn service flow; it does not
+  inspect stored LangSmith runs or automate a live Streamlit browser.
+- The source-quality corpus is synthetic and intentionally includes weak and
+  irrelevant citations; its scores are a measurement baseline, not a claim
+  about the quality of live Tavily recommendations.
+- The representative Lô Lô Chải edit passed live on 2026-10-16; the original
+  user's session-only plan was not available for exact replay.
+- Vietnamese has live evidence for one add request; other edit intents and
+  ordinary conversation have offline coverage but no separate live language
+  sample yet.
+- A Docker test-target rebuild hit intermittent Docker Hub DNS failure; the
+  normal runtime image rebuilt, started healthy and served HTTP 200.
 - The delegated independent testing agent could not start its shell because of
   Windows `CreateProcessWithLogonW` error 1385. Primary-session targeted/full
   tests and all standard checks provide the recorded verification evidence.
@@ -86,6 +121,12 @@ actual checks count as completion evidence.
 - `src/utils/`
 - `docs/experiments/2026-10-14-live-two-agent-smoke.md`
 - `docs/experiments/2026-10-14-local-container-smoke.md`
+- `docs/experiments/2026-10-15-live-chat-edit-smoke.md`
+- `docs/experiments/2026-10-15-source-quality-baseline.md`
+- `docs/experiments/2026-10-15-langsmith-query-v2-smoke.md`
+- `docs/experiments/2026-10-15-lo-lo-chai-add-regression.md`
+- `docs/experiments/2026-10-16-live-lo-lo-chai-add.md`
+- `docs/experiments/2026-10-16-vietnamese-chat-smoke.md`
 - `Dockerfile`
 - `compose.yaml`
 - `docs/progress/roadmap-progress.json`

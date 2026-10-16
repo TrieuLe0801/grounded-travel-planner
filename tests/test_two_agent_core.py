@@ -303,6 +303,43 @@ def test_ordinary_chat_does_not_search_or_mutate_plan() -> None:
     assert response.graph_steps == 2
 
 
+def test_vietnamese_chat_uses_localized_fallback_when_explanation_fails() -> None:
+    prompts: list[str] = []
+
+    def coordinator_handler(prompt: str, schema: type[BaseModel]) -> BaseModel:
+        prompts.append(prompt)
+        if schema is CoordinatorDecision:
+            return CoordinatorDecision(
+                intent=PlanChangeIntent(action=IntentAction.ORDINARY_CHAT),
+                response_hint="English hint must not reach the user",
+            )
+        raise RuntimeError("simulated explanation failure")
+
+    search = FakeSearch([])
+    config = RuntimeConfig()
+    service = TravelPlannerService(
+        CoordinatorAgent(ScriptedModel(coordinator_handler)),
+        PlannerAgent(
+            ScriptedModel(lambda prompt, schema: PlanCandidate()), search, config
+        ),
+        config=config,
+    )
+    current = plan()
+
+    response = service.handle_turn(
+        thread_id="thread-vietnamese-chat",
+        message="Cảm ơn, lịch trình này ổn rồi.",
+        current_plan=current,
+    )
+
+    assert response.status is ResponseStatus.UNCHANGED
+    assert response.current_plan == current
+    assert response.message == "Bạn muốn thay đổi điều gì trong lịch trình?"
+    assert search.calls == []
+    assert "Understand Vietnamese requests" in prompts[0]
+    assert "Respond entirely in natural Vietnamese" in prompts[1]
+
+
 def test_valid_create_searches_once_and_commits_grounded_plan() -> None:
     trace = RecordingTrace()
     service, _, _, search = service_for(
@@ -420,6 +457,49 @@ def test_source_and_opening_hours_claims_are_rejected() -> None:
     assert "source_not_returned" in codes
     assert "source_place_mismatch" in codes
     assert "opening_hours_unsubstantiated" in codes
+
+
+def test_repair_does_not_treat_fabricated_candidate_sources_as_returned() -> None:
+    fabricated = source(
+        title="Fabricated source",
+        url="https://fabricated.example/hue/imperial-city",
+        snippet="Fabricated Imperial City information.",
+    )
+    candidate_plan = plan(source_reference=fabricated)
+    planner_prompts: list[str] = []
+
+    def planner_handler(prompt: str, schema: type[BaseModel]) -> BaseModel:
+        assert schema is PlanCandidate
+        planner_prompts.append(prompt)
+        return PlanCandidate(plan=candidate_plan, summary="candidate")
+
+    config = RuntimeConfig()
+    service = TravelPlannerService(
+        CoordinatorAgent(coordinator_model(IntentAction.CREATE_TRIP)),
+        PlannerAgent(
+            ScriptedModel(planner_handler),
+            FakeSearch([search_result()]),
+            config,
+        ),
+        config=config,
+    )
+
+    response = service.handle_turn(
+        thread_id="thread-source-repair",
+        message="Create a Hue plan.",
+        request=TripRequest(
+            destination="Hue",
+            start_date=date(2026, 11, 1),
+            day_count=2,
+        ),
+    )
+
+    assert response.status is ResponseStatus.REJECTED
+    assert response.committed is False
+    assert response.repair_attempts == 1
+    assert "source_not_returned" in {issue.code for issue in response.validation_issues}
+    assert len(planner_prompts) == 2
+    assert str(fabricated.url) not in planner_prompts[1]
 
 
 def test_known_opening_hours_conflict_is_rejected() -> None:
@@ -623,6 +703,9 @@ def test_all_supported_edit_intents_are_verified_deterministically() -> None:
     moved_time = first.model_copy(
         update={"start_time": time(13), "end_time": time(14, 30)}
     )
+    moved_after_second = first.model_copy(
+        update={"start_time": time(13), "end_time": time(14, 30)}
+    )
     cases = [
         (
             PlanChangeIntent(
@@ -652,7 +735,7 @@ def test_all_supported_edit_intents_are_verified_deterministically() -> None:
                 from_index=0,
                 to_index=1,
             ),
-            current.model_copy(update={"entries": [second, first]}),
+            current.model_copy(update={"entries": [moved_after_second, second]}),
         ),
         (
             PlanChangeIntent(
@@ -686,6 +769,176 @@ def test_all_supported_edit_intents_are_verified_deterministically() -> None:
     assert validate_requested_change(ignored, current, current)[0].code == (
         "requested_change_not_applied"
     )
+
+
+def test_reorder_uses_chronological_visible_indices() -> None:
+    current = two_place_plan()
+    late_entry, early_entry = current.entries
+    current = current.model_copy(
+        update={
+            "entries": [
+                late_entry.model_copy(
+                    update={"start_time": time(13), "end_time": time(14, 30)}
+                ),
+                early_entry,
+            ]
+        }
+    )
+    moved_early = current.entries[1].model_copy(
+        update={"start_time": time(15), "end_time": time(16)}
+    )
+    successful_candidate = current.model_copy(
+        update={"entries": [current.entries[0], moved_early]}
+    )
+    intent = PlanChangeIntent(
+        action=IntentAction.REORDER_PLACES,
+        from_index=0,
+        to_index=1,
+    )
+
+    assert validate_requested_change(intent, current, successful_candidate) == []
+
+
+def test_reorder_rejects_list_only_change_when_visible_order_is_unchanged() -> None:
+    current = two_place_plan()
+    late_entry, early_entry = current.entries
+    current = current.model_copy(
+        update={
+            "entries": [
+                late_entry.model_copy(
+                    update={"start_time": time(13), "end_time": time(14, 30)}
+                ),
+                early_entry,
+            ]
+        }
+    )
+    list_only_candidate = current.model_copy(
+        update={"entries": [current.entries[1], current.entries[0]]}
+    )
+    intent = PlanChangeIntent(
+        action=IntentAction.REORDER_PLACES,
+        from_index=0,
+        to_index=1,
+    )
+
+    issues = validate_requested_change(intent, current, list_only_candidate)
+
+    assert issues[0].code == "requested_change_not_applied"
+    assert issues[0].message == "Candidate did not change the visible itinerary order."
+
+
+def test_reorder_rejects_added_or_removed_stops() -> None:
+    current = two_place_plan()
+    first, second = current.entries
+    replacement = second.model_copy(update={"id": "entry_replacement"})
+    candidate = current.model_copy(
+        update={
+            "entries": [
+                replacement.model_copy(
+                    update={"start_time": time(8), "end_time": time(8, 30)}
+                ),
+                first,
+            ]
+        }
+    )
+    intent = PlanChangeIntent(
+        action=IntentAction.REORDER_PLACES,
+        from_index=0,
+        to_index=1,
+    )
+
+    issues = validate_requested_change(intent, current, candidate)
+
+    assert (
+        issues[0].message == "Candidate must preserve the same stops when reordering."
+    )
+
+
+def test_reorder_rejects_when_requested_stop_does_not_change_visible_position() -> None:
+    current = two_place_plan()
+    first, second = current.entries
+    third = second.model_copy(
+        update={
+            "id": "entry_third",
+            "start_time": time(13),
+            "end_time": time(14),
+        }
+    )
+    current = current.model_copy(update={"entries": [first, second, third]})
+    candidate = current.model_copy(
+        update={
+            "entries": [
+                first,
+                second.model_copy(
+                    update={"start_time": time(15), "end_time": time(16)}
+                ),
+                third,
+            ]
+        }
+    )
+    intent = PlanChangeIntent(
+        action=IntentAction.REORDER_PLACES,
+        from_index=0,
+        to_index=0,
+    )
+
+    issues = validate_requested_change(intent, current, candidate)
+
+    assert issues[0].message == (
+        "Candidate did not move the requested stop in visible itinerary."
+    )
+
+
+def test_non_reorder_edits_require_an_existing_target_and_a_real_change() -> None:
+    current = plan()
+    entry = current.entries[0]
+    replacement = entry.model_copy(
+        update={"place": entry.place.model_copy(update={"name": "Hue Museum"})}
+    )
+    replaced_candidate = current.model_copy(update={"entries": [replacement]})
+
+    remove_issues = validate_requested_change(
+        PlanChangeIntent(action=IntentAction.REMOVE_PLACE, place_name="Unknown"),
+        current,
+        current,
+    )
+    replace_issues = validate_requested_change(
+        PlanChangeIntent(
+            action=IntentAction.REPLACE_PLACE,
+            place_name="Unknown",
+            replacement_place_name="Hue Museum",
+        ),
+        current,
+        replaced_candidate,
+    )
+    day_issues = validate_requested_change(
+        PlanChangeIntent(
+            action=IntentAction.CHANGE_DAY,
+            entry_id=entry.id,
+            day_index=entry.day_index,
+        ),
+        current,
+        current,
+    )
+    time_issues = validate_requested_change(
+        PlanChangeIntent(
+            action=IntentAction.CHANGE_TIME,
+            entry_id=entry.id,
+            start_time=entry.start_time,
+            end_time=entry.end_time,
+        ),
+        current,
+        current,
+    )
+
+    assert remove_issues[0].message == (
+        "The requested removal target is not in the current plan."
+    )
+    assert replace_issues[0].message == (
+        "The requested replacement target is not in the current plan."
+    )
+    assert day_issues[0].message == "Candidate did not change the requested day."
+    assert time_issues[0].message == "Candidate did not change the requested time."
 
 
 def test_add_place_keeps_existing_sources_and_adds_live_search_source() -> None:
@@ -763,3 +1016,47 @@ def test_add_place_keeps_existing_sources_and_adds_live_search_source() -> None:
         "https://travel.example/hue/imperial-city",
         "https://travel.example/hue/thien-mu-pagoda",
     }
+
+
+def test_add_place_accepts_vietnamese_name_variant_but_not_another_place() -> None:
+    current = plan()
+    original = current.entries[0]
+    new_entry = original.model_copy(
+        update={
+            "id": "entry_lo_lo_chai",
+            "day_index": 2,
+            "place": original.place.model_copy(
+                update={"place_id": "place_lo_lo_chai", "name": "Lo Lo Chai Village"}
+            ),
+        }
+    )
+    intent = PlanChangeIntent(
+        action=IntentAction.ADD_PLACE,
+        place_name="L\u00f4 L\u00f4 Ch\u1ea3i",
+    )
+    candidate = current.model_copy(update={"entries": [original, new_entry]})
+
+    assert validate_requested_change(intent, current, candidate) == []
+
+    regenerated_id = original.model_copy(update={"id": "regenerated_old_stop"})
+    same_places_with_new_id = current.model_copy(
+        update={"entries": [regenerated_id, new_entry]}
+    )
+    assert validate_requested_change(intent, current, same_places_with_new_id) == []
+
+    wrong_place = new_entry.model_copy(
+        update={
+            "place": new_entry.place.model_copy(update={"name": "Lo Lo Chai Market"})
+        }
+    )
+    wrong_candidate = current.model_copy(update={"entries": [original, wrong_place]})
+    assert validate_requested_change(intent, current, wrong_candidate)[0].code == (
+        "requested_change_not_applied"
+    )
+
+    lost_existing_stop = current.model_copy(
+        update={"entries": [new_entry, wrong_place]}
+    )
+    assert validate_requested_change(intent, current, lost_existing_stop)[0].code == (
+        "requested_change_not_applied"
+    )

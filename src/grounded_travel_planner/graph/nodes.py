@@ -33,13 +33,14 @@ def _step(state: PlannerState) -> int:
 
 
 def _candidate_sources(state: PlannerState) -> list[SourceReference]:
+    """Retain provider-returned sources, never untrusted candidate references."""
+
     candidate = state.get("candidate")
-    if candidate is None or candidate.plan is None:
+    if candidate is None:
         return []
     unique: dict[str, SourceReference] = {}
-    for entry in candidate.plan.entries:
-        for source in entry.place.source_references:
-            unique[str(source.url).rstrip("/")] = source
+    for source in candidate.returned_sources:
+        unique[str(source.url).rstrip("/")] = source
     return list(unique.values())
 
 
@@ -87,7 +88,7 @@ class GraphNodes:
             return {
                 "graph_steps": step,
                 "validation_issues": [issue],
-                "response_hint": "The request could not be classified.",
+                "response_hint": "Chưa thể hiểu yêu cầu này.",
             }
 
     def validate_input(self, state: PlannerState) -> dict:
@@ -187,7 +188,7 @@ class GraphNodes:
                 "graph_steps": step,
                 "search_calls": search_calls,
                 "validation_issues": [issue],
-                "response_hint": "The previous plan was preserved.",
+                "response_hint": "Lịch trình trước đó đã được giữ nguyên.",
             }
 
     def validate_candidate(self, state: PlannerState) -> dict:
@@ -247,14 +248,13 @@ class GraphNodes:
             )
         except Exception:  # noqa: BLE001 - deterministic explanation fallback
             if committed:
-                message = "The validated sightseeing plan was updated."
+                message = "Lịch trình tham quan đã được cập nhật sau khi kiểm tra."
             elif issues:
                 message = (
-                    "The requested change was not applied; the previous plan was "
-                    "preserved."
+                    "Chưa thể áp dụng thay đổi; lịch trình trước đó đã được giữ nguyên."
                 )
             else:
-                message = state.get("response_hint") or "How can I help with the plan?"
+                message = "Bạn muốn thay đổi điều gì trong lịch trình?"
         response = AgentResponse(
             status=status,
             message=message,

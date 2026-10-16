@@ -1,7 +1,7 @@
 # Project Charter
 
 Status: Active
-Last updated: 2026-10-14
+Last updated: 2026-10-16
 
 ## Product
 
@@ -10,6 +10,10 @@ destination or place, a concrete start date and a day count from 1 to 7. The app
 creates one current itinerary and lets the user chat to add constraints or make
 bounded changes such as add, remove, replace, reorder, day changes and time
 changes.
+
+The chat accepts Vietnamese requests and responds in Vietnamese by default.
+Place names and source titles retain their original spelling; internal intent
+codes, source evidence and validation rules remain language-independent.
 
 ## Runtime Scope
 

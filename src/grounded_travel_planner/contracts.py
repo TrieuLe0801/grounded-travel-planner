@@ -92,6 +92,40 @@ class SightseeingPlan(BaseModel):
     revision: int = Field(default=1, ge=1)
 
 
+def visible_schedule_entries(plan: SightseeingPlan) -> list[ScheduleEntry]:
+    """Return entries in the same chronological order shown to the user."""
+
+    return sorted(
+        plan.entries,
+        key=lambda entry: (
+            entry.day_index,
+            entry.start_time,
+            entry.end_time,
+            entry.id,
+        ),
+    )
+
+
+def visible_schedule_context(
+    plan: SightseeingPlan | None,
+) -> list[dict[str, str | int]]:
+    """Give agents an unambiguous, zero-based view of the current itinerary."""
+
+    if plan is None:
+        return []
+    return [
+        {
+            "index": index,
+            "entry_id": entry.id,
+            "place_name": entry.place.name,
+            "day_index": entry.day_index,
+            "start_time": entry.start_time.isoformat(),
+            "end_time": entry.end_time.isoformat(),
+        }
+        for index, entry in enumerate(visible_schedule_entries(plan))
+    ]
+
+
 class ValidationIssue(BaseModel):
     code: str = Field(min_length=1, max_length=80)
     message: str = Field(min_length=1, max_length=500)
@@ -104,6 +138,7 @@ class PlanCandidate(BaseModel):
     summary: str = Field(default="", max_length=2000)
     issues: list[ValidationIssue] = Field(default_factory=list)
     returned_source_urls: set[str] = Field(default_factory=set)
+    returned_sources: list[SourceReference] = Field(default_factory=list)
 
 
 class PlanChangeIntent(BaseModel):

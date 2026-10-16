@@ -13,6 +13,8 @@ three-week POC documents are historical background.
 - Tavily, OpenAI and LangSmith integrations sit behind typed provider adapters.
 - The one-page Streamlit app stores the canonical plan in session state only.
 - Deterministic tests use fakes and never call live services.
+- Chat edits are covered by eight versioned offline cases, a successful/rejected
+  Streamlit AppTest sequence and a separate live create-then-remove smoke.
 
 See `PROJECT_STATUS.md` for the current Done / Now / Next / Blockers view.
 
@@ -117,6 +119,40 @@ Tavily and LangSmith gates are recorded separately when executed.
 
 See `docs/experiments/2026-10-14-live-two-agent-smoke.md` for sanitized live
 evidence and the integration defects found during the smoke.
+
+## Chat editing and source-quality checks
+
+The current offline suite passed 40 tests on 2026-10-16. To run the separate
+live two-turn edit smoke with local credentials:
+
+```bash
+uv run --env-file .env python scripts/live_chat_edit_smoke.py
+```
+
+The source-quality baseline uses labelled synthetic cases, not live Tavily
+results. It reports relevance, place coverage and host diversity without
+changing the runtime commit rule:
+
+```bash
+uv run python scripts/evaluate_source_quality.py
+```
+
+See `docs/experiments/2026-10-15-live-chat-edit-smoke.md` and
+`docs/experiments/2026-10-15-source-quality-baseline.md` for evidence and
+limits. The original live smoke now uses LangSmith `runs.query()`; its v2 query
+verification is recorded in
+`docs/experiments/2026-10-15-langsmith-query-v2-smoke.md`.
+
+The add-place regression for `Lô Lô Chải` is verified offline and a
+representative live container edit passed on 2026-10-16. The initial live
+recheck had hit OpenAI HTTP 429 `billing_not_active`; the original user's
+session was not replayed. See
+`docs/experiments/2026-10-16-live-lo-lo-chai-add.md`.
+
+The webapp uses Vietnamese for chat and form guidance by default. A Vietnamese
+add-place request and assistant reply passed in the running container; source
+titles and proper place names keep their original spelling. See
+`docs/experiments/2026-10-16-vietnamese-chat-smoke.md`.
 
 ## Run with Docker locally
 

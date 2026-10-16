@@ -2,13 +2,41 @@
 
 from __future__ import annotations
 
+import asyncio
+import inspect
 import json
 import os
-import warnings
 from datetime import date
+from typing import Any
 
 from grounded_travel_planner.contracts import TripRequest
 from grounded_travel_planner.service import TravelPlannerService
+
+
+async def _query_thread_runs(
+    client: Any, project_name: str, thread_id: str
+) -> list[Any]:
+    """Return the selected v2 LangSmith runs for one app session thread."""
+    project = client.read_project(project_name=project_name)
+    pager = client.runs.query(
+        project_ids=[str(project.id)],
+        filter=f"eq(thread_id, {json.dumps(thread_id)})",
+        page_size=100,
+        selects=["IS_ROOT", "THREAD_ID"],
+    )
+    if inspect.isawaitable(pager):
+        pager = await pager
+    return [run async for run in pager]
+
+
+def _summarize_thread_runs(runs: list[Any], thread_id: str) -> dict[str, object]:
+    """Return counts and propagation status without exposing trace contents."""
+    return {
+        "run_count": len(runs),
+        "root_count": sum(run.is_root is True for run in runs),
+        "child_count": sum(run.is_root is False for run in runs),
+        "thread_metadata_on_all": all(run.thread_id == thread_id for run in runs),
+    }
 
 
 def main() -> int:
@@ -49,28 +77,8 @@ def main() -> int:
             from langsmith import Client
 
             client = Client()
-            filter_value = (
-                'and(eq(metadata_key, "thread_id"), '
-                f'eq(metadata_value, "{thread_id}"))'
-            )
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore", DeprecationWarning)
-                runs = list(
-                    client.list_runs(
-                        project_name=project,
-                        filter=filter_value,
-                        limit=100,
-                    )
-                )
-            summary["langsmith"] = {
-                "run_count": len(runs),
-                "root_count": sum(run.parent_run_id is None for run in runs),
-                "child_count": sum(run.parent_run_id is not None for run in runs),
-                "thread_metadata_on_all": all(
-                    (run.extra or {}).get("metadata", {}).get("thread_id") == thread_id
-                    for run in runs
-                ),
-            }
+            runs = asyncio.run(_query_thread_runs(client, project, thread_id))
+            summary["langsmith"] = _summarize_thread_runs(runs, thread_id)
         except Exception as error:  # noqa: BLE001 - report live gate safely
             summary["langsmith"] = {
                 "error_type": type(error).__name__,

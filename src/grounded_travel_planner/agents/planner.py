@@ -15,6 +15,7 @@ from grounded_travel_planner.contracts import (
     SourceReference,
     TripRequest,
     ValidationIssue,
+    visible_schedule_context,
 )
 from grounded_travel_planner.providers import PlaceSearchProvider, StructuredChatModel
 from utils.ids import new_id
@@ -151,12 +152,23 @@ class PlannerAgent:
             "and source IDs in the supplied search results. Never invent opening "
             "hours. Use opening_hours='unverified' and false unless a supplied "
             "source explicitly supports hours. All visit and travel minute fields "
-            "are estimates. Do not overlap schedule entries and keep day_index "
+            "are estimates. Write user-visible plan summaries, place descriptions "
+            "and schedule notes in Vietnamese; preserve proper names and source "
+            "titles as supplied. Do not overlap schedule entries and keep day_index "
             "within the requested day count. Apply the requested edit to the prior "
-            "plan when present.\n"
+            "plan when present. Preserve existing entry IDs and stops for "
+            "add_place. Name an added place exactly as intent.place_name and a "
+            "replacement exactly as intent.replacement_place_name; put alternate "
+            "spellings or location descriptors in its description. For "
+            "reorder_places, from_index and to_index are "
+            "zero-based positions in the chronological itinerary shown to the user, "
+            "sorted by day, start time, end time, then entry ID. A reorder must "
+            "change that visible chronological order; changing only the entries "
+            "list is insufficient.\n"
             f"Request: {request.model_dump_json()}\n"
             f"Intent: {intent.model_dump_json()}\n"
             f"Current plan: {current_payload}\n"
+            f"Current visible itinerary: {visible_schedule_context(current_plan)}\n"
             f"Returned sources: {source_payload}\n"
             f"Repair issues: {issue_payload}"
         )
@@ -171,7 +183,12 @@ class PlannerAgent:
     ) -> PlanCandidate:
         allowed = {str(source.url).rstrip("/"): source for source in sources}
         if proposed.plan is None:
-            return proposed.model_copy(update={"returned_source_urls": set(allowed)})
+            return proposed.model_copy(
+                update={
+                    "returned_source_urls": set(allowed),
+                    "returned_sources": list(allowed.values()),
+                }
+            )
         grounded_entries = []
         for entry in proposed.plan.entries:
             grounded_refs: list[SourceReference] = []
@@ -207,5 +224,9 @@ class PlannerAgent:
             }
         )
         return proposed.model_copy(
-            update={"plan": plan, "returned_source_urls": set(allowed)}
+            update={
+                "plan": plan,
+                "returned_source_urls": set(allowed),
+                "returned_sources": list(allowed.values()),
+            }
         )

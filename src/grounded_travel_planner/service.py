@@ -125,7 +125,7 @@ class TravelPlannerService:
                 return response
             return AgentResponse(
                 status=ResponseStatus.PROVIDER_ERROR,
-                message="The request ended without a valid agent response.",
+                message="Chưa nhận được phản hồi hợp lệ cho yêu cầu này.",
                 current_plan=safe_current,
                 validation_issues=[
                     ValidationIssue(
@@ -138,10 +138,7 @@ class TravelPlannerService:
         except Exception as error:  # noqa: BLE001 - preserve canonical plan
             return AgentResponse(
                 status=ResponseStatus.PROVIDER_ERROR,
-                message=(
-                    "The request could not be completed; the previous plan was "
-                    "preserved."
-                ),
+                message="Chưa thể hoàn tất yêu cầu; lịch trình cũ đã được giữ nguyên.",
                 current_plan=safe_current,
                 validation_issues=[
                     ValidationIssue(
