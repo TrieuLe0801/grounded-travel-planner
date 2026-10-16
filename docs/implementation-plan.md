@@ -1,7 +1,7 @@
 # Implementation Plan
 
 Status: Active
-Last updated: 2026-10-14
+Last updated: 2026-10-16
 
 ## Phase 1A - Core Runtime — Implemented
 
@@ -29,7 +29,8 @@ Checks:
 
 Acceptance:
 
-- One-page Streamlit UI with destination/place, start date and day count input.
+- Streamlit itinerary/chat page with destination/place, start date and day count
+  input, plus a separate read-only graph-inspection page.
 - Session-only canonical plan and chat history.
 - Chat can request add, remove, replace, reorder, day and time changes.
 - Ordinary chat does not mutate plan state.
@@ -99,6 +100,9 @@ Evidence:
 Acceptance:
 
 - Keep provenance validation as the runtime commit rule.
+- Temporarily keep source-place token overlap out of the commit gate; the
+  `source_place_mismatch` rule produced repeated false rejections. Continue to
+  measure relevance offline until a replacement strategy is accepted.
 - Use a versioned, manually labelled corpus to measure citation relevance,
   relevant-place coverage, source classes and normalized host diversity.
 - Keep synthetic fixture metrics separate from live-source quality claims.
@@ -143,7 +147,7 @@ lint suite passed. A live Vietnamese add-place turn in the rebuilt container
 committed Lô Lô Chải at revision 2 and received a Vietnamese assistant reply.
 See `docs/experiments/2026-10-16-vietnamese-chat-smoke.md`.
 
-## Phase 1G - Visual Itinerary — In Progress
+## Phase 1G - Visual Itinerary — Photo Presentation
 
 Acceptance:
 
@@ -151,14 +155,27 @@ Acceptance:
   responsive design guidance to the Streamlit page.
 - Add actual place photos with visible source and license credit, or a clear
   unavailable state.
-- Show only source-backed coordinates on an attributed map. Keep route-order
-  connectors explicitly illustrative until road geometry is available.
-- Selecting a map stop moves a car marker to that stop; keyboard and reduced-
-  motion interactions reach the same final state.
 - Failed visual lookups never block plan creation/chat edits or change the
   canonical session plan.
-- Verify provider parsing with mocks, UI behavior with AppTest and animation
-  in a real browser separately.
+- Verify provider parsing with mocks and UI behavior with AppTest.
 
-ADR 0005 records the provider and visualization boundary. Implementation and
-verification evidence will be added only after executable artifacts pass.
+ADR 0005 records the earlier map design and ADR 0006 supersedes it after the
+user requested removal of the geographic route view. Historical map/coordinate
+checks remain recorded in `docs/experiments/2026-10-16-visual-itinerary-smoke.md`;
+they do not describe the current UI.
+
+## Graph Architecture Inspection — Acceptance
+
+- Show a separate Streamlit page using the PNG returned by
+  `TravelPlannerService.get_graph_image()`, including START/END, Coordinator,
+  Planner, validators and repair. Retain an SVG fallback for render outages.
+- Expose the actual node and edge list, and distinguish conditional branches.
+- Opening this page does not call live providers, invoke a graph turn, or change
+  the canonical session plan.
+
+ADR 0006 records the page boundary. On 2026-10-16, the focused UI/photo/graph
+tests passed 9/9; after the `get_graph_image()` integration, the full host and
+Docker test suites each passed 47/47.
+Black, isort, flake8, Ruff and `uv lock --check` passed. The rebuilt Compose
+runtime reached healthy status on `127.0.0.1:8503`. Real-browser visual
+inspection of the SVG has not been recorded.

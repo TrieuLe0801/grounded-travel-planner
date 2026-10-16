@@ -16,13 +16,15 @@ background only.
 |---|---|---|
 | Scope reset | Complete | Charter, implementation plan, current log and ADR 0004 |
 | Runtime package | Complete | Coordinator/Planner graph, typed providers and validators |
-| Streamlit app | Complete | One-page session-only UI backed by the same service/graph |
-| Tests | 40 passed | Core, chat-edit/source eval, graph, service and AppTest coverage |
+| Streamlit app | Complete | Session-only itinerary/chat plus read-only graph page |
+| Tests | 47 passed | Core, graph-image, photo, chat-edit/source eval and AppTest coverage |
 | Live integration | Passed | OpenAI/Tavily/LangSmith smoke recorded under `docs/experiments/` |
 | Local container | Passed | Test/runtime images, health, non-root and live provider checks |
 | Chat editing | Passed | Successful UI edit, eight offline eval cases and live two-turn smoke |
 | Source quality evaluation | Offline baseline | 16 labelled synthetic citations; live relevance not measured |
 | Vietnamese chat | Passed | Vietnamese AppTest/fallback and live add-place response |
+| Visual itinerary | Complete | Source-backed photos; route map removed by user request |
+| Graph inspection | Complete | `get_graph_image()` PNG on separate page; SVG fallback; offline AppTest |
 
 Planning progress is not implementation progress. Only executable artifacts and
 actual checks count as completion evidence.
@@ -37,6 +39,9 @@ actual checks count as completion evidence.
   boundaries and code-enforced graph/search/repair limits.
 - Implemented validate-before-commit input, schedule, opening-hours and source
   provenance checks. Failed candidates preserve the previous plan.
+- Temporarily removed `source_place_mismatch` from the commit gate at the
+  user's request after repeated false rejections. Returned-URL provenance,
+  HTTP(S), required-source and opening-hours checks remain active.
 - Added deterministic checks that create/add/remove/replace/reorder/day/time
   candidates actually satisfy the delegated change before commit.
 - Unverified opening hours are normalized to the explicit `unverified` label;
@@ -70,6 +75,13 @@ actual checks count as completion evidence.
 - Set Vietnamese as the default chat/UI language, including model instructions
   and safe fallback responses; a live Vietnamese add request received a
   Vietnamese reply and committed the requested place.
+- Installed UI/UX Pro Max for this project and added source-backed place images.
+  The earlier map/car experiment was removed at the user's request; ADR 0006
+  records the decision. The separate graph page displays the PNG returned by
+  `get_graph_image()` without invoking a planning turn.
+- After the graph-image update, host and Docker test targets each passed 47 tests;
+  Black, isort, flake8, Ruff and `uv lock --check` passed. The Compose runtime
+  was rebuilt and reached healthy status on `127.0.0.1:8503`.
 
 ## Now
 
@@ -91,7 +103,9 @@ actual checks count as completion evidence.
 - Tavily snippets can be incomplete; opening hours stay unverified unless a
   source result explicitly supports them.
 - Live results can include broad travel pages or video sources. Current code
-  validates provenance/place match, not editorial quality or domain diversity.
+  validates URL provenance but temporarily does not enforce place-name token
+  overlap; editorial quality, relevance and domain diversity remain measured
+  outside the commit gate.
 - The new live chat-edit smoke verifies a two-turn service flow; it does not
   inspect stored LangSmith runs or automate a live Streamlit browser.
 - The source-quality corpus is synthetic and intentionally includes weak and
@@ -102,6 +116,8 @@ actual checks count as completion evidence.
 - Vietnamese has live evidence for one add request; other edit intents and
   ordinary conversation have offline coverage but no separate live language
   sample yet.
+- Public photo APIs can be unavailable. The app caps photo lookups at 12 stops
+  and retains the text/source itinerary when no licensed image is resolved.
 - A Docker test-target rebuild hit intermittent Docker Hub DNS failure; the
   normal runtime image rebuilt, started healthy and served HTTP 200.
 - The delegated independent testing agent could not start its shell because of
@@ -127,6 +143,9 @@ actual checks count as completion evidence.
 - `docs/experiments/2026-10-15-lo-lo-chai-add-regression.md`
 - `docs/experiments/2026-10-16-live-lo-lo-chai-add.md`
 - `docs/experiments/2026-10-16-vietnamese-chat-smoke.md`
+- `docs/experiments/2026-10-16-visual-itinerary-smoke.md`
+- `docs/adr/0005-visual-itinerary-enrichment.md`
+- `docs/adr/0006-photo-only-itinerary-and-graph-inspection.md`
 - `Dockerfile`
 - `compose.yaml`
 - `docs/progress/roadmap-progress.json`

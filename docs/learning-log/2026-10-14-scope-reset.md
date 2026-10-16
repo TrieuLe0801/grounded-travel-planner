@@ -23,6 +23,28 @@ city/place sightseeing webapp.
 - On 2026-10-16 the user requested source-backed place images, a mapped route
   view, and a car moving to a clicked itinerary stop. ADR 0005 keeps these
   presentation features separate from the canonical plan and two-agent graph.
+- The UI/UX Pro Max Codex skill was installed project-locally as version
+  `2.15.0`. The visual itinerary passed 48 host/container tests and live
+  Commons/Wikipedia metadata checks for two Hue landmarks. A fake-DOM
+  JavaScript run confirmed click, reduced motion and interruption behavior;
+  real-browser visual inspection remains open.
+- Later on 2026-10-16 the user requested a separate page with an image of the
+  compiled runtime graph, then explicitly requested removal of the itinerary
+  route map shown in their screenshot. ADR 0006 supersedes the map/car portion
+  of ADR 0005. Source-attributed place photos remain in the itinerary.
+- The new graph page and photo-only itinerary passed focused offline tests.
+  After the `get_graph_image()` integration, 47 tests passed in both host and
+  Docker test runs. The rebuilt Compose
+  container reached healthy status at `127.0.0.1:8503`. A previously commented
+  source-place matching check was restored after the full suite exposed its
+  failure; the remaining project lint and formatting checks then passed.
+- The graph page now uses the PNG bytes returned by
+  `TravelPlannerService.get_graph_image()` as requested. The existing local SVG
+  renderer remains a fallback when Mermaid image rendering is unavailable.
+- The user then requested temporary removal of `source_place_mismatch` because
+  its token overlap caused repeated false rejections. URL provenance and the
+  remaining deterministic source/hour checks stay enabled. Do not restore this
+  issue code until a better relevance matcher is accepted.
 
 ## Evidence
 
@@ -83,3 +105,6 @@ city/place sightseeing webapp.
   initial Lô Lô Chải live recheck hit OpenAI HTTP 429 `billing_not_active`.
   On 2026-10-16, a representative container flow added Lô Lô Chải, preserved
   the existing stop and committed revision 2 with one search and no repair.
+- The Docker test stage must include versioned eval data and the smoke script
+  imported by tests; excluding them from the build context caused collection
+  errors even though host pytest passed.

@@ -27,6 +27,12 @@ not leak into UI or policy code.
 Commit a candidate plan only after deterministic input, schedule and source
 validation pass. Preserve the previous plan when validation fails.
 
+Temporary amendment, 2026-10-16: disable the `source_place_mismatch` token-
+overlap gate at the user's request because it repeatedly rejected valid source
+text. URL provenance, valid HTTP(S), required references and supported opening-
+hours checks remain active. Reintroducing place-to-source relevance as a commit
+gate requires a better matching strategy and a new decision.
+
 ## Consequences
 
 - More runtime specialist roles are out of scope until the two-agent vertical

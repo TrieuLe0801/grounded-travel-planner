@@ -1,6 +1,6 @@
 {
-  "version": 16,
-  "updated": "2026-10-16T09:56:11+07:00",
+  "version": 20,
+  "updated": "2026-10-16T17:10:00+07:00",
   "active_scope": "city-place-sightseeing-webapp",
   "current_milestone": "Milestone 1: executable city/place sightseeing vertical slice",
   "completed": {
@@ -16,7 +16,11 @@
     "langsmith_v2_query": true,
     "add_place_alias_offline_fix": true,
     "add_place_alias_live_recheck": true,
-    "vietnamese_chat": true
+    "vietnamese_chat": true,
+    "visual_itinerary_implementation": true,
+    "route_map_removed": true,
+    "graph_inspection_page": true,
+    "source_place_mismatch_temporarily_disabled": true
   },
   "evidence": {
     "scope_reset_docs": [
@@ -57,7 +61,7 @@
       "tests/test_streamlit_ui.py",
       "scripts/live_chat_edit_smoke.py",
       "docs/experiments/2026-10-15-live-chat-edit-smoke.md",
-      "offline pytest 40 passed",
+      "offline pytest 47 passed",
       "live revision 1 to 2 with one place removed"
     ],
     "source_quality_offline_baseline": [
@@ -78,7 +82,7 @@
       "src/grounded_travel_planner/agents/planner.py",
       "tests/test_two_agent_core.py",
       "docs/experiments/2026-10-15-lo-lo-chai-add-regression.md",
-      "offline pytest 40 passed",
+      "offline pytest 47 passed",
       "runtime container healthy HTTP 200"
     ],
     "add_place_alias_live_recheck": [
@@ -92,9 +96,41 @@
       "src/grounded_travel_planner/agents/coordinator.py",
       "tests/test_streamlit_ui.py",
       "docs/experiments/2026-10-16-vietnamese-chat-smoke.md",
-      "offline pytest 40 passed",
+      "offline pytest 47 passed",
       "live Vietnamese add-place response and revision 2 commit"
+    ],
+    "visual_itinerary_implementation": [
+      ".codex/skills/ui-ux-pro-max/SKILL.md",
+      "docs/adr/0006-photo-only-itinerary-and-graph-inspection.md",
+      "src/grounded_travel_planner/visuals/service.py",
+      "src/grounded_travel_planner/ui/streamlit_app.py",
+      "tests/test_visuals.py",
+      "docs/experiments/2026-10-16-visual-itinerary-smoke.md",
+      "host pytest 47 passed",
+      "container pytest 47 passed",
+      "historical live Commons metadata for two Hue landmarks"
+    ],
+    "route_map_removed": [
+      "src/grounded_travel_planner/ui/streamlit_app.py",
+      "src/grounded_travel_planner/visuals/service.py",
+      "tests/test_streamlit_ui.py",
+      "tests/test_visuals.py",
+      "rebuilt Compose runtime healthy on 127.0.0.1:8503"
+    ],
+    "graph_inspection_page": [
+      "src/grounded_travel_planner/ui/graph_diagram.py",
+      "src/grounded_travel_planner/ui/pages/2_Graph_Architecture.py",
+      "src/grounded_travel_planner/service.py#get_graph_image",
+      "tests/test_graph_diagram.py",
+      "focused UI/photo/graph tests 9 passed",
+      "host and container pytest 47 passed"
+    ],
+    "source_place_mismatch_temporarily_disabled": [
+      "src/grounded_travel_planner/policies/source_validation.py",
+      "tests/test_two_agent_core.py",
+      "ADR 0004 temporary amendment",
+      "URL provenance and opening-hours gates retained"
     ]
   },
-  "notes": "Milestone 1 and chat editing have offline and live evidence. Vietnamese is the default webapp chat language, verified by AppTest and one live add-place reply. The Lô Lô Chải name-variant fix passed in a representative live container edit; the user's original session was not replayed. Source-quality metrics have a synthetic offline baseline; live relevance remains unmeasured. LangSmith v2 query was verified live. Old POC counts are archived."
+  "notes": "Milestone 1 and chat editing have offline and live evidence. The itinerary now keeps source-attributed photos and omits the route map at the user's request. A separate read-only page displays the compiled LangGraph PNG returned by get_graph_image(), with an SVG fallback; host/container tests passed. Vietnamese is the default webapp chat language. Source-quality metrics still have a synthetic baseline and live relevance remains unmeasured. Old POC counts are archived."
 }

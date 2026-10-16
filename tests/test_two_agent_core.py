@@ -431,7 +431,7 @@ def test_invalid_candidate_repairs_once_and_preserves_previous_plan() -> None:
     assert search.calls == []
 
 
-def test_source_and_opening_hours_claims_are_rejected() -> None:
+def test_source_provenance_and_opening_hours_claims_are_rejected() -> None:
     returned = source()
     fabricated = source(
         title="Unrelated restaurant page",
@@ -455,7 +455,7 @@ def test_source_and_opening_hours_claims_are_rejected() -> None:
     codes = {issue.code for issue in validate_candidate(candidate, request)}
 
     assert "source_not_returned" in codes
-    assert "source_place_mismatch" in codes
+    assert "source_place_mismatch" not in codes
     assert "opening_hours_unsubstantiated" in codes
 
 

@@ -2,24 +2,9 @@
 
 from __future__ import annotations
 
-import unicodedata
 from urllib.parse import urlparse
 
 from grounded_travel_planner.contracts import SightseeingPlan, ValidationIssue
-
-
-def _tokens(value: str) -> set[str]:
-    normalized = unicodedata.normalize("NFKD", value)
-    ascii_value = "".join(
-        char for char in normalized if not unicodedata.combining(char)
-    )
-    return {
-        token
-        for token in "".join(
-            char.lower() if char.isalnum() else " " for char in ascii_value
-        ).split()
-        if len(token) >= 4
-    }
 
 
 def validate_sources(
@@ -39,7 +24,6 @@ def validate_sources(
                 )
             )
             continue
-        place_tokens = _tokens(recommendation.name)
         for source in recommendation.source_references:
             url = str(source.url).rstrip("/")
             parsed = urlparse(url)
@@ -59,17 +43,6 @@ def validate_sources(
                             f"Source for {recommendation.name} was not returned by "
                             "the active search provider."
                         ),
-                        entry_id=place.id,
-                    )
-                )
-            # The query expresses intent; it is not evidence that the returned
-            # page actually identifies the recommended place.
-            evidence_text = " ".join(filter(None, (source.title, source.snippet)))
-            if place_tokens and not place_tokens.intersection(_tokens(evidence_text)):
-                issues.append(
-                    ValidationIssue(
-                        code="source_place_mismatch",
-                        message=f"Source does not identify {recommendation.name}.",
                         entry_id=place.id,
                     )
                 )

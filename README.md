@@ -11,7 +11,8 @@ three-week POC documents are historical background.
 - Both agents use the exact default model identifier `gpt-5.5` through an
   injectable LangChain structured-output boundary.
 - Tavily, OpenAI and LangSmith integrations sit behind typed provider adapters.
-- The one-page Streamlit app stores the canonical plan in session state only.
+- The Streamlit itinerary/chat page stores the canonical plan in session state
+  only; a separate read-only page shows the compiled LangGraph architecture.
 - Deterministic tests use fakes and never call live services.
 - Chat edits are covered by eight versioned offline cases, a successful/rejected
   Streamlit AppTest sequence and a separate live create-then-remove smoke.
@@ -85,7 +86,7 @@ The selected development baseline is:
 - `uv` for dependencies and virtual environments
 - `pytest` for tests
 - isort and Black for formatting; flake8 and Ruff for linting
-- Streamlit for the one-page session-only UI
+- Streamlit for the session-only itinerary/chat UI and graph-inspection page
 - Docker Desktop for the verified local container workflow
 
 The development tooling is configured in `pyproject.toml`. Run:
@@ -122,7 +123,7 @@ evidence and the integration defects found during the smoke.
 
 ## Chat editing and source-quality checks
 
-The current offline suite passed 40 tests on 2026-10-16. To run the separate
+The current offline suite passed 47 tests on 2026-10-16. To run the separate
 live two-turn edit smoke with local credentials:
 
 ```bash
@@ -153,6 +154,24 @@ The webapp uses Vietnamese for chat and form guidance by default. A Vietnamese
 add-place request and assistant reply passed in the running container; source
 titles and proper place names keep their original spelling. See
 `docs/experiments/2026-10-16-vietnamese-chat-smoke.md`.
+
+## Visual itinerary
+
+After a plan is committed, the app looks up actual place images from Wikimedia
+Commons. Cards show image creator, license and file-page link. Missing imagery
+leaves the text itinerary intact. The first 12 stops are enriched to bound
+public-API calls. The route map and car interaction were removed at the user's
+request; ADR 0006 records the change.
+
+Use the separate **Kiến trúc LangGraph** page in Streamlit's navigation to
+inspect the PNG produced by `TravelPlannerService.get_graph_image()` from the
+compiled workflow. It shows the runtime nodes, conditional branches and repair
+loop without running a planning turn; an SVG fallback handles render outages.
+
+UI guidance is installed at `.codex/skills/ui-ux-pro-max/` (upstream MIT,
+version `2.15.0`) and adapted in `docs/ui-visual-itinerary.md`. The earlier
+map experiment and live public-media checks remain recorded in
+`docs/experiments/2026-10-16-visual-itinerary-smoke.md` as historical evidence.
 
 ## Run with Docker locally
 

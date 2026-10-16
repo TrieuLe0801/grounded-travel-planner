@@ -29,6 +29,8 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 FROM base AS test
 
 COPY tests ./tests
+COPY data/eval ./data/eval
+COPY scripts/live_smoke.py ./scripts/live_smoke.py
 COPY .codex/hooks/format_python.py ./.codex/hooks/format_python.py
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-editable

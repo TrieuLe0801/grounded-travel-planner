@@ -15,10 +15,9 @@ The chat accepts Vietnamese requests and responds in Vietnamese by default.
 Place names and source titles retain their original spelling; internal intent
 codes, source evidence and validation rules remain language-independent.
 
-The itinerary also presents source-attributed place photos and a geographic
-view of stops where reliable media and coordinates are available. Selecting a
-mapped stop moves a car marker toward it. Straight connectors represent visit
-order, not road directions; missing visual data leaves the text itinerary usable.
+The itinerary also presents source-attributed place photos when available;
+missing imagery leaves the text itinerary usable. A separate read-only page
+shows an image of the compiled LangGraph architecture.
 
 ## Runtime Scope
 
@@ -38,8 +37,9 @@ not use LangSmith traces as state storage.
 - Accept destination/place, a concrete start date and a selected day count.
 - Search for actual information before sourced recommendations are claimed.
 - Never fabricate source URLs, opening hours or tool results.
-- Source references must originate from normalized search results and match the
-  recommended place.
+- Source references must originate from normalized search results. The
+  `source_place_mismatch` token-overlap rule is temporarily disabled because it
+  rejected valid sources; source relevance remains an evaluation metric.
 - Label estimated visit/travel times and unverified opening hours.
 - Validate input, schedule range, overlaps and known opening-hour conflicts
   before committing a candidate.
@@ -48,7 +48,7 @@ not use LangSmith traces as state storage.
 - Bound every turn to 8 graph steps, 2 search calls and 1 repair attempt.
 - Keep provider secrets out of model prompts, traces, logs and tracked files.
 - Visual enrichment never changes or blocks the validated current plan. Do not
-  invent photos, coordinates or road routes; show image credit and map attribution.
+  invent photos; show image creator, license and source-page credit.
 
 ## Non-Goals
 

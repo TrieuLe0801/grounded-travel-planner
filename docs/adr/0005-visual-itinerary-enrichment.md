@@ -1,6 +1,6 @@
 # ADR 0005 - Source-Backed Visual Itinerary
 
-Status: Accepted
+Status: Superseded by ADR 0006 on 2026-10-16
 Date: 2026-10-16
 
 ## Context
@@ -18,7 +18,7 @@ photos and coordinates after a plan is committed. Use Wikimedia Commons image
 metadata with visible creator/license/file-page attribution. Use source-backed
 coordinates from a matching Wikipedia article or OpenStreetMap Nominatim
 result; reject ambiguous or out-of-range matches. Cache public lookup results
-and bound calls. The Nominatim public endpoint must use an identifying
+and bound calls to the first 12 stops in a plan. The Nominatim public endpoint must use an identifying
 User-Agent, at most one request per second, and the required attribution.
 
 Display mapped stops in chronological order on an OpenStreetMap-attributed map.

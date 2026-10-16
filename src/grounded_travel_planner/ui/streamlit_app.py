@@ -1,4 +1,4 @@
-"""One-page, session-only Streamlit adapter."""
+"""Session-only Streamlit itinerary and chat page."""
 
 from __future__ import annotations
 
@@ -17,8 +17,11 @@ from grounded_travel_planner.contracts import (
     visible_schedule_entries,
 )
 from grounded_travel_planner.service import TravelPlannerService
-from grounded_travel_planner.ui.route_map import MappedStop, render_map_html
-from grounded_travel_planner.visuals import PlaceVisual, VisualEnrichmentService
+from grounded_travel_planner.visuals import (
+    MAX_VISUAL_STOPS,
+    PlaceVisual,
+    VisualEnrichmentService,
+)
 
 
 class _CreditTextParser(HTMLParser):
@@ -47,7 +50,7 @@ def get_service() -> TravelPlannerService:
 
 @st.cache_resource
 def get_visual_service() -> VisualEnrichmentService:
-    """Cache the stateless visual client; results stay in this UI session."""
+    """Cache the client; per-plan view state stays in this UI session."""
 
     return VisualEnrichmentService.from_environment()
 
@@ -79,6 +82,7 @@ def _record_turn(user_message: str, response: AgentResponse) -> None:
         and response.current_plan is not None
     ):
         st.session_state.current_plan = response.current_plan
+        st.session_state.visuals_by_revision = {}
     st.session_state.last_response = response
 
 
@@ -117,6 +121,11 @@ def _render_plan(
     if plan.summary:
         st.write(plan.summary)
     numbered_entries = list(enumerate(visible_schedule_entries(plan), start=1))
+    if len(numbered_entries) > MAX_VISUAL_STOPS:
+        st.caption(
+            f"Ảnh được tra cứu cho {MAX_VISUAL_STOPS} điểm đầu; "
+            "các điểm còn lại vẫn có trong lịch trình bên dưới."
+        )
     visuals = _visuals_for_plan(plan, visual_service)
     for day_index in range(1, plan.day_count + 1):
         st.markdown(f"### Ngày {day_index}")
@@ -171,50 +180,6 @@ def _render_plan(
                 st.caption(f"Giờ mở cửa: {hours}")
                 for source in place.source_references:
                     st.markdown(f"- [{source.title}]({source.url})")
-
-    mapped_stops = []
-    for position, entry in numbered_entries:
-        visual = visuals.get(entry.id)
-        if visual is None or not visual.has_coordinates:
-            continue
-        if not _safe_external_url(visual.coordinate_source_url):
-            continue
-        mapped_stops.append(
-            MappedStop(
-                number=position,
-                name=entry.place.name,
-                day_index=entry.day_index,
-                latitude=visual.latitude,
-                longitude=visual.longitude,
-            )
-        )
-    st.subheader("Bản đồ lộ trình")
-    if mapped_stops:
-        st.caption(
-            "Chọn một điểm trên bản đồ hoặc trong danh sách để xe di chuyển. "
-            "Đường nối thẳng chỉ minh họa thứ tự, không phải đường lái xe."
-        )
-        st.iframe(
-            render_map_html(mapped_stops),
-            height=620,
-            alt="Bản đồ minh họa các điểm tham quan theo thứ tự lịch trình",
-        )
-        for position, entry in numbered_entries:
-            visual = visuals.get(entry.id)
-            source_url = (
-                _safe_external_url(visual.coordinate_source_url) if visual else None
-            )
-            if source_url and visual.has_coordinates:
-                st.caption(
-                    f"Tọa độ điểm {position}: {visual.coordinate_source_label or 'Nguồn bản đồ'}"
-                )
-                st.link_button(f"Xem nguồn tọa độ điểm {position}", source_url)
-        if len(mapped_stops) < len(numbered_entries):
-            st.caption(
-                "Một số địa điểm chưa có tọa độ xác minh nên chưa hiện trên bản đồ."
-            )
-    else:
-        st.info("Chưa có tọa độ xác minh cho các địa điểm trong lịch trình.")
 
 
 def _render_response(response: AgentResponse) -> None:

@@ -7,9 +7,9 @@ optional presentation data and are never evidence for a plan change.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import threading
-import time
 import unicodedata
 from dataclasses import dataclass
 from html import unescape
@@ -21,11 +21,8 @@ from urllib.request import Request, urlopen
 from grounded_travel_planner.contracts import SightseeingPlan, visible_schedule_entries
 
 _COMMONS_API = "https://commons.wikimedia.org/w/api.php"
-_WIKIPEDIA_API = "https://{language}.wikipedia.org/w/api.php"
-_NOMINATIM_API = "https://nominatim.openstreetmap.org/search"
-_MAX_STOPS = 12
-_NOMINATIM_LOCK = threading.Lock()
-_LAST_NOMINATIM_REQUEST = 0.0
+_LOG = logging.getLogger(__name__)
+MAX_VISUAL_STOPS = 12
 _PLACE_TYPE_TOKENS = {
     "beach",
     "cathedral",
@@ -62,22 +59,14 @@ class _TextExtractor(HTMLParser):
 
 @dataclass(frozen=True)
 class PlaceVisual:
-    """Source-backed image and coordinate data for one itinerary stop."""
+    """Source-backed image data for one itinerary stop."""
 
     place_name: str
-    latitude: float | None = None
-    longitude: float | None = None
-    coordinate_source_url: str | None = None
-    coordinate_source_label: str | None = None
     image_url: str | None = None
     image_page_url: str | None = None
     image_credit: str | None = None
     image_license: str | None = None
     image_alt: str | None = None
-
-    @property
-    def has_coordinates(self) -> bool:
-        return self.latitude is not None and self.longitude is not None
 
 
 class VisualEnrichmentService:
@@ -96,7 +85,8 @@ class VisualEnrichmentService:
 
         user_agent = os.getenv(
             "VISUAL_ENRICHMENT_USER_AGENT",
-            "GroundedTravelPlanner/0.0 (visual enrichment; contact=local)",
+            "GroundedTravelPlanner/0.1 "
+            "(+https://github.com/TrieuLe0801/grounded-travel-planner)",
         )
         try:
             timeout = float(os.getenv("VISUAL_ENRICHMENT_TIMEOUT_SECONDS", "4"))
@@ -112,10 +102,11 @@ class VisualEnrichmentService:
         """
 
         visuals: dict[str, PlaceVisual] = {}
-        for entry in visible_schedule_entries(plan)[:_MAX_STOPS]:
+        for entry in visible_schedule_entries(plan)[:MAX_VISUAL_STOPS]:
             try:
                 visual = self._resolve_place(entry.place.name, plan.destination)
-            except (OSError, ValueError, json.JSONDecodeError):
+            except Exception as error:  # noqa: BLE001 - visual data cannot block plan
+                _LOG.debug("Visual lookup skipped after %s", type(error).__name__)
                 continue
             if visual is not None:
                 visuals[entry.id] = visual
@@ -127,26 +118,22 @@ class VisualEnrichmentService:
             if cache_key in self._cache:
                 return self._cache[cache_key]
 
-        image = self._commons_image(place_name)
-        coordinates = self._wikipedia_coordinates(place_name)
-        if coordinates is None:
-            coordinates = self._nominatim_coordinates(place_name, destination)
-        if image is None and coordinates is None:
+        try:
+            image = self._commons_image(place_name)
+        except (OSError, ValueError, TypeError, json.JSONDecodeError):
+            image = None
+        if image is None:
             with self._cache_lock:
                 self._cache[cache_key] = None
             return None
 
         visual = PlaceVisual(
             place_name=place_name,
-            latitude=coordinates[0] if coordinates else None,
-            longitude=coordinates[1] if coordinates else None,
-            coordinate_source_url=coordinates[2] if coordinates else None,
-            coordinate_source_label=coordinates[3] if coordinates else None,
-            image_url=image[0] if image else None,
-            image_page_url=image[1] if image else None,
-            image_credit=image[2] if image else None,
-            image_license=image[3] if image else None,
-            image_alt=image[4] if image else None,
+            image_url=image[0],
+            image_page_url=image[1],
+            image_credit=image[2],
+            image_license=image[3],
+            image_alt=image[4],
         )
         with self._cache_lock:
             self._cache[cache_key] = visual
@@ -214,114 +201,8 @@ class VisualEnrichmentService:
             or not license_name
         ):
             return None
-        return image_url, page_url, credit, license_name, place_name
-
-    def _wikipedia_coordinates(
-        self, place_name: str
-    ) -> tuple[float, float, str, str] | None:
-        for language in ("vi", "en"):
-            response = self._get_json(
-                _WIKIPEDIA_API.format(language=language),
-                {
-                    "action": "query",
-                    "list": "search",
-                    "srsearch": place_name,
-                    "srlimit": "5",
-                    "format": "json",
-                    "formatversion": "2",
-                },
-            )
-            result = next(
-                (
-                    item
-                    for item in response.get("query", {}).get("search", [])
-                    if isinstance(item, dict)
-                    and isinstance(item.get("title"), str)
-                    and self._name_matches(place_name, item["title"])
-                ),
-                None,
-            )
-            if result is None:
-                continue
-            title = result["title"]
-            page = self._get_json(
-                _WIKIPEDIA_API.format(language=language),
-                {
-                    "action": "query",
-                    "titles": title,
-                    "prop": "coordinates",
-                    "format": "json",
-                    "formatversion": "2",
-                },
-            )
-            pages = page.get("query", {}).get("pages", [])
-            if not isinstance(pages, list) or not pages:
-                continue
-            coordinates = pages[0].get("coordinates", [])
-            if not isinstance(coordinates, list) or not coordinates:
-                continue
-            coordinate = coordinates[0]
-            latitude, longitude = coordinate.get("lat"), coordinate.get("lon")
-            if self._valid_coordinate(latitude, longitude):
-                url = "https://{language}.wikipedia.org/wiki/{title}".format(
-                    language=language, title=title.replace(" ", "_")
-                )
-                return float(latitude), float(longitude), url, f"Wikipedia ({language})"
-        return None
-
-    def _nominatim_coordinates(
-        self, place_name: str, destination: str
-    ) -> tuple[float, float, str, str] | None:
-        global _LAST_NOMINATIM_REQUEST
-        with _NOMINATIM_LOCK:
-            wait = 1.0 - (time.monotonic() - _LAST_NOMINATIM_REQUEST)
-            if wait > 0:
-                time.sleep(wait)
-            try:
-                response = self._get_json(
-                    _NOMINATIM_API,
-                    {
-                        "q": f"{place_name}, {destination}",
-                        "format": "jsonv2",
-                        "limit": "3",
-                    },
-                )
-            finally:
-                # Count a failed attempt too: it may already have reached OSMF.
-                _LAST_NOMINATIM_REQUEST = time.monotonic()
-        if not isinstance(response, list) or not response:
-            return None
-        matching_results = [
-            result
-            for result in response
-            if isinstance(result, dict)
-            and self._name_matches(
-                place_name, str(result.get("display_name", "")).split(",", 1)[0]
-            )
-            and self._valid_coordinate(result.get("lat"), result.get("lon"))
-        ]
-        if not matching_results:
-            return None
-        result = matching_results[0]
-        latitude, longitude = result["lat"], result["lon"]
-        if any(
-            abs(float(latitude) - float(other["lat"])) > 0.1
-            or abs(float(longitude) - float(other["lon"])) > 0.1
-            for other in matching_results[1:]
-        ):
-            return None
-        osm_type = result.get("osm_type")
-        osm_id = result.get("osm_id")
-        if osm_type not in {"node", "way", "relation"} or not isinstance(
-            osm_id, (int, str)
-        ):
-            return None
-        return (
-            float(latitude),
-            float(longitude),
-            f"https://www.openstreetmap.org/{osm_type}/{osm_id}",
-            "OpenStreetMap / Nominatim",
-        )
+        image_alt = title.removeprefix("File:").rsplit(".", 1)[0].replace("_", " ")
+        return image_url, page_url, credit, license_name, image_alt[:160]
 
     def _get_json(self, endpoint: str, parameters: dict[str, str]) -> Any:
         request = Request(
@@ -352,16 +233,20 @@ class VisualEnrichmentService:
         )
 
     @classmethod
-    def _name_matches(cls, requested: str, candidate: str) -> bool:
-        requested_tokens = set(cls._normalise(requested).split())
-        candidate_tokens = set(cls._normalise(candidate).split())
-        requested_core = requested_tokens - _PLACE_TYPE_TOKENS
-        candidate_core = candidate_tokens - _PLACE_TYPE_TOKENS
-        return bool(requested_core) and requested_core == candidate_core
-
-    @staticmethod
-    def _valid_coordinate(latitude: Any, longitude: Any) -> bool:
-        try:
-            return -90 <= float(latitude) <= 90 and -180 <= float(longitude) <= 180
-        except (TypeError, ValueError):
+    def _name_matches(
+        cls,
+        requested: str,
+        candidate: str,
+    ) -> bool:
+        requested_all = cls._normalise(requested).split()
+        candidate_all = cls._normalise(candidate).split()
+        requested_core = [
+            token for token in requested_all if token not in _PLACE_TYPE_TOKENS
+        ]
+        if not requested_core:
             return False
+        phrase = requested_core if len(requested_core) >= 2 else requested_all
+        return any(
+            candidate_all[index : index + len(phrase)] == phrase
+            for index in range(len(candidate_all) - len(phrase) + 1)
+        )

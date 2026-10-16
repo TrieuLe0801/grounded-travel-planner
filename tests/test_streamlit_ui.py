@@ -14,6 +14,7 @@ from grounded_travel_planner.contracts import (
     SourceReference,
     ValidationIssue,
 )
+from grounded_travel_planner.visuals import PlaceVisual
 
 APP_PATH = Path(__file__).parent / "fixtures" / "streamlit_fake_app.py"
 
@@ -108,6 +109,25 @@ class FakeService:
         )
 
 
+class FakeVisualService:
+    """Offline visual metadata for Streamlit AppTest."""
+
+    def resolve(self, plan: SightseeingPlan) -> dict[str, PlaceVisual]:
+        return {
+            "entry_ui": PlaceVisual(
+                place_name="Imperial City",
+                image_url="https://upload.wikimedia.org/example/imperial-city.jpg",
+                image_page_url="https://commons.wikimedia.org/wiki/File:Imperial_City.jpg",
+                image_credit="Example photographer",
+                image_license="CC BY-SA 4.0",
+                image_alt="Imperial City in Hue",
+            ),
+            "entry_day_two": PlaceVisual(
+                place_name="Imperial City",
+            ),
+        }
+
+
 def _page_text(app: AppTest) -> str:
     values: list[str] = []
     for collection in (
@@ -118,6 +138,7 @@ def _page_text(app: AppTest) -> str:
         "success",
         "warning",
         "info",
+        "text",
     ):
         for item in getattr(app, collection):
             value = getattr(item, "value", "")
@@ -155,6 +176,12 @@ def test_create_and_failed_chat_edit_render_canonical_plan() -> None:
     assert "Giờ mở cửa: chưa xác minh" in text
     assert "https://travel.example/hue/imperial-city" in text
     assert "Nhắn tin để sửa lịch" in text
+    assert "Ảnh: Example photographer · CC BY-SA 4.0" in text
+    assert "Chưa có ảnh đã xác minh nguồn và giấy phép." in text
+    assert "Bản đồ lộ trình" not in text
+    assert "Tọa độ điểm" not in text
+    assert app.get("iframe") == []
+    assert ("plan_ui", 1) in app.session_state.visuals_by_revision
     assert any("Điểm 1" in item.label for item in app.get("expander"))
     assert any("Điểm 2 · 08:00" in item.label for item in app.get("expander"))
 
@@ -166,6 +193,8 @@ def test_create_and_failed_chat_edit_render_canonical_plan() -> None:
     assert any("11:00–12:30" in item.label for item in app.get("expander"))
     assert app.session_state.current_plan.revision == 2
     assert _imperial_city_start_time(app) == time(11)
+    assert ("plan_ui", 2) in app.session_state.visuals_by_revision
+    assert ("plan_ui", 1) not in app.session_state.visuals_by_revision
 
     app.chat_input[0].set_value("Đổi giờ để trùng lịch").run(timeout=10)
     text = _page_text(app)
@@ -175,3 +204,4 @@ def test_create_and_failed_chat_edit_render_canonical_plan() -> None:
     assert any("11:00–12:30" in item.label for item in app.get("expander"))
     assert app.session_state.current_plan.revision == 2
     assert _imperial_city_start_time(app) == time(11)
+    assert len(app.session_state.visuals_by_revision) == 1

@@ -22,8 +22,6 @@ dist
 !.codex/hooks/format_python.py
 
 docs
-data
-scripts
 *.log
 .langgraph_api
 .codex-log
