@@ -1,7 +1,7 @@
 # Project Charter
 
 Status: Active
-Last updated: 2026-10-16
+Last updated: 2026-10-17
 
 ## Product
 
@@ -18,6 +18,10 @@ codes, source evidence and validation rules remain language-independent.
 The itinerary also presents source-attributed place photos when available;
 missing imagery leaves the text itinerary usable. A separate read-only page
 shows an image of the compiled LangGraph architecture.
+
+The current interface uses JavaScript and Tailwind on the same origin as a thin
+Python HTTP adapter. The earlier Streamlit interface remains available during
+migration; the Coordinator/Planner runtime and validation rules are shared.
 
 ## Runtime Scope
 

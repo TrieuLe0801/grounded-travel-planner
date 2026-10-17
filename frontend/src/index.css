@@ -1,5 +1,41 @@
+@import url("https://fonts.googleapis.com/css2?family=Lexend:wght@500;600;700&family=Source+Sans+3:wght@400;600;700&display=swap");
 @import "tailwindcss";
-@import url('https://fonts.googleapis.com/css2?family=Lexend:wght@500;600;700&family=Source+Sans+3:wght@400;600;700&display=swap');
-@theme { --font-heading: "Lexend", sans-serif; --font-body: "Source Sans 3", sans-serif; --color-ink: #0f172a; --color-coral: #ea580c; --color-sea: #0891b2; }
-@layer base { body { @apply bg-orange-50 font-body text-ink antialiased; } button, input, select { @apply focus:outline-none focus-visible:ring-4 focus-visible:ring-cyan-200; } }
-@media (prefers-reduced-motion: no-preference) { .rise { animation: rise .35s ease-out both; } @keyframes rise { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: translateY(0) } } }
+@theme {
+  --font-heading: "Lexend", sans-serif;
+  --font-body: "Source Sans 3", sans-serif;
+  --color-ink: #0f172a;
+  --color-coral: #ea580c;
+  --color-sea: #0891b2;
+}
+@layer base {
+  body {
+    @apply bg-orange-50 font-body text-ink antialiased;
+  }
+  button,
+  input,
+  select {
+    @apply focus:outline-none focus-visible:ring-4 focus-visible:ring-cyan-200;
+  }
+  input[aria-invalid="true"],
+  select[aria-invalid="true"] {
+    @apply border-red-500;
+  }
+}
+.graph-svg svg {
+  @apply h-auto min-w-160 max-w-none;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .rise {
+    animation: rise 0.35s ease-out both;
+  }
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}

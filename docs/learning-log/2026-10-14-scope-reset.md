@@ -54,6 +54,18 @@ city/place sightseeing webapp.
   whole-page rerun; the full host and Docker suites passed 50 tests. Streamlit
   AppTest cannot exercise actual sidebar navigation, so a real-browser
   cross-page check remains.
+- On 2026-10-17 ADR 0008's JavaScript/Tailwind interface was completed as the
+  current web UI. React presents responsive itinerary/chat, read-only graph,
+  and optional Commons photos with creator/license/source. A thin FastAPI
+  adapter keeps a canonical plan in an opaque server session and exposes
+  revision-bound visual metadata without blocking a planning turn.
+- The initial container build exposed a missing static-dist path after package
+  installation; an explicit runtime path fixed it. The rebuilt container
+  became healthy at `127.0.0.1:8503` and returned HTTP 200 for the page,
+  generated JS/CSS assets and graph API. Host and Docker test targets each
+  passed 54 pytest cases;
+  frontend typecheck/build, isort, Black, flake8 and Ruff. Real-browser layout
+  and navigation QA remains pending because the browser surface was unavailable.
 
 ## Evidence
 

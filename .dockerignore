@@ -11,6 +11,7 @@ __pycache__
 htmlcov
 build
 dist
+frontend/node_modules
 
 .env
 .env.*

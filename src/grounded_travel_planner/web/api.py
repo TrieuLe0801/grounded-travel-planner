@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from threading import Lock
 from uuid import uuid4
 
-from fastapi import Cookie, FastAPI, HTTPException, Response
+from fastapi import Cookie, FastAPI, HTTPException, Query, Response
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -20,9 +21,12 @@ from grounded_travel_planner.contracts import (
 from grounded_travel_planner.service import TravelPlannerService
 from grounded_travel_planner.ui.graph_diagram import compiled_graph_svg
 from grounded_travel_planner.ui.turn_runner import PendingTurn, TurnRunner
+from grounded_travel_planner.visuals import VisualEnrichmentService
 
 COOKIE_NAME = "gtp_session"
-FRONTEND_DIST = Path(__file__).resolve().parents[3] / "frontend" / "dist"
+FRONTEND_DIST = Path(
+    os.getenv("GTP_FRONTEND_DIST", Path.cwd() / "frontend" / "dist")
+).resolve()
 
 
 class TurnInput(BaseModel):
@@ -73,10 +77,14 @@ def _response_payload(response: AgentResponse | None) -> dict[str, object] | Non
     return response.model_dump(mode="json") if response else None
 
 
-def create_app(service: TravelPlannerService | None = None) -> FastAPI:
+def create_app(
+    service: TravelPlannerService | None = None,
+    visual_service: VisualEnrichmentService | None = None,
+) -> FastAPI:
     """Create an injectable app so endpoint tests need no live provider calls."""
 
     planner_service = service or TravelPlannerService.from_environment()
+    visuals = visual_service or VisualEnrichmentService.from_environment()
     runner = TurnRunner()
     sessions = SessionStore()
     app = FastAPI(title="Grounded Travel Planner", docs_url=None, redoc_url=None)
@@ -169,6 +177,37 @@ def create_app(service: TravelPlannerService | None = None) -> FastAPI:
     def graph() -> dict[str, str]:
         return {"svg": compiled_graph_svg(planner_service.graph)}
 
+    @app.get("/api/visuals")
+    def plan_visuals(
+        revision: int = Query(ge=1),
+        gtp_session: str | None = Cookie(default=None),
+    ) -> dict[str, object]:
+        session = current_session(gtp_session)
+        with session.lock:
+            plan = session.current_plan
+            if plan is None or plan.revision != revision:
+                raise HTTPException(status_code=409, detail="Lịch trình đã thay đổi.")
+            captured_plan = plan.model_copy(deep=True)
+        # Public image lookups are optional and may be slow. Do not hold the
+        # session lock or let them affect the committed itinerary.
+        try:
+            resolved = visuals.resolve(captured_plan)
+        except Exception:  # noqa: BLE001 - optional presentation data must not block UI
+            resolved = {}
+        return {
+            "revision": revision,
+            "visuals_by_entry": {
+                entry_id: {
+                    "image_url": visual.image_url,
+                    "image_page_url": visual.image_page_url,
+                    "image_alt": visual.image_alt,
+                    "image_credit": visual.image_credit,
+                    "image_license": visual.image_license,
+                }
+                for entry_id, visual in resolved.items()
+            },
+        }
+
     if FRONTEND_DIST.is_dir():
         app.mount(
             "/assets", StaticFiles(directory=FRONTEND_DIST / "assets"), name="assets"
@@ -176,10 +215,12 @@ def create_app(service: TravelPlannerService | None = None) -> FastAPI:
 
         @app.get("/{path:path}")
         def frontend(path: str) -> FileResponse:
-            candidate = FRONTEND_DIST / path
+            candidate = (FRONTEND_DIST / path).resolve()
             return FileResponse(
                 candidate
-                if path and candidate.is_file()
+                if path
+                and candidate.is_relative_to(FRONTEND_DIST)
+                and candidate.is_file()
                 else FRONTEND_DIST / "index.html"
             )
 

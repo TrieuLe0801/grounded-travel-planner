@@ -39,8 +39,9 @@ Read these records in order:
   its Future and result integration remain owned by the originating session.
   Only one turn may be in flight per session; workers never mutate Session State.
 - Typed provider interfaces keep model/search integration separate from UI.
-- Streamlit is the current one-page UI proposal, not a reason to duplicate
-  domain logic or add persistence.
+- The JavaScript/Tailwind frontend and thin Python HTTP adapter are the current
+  UI under ADR 0008. Streamlit remains available during migration. Neither UI
+  duplicates domain logic or adds persistence.
 
 ## Product invariants
 

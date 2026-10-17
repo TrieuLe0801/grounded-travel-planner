@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-10-16
+Last updated: 2026-10-17
 
 ## Current Milestone
 
@@ -17,7 +17,7 @@ background only.
 | Scope reset | Complete | Charter, implementation plan, current log and ADR 0004 |
 | Runtime package | Complete | Coordinator/Planner graph, typed providers and validators |
 | Streamlit app | Complete | Session-only itinerary/chat plus read-only graph page |
-| Tests | 50 passed | Core, async UI, graph-image, photo, chat-edit/source eval and AppTest coverage |
+| Tests | 54 passed | Core, async UI, graph-image, photo, chat-edit/source eval, AppTest and web API coverage |
 | Live integration | Passed | OpenAI/Tavily/LangSmith smoke recorded under `docs/experiments/` |
 | Local container | Passed | Test/runtime images, health, non-root and live provider checks |
 | Chat editing | Passed | Successful UI edit, eight offline eval cases and live two-turn smoke |
@@ -26,6 +26,7 @@ background only.
 | Visual itinerary | Complete | Source-backed photos; route map removed by user request |
 | Graph inspection | Complete | `get_graph_image()` PNG on separate page; SVG fallback; offline AppTest |
 | Async page navigation | Implemented | Background Future, exact-once session integration; browser QA pending |
+| JavaScript/Tailwind UI | Implemented | React itinerary/chat/graph, FastAPI session adapter, optional credited photos; container healthy; browser QA pending |
 
 Planning progress is not implementation progress. Only executable artifacts and
 actual checks count as completion evidence.
@@ -87,11 +88,18 @@ actual checks count as completion evidence.
   model/search turn continues while the user visits another Streamlit page.
   Nine focused async/UI tests and the full 50-test host and Docker suites passed;
   ADR 0007 records exact-once result integration and process-restart limits.
+- Built the current React/Tailwind itinerary, chat and read-only graph interface
+  under ADR 0008, with a same-origin FastAPI adapter and session-owned plan.
+  Optional Commons photos show creator/license/source and never block a plan.
+  The container now serves the new frontend on port 8000 internally and reached
+  healthy status at `127.0.0.1:8503`. Frontend typecheck/build, 54 host and Docker tests,
+  Python formatting/lint checks and HTTP asset/graph checks passed.
 
 ## Now
 
-1. Manually verify chat → graph page → chat navigation in a real browser while
-   a live provider turn is pending; AppTest cannot drive multipage navigation.
+1. Manually verify the JavaScript UI at phone and desktop widths, including
+   chat → graph → chat during a pending turn. A browser was unavailable for this
+   implementation check.
 2. Label sources from representative live plans and measure relevance, place
    coverage and host diversity before a broad demo.
 3. Exercise additional live edit intents, especially reorder and replace, with
@@ -136,6 +144,8 @@ actual checks count as completion evidence.
 - Project coding/testing subagents configured with `gpt-5.5` could not run in
   this Codex ChatGPT account. Primary-session container checks provide the
   recorded evidence; runtime OpenAI `gpt-5.5` calls remain verified separately.
+- The JavaScript frontend has typecheck, build, mocked API and HTTP smoke
+  evidence, but no real-browser responsive or live-provider acceptance yet.
 
 ## Important Files
 

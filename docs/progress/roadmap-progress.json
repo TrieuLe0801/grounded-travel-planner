@@ -1,6 +1,6 @@
 {
-  "version": 21,
-  "updated": "2026-10-16T17:35:00+07:00",
+  "version": 22,
+  "updated": "2026-10-17T10:23:00+07:00",
   "active_scope": "city-place-sightseeing-webapp",
   "current_milestone": "Milestone 1: executable city/place sightseeing vertical slice",
   "completed": {
@@ -22,7 +22,9 @@
     "graph_inspection_page": true,
     "source_place_mismatch_temporarily_disabled": true,
     "async_session_turns": true,
-    "async_multipage_browser_qa": false
+    "async_multipage_browser_qa": false,
+    "javascript_tailwind_ui_offline": true,
+    "javascript_tailwind_browser_qa": false
   },
   "evidence": {
     "scope_reset_docs": [
@@ -145,7 +147,20 @@
     ],
     "async_multipage_browser_qa": [
       "pending real-browser chat-to-graph-to-chat navigation during a live turn"
+    ],
+    "javascript_tailwind_ui_offline": [
+      "docs/adr/0008-javascript-tailwind-web-ui.md",
+      "frontend/src/main.tsx",
+      "src/grounded_travel_planner/web/api.py",
+      "tests/test_web_api.py",
+      "frontend npm check and build passed",
+      "host pytest 54 passed",
+      "Compose runtime healthy and page/assets/graph HTTP 200",
+      "Docker test target pytest 54 passed"
+    ],
+    "javascript_tailwind_browser_qa": [
+      "pending real-browser responsive and pending-turn navigation check"
     ]
   },
-  "notes": "Milestone 1 and chat editing have offline and live evidence. The itinerary now keeps source-attributed photos and omits the route map at the user's request. A separate read-only page displays the compiled LangGraph PNG returned by get_graph_image(), with an SVG fallback; host/container tests passed. Vietnamese is the default webapp chat language. Source-quality metrics still have a synthetic baseline and live relevance remains unmeasured. Old POC counts are archived."
+  "notes": "Milestone 1 and chat editing have offline and live evidence. The itinerary now keeps source-attributed photos and omits the route map at the user's request. A separate read-only page displays the compiled LangGraph PNG returned by get_graph_image(), with an SVG fallback; host/container tests passed. Vietnamese is the default webapp chat language. Source-quality metrics still have a synthetic baseline and live relevance remains unmeasured. Old POC counts are archived. The JavaScript/Tailwind UI is now the current container frontend; browser QA is pending."
 }

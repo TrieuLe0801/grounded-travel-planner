@@ -1,7 +1,7 @@
 # Implementation Plan
 
 Status: Active
-Last updated: 2026-10-16
+Last updated: 2026-10-17
 
 ## Phase 1A - Core Runtime — Implemented
 
@@ -199,3 +199,21 @@ ADR 0007 records the execution and ownership boundary. Nine focused async/UI
 tests and the full 50-test host and Docker suites passed on 2026-10-16. AppTest
 verifies a whole-page rerun as the page-return equivalent; real sidebar
 multipage navigation remains a manual browser acceptance check.
+
+## Phase 1I - JavaScript/Tailwind Interface — Implemented, Browser QA Pending
+
+Acceptance:
+
+- Serve the React/Tailwind itinerary and chat with a same-origin FastAPI adapter.
+- Keep one server-owned canonical plan per opaque browser session. A pending
+  turn continues when the user opens the read-only graph view.
+- Display source references, estimated durations, unverified opening hours and
+  optional Commons photos with creator, license and file-page credit.
+- Preserve the previous plan after a rejected edit; show validation feedback.
+- Build and typecheck the frontend, test the adapter with mocked providers, and
+  start the container with a healthy HTTP response.
+
+ADR 0008 governs this interface. The Streamlit implementation remains in the
+repository during migration. Offline browser interaction and responsive visual
+inspection remain open until a browser is available. The frontend and API
+tests do not constitute a new live OpenAI/Tavily/LangSmith verification.

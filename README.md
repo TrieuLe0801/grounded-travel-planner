@@ -1,7 +1,7 @@
 # Grounded Travel Planner
 
 A city/place sightseeing webapp built with LangChain, LangGraph, LangSmith,
-Tavily and Streamlit. The active scope was reset on 2026-10-14; older
+Tavily, React and Tailwind. The active scope was reset on 2026-10-14; older
 three-week POC documents are historical background.
 
 ## Current progress
@@ -11,13 +11,14 @@ three-week POC documents are historical background.
 - Both agents use the exact default model identifier `gpt-5.5` through an
   injectable LangChain structured-output boundary.
 - Tavily, OpenAI and LangSmith integrations sit behind typed provider adapters.
-- The Streamlit itinerary/chat page stores the canonical plan in session state
-  only; a separate read-only page shows the compiled LangGraph architecture.
+- The current JavaScript/Tailwind interface uses a same-origin FastAPI adapter.
+  The server keeps the canonical plan only in an opaque browser session. The
+  Streamlit implementation remains available during migration.
 - Deterministic tests use fakes and never call live services.
 - Chat edits are covered by eight versioned offline cases, a successful/rejected
   Streamlit AppTest sequence and a separate live create-then-remove smoke.
 - Planning turns run in a bounded background pool, remain owned by the browser
-  session and can continue while the user visits another Streamlit page.
+  session and continue while the user opens the read-only graph view.
 
 See `PROJECT_STATUS.md` for the current Done / Now / Next / Blockers view.
 
@@ -45,6 +46,7 @@ See `docs/project-charter.md`, `docs/implementation-plan.md` and ADR 0004.
 ├── PROJECT_STATUS.md                      # Current state and next actions
 ├── README.md
 ├── pyproject.toml, uv.lock                 # Locked runtime/dev dependencies
+├── frontend/                               # React/Tailwind app and npm lockfile
 ├── docs/
 │   ├── adr/                               # Architecture decisions
 │   ├── experiments/baseline-environment.md
@@ -53,7 +55,7 @@ See `docs/project-charter.md`, `docs/implementation-plan.md` and ADR 0004.
 │   ├── progress/roadmap-progress.json
 │   ├── project-charter.md
 │   └── roadmap.html                       # Current milestone summary
-├── src/grounded_travel_planner/           # Agents, graph, policies, UI
+├── src/grounded_travel_planner/           # Agents, graph, policies, HTTP/UI
 ├── src/utils/                              # Reusable domain-free helpers
 └── tests/                                 # Offline core and Streamlit tests
 ```
@@ -88,7 +90,7 @@ The selected development baseline is:
 - `uv` for dependencies and virtual environments
 - `pytest` for tests
 - isort and Black for formatting; flake8 and Ruff for linting
-- Streamlit for the session-only itinerary/chat UI and graph-inspection page
+- React/Tailwind for the current UI; Streamlit retained during migration
 - Docker Desktop for the verified local container workflow
 
 The development tooling is configured in `pyproject.toml`. Run:
@@ -102,7 +104,26 @@ uv run flake8 . .codex/hooks/format_python.py
 uv run ruff check . .codex/hooks/format_python.py
 ```
 
-Copy `.env.example` to an ignored `.env`, fill the local credentials, then run:
+Install the frontend dependencies and run its typecheck/build:
+
+```bash
+cd frontend
+npm ci
+npm run check
+npm run build
+cd ..
+```
+
+Copy `.env.example` to an ignored `.env`, fill the local credentials, then run
+the same-origin web server:
+
+```bash
+uv run --env-file .env uvicorn grounded_travel_planner.web.api:app --host 127.0.0.1 --port 8000
+```
+
+Open `http://127.0.0.1:8000`. For frontend development, run `npm run dev` from
+`frontend/`; Vite proxies `/api` to port 8000. The retained Streamlit UI can
+still be started separately:
 
 ```bash
 uv run --env-file .env streamlit run src/grounded_travel_planner/ui/streamlit_app.py
@@ -165,18 +186,17 @@ leaves the text itinerary intact. The first 12 stops are enriched to bound
 public-API calls. The route map and car interaction were removed at the user's
 request; ADR 0006 records the change.
 
-Use the separate **Kiến trúc LangGraph** page in Streamlit's navigation to
-inspect the PNG produced by `TravelPlannerService.get_graph_image()` from the
-compiled workflow. It shows the runtime nodes, conditional branches and repair
-loop without running a planning turn; an SVG fallback handles render outages.
+Use **Xem graph** in the JavaScript UI to inspect the compiled workflow as a
+read-only SVG. The retained Streamlit graph page uses the PNG returned by
+`TravelPlannerService.get_graph_image()` with an SVG fallback.
 
 ## Background chat turns
 
 Creating or editing a plan submits one background turn for the current session.
 The chat page shows a waiting state and disables competing mutations. The user
-can visit the graph page; returning to chat polls the same Future and applies
-its response once. The canonical plan changes only after a committed response.
-This mechanism is session-only and does not survive a Streamlit process restart.
+can visit the graph view while the turn continues. The canonical plan changes
+only after a committed response. This mechanism is session-only and does not
+survive a server process restart.
 
 UI guidance is installed at `.codex/skills/ui-ux-pro-max/` (upstream MIT,
 version `2.15.0`) and adapted in `docs/ui-visual-itinerary.md`. The earlier
@@ -194,7 +214,7 @@ docker compose build
 docker compose up -d --wait
 ```
 
-The default URL is `http://127.0.0.1:8501`. To avoid a local port conflict in
+The default URL is `http://127.0.0.1:8503` (container port 8000). To avoid a local port conflict in
 PowerShell:
 
 ```powershell

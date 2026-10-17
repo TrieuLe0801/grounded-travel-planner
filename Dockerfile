@@ -4,6 +4,14 @@ ARG UV_VERSION=0.13.1
 ARG PYTHON_VERSION=3.10
 
 FROM ghcr.io/astral-sh/uv:${UV_VERSION} AS uv
+FROM node:24-bookworm-slim AS frontend
+
+WORKDIR /frontend
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+COPY frontend ./
+RUN npm run build
+
 FROM python:${PYTHON_VERSION}-slim-bookworm AS base
 
 COPY --from=uv /uv /uvx /bin/
@@ -39,16 +47,19 @@ RUN uv run --no-sync pytest
 
 FROM base AS runtime
 
+COPY --from=frontend /frontend/dist /app/frontend/dist
+
 RUN groupadd --gid 10001 app \
     && useradd --create-home --uid 10001 --gid app app
 
-ENV HOME=/home/app
+ENV HOME=/home/app \
+    GTP_FRONTEND_DIST=/app/frontend/dist
 
 USER app
 
-EXPOSE 8501
+EXPOSE 8000
 
 HEALTHCHECK --interval=10s --timeout=3s --start-period=20s --retries=5 \
-    CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8501/_stcore/health', timeout=2).read()"]
+    CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/', timeout=2).read()"]
 
-CMD ["streamlit", "run", "src/grounded_travel_planner/ui/streamlit_app.py", "--server.address=0.0.0.0", "--server.port=8501", "--server.headless=true", "--browser.gatherUsageStats=false"]
+CMD ["uvicorn", "grounded_travel_planner.web.api:app", "--host", "0.0.0.0", "--port", "8000"]

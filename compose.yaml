@@ -11,5 +11,5 @@ services:
     init: true
     restart: "no"
     ports:
-      - "127.0.0.1:${GTP_PORT:-8503}:8501"
+      - "127.0.0.1:${GTP_PORT:-8503}:8000"
     stop_grace_period: 10s
