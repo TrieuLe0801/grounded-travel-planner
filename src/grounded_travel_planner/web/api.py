@@ -175,7 +175,22 @@ def create_app(
 
     @app.get("/api/graph")
     def graph() -> dict[str, str]:
+        """Return the SVG fallback when the PNG renderer is unavailable."""
+
         return {"svg": compiled_graph_svg(planner_service.graph)}
+
+    @app.get("/api/graph/image")
+    def graph_image() -> Response:
+        """Return the compiled LangGraph PNG without running a planning turn."""
+
+        try:
+            image = planner_service.get_graph_image()
+        except Exception as error:
+            raise HTTPException(
+                status_code=503,
+                detail="Không thể tạo ảnh kiến trúc graph lúc này.",
+            ) from error
+        return Response(content=image, media_type="image/png")
 
     @app.get("/api/visuals")
     def plan_visuals(

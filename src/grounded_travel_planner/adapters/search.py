@@ -4,7 +4,10 @@ import os
 import re
 from urllib.parse import urlparse
 
-from grounded_travel_planner.contracts import SearchResult
+from grounded_travel_planner.contracts import (
+    SEARCH_SNIPPET_MAX_LENGTH,
+    SearchResult,
+)
 from grounded_travel_planner.providers import PlaceSearchProvider, ProviderError
 from utils.ids import new_id
 from utils.redaction import sanitize_error
@@ -74,7 +77,7 @@ class TavilyPlaceSearchProvider(PlaceSearchProvider):
                         source_id=new_id("source"),
                         title=str(item.get("title") or parsed.netloc)[:240],
                         url=canonical_url,
-                        snippet=content[:1000] or None,
+                        snippet=content[:SEARCH_SNIPPET_MAX_LENGTH] or None,
                         score=item.get("score"),
                         supports_opening_hours=supports_hours,
                     )

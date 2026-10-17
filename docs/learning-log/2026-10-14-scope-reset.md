@@ -66,6 +66,19 @@ city/place sightseeing webapp.
   passed 54 pytest cases;
   frontend typecheck/build, isort, Black, flake8 and Ruff. Real-browser layout
   and navigation QA remains pending because the browser surface was unavailable.
+- On 2026-10-17 an overlong model-authored
+  `PlanCandidate.returned_sources[].snippet` exposed that provider-owned source
+  inventory was still part of the Planner structured-output schema. The model
+  now returns a `PlannerProposal` containing only plan, summary and issues;
+  trusted source URLs and references are attached afterward by grounding.
+  Tavily prompt snippets remain capped at 1,000 characters and grounded
+  `SourceReference` snippets now allow up to 4,000 characters.
+- Later on 2026-10-17, the user requested that the JavaScript graph page show
+  the PNG from `get_graph_image()` and keep it within the page. The adapter now
+  serves that image at a read-only endpoint; the UI constrains its width and
+  viewport height, and requests the existing SVG only when PNG rendering fails.
+  A local adapter check returned 24,241 PNG bytes with HTTP 200; the SVG fallback
+  also returned HTTP 200.
 
 ## Evidence
 
@@ -90,6 +103,9 @@ city/place sightseeing webapp.
   but do not measure live Tavily quality or change runtime commit rules.
 - Migrated the original smoke to LangSmith v2 `runs.query()` and verified a
   live Hue run with 25 matching runs carrying the same `thread_id`.
+- The Planner source-schema regression passed 33 focused tests and 56 full tests
+  on both the host and a rebuilt offline Docker image. Formatting, lint, lockfile
+  and diff checks passed; the rebuilt Compose runtime is healthy on port 8503.
 
 ## Open Risks
 
@@ -103,6 +119,9 @@ city/place sightseeing webapp.
 
 - Tavily content must be bounded before Pydantic validation; one live snippet
   exceeded 1,000 characters.
+- Provider-owned grounding metadata must not be exposed as model-authored
+  structured output. Otherwise Pydantic can reject an untrusted echoed source
+  before Planner has a chance to replace it with normalized provider results.
 - `ChatOpenAI.with_structured_output` needed `method="function_calling"` because
   strict response-format validation rejected Pydantic `HttpUrl`'s `uri` format.
 - Search-call counters must advance at tool-attempt time, not only after a later

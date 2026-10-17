@@ -17,16 +17,16 @@ background only.
 | Scope reset | Complete | Charter, implementation plan, current log and ADR 0004 |
 | Runtime package | Complete | Coordinator/Planner graph, typed providers and validators |
 | Streamlit app | Complete | Session-only itinerary/chat plus read-only graph page |
-| Tests | 54 passed | Core, async UI, graph-image, photo, chat-edit/source eval, AppTest and web API coverage |
+| Tests | 57 passed | Core, async UI, graph-image, photo, chat-edit/source eval, AppTest and web API coverage |
 | Live integration | Passed | OpenAI/Tavily/LangSmith smoke recorded under `docs/experiments/` |
 | Local container | Passed | Test/runtime images, health, non-root and live provider checks |
 | Chat editing | Passed | Successful UI edit, eight offline eval cases and live two-turn smoke |
 | Source quality evaluation | Offline baseline | 16 labelled synthetic citations; live relevance not measured |
 | Vietnamese chat | Passed | Vietnamese AppTest/fallback and live add-place response |
 | Visual itinerary | Complete | Source-backed photos; route map removed by user request |
-| Graph inspection | Complete | `get_graph_image()` PNG on separate page; SVG fallback; offline AppTest |
+| Graph inspection | Complete | PNG from `get_graph_image()` fits the Streamlit and JavaScript graph views; SVG fallback; offline coverage |
 | Async page navigation | Implemented | Background Future, exact-once session integration; browser QA pending |
-| JavaScript/Tailwind UI | Implemented | React itinerary/chat/graph, FastAPI session adapter, optional credited photos; container healthy; browser QA pending |
+| JavaScript/Tailwind UI | Implemented | React itinerary/chat/graph, FastAPI session adapter, optional credited photos; browser QA pending |
 
 Planning progress is not implementation progress. Only executable artifacts and
 actual checks count as completion evidence.
@@ -92,8 +92,19 @@ actual checks count as completion evidence.
   under ADR 0008, with a same-origin FastAPI adapter and session-owned plan.
   Optional Commons photos show creator/license/source and never block a plan.
   The container now serves the new frontend on port 8000 internally and reached
-  healthy status at `127.0.0.1:8503`. Frontend typecheck/build, 54 host and Docker tests,
+  healthy status at `127.0.0.1:8503`. Frontend typecheck/build, 56 host and Docker tests,
   Python formatting/lint checks and HTTP asset/graph checks passed.
+- Removed provider-owned source inventory from the Planner model-output schema,
+  so an overlong model-authored `returned_sources[].snippet` cannot fail before
+  trusted-source grounding. Tavily prompt snippets remain capped at 1,000
+  characters; grounded `SourceReference` snippets accept up to 4,000. Focused,
+  full host and offline Docker test runs passed, and the rebuilt runtime is healthy.
+- The JavaScript graph view now requests the PNG from `get_graph_image()` through
+  a read-only endpoint. Its image and SVG fallback scale within the page panel
+  and cannot create horizontal overflow. A web API contract test confirms PNG
+  delivery without a planning turn; the full host suite passed 57 tests. The
+  running local adapter returned `200 image/png` with 24,241 bytes; its SVG
+  fallback also returned HTTP 200.
 
 ## Now
 

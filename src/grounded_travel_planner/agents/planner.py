@@ -10,6 +10,7 @@ from grounded_travel_planner.contracts import (
     IntentAction,
     PlanCandidate,
     PlanChangeIntent,
+    PlannerProposal,
     SearchResult,
     SightseeingPlan,
     SourceReference,
@@ -101,7 +102,7 @@ class PlannerAgent:
         )
         proposed = self._model.generate_structured(
             prompt,
-            PlanCandidate,
+            PlannerProposal,
             metadata=metadata,
         )
         candidate = self._ground_candidate(
@@ -175,7 +176,7 @@ class PlannerAgent:
 
     def _ground_candidate(
         self,
-        proposed: PlanCandidate,
+        proposed: PlannerProposal,
         *,
         request: TripRequest,
         current_plan: SightseeingPlan | None,
@@ -183,11 +184,11 @@ class PlannerAgent:
     ) -> PlanCandidate:
         allowed = {str(source.url).rstrip("/"): source for source in sources}
         if proposed.plan is None:
-            return proposed.model_copy(
-                update={
-                    "returned_source_urls": set(allowed),
-                    "returned_sources": list(allowed.values()),
-                }
+            return PlanCandidate(
+                summary=proposed.summary,
+                issues=proposed.issues,
+                returned_source_urls=set(allowed),
+                returned_sources=list(allowed.values()),
             )
         grounded_entries = []
         for entry in proposed.plan.entries:
@@ -223,10 +224,10 @@ class PlannerAgent:
                 "revision": revision,
             }
         )
-        return proposed.model_copy(
-            update={
-                "plan": plan,
-                "returned_source_urls": set(allowed),
-                "returned_sources": list(allowed.values()),
-            }
+        return PlanCandidate(
+            plan=plan,
+            summary=proposed.summary,
+            issues=proposed.issues,
+            returned_source_urls=set(allowed),
+            returned_sources=list(allowed.values()),
         )

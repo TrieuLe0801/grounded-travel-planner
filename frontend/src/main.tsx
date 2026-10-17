@@ -284,13 +284,21 @@ function PlanView({
 }
 function GraphView({
   svg,
-  loading,
+  imageLoading,
+  imageUnavailable,
+  fallbackLoading,
   error,
+  onImageLoad,
+  onImageError,
   onBack,
 }: {
   svg: string;
-  loading: boolean;
+  imageLoading: boolean;
+  imageUnavailable: boolean;
+  fallbackLoading: boolean;
   error: string;
+  onImageLoad: () => void;
+  onImageError: () => void;
   onBack: () => void;
 }) {
   return (
@@ -315,30 +323,61 @@ function GraphView({
           Sơ đồ lấy từ workflow đã biên dịch. Việc xem trang này không tạo hoặc
           thay đổi lịch trình.
         </p>
-        {loading && (
-          <p
-            className="mt-8 flex items-center gap-2 text-slate-600"
-            role="status"
+        {!imageUnavailable && (
+          <figure
+            className="mt-6 min-h-72 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 p-3 sm:p-6"
+            aria-busy={imageLoading}
           >
-            <LoaderCircle className="animate-spin" />
-            Đang tải sơ đồ…
-          </p>
+            {imageLoading && (
+              <p className="flex items-center gap-2 text-slate-600" role="status">
+                <LoaderCircle className="animate-spin" />
+                Đang tải ảnh kiến trúc…
+              </p>
+            )}
+            <img
+              src="/api/graph/image"
+              alt="Sơ đồ workflow LangGraph gồm Coordinator, Planner và các bước kiểm tra"
+              className="graph-image mx-auto max-h-[70dvh] max-w-full object-contain"
+              decoding="async"
+              onLoad={onImageLoad}
+              onError={onImageError}
+            />
+            <figcaption className="mt-3 text-sm text-slate-600">
+              Ảnh PNG được tạo trực tiếp từ workflow LangGraph đã biên dịch.
+            </figcaption>
+          </figure>
         )}
-        {error && (
-          <p
-            className="mt-6 rounded-xl bg-red-50 p-4 text-red-800"
-            role="alert"
-          >
-            {error}
-          </p>
-        )}
-        {svg && (
-          <div
-            className="graph-svg mt-6 overflow-x-auto rounded-2xl border border-slate-200 bg-slate-50 p-3 sm:p-6"
-            role="img"
-            aria-label="Sơ đồ workflow LangGraph gồm Coordinator, Planner và các bước kiểm tra"
-            dangerouslySetInnerHTML={{ __html: svg }}
-          />
+        {imageUnavailable && (
+          <>
+            <p
+              className="mt-6 rounded-xl bg-amber-50 p-4 text-amber-900"
+              role="status"
+            >
+              Không thể tạo ảnh PNG lúc này; đang dùng sơ đồ SVG dự phòng.
+            </p>
+            {fallbackLoading && (
+              <p className="mt-6 flex items-center gap-2 text-slate-600" role="status">
+                <LoaderCircle className="animate-spin" />
+                Đang tải sơ đồ dự phòng…
+              </p>
+            )}
+            {error && (
+              <p
+                className="mt-6 rounded-xl bg-red-50 p-4 text-red-800"
+                role="alert"
+              >
+                {error}
+              </p>
+            )}
+            {svg && (
+              <div
+                className="graph-svg mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 p-3 sm:p-6"
+                role="img"
+                aria-label="Sơ đồ workflow LangGraph gồm Coordinator, Planner và các bước kiểm tra"
+                dangerouslySetInnerHTML={{ __html: svg }}
+              />
+            )}
+          </>
         )}
       </div>
     </section>
@@ -362,7 +401,9 @@ function App() {
   const [visualsLoading, setVisualsLoading] = useState(false);
   const [view, setView] = useState<View>("itinerary");
   const [graphSvg, setGraphSvg] = useState("");
-  const [graphLoading, setGraphLoading] = useState(false);
+  const [graphImageLoading, setGraphImageLoading] = useState(true);
+  const [graphImageUnavailable, setGraphImageUnavailable] = useState(false);
+  const [graphFallbackLoading, setGraphFallbackLoading] = useState(false);
   const [graphError, setGraphError] = useState("");
   const load = async () => {
     try {
@@ -412,6 +453,19 @@ function App() {
       active = false;
     };
   }, [state.plan?.revision, state.visuals_by_entry]);
+  useEffect(() => {
+    if (!graphImageUnavailable || graphSvg || graphFallbackLoading) return;
+    setGraphFallbackLoading(true);
+    setGraphError("");
+    void api<{ svg: string }>("/api/graph")
+      .then((result) => setGraphSvg(result.svg))
+      .catch((error: unknown) =>
+        setGraphError(
+          error instanceof Error ? error.message : "Không thể tải sơ đồ.",
+        ),
+      )
+      .finally(() => setGraphFallbackLoading(false));
+  }, [graphFallbackLoading, graphImageUnavailable, graphSvg]);
   const submit = async (body: object) => {
     setRequestError("");
     setSubmitting(true);
@@ -450,19 +504,10 @@ function App() {
       },
     });
   };
-  const openGraph = () => {
-    setView("graph");
-    if (graphSvg || graphLoading) return;
-    setGraphLoading(true);
-    setGraphError("");
-    void api<{ svg: string }>("/api/graph")
-      .then((result) => setGraphSvg(result.svg))
-      .catch((error: unknown) =>
-        setGraphError(
-          error instanceof Error ? error.message : "Không thể tải sơ đồ.",
-        ),
-      )
-      .finally(() => setGraphLoading(false));
+  const openGraph = () => setView("graph");
+  const graphImageFailed = () => {
+    setGraphImageLoading(false);
+    setGraphImageUnavailable(true);
   };
   const reset = async () => {
     if (state.plan && !window.confirm("Tạo chuyến đi mới và bỏ lịch trình hiện tại?")) return;
@@ -524,8 +569,12 @@ function App() {
         {view === "graph" ? (
           <GraphView
             svg={graphSvg}
-            loading={graphLoading}
+            imageLoading={graphImageLoading}
+            imageUnavailable={graphImageUnavailable}
+            fallbackLoading={graphFallbackLoading}
             error={graphError}
+            onImageLoad={() => setGraphImageLoading(false)}
+            onImageError={graphImageFailed}
             onBack={() => setView("itinerary")}
           />
         ) : (

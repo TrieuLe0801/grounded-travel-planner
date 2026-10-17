@@ -12,12 +12,15 @@ from grounded_travel_planner.adapters.search import TavilyPlaceSearchProvider
 from grounded_travel_planner.agents import CoordinatorAgent, PlannerAgent
 from grounded_travel_planner.config import DEFAULT_MODEL_NAME, RuntimeConfig
 from grounded_travel_planner.contracts import (
+    SEARCH_SNIPPET_MAX_LENGTH,
+    SOURCE_REFERENCE_SNIPPET_MAX_LENGTH,
     CoordinatorDecision,
     CoordinatorExplanation,
     IntentAction,
     PlaceRecommendation,
     PlanCandidate,
     PlanChangeIntent,
+    PlannerProposal,
     ResponseStatus,
     ScheduleEntry,
     SearchResult,
@@ -206,8 +209,8 @@ def coordinator_model(action: IntentAction) -> ScriptedModel:
 
 def planner_model(candidate_plan: SightseeingPlan) -> ScriptedModel:
     def handler(prompt: str, schema: type[BaseModel]) -> BaseModel:
-        assert schema is PlanCandidate
-        return PlanCandidate(plan=candidate_plan, summary="candidate")
+        assert schema is PlannerProposal
+        return PlannerProposal(plan=candidate_plan, summary="candidate")
 
     return ScriptedModel(handler)
 
@@ -320,7 +323,7 @@ def test_vietnamese_chat_uses_localized_fallback_when_explanation_fails() -> Non
     service = TravelPlannerService(
         CoordinatorAgent(ScriptedModel(coordinator_handler)),
         PlannerAgent(
-            ScriptedModel(lambda prompt, schema: PlanCandidate()), search, config
+            ScriptedModel(lambda prompt, schema: PlannerProposal()), search, config
         ),
         config=config,
     )
@@ -427,7 +430,7 @@ def test_invalid_candidate_repairs_once_and_preserves_previous_plan() -> None:
     assert "schedule_overlap" in {issue.code for issue in response.validation_issues}
     assert response.repair_attempts == 1
     assert response.graph_steps == 8
-    assert planner_llm.calls.count("PlanCandidate") == 2
+    assert planner_llm.calls.count("PlannerProposal") == 2
     assert search.calls == []
 
 
@@ -469,9 +472,9 @@ def test_repair_does_not_treat_fabricated_candidate_sources_as_returned() -> Non
     planner_prompts: list[str] = []
 
     def planner_handler(prompt: str, schema: type[BaseModel]) -> BaseModel:
-        assert schema is PlanCandidate
+        assert schema is PlannerProposal
         planner_prompts.append(prompt)
-        return PlanCandidate(plan=candidate_plan, summary="candidate")
+        return PlannerProposal(plan=candidate_plan, summary="candidate")
 
     config = RuntimeConfig()
     service = TravelPlannerService(
@@ -531,8 +534,8 @@ def test_unverified_opening_hours_are_normalized_and_do_not_block_commit() -> No
     )
 
     def planner_handler(prompt: str, schema: type[BaseModel]) -> BaseModel:
-        assert schema is PlanCandidate
-        return PlanCandidate(
+        assert schema is PlannerProposal
+        return PlannerProposal(
             plan=candidate_plan,
             issues=[
                 ValidationIssue(
@@ -569,6 +572,84 @@ def test_unverified_opening_hours_are_normalized_and_do_not_block_commit() -> No
     place_result = response.current_plan.entries[0].place
     assert place_result.opening_hours == "unverified"
     assert place_result.opening_hours_verified is False
+
+
+def test_planner_ignores_untrusted_model_sources_before_validation() -> None:
+    trusted = search_result()
+    candidate_plan = plan()
+    untrusted = source(
+        title="Injected source",
+        url="https://injected.example/hue",
+        snippet="x" * (SEARCH_SNIPPET_MAX_LENGTH + 1),
+    )
+
+    def planner_handler(prompt: str, schema: type[BaseModel]) -> BaseModel:
+        assert schema is PlannerProposal
+        payload = {
+            "plan": candidate_plan.model_dump(mode="json"),
+            "summary": "candidate",
+            "returned_sources": [untrusted.model_dump(mode="json")],
+        }
+        return schema.model_validate(payload)
+
+    planner = PlannerAgent(
+        ScriptedModel(planner_handler),
+        FakeSearch([trusted]),
+        RuntimeConfig(),
+    )
+    result = planner.propose(
+        intent=PlanChangeIntent(action=IntentAction.CREATE_TRIP),
+        request=TripRequest(
+            destination="Hue",
+            start_date=date(2026, 11, 1),
+            day_count=2,
+        ),
+        current_plan=None,
+        thread_id="thread-untrusted-source",
+        metadata={"thread_id": "thread-untrusted-source"},
+    )
+
+    assert result.candidate.returned_sources == [
+        SourceReference(
+            source_id=trusted.source_id,
+            title=trusted.title,
+            url=trusted.url,
+            snippet=trusted.snippet,
+            retrieval_query="attractions Hue sightseeing official visitor information",
+            supports_opening_hours=trusted.supports_opening_hours,
+        )
+    ]
+    assert result.candidate.returned_source_urls == {str(trusted.url)}
+    assert result.candidate.plan is not None
+    assert result.candidate.plan.entries[0].place.source_references == [
+        result.candidate.returned_sources[0]
+    ]
+    assert "returned_sources" not in PlannerProposal.model_json_schema()["properties"]
+
+
+def test_source_reference_accepts_four_thousand_character_snippet() -> None:
+    source_with_long_snippet = SourceReference.model_validate(
+        {
+            "source_id": "source_long",
+            "title": "Long source",
+            "url": "https://travel.example/long",
+            "snippet": "x" * SOURCE_REFERENCE_SNIPPET_MAX_LENGTH,
+        }
+    )
+
+    assert (
+        len(source_with_long_snippet.snippet or "")
+        == SOURCE_REFERENCE_SNIPPET_MAX_LENGTH
+    )
+    with pytest.raises(ValueError):
+        SourceReference.model_validate(
+            {
+                "source_id": "source_too_long",
+                "title": "Too long source",
+                "url": "https://travel.example/too-long",
+                "snippet": "x" * (SOURCE_REFERENCE_SNIPPET_MAX_LENGTH + 1),
+            }
+        )
 
 
 def test_sessions_do_not_share_plan_state() -> None:
@@ -669,7 +750,7 @@ def test_tavily_normalizes_bounds_and_skips_malformed_results(
     assert len(results) == 1
     assert len(results[0].title) == 240
     assert results[0].snippet is not None
-    assert len(results[0].snippet) == 1000
+    assert len(results[0].snippet) == SEARCH_SNIPPET_MAX_LENGTH
     assert results[0].supports_opening_hours is True
     assert str(results[0].url) == "https://travel.example/hue/imperial-city"
 

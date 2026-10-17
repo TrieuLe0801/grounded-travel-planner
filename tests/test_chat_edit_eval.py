@@ -15,7 +15,7 @@ from grounded_travel_planner.config import RuntimeConfig
 from grounded_travel_planner.contracts import (
     CoordinatorDecision,
     CoordinatorExplanation,
-    PlanCandidate,
+    PlannerProposal,
     SearchResult,
     SightseeingPlan,
     TripRequest,
@@ -58,7 +58,7 @@ class _ScriptedModel:
             )
         if schema is CoordinatorExplanation:
             return schema.model_validate({"message": "fixture explanation"})
-        if schema is PlanCandidate:
+        if schema is PlannerProposal:
             return schema.model_validate(
                 {
                     "plan": self.case["candidate_plan"],

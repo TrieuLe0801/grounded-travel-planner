@@ -57,6 +57,23 @@ Acceptance:
   `thread_id` metadata.
 - Detailed live evidence: `docs/experiments/2026-10-14-live-two-agent-smoke.md`.
 
+## Planner Source Schema Hardening — Verified
+
+Acceptance:
+
+- Keep provider-owned `returned_source_urls` and `returned_sources` out of the
+  Planner model-output schema and attach them only after trusted-source grounding.
+- Keep Tavily/SearchResult snippets bounded to 1,000 characters before prompt use.
+- Accept grounded `SourceReference` snippets up to 4,000 characters while
+  retaining deterministic returned-URL provenance validation.
+- Regress a model payload that includes an extra overlong `returned_sources`
+  item without allowing that inventory into the committed candidate.
+
+Evidence: 33 focused tests and 56 full host tests passed; isort, Black, flake8,
+Ruff, `uv lock --check` and `git diff --check` passed. The rebuilt offline Docker
+test image passed 56 tests with networking disabled, and the rebuilt Compose
+runtime reached healthy status at `127.0.0.1:8503`.
+
 ## Phase 1D - Local Container — Verified
 
 Acceptance:
@@ -207,6 +224,8 @@ Acceptance:
 - Serve the React/Tailwind itinerary and chat with a same-origin FastAPI adapter.
 - Keep one server-owned canonical plan per opaque browser session. A pending
   turn continues when the user opens the read-only graph view.
+- Render the compiled graph as the responsive PNG from `get_graph_image()`;
+  constrain it to the graph panel and retain the SVG fallback for render errors.
 - Display source references, estimated durations, unverified opening hours and
   optional Commons photos with creator, license and file-page credit.
 - Preserve the previous plan after a rejected edit; show validation feedback.
@@ -217,3 +236,12 @@ ADR 0008 governs this interface. The Streamlit implementation remains in the
 repository during migration. Offline browser interaction and responsive visual
 inspection remain open until a browser is available. The frontend and API
 tests do not constitute a new live OpenAI/Tavily/LangSmith verification.
+
+The JavaScript graph follow-up serves `get_graph_image()` bytes from
+`GET /api/graph/image`. The responsive image is capped by its panel and
+viewport height, while `GET /api/graph` remains the SVG fallback. Its contract
+test verifies `image/png` delivery and that no planning turn runs. On
+2026-10-17, `uv run pytest` passed 57 tests; frontend typecheck and production
+build, isort, Black, flake8, Ruff and `uv lock --check` passed. The running
+adapter returned `200 image/png` (24,241 bytes) and its SVG fallback returned
+HTTP 200.

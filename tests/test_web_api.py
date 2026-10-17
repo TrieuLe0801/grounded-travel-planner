@@ -64,10 +64,16 @@ class FakeTravelPlannerService:
         self.turns: list[dict[str, object]] = []
         self.block_started = Event()
         self.release_block = Event()
+        self.graph_image_calls = 0
+        self.graph_image = b"\x89PNG\r\n\x1a\noffline graph"
 
     def create_session(self) -> str:
         self.created_sessions += 1
         return f"thread-{self.created_sessions}"
+
+    def get_graph_image(self) -> bytes:
+        self.graph_image_calls += 1
+        return self.graph_image
 
     def handle_turn(self, **kwargs: object) -> AgentResponse:
         self.turns.append(kwargs)
@@ -229,4 +235,17 @@ def test_graph_endpoint_is_read_only(monkeypatch) -> None:
     response = client.get("/api/graph")
     assert response.status_code == 200
     assert response.json() == {"svg": "<svg aria-label='offline graph'/>"}
+    assert service.turns == []
+
+
+def test_graph_image_endpoint_returns_compiled_png_without_a_turn() -> None:
+    service = FakeTravelPlannerService()
+    client = TestClient(create_app(service, FakeVisualService()))
+
+    response = client.get("/api/graph/image")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/png"
+    assert response.content == service.graph_image
+    assert service.graph_image_calls == 1
     assert service.turns == []

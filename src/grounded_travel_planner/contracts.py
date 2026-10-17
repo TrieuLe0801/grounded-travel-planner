@@ -6,6 +6,11 @@ from typing import Any
 
 from pydantic import BaseModel, Field, HttpUrl, field_validator
 
+# Search snippets stay small before becoming prompt data. Source references can
+# retain more text when persisted in an already-grounded plan.
+SEARCH_SNIPPET_MAX_LENGTH = 1000
+SOURCE_REFERENCE_SNIPPET_MAX_LENGTH = 4000
+
 
 class IntentAction(str, Enum):
     ORDINARY_CHAT = "ordinary_chat"
@@ -47,7 +52,10 @@ class SourceReference(BaseModel):
     source_id: str = Field(min_length=1, max_length=80)
     title: str = Field(min_length=1, max_length=240)
     url: HttpUrl
-    snippet: str | None = Field(default=None, max_length=1000)
+    snippet: str | None = Field(
+        default=None,
+        max_length=SOURCE_REFERENCE_SNIPPET_MAX_LENGTH,
+    )
     provider: str = "tavily"
     retrieval_query: str = Field(default="", max_length=500)
     supports_opening_hours: bool = False
@@ -57,7 +65,7 @@ class SearchResult(BaseModel):
     source_id: str = Field(min_length=1, max_length=80)
     title: str = Field(min_length=1, max_length=240)
     url: HttpUrl
-    snippet: str | None = Field(default=None, max_length=1000)
+    snippet: str | None = Field(default=None, max_length=SEARCH_SNIPPET_MAX_LENGTH)
     score: float | None = None
     supports_opening_hours: bool = False
 
@@ -133,10 +141,17 @@ class ValidationIssue(BaseModel):
     entry_id: str | None = None
 
 
-class PlanCandidate(BaseModel):
+class PlannerProposal(BaseModel):
+    """Model-authored plan fields before trusted search data is attached."""
+
     plan: SightseeingPlan | None = None
     summary: str = Field(default="", max_length=2000)
     issues: list[ValidationIssue] = Field(default_factory=list)
+
+
+class PlanCandidate(PlannerProposal):
+    """Grounded proposal carrying provider-owned source provenance."""
+
     returned_source_urls: set[str] = Field(default_factory=set)
     returned_sources: list[SourceReference] = Field(default_factory=list)
 

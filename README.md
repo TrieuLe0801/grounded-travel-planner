@@ -186,9 +186,11 @@ leaves the text itinerary intact. The first 12 stops are enriched to bound
 public-API calls. The route map and car interaction were removed at the user's
 request; ADR 0006 records the change.
 
-Use **Xem graph** in the JavaScript UI to inspect the compiled workflow as a
-read-only SVG. The retained Streamlit graph page uses the PNG returned by
-`TravelPlannerService.get_graph_image()` with an SVG fallback.
+Use **Xem graph** in the JavaScript UI to inspect the compiled workflow as the
+PNG returned by `TravelPlannerService.get_graph_image()`. The image scales to
+the graph panel without horizontal overflow; an SVG fallback is shown if PNG
+rendering is unavailable. The retained Streamlit graph page has the same
+PNG-first behavior.
 
 ## Background chat turns
 

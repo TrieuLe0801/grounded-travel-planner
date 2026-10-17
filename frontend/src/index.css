@@ -21,8 +21,18 @@
     @apply border-red-500;
   }
 }
+.graph-image {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 70dvh;
+}
 .graph-svg svg {
-  @apply h-auto min-w-160 max-w-none;
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: 100%;
 }
 @media (prefers-reduced-motion: no-preference) {
   .rise {
