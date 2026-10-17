@@ -132,6 +132,10 @@ actual checks count as completion evidence.
   and assistant turns as right/left conversation bubbles with pending, result
   and error states. Frontend typecheck and production build passed;
   real-browser responsive QA remains pending.
+- Restyled the JavaScript interface with a blue and near-black visual system.
+  Surface, form, graph, itinerary and chat states now use dark slate panels with
+  blue primary and focus accents. Frontend typecheck and production build passed;
+  the browser surface was unavailable for live visual inspection.
 
 ## Now
 

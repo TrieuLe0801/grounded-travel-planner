@@ -1,6 +1,6 @@
 {
-  "version": 29,
-  "updated": "2026-10-17T16:03:52+07:00",
+  "version": 30,
+  "updated": "2026-10-17T16:15:29+07:00",
   "active_scope": "city-place-sightseeing-webapp",
   "current_milestone": "Milestone 1: executable city/place sightseeing vertical slice",
   "completed": {
@@ -31,7 +31,8 @@
     "planner_chat_context_handoff": true,
     "floating_chat_widget": true,
     "javascript_tailwind_browser_qa": false,
-    "chat_conversation_bubbles": true
+    "chat_conversation_bubbles": true,
+    "blue_black_visual_system": true
   },
   "evidence": {
     "scope_reset_docs": [
@@ -235,7 +236,14 @@
       "frontend npm run check passed",
       "frontend npm run build passed",
       "browser-level responsive QA pending"
+    ],
+    "blue_black_visual_system": [
+      "frontend/src/index.css",
+      "frontend/src/main.tsx",
+      "frontend npm run check passed",
+      "frontend npm run build passed",
+      "browser surface unavailable for visual inspection"
     ]
   },
-  "notes": "Milestone 1 and chat editing have offline and live evidence. The itinerary now keeps source-attributed photos and omits the route map at the user's request. The Streamlit and JavaScript graph pages display the compiled LangGraph PNG returned by get_graph_image() inside responsive panels, with SVG fallback; JavaScript image delivery has host-test evidence. Vietnamese is the default webapp chat language. Coordinator routes work, Planner owns search/proposals, and Chat writes responses. Committed Chat replies receive the Planner summary and validated plan; rejected replies receive validation issues and the retained prior plan without the rejected candidate. The JavaScript chat composer is a lower-right floating panel with accessible focus/close behavior and separate right/left user and assistant conversation bubbles; frontend check/build pass while browser QA remains pending. Trip extension resolves the requested total before Planner and rejects invalid bounds before search. Planner model output excludes provider-owned returned-source inventory; grounding attaches trusted sources after structured parsing. Tavily prompt snippets remain capped at 1,000 characters and grounded source references allow 4,000. Coordinator defaults to gpt-5.5 while Planner and Chat default to gpt-5.4-mini; no new live provider run is claimed for the model split, extension flow or Chat context fix. Source-quality metrics still have a synthetic baseline and live relevance remains unmeasured. Old POC counts are archived. The JavaScript/Tailwind UI is now the current container frontend; browser QA is pending."
+  "notes": "Milestone 1 and chat editing have offline and live evidence. The itinerary now keeps source-attributed photos and omits the route map at the user's request. The Streamlit and JavaScript graph pages display the compiled LangGraph PNG returned by get_graph_image() inside responsive panels, with SVG fallback; JavaScript image delivery has host-test evidence. Vietnamese is the default webapp chat language. Coordinator routes work, Planner owns search/proposals, and Chat writes responses. Committed Chat replies receive the Planner summary and validated plan; rejected replies receive validation issues and the retained prior plan without the rejected candidate. The JavaScript chat composer is a lower-right floating panel with accessible focus/close behavior and separate right/left user and assistant conversation bubbles. The interface now uses a blue and near-black visual system; frontend check/build pass while browser QA remains pending. Trip extension resolves the requested total before Planner and rejects invalid bounds before search. Planner model output excludes provider-owned returned-source inventory; grounding attaches trusted sources after structured parsing. Tavily prompt snippets remain capped at 1,000 characters and grounded source references allow 4,000. Coordinator defaults to gpt-5.5 while Planner and Chat default to gpt-5.4-mini; no new live provider run is claimed for the model split, extension flow or Chat context fix. Source-quality metrics still have a synthetic baseline and live relevance remains unmeasured. Old POC counts are archived. The JavaScript/Tailwind UI is now the current container frontend; browser QA is pending."
 }
