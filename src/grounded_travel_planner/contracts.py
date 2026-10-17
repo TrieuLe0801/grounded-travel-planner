@@ -186,10 +186,6 @@ class CoordinatorDecision(BaseModel):
     response_hint: str = Field(default="", max_length=1000)
 
 
-class CoordinatorExplanation(BaseModel):
-    message: str = Field(min_length=1, max_length=2000)
-
-
 class ChatResponse(BaseModel):
     """User-facing Vietnamese response written by the Chat runtime role."""
 

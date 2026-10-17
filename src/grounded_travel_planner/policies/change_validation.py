@@ -88,6 +88,15 @@ def _retains_current_places(
     return True
 
 
+def _retains_current_entries(
+    current_plan: SightseeingPlan, candidate_plan: SightseeingPlan
+) -> bool:
+    """Require extensions to retain each existing entry exactly by its stable ID."""
+
+    candidate_by_id = {entry.id: entry for entry in candidate_plan.entries}
+    return all(candidate_by_id.get(entry.id) == entry for entry in current_plan.entries)
+
+
 def _issue(message: str) -> list[ValidationIssue]:
     return [ValidationIssue(code="requested_change_not_applied", message=message)]
 
@@ -113,7 +122,7 @@ def validate_requested_change(
             return _issue("The extension must increase the current day count.")
         if candidate_plan.day_count != target_day_count:
             return _issue("Candidate did not apply the requested trip extension.")
-        if not _retains_current_places(current_plan, candidate_plan):
+        if not _retains_current_entries(current_plan, candidate_plan):
             return _issue("Candidate must preserve existing stops when extending.")
         if not any(
             entry.day_index > current_plan.day_count for entry in candidate_plan.entries

@@ -336,7 +336,7 @@ function GraphView({
             )}
             <img
               src="/api/graph/image"
-              alt="Sơ đồ workflow LangGraph gồm Coordinator, Planner và các bước kiểm tra"
+              alt="Sơ đồ workflow LangGraph gồm Coordinator, Planner, Chat và các bước kiểm tra"
               className="graph-image mx-auto max-h-[70dvh] max-w-full object-contain"
               decoding="async"
               onLoad={onImageLoad}
@@ -373,7 +373,7 @@ function GraphView({
               <div
                 className="graph-svg mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 p-3 sm:p-6"
                 role="img"
-                aria-label="Sơ đồ workflow LangGraph gồm Coordinator, Planner và các bước kiểm tra"
+                aria-label="Sơ đồ workflow LangGraph gồm Coordinator, Planner, Chat và các bước kiểm tra"
                 dangerouslySetInnerHTML={{ __html: svg }}
               />
             )}
@@ -685,8 +685,8 @@ function App() {
                 aria-live="polite"
               >
                 <LoaderCircle className="animate-spin" />
-                Coordinator và Planner đang kiểm tra yêu cầu. Bạn có thể tiếp
-                tục xem lịch hiện tại hoặc xem graph.
+                Coordinator đang phân phối yêu cầu cho Planner và Chat. Bạn có
+                thể tiếp tục xem lịch hiện tại hoặc xem graph.
               </section>
             )}
             <TurnStatus response={state.response} />

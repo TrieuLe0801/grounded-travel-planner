@@ -67,7 +67,7 @@ def test_svg_copies_compiled_topology_including_repair_loop() -> None:
 
     assert {
         "__start__",
-        "coordinator_classify",
+        "coordinator_route",
         "validate_input",
         "planner_delegate",
         "validate_candidate",
@@ -77,8 +77,8 @@ def test_svg_copies_compiled_topology_including_repair_loop() -> None:
     } <= identifiers
     assert ("prepare_repair", "planner_delegate", False) in edge_pairs
     assert ("validate_candidate", "prepare_repair", True) in edge_pairs
-    assert ("coordinator_classify", "validate_input", True) in edge_pairs
-    assert ("coordinator_classify", "chat_respond", True) in edge_pairs
+    assert ("coordinator_route", "validate_input", True) in edge_pairs
+    assert ("coordinator_route", "chat_respond", True) in edge_pairs
     assert ("planner_delegate", "validate_candidate", True) in edge_pairs
     assert ("validate_candidate", "chat_respond", True) in edge_pairs
     assert ("chat_respond", "__end__", False) in edge_pairs

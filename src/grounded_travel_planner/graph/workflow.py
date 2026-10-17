@@ -22,14 +22,14 @@ def build_travel_planner_graph(
 ):
     nodes = GraphNodes(coordinator, planner, chat, trace_sink, config)
     builder = StateGraph(PlannerState)
-    builder.add_node("coordinator_classify", nodes.coordinator_classify)
+    builder.add_node("coordinator_route", nodes.coordinator_route)
     builder.add_node("validate_input", nodes.validate_input)
     builder.add_node("planner_delegate", nodes.planner_delegate)
     builder.add_node("validate_candidate", nodes.validate_candidate)
     builder.add_node("prepare_repair", nodes.prepare_repair)
     builder.add_node("chat_respond", nodes.chat_respond)
 
-    builder.add_edge(START, "coordinator_classify")
+    builder.add_edge(START, "coordinator_route")
 
     def after_classify(state: PlannerState) -> str:
         if state.get("validation_issues"):
@@ -57,7 +57,7 @@ def build_travel_planner_graph(
         return "chat_respond"
 
     builder.add_conditional_edges(
-        "coordinator_classify",
+        "coordinator_route",
         after_classify,
         {"validate_input": "validate_input", "chat_respond": "chat_respond"},
     )

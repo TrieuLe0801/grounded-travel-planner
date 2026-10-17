@@ -279,7 +279,8 @@ def main(
     st.set_page_config(page_title="Trợ lý lập lịch tham quan", layout="wide")
     st.title("Trợ lý lập lịch tham quan")
     st.caption(
-        "Coordinator + Planner · lịch chỉ lưu trong phiên · gợi ý có nguồn tham khảo"
+        "Coordinator + Planner + Chat · lịch chỉ lưu trong phiên · "
+        "gợi ý có nguồn tham khảo"
     )
     turn_pending = st.session_state.pending_turn is not None
     if st.button("Chuyến đi mới", disabled=turn_pending):

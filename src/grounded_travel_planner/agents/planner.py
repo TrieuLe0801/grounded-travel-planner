@@ -89,9 +89,8 @@ class PlannerAgent:
             search_calls = 1
             new_sources = [self._to_source(item, query) for item in search_results]
             combined = {str(source.url).rstrip("/"): source for source in sources}
-            combined.update(
-                {str(source.url).rstrip("/"): source for source in new_sources}
-            )
+            for source in new_sources:
+                combined.setdefault(str(source.url).rstrip("/"), source)
             sources = list(combined.values())
 
         prompt = self._proposal_prompt(

@@ -52,6 +52,7 @@ class ScriptedModel:
         self.handler = handler
         self.model_name = model_name
         self.calls: list[str] = []
+        self.prompts: list[str] = []
 
     def generate_structured(
         self,
@@ -61,6 +62,7 @@ class ScriptedModel:
         metadata: Mapping[str, str] | None = None,
     ) -> T:
         self.calls.append(schema.__name__)
+        self.prompts.append(prompt)
         return schema.model_validate(self.handler(prompt, schema))
 
 
@@ -336,6 +338,7 @@ def test_ordinary_chat_does_not_search_or_mutate_plan() -> None:
     assert coordinator_llm.calls == ["CoordinatorDecision"]
     assert response.metadata["chat_role"] == "chat"
     assert response.metadata["chat_model"] == DEFAULT_LIGHTWEIGHT_MODEL_NAME
+    assert "User message: Thanks, that looks good." in service.chat._model.prompts[0]
 
 
 def test_trip_extension_uses_effective_request_and_commits_new_day() -> None:
@@ -436,6 +439,71 @@ def test_trip_extension_over_seven_rejects_before_planner_or_search() -> None:
     }
 
 
+@pytest.mark.parametrize(
+    "intent, expected_code",
+    [
+        (
+            PlanChangeIntent(action=IntentAction.EXTEND_TRIP),
+            "trip_extension_target_required",
+        ),
+        (
+            PlanChangeIntent(action=IntentAction.EXTEND_TRIP, day_count=2),
+            "trip_extension_must_increase",
+        ),
+    ],
+)
+def test_invalid_trip_extension_rejects_before_planner_or_search(
+    intent: PlanChangeIntent, expected_code: str
+) -> None:
+    def extension_coordinator(prompt: str, schema: type[BaseModel]) -> BaseModel:
+        assert schema is CoordinatorDecision
+        return CoordinatorDecision(intent=intent, requires_planner=True)
+
+    planner_llm = planner_model(plan())
+    search = FakeSearch([search_result()])
+    service = TravelPlannerService(
+        CoordinatorAgent(ScriptedModel(extension_coordinator)),
+        PlannerAgent(planner_llm, search, RuntimeConfig()),
+        ChatAgent(chat_model()),
+        config=RuntimeConfig(),
+    )
+
+    response = service.handle_turn(
+        thread_id=f"thread-extend-{expected_code}",
+        message="thêm ngày",
+        current_plan=plan(),
+    )
+
+    assert response.status is ResponseStatus.REJECTED
+    assert planner_llm.calls == []
+    assert search.calls == []
+    assert expected_code in {issue.code for issue in response.validation_issues}
+
+
+def test_trip_extension_rejects_changed_existing_entry() -> None:
+    current = plan()
+    changed_existing = current.entries[0].model_copy(update={"start_time": time(11)})
+    candidate = current.model_copy(
+        update={
+            "day_count": 3,
+            "entries": [
+                changed_existing,
+                current.entries[0].model_copy(
+                    update={"id": "entry_day_3", "day_index": 3}
+                ),
+            ],
+        }
+    )
+
+    issues = validate_requested_change(
+        PlanChangeIntent(action=IntentAction.EXTEND_TRIP, day_count_delta=1),
+        current,
+        candidate,
+    )
+
+    assert issues[0].code == "requested_change_not_applied"
+
+
 def test_vietnamese_chat_uses_localized_fallback_when_explanation_fails() -> None:
     prompts: list[str] = []
 
@@ -510,7 +578,7 @@ def test_valid_create_searches_once_and_commits_grounded_plan() -> None:
     assert {event[2] for event in trace.events} == {"thread-live"}
     assert {event[0] for event in trace.events} >= {
         "turn.start",
-        "coordinator.classify",
+        "coordinator.route",
         "planner.propose",
         "validation.input",
         "validation.candidate",

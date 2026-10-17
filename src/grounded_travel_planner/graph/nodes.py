@@ -62,7 +62,7 @@ class GraphNodes:
         self.trace_sink = trace_sink
         self.config = config
 
-    def coordinator_classify(self, state: PlannerState) -> dict:
+    def coordinator_route(self, state: PlannerState) -> dict:
         step = _step(state)
         metadata = _metadata(state, self.coordinator.role)
         try:
@@ -73,7 +73,7 @@ class GraphNodes:
                 metadata=metadata,
             )
             self.trace_sink.record_event(
-                "coordinator.classify",
+                "coordinator.route",
                 {"intent": decision.intent.action.value},
                 thread_id=state["thread_id"],
             )
@@ -107,11 +107,34 @@ class GraphNodes:
             target = decision.intent.day_count
             if target is None and decision.intent.day_count_delta is not None:
                 target = current_plan.day_count + decision.intent.day_count_delta
-            request = TripRequest.model_construct(
-                destination=current_plan.destination,
-                start_date=current_plan.start_date,
-                day_count=target if target is not None else 0,
-            )
+            if target is None:
+                issues = [
+                    ValidationIssue(
+                        code="trip_extension_target_required",
+                        message="Trip extension needs a target day count or increment.",
+                    )
+                ]
+            elif target <= current_plan.day_count:
+                issues = [
+                    ValidationIssue(
+                        code="trip_extension_must_increase",
+                        message="Trip extension must increase the current day count.",
+                    )
+                ]
+            elif target > 7:
+                issues = [
+                    ValidationIssue(
+                        code="day_count_out_of_range",
+                        message="Day count must be between 1 and 7.",
+                    )
+                ]
+            else:
+                request = TripRequest(
+                    destination=current_plan.destination,
+                    start_date=current_plan.start_date,
+                    day_count=target,
+                )
+                issues = validate_trip_request(request)
         elif request is None and current_plan is not None:
             plan = current_plan
             request = TripRequest(
@@ -119,7 +142,9 @@ class GraphNodes:
                 start_date=plan.start_date,
                 day_count=plan.day_count,
             )
-        issues = validate_trip_request(request)
+            issues = validate_trip_request(request)
+        else:
+            issues = validate_trip_request(request)
         self.trace_sink.record_event(
             "validation.input",
             {"issue_codes": [issue.code for issue in issues]},
@@ -258,6 +283,8 @@ class GraphNodes:
         metadata = _metadata(state, self.chat.role)
         try:
             message = self.chat.respond(
+                message=state["message"],
+                intent=decision.intent if decision else None,
                 committed=committed,
                 current_plan=current_plan,
                 issues=issues,

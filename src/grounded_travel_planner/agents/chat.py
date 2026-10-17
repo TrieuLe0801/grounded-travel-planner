@@ -6,6 +6,7 @@ from collections.abc import Mapping
 
 from grounded_travel_planner.contracts import (
     ChatResponse,
+    PlanChangeIntent,
     SightseeingPlan,
     ValidationIssue,
 )
@@ -27,6 +28,8 @@ class ChatAgent:
     def respond(
         self,
         *,
+        message: str,
+        intent: PlanChangeIntent | None,
         committed: bool,
         current_plan: SightseeingPlan | None,
         issues: list[ValidationIssue],
@@ -41,6 +44,8 @@ class ChatAgent:
             "candidate was applied when committed is false. If validation failed, "
             "say the previous plan was preserved. Mention that visit/travel times "
             "are estimates and hours are unverified when relevant.\n"
+            f"User message: {message[:4000]}\n"
+            f"Intent: {intent.model_dump_json() if intent else 'unavailable'}\n"
             f"Committed: {committed}\n"
             f"Current plan exists: {current_plan is not None}\n"
             f"Issues: {issue_text or 'none'}\n"

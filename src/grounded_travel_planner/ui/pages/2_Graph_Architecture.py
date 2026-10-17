@@ -54,7 +54,7 @@ def main(service: TravelPlannerService | None = None) -> None:
             output_format="SVG",
             width="stretch",
             alt="Sơ đồ graph gồm Bắt đầu, Coordinator, các bước kiểm tra, Planner, "
-            "vòng sửa, Hoàn tất và Kết thúc.",
+            "vòng sửa, Chat và Kết thúc.",
         )
         st.download_button(
             "Tải sơ đồ SVG",
@@ -84,11 +84,12 @@ def main(service: TravelPlannerService | None = None) -> None:
 
     st.subheader("Cách đọc sơ đồ")
     st.markdown(
-        "- **Coordinator** phân loại lượt chat; chỉ lượt cần thay đổi lịch mới đi "
-        "qua kiểm tra và Planner.\n"
+        "- **Coordinator** phân loại và chuyển lượt tới Planner hoặc Chat.\n"
         "- **Planner** là agent duy nhất tìm kiếm và đề xuất ứng viên.\n"
+        "- **Chat** tạo phản hồi sau khi kết quả đã được kiểm tra; Chat không "
+        "thay đổi lịch.\n"
         "- Ứng viên lỗi có tối đa một vòng **Chuẩn bị sửa → Planner**; mọi nhánh "
-        "khác đều đi đến **Hoàn tất** để giữ an toàn cho lịch hiện tại."
+        "khác đều đi đến **Chat** để trả kết quả và giữ an toàn cho lịch hiện tại."
     )
 
     with st.expander("Dữ liệu topology đã đọc từ LangGraph"):

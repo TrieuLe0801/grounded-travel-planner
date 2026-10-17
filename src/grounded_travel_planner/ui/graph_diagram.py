@@ -32,7 +32,7 @@ class DiagramEdge:
 
 _NODE_TEXT = {
     START_NODE: ("BẮT ĐẦU", "Nhận một lượt yêu cầu", "boundary"),
-    "coordinator_classify": (
+    "coordinator_route": (
         "Coordinator",
         "Phân loại yêu cầu và quyết định có cần Planner",
         "agent",
@@ -67,7 +67,7 @@ _NODE_TEXT = {
 
 _POSITIONS = {
     START_NODE: (90, 300),
-    "coordinator_classify": (275, 300),
+    "coordinator_route": (275, 300),
     "validate_input": (510, 145),
     "planner_delegate": (760, 145),
     "validate_candidate": (1010, 145),
