@@ -225,6 +225,8 @@ multipage navigation remains a manual browser acceptance check.
 Acceptance:
 
 - Serve the React/Tailwind itinerary and chat with a same-origin FastAPI adapter.
+- Keep the chat composer in a lower-right floating panel opened by an accessible
+  icon button; support responsive sizing, keyboard close and focus on open.
 - Keep one server-owned canonical plan per opaque browser session. A pending
   turn continues when the user opens the read-only graph view.
 - Render the compiled graph as the responsive PNG from `get_graph_image()`;
@@ -262,3 +264,28 @@ Evidence: `RuntimeConfig` and `TravelPlannerService.from_environment()` wire
 the three role names independently. Focused role/model tests passed 41/41 and
 the full host suite passed 61/61; isort, Black, flake8, Ruff and `git diff
 --check` passed. No new live provider run was claimed.
+
+## Coordinator Routing And Trip Extension — Verified Offline
+
+Acceptance:
+
+- Coordinator only classifies and routes each turn; Planner remains the only
+  search/proposal role and Chat writes the final response.
+- Resolve `extend_trip` as an absolute target or positive relative increment
+  against the canonical current plan before Planner runs.
+- Reject a missing target, a non-increasing target or a total above seven days
+  before Planner/search and preserve the current plan.
+- Commit an extension only when existing entries remain unchanged and at least
+  one grounded entry is scheduled in the added day range.
+- Keep the repair route within the existing eight-step graph limit.
+
+Evidence: ADR 0009, one new versioned chat-edit case and focused graph/runtime
+regressions. The focused suite passed 44 tests and the full host and Docker
+suites each passed 64. Frontend typecheck/build, isort, Black, flake8, Ruff,
+`uv lock --check` and `git diff --check` passed. The rebuilt Compose runtime is
+healthy at `127.0.0.1:8503`; no new live model/Tavily/LangSmith turn was run.
+
+The JavaScript chat composer now uses a fixed lower-right panel with a 44px-plus
+trigger, accessible labels, example prompts and reduced-motion-aware entrance.
+`npm run check` and `npm run build` passed; browser-level responsive inspection
+remains pending.

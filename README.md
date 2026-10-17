@@ -15,7 +15,7 @@ three-week POC documents are historical background.
   The server keeps the canonical plan only in an opaque browser session. The
   Streamlit implementation remains available during migration.
 - Deterministic tests use fakes and never call live services.
-- Chat edits are covered by eight versioned offline cases, a successful/rejected
+- Chat edits are covered by nine versioned offline cases, a successful/rejected
   Streamlit AppTest sequence and a separate live create-then-remove smoke.
 - Planning turns run in a bounded background pool, remain owned by the browser
   session and continue while the user opens the read-only graph view.
@@ -197,8 +197,9 @@ PNG-first behavior.
 ## Background chat turns
 
 Creating or editing a plan submits one background turn for the current session.
-The chat page shows a waiting state and disables competing mutations. The user
-can visit the graph view while the turn continues. The canonical plan changes
+The JavaScript interface opens chat from the floating button in the lower-right
+corner; the panel shows a waiting state and disables competing mutations. The
+user can visit the graph view while the turn continues. The canonical plan changes
 only after a committed response. This mechanism is session-only and does not
 survive a server process restart.
 

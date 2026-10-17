@@ -1,5 +1,12 @@
 import { createRoot } from "react-dom/client";
-import { FormEvent, useEffect, useState } from "react";
+import {
+  type Dispatch,
+  type FormEvent,
+  type SetStateAction,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import {
   ArrowLeft,
   Bot,
@@ -11,12 +18,14 @@ import {
   ImageOff,
   LoaderCircle,
   MapPin,
+  MessageCircle,
   Network,
   Plus,
   RotateCcw,
   Send,
   ShieldCheck,
   Sparkles,
+  X,
 } from "lucide-react";
 import "./index.css";
 
@@ -126,12 +135,18 @@ function Photo({ visual, placeName }: { visual?: Visual; placeName: string }) {
     </figure>
   );
 }
-function TurnStatus({ response }: { response: TurnResponse | null }) {
+function TurnStatus({
+  response,
+  className = "mt-6",
+}: {
+  response: TurnResponse | null;
+  className?: string;
+}) {
   if (!response) return null;
   const committed = response.status === "committed";
   return (
     <section
-      className={`rise mt-6 rounded-2xl border p-4 ${committed ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}
+      className={`rise rounded-2xl border p-4 ${className} ${committed ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}
       role="status"
       aria-live="polite"
     >
@@ -384,6 +399,203 @@ function GraphView({
   );
 }
 
+function ChatWidget({
+  open,
+  onOpenChange,
+  state,
+  message,
+  setMessage,
+  errors,
+  setErrors,
+  submitting,
+  requestError,
+  onSend,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  state: ApiState;
+  message: string;
+  setMessage: Dispatch<SetStateAction<string>>;
+  errors: Record<string, string>;
+  setErrors: Dispatch<SetStateAction<Record<string, string>>>;
+  submitting: boolean;
+  requestError: string;
+  onSend: (message: string) => Promise<boolean>;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const frame = window.requestAnimationFrame(() => inputRef.current?.focus());
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onOpenChange(false);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [onOpenChange, open]);
+
+  const submitChat = (event: FormEvent) => {
+    event.preventDefault();
+    if (!message.trim()) {
+      setErrors((current) => ({
+        ...current,
+        chat: "Hãy nhập yêu cầu trước khi gửi.",
+      }));
+      return;
+    }
+    setErrors((current) => ({ ...current, chat: "" }));
+    const sent = message.trim();
+    void onSend(sent).then((accepted) => {
+      if (accepted) setMessage((current) => (current === sent ? "" : current));
+    });
+  };
+
+  return (
+    <>
+      {open && (
+        <section
+          id="chat-panel"
+          className="chat-panel fixed bottom-24 right-4 z-40 flex h-[min(620px,calc(100dvh-7rem))] w-[calc(100vw-2rem)] max-w-md flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl shadow-slate-950/20 sm:right-6"
+          role="dialog"
+          aria-labelledby="chat-panel-title"
+        >
+          <header className="flex items-center justify-between gap-3 border-b border-slate-200 bg-ink px-4 py-4 text-white sm:px-5">
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-cyan-500">
+                <Bot aria-hidden="true" />
+              </span>
+              <div className="min-w-0">
+                <h2 id="chat-panel-title" className="font-heading font-bold">
+                  Trợ lý hành trình
+                </h2>
+                <p className="truncate text-sm text-slate-300">
+                  Điều chỉnh lịch trình bằng chat
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => onOpenChange(false)}
+              className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-xl text-slate-200 transition hover:bg-white/10 hover:text-white"
+              aria-label="Đóng cửa sổ chat"
+              title="Đóng chat"
+            >
+              <X size={20} aria-hidden="true" />
+            </button>
+          </header>
+
+          <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
+            {!state.response ? (
+              <div className="rounded-2xl bg-orange-50 p-4 text-sm text-slate-700">
+                <p className="font-semibold text-ink">Bạn muốn đổi gì?</p>
+                <p className="mt-1 leading-6">
+                  Gửi yêu cầu tự nhiên để thêm, xoá, đổi giờ hoặc kéo dài chuyến
+                  đi. Lịch chỉ được cập nhật sau khi kiểm tra nguồn và thời gian.
+                </p>
+                <div className="mt-4 grid gap-2">
+                  {[
+                    "Thêm Lô Lô Chải vào ngày 2",
+                    "Chuyển điểm 1 sang 11:00 ngày 1",
+                    "Thêm một ngày cho chuyến đi",
+                  ].map((example) => (
+                    <button
+                      type="button"
+                      key={example}
+                      onClick={() => setMessage(example)}
+                      className="min-h-11 rounded-xl border border-orange-200 bg-white px-3 text-left text-sm font-semibold text-slate-700 transition hover:border-coral hover:bg-orange-50"
+                    >
+                      {example}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <>
+                <p className="mb-3 text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
+                  Phản hồi gần nhất
+                </p>
+                <TurnStatus response={state.response} className="mt-0" />
+              </>
+            )}
+            {state.pending && (
+              <p
+                className="mt-4 flex items-center gap-2 rounded-xl bg-cyan-50 p-3 text-sm font-semibold text-cyan-950"
+                role="status"
+                aria-live="polite"
+              >
+                <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
+                Đang kiểm tra yêu cầu…
+              </p>
+            )}
+            {requestError && (
+              <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-800" role="alert">
+                {requestError}
+              </p>
+            )}
+          </div>
+
+          <form
+            className="border-t border-slate-200 bg-slate-50 p-3 sm:p-4"
+            onSubmit={submitChat}
+          >
+            <label className="sr-only" htmlFor="chat-widget-input">
+              Yêu cầu thay đổi lịch trình
+            </label>
+            <div className="flex items-end gap-2">
+              <div className="min-w-0 flex-1">
+                <input
+                  ref={inputRef}
+                  id="chat-widget-input"
+                  value={message}
+                  onChange={(event) => setMessage(event.target.value)}
+                  disabled={state.pending || submitting}
+                  aria-invalid={Boolean(errors.chat)}
+                  aria-describedby={errors.chat ? "chat-widget-error" : undefined}
+                  className="min-h-12 w-full rounded-xl border border-slate-300 bg-white px-4 text-base text-ink placeholder:text-slate-400"
+                  placeholder="Ví dụ: thêm một ngày…"
+                />
+                <span id="chat-widget-error">
+                  <FieldError message={errors.chat} />
+                </span>
+              </div>
+              <button
+                type="submit"
+                disabled={state.pending || submitting || !message.trim()}
+                className="inline-flex min-h-12 min-w-12 items-center justify-center rounded-xl bg-coral px-4 font-bold text-white transition hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-50"
+                aria-label="Gửi yêu cầu chat"
+                title="Gửi yêu cầu"
+              >
+                {submitting || state.pending ? (
+                  <LoaderCircle className="animate-spin" aria-hidden="true" />
+                ) : (
+                  <Send size={19} aria-hidden="true" />
+                )}
+                <span className="sr-only">Gửi</span>
+              </button>
+            </div>
+          </form>
+        </section>
+      )}
+
+      <button
+        type="button"
+        onClick={() => onOpenChange(!open)}
+        className="fixed bottom-4 right-4 z-40 inline-flex min-h-14 min-w-14 items-center justify-center rounded-full bg-coral text-white shadow-xl shadow-orange-950/25 transition hover:-translate-y-0.5 hover:bg-orange-700 focus-visible:ring-4 focus-visible:ring-cyan-200 sm:bottom-6 sm:right-6"
+        aria-expanded={open}
+        aria-controls="chat-panel"
+        aria-label={open ? "Đóng cửa sổ chat" : "Mở cửa sổ chat"}
+        title={open ? "Đóng chat" : "Mở chat"}
+      >
+        {open ? <X aria-hidden="true" /> : <MessageCircle aria-hidden="true" />}
+        <span className="sr-only">{open ? "Đóng chat" : "Mở chat"}</span>
+      </button>
+    </>
+  );
+}
+
 function App() {
   const [state, setState] = useState<ApiState>({
     plan: null,
@@ -400,6 +612,7 @@ function App() {
   const [visuals, setVisuals] = useState<Record<string, Visual>>({});
   const [visualsLoading, setVisualsLoading] = useState(false);
   const [view, setView] = useState<View>("itinerary");
+  const [chatOpen, setChatOpen] = useState(false);
   const [graphSvg, setGraphSvg] = useState("");
   const [graphImageLoading, setGraphImageLoading] = useState(true);
   const [graphImageUnavailable, setGraphImageUnavailable] = useState(false);
@@ -565,7 +778,7 @@ function App() {
           </div>
         </div>
       </header>
-      <main id="main" className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:py-12">
+      <main id="main" className="mx-auto max-w-7xl px-4 pb-32 pt-8 sm:px-6 lg:pb-36 lg:pt-12">
         {view === "graph" ? (
           <GraphView
             svg={graphSvg}
@@ -707,68 +920,21 @@ function App() {
                 </p>
               </section>
             )}
-            <section className="mt-8 rounded-3xl bg-ink p-5 text-white sm:p-7">
-              <div className="flex items-start gap-3">
-                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-cyan-500">
-                  <Bot />
-                </span>
-                <div>
-                  <h2 className="font-heading text-xl font-bold">
-                    Điều chỉnh bằng trò chuyện
-                  </h2>
-                  <p className="mt-1 text-slate-300">
-                    Ví dụ: “Chuyển điểm 1 sang 11:00 ngày 1” hoặc “Thêm Lô Lô
-                    Chải”.
-                  </p>
-                </div>
-              </div>
-              <form
-                className="mt-5 flex gap-3"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  if (!message.trim()) {
-                    setErrors((current) => ({
-                      ...current,
-                      chat: "Hãy nhập yêu cầu trước khi gửi.",
-                    }));
-                    return;
-                  }
-                  setErrors((current) => ({ ...current, chat: "" }));
-                  const sent = message.trim();
-                  void submit({ message: sent }).then((accepted) => {
-                    if (accepted) setMessage((current) => current === sent ? "" : current);
-                  });
-                }}
-              >
-                <div className="min-w-0 flex-1">
-                  <label className="sr-only" htmlFor="chat">
-                    Yêu cầu thay đổi lịch trình
-                  </label>
-                  <input
-                    id="chat"
-                    value={message}
-                    onChange={(event) => setMessage(event.target.value)}
-                    disabled={state.pending || submitting}
-                    aria-invalid={Boolean(errors.chat)}
-                    aria-describedby={errors.chat ? "chat-error" : undefined}
-                    className="min-h-12 w-full rounded-xl bg-white px-4 text-ink"
-                    placeholder="Nhập yêu cầu của bạn…"
-                  />
-                  <span id="chat-error"><FieldError message={errors.chat} /></span>
-                </div>
-                <button
-                  disabled={state.pending || submitting || !message.trim()}
-                  className="inline-flex min-h-12 min-w-12 items-center justify-center rounded-xl bg-coral px-4 font-bold hover:bg-orange-600 disabled:opacity-50"
-                  aria-label="Gửi yêu cầu"
-                >
-                  <Send size={19} />
-                  <span className="hidden sm:inline">Gửi</span>
-                </button>
-              </form>
-            </section>
           </>
         )}
       </main>
+      <ChatWidget
+        open={chatOpen}
+        onOpenChange={setChatOpen}
+        state={state}
+        message={message}
+        setMessage={setMessage}
+        errors={errors}
+        setErrors={setErrors}
+        submitting={submitting}
+        requestError={requestError}
+        onSend={(sent) => submit({ message: sent })}
+      />
       <footer className="mx-auto flex max-w-7xl flex-wrap gap-4 px-4 py-8 text-sm text-slate-500 sm:px-6">
         <span className="inline-flex items-center gap-1">
           <MapPin size={15} />

@@ -124,7 +124,9 @@ def test_pending_turn_survives_rerun_and_integrates_once() -> None:
     assert app.session_state.current_plan is None
     assert "Đang xử lý yêu cầu" in _page_text(app)
 
+    pending = app.session_state.pending_turn
     GATED_SERVICE.release.set()
+    pending.future.result(timeout=10)
     app.run(timeout=10)
 
     assert GATED_SERVICE.call_count == 1

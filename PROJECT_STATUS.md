@@ -17,10 +17,10 @@ background only.
 | Scope reset | Complete | Charter, implementation plan, current log and ADR 0004/0009 |
 | Runtime package | Complete | Coordinator/Planner/Chat graph, typed providers and validators |
 | Streamlit app | Complete | Session-only itinerary/chat plus read-only graph page |
-| Tests | 61 passed | Core, async UI, graph-image, photo, chat-edit/source eval, AppTest and web API coverage |
+| Tests | 64 passed | Core, async UI, graph-image, photo, chat-edit/source eval, AppTest and web API coverage |
 | Live integration | Passed | OpenAI/Tavily/LangSmith smoke recorded under `docs/experiments/` |
 | Local container | Passed | Test/runtime images, health, non-root and live provider checks |
-| Chat editing | Passed | Successful UI edit, eight offline eval cases and live two-turn smoke |
+| Chat editing | Passed | Trip extension plus eight prior offline eval cases and live two-turn smoke |
 | Source quality evaluation | Offline baseline | 16 labelled synthetic citations; live relevance not measured |
 | Vietnamese chat | Passed | Vietnamese AppTest/fallback and live add-place response |
 | Visual itinerary | Complete | Source-backed photos; route map removed by user request |
@@ -63,7 +63,7 @@ actual checks count as completion evidence.
   list-only reorder and no-op edit claims are rejected.
 - Kept repair sources tied to actual provider results or the committed plan;
   fabricated candidate URLs cannot become trusted during repair.
-- Added eight versioned offline chat-edit eval cases and AppTest coverage for a
+- Added eight initial versioned offline chat-edit eval cases and AppTest coverage for a
   successful edit followed by a rejected edit that preserves the new plan.
 - Verified a live Hue create-then-remove chat flow on one session: revision 1
   with five entries became revision 2 with four, keeping all other entries.
@@ -111,6 +111,19 @@ actual checks count as completion evidence.
 - Added role-specific runtime model defaults. Coordinator keeps `gpt-5.5`,
   while Planner and Chat use `gpt-5.4-mini`; configuration wiring and the full
   61-test host suite pass. This does not claim a new live provider run.
+- Moved response generation into a dedicated Chat node while Coordinator now
+  only classifies and routes work. Added `extend_trip` with absolute or relative
+  day counts, resolved against the canonical plan before Planner runs. Missing,
+  non-increasing and over-seven-day requests stop before search; a committed
+  extension preserves existing entries and adds a grounded stop in the new day
+  range. The focused suite passed 44 tests, the full host and Docker suites each
+  passed 64, frontend checks/build passed, and the rebuilt runtime is healthy at
+  `127.0.0.1:8503`.
+- Replaced the inline JavaScript chat composer with a lower-right floating chat
+  widget. The panel opens from an icon button, stays available on the itinerary
+  and graph views, focuses its input, supports Escape-to-close, and shows
+  examples plus pending/result/error states. Frontend typecheck and production
+  build passed; real-browser responsive QA remains pending.
 
 ## Now
 

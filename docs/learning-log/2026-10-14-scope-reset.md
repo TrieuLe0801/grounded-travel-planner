@@ -88,6 +88,13 @@ three-role runtime and role-specific model policy.
   lower-cost, higher-volume structured proposal and response calls. The
   role-specific settings remain behind `RuntimeConfig` and the typed model
   adapter; historical live `gpt-5.5` evidence remains unchanged.
+- The same day, the user moved response generation out of Coordinator into a
+  dedicated Chat node and requested a fix for extending an itinerary by chat.
+  `extend_trip` now resolves a target duration from an absolute count or a
+  positive increment before Planner runs. Invalid bounds stop before search;
+  valid extensions preserve existing entries and require a grounded entry in
+  the added days. The host and Docker suites passed 64 tests, and the rebuilt
+  runtime reached healthy status on port 8503.
 
 ## Evidence
 
@@ -115,6 +122,14 @@ three-role runtime and role-specific model policy.
 - The Planner source-schema regression passed 33 focused tests and 56 full tests
   on both the host and a rebuilt offline Docker image. Formatting, lint, lockfile
   and diff checks passed; the rebuilt Compose runtime is healthy on port 8503.
+- Coordinator routing, Chat response isolation and trip extension passed 44
+  focused tests and 64 full host/Docker tests. Frontend typecheck/build and all
+  Python quality gates passed. Live providers were not invoked for this change.
+- The JavaScript chat composer was then moved into a lower-right floating panel.
+  The icon trigger opens it without leaving the itinerary or graph view, the
+  input receives focus on open, Escape closes it, and the panel keeps pending,
+  response and error feedback near the input. Frontend typecheck/build passed;
+  real-browser visual QA remains open.
 
 ## Open Risks
 
