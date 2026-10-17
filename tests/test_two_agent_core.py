@@ -343,12 +343,21 @@ def test_ordinary_chat_does_not_search_or_mutate_plan() -> None:
 
 def test_trip_extension_uses_effective_request_and_commits_new_day() -> None:
     current = plan()
+    pagoda_source = source(
+        title="Thien Mu Pagoda Hue visitor guide",
+        url="https://travel.example/hue/thien-mu-pagoda",
+        snippet="Thien Mu Pagoda Hue visitor information.",
+    )
     new_entry = current.entries[0].model_copy(
         update={
             "id": "entry_day_3",
             "day_index": 3,
             "place": current.entries[0].place.model_copy(
-                update={"place_id": "place_day_3", "name": "Thien Mu Pagoda"}
+                update={
+                    "place_id": "place_day_3",
+                    "name": "Thien Mu Pagoda",
+                    "source_references": [pagoda_source],
+                }
             ),
         }
     )
@@ -371,9 +380,19 @@ def test_trip_extension_uses_effective_request_and_commits_new_day() -> None:
     def extension_planner(prompt: str, schema: type[BaseModel]) -> BaseModel:
         assert schema is PlannerProposal
         observed_prompts.append(prompt)
-        return PlannerProposal(plan=candidate_plan)
+        return PlannerProposal(plan=candidate_plan, summary="Ngày thứ ba đã được thêm.")
 
-    search = FakeSearch([search_result()])
+    search = FakeSearch(
+        [
+            SearchResult(
+                source_id=pagoda_source.source_id,
+                title=pagoda_source.title,
+                url=pagoda_source.url,
+                snippet=pagoda_source.snippet,
+                score=0.95,
+            )
+        ]
+    )
 
     service = TravelPlannerService(
         CoordinatorAgent(ScriptedModel(extension_coordinator)),
@@ -400,6 +419,13 @@ def test_trip_extension_uses_effective_request_and_commits_new_day() -> None:
     assert "entry_day_out_of_range" not in {
         issue.code for issue in response.validation_issues
     }
+    chat_prompt = service.chat._model.prompts[0]
+    assert "Planner summary: Ngày thứ ba đã được thêm." in chat_prompt
+    assert '"id":"entry_day_3"' in chat_prompt
+    assert '"day_count":3' in chat_prompt
+    assert '"name":"Thien Mu Pagoda"' in chat_prompt
+    assert '"title":"Thien Mu Pagoda Hue visitor guide"' in chat_prompt
+    assert '"url":"https://travel.example/hue/thien-mu-pagoda"' in chat_prompt
 
 
 def test_trip_extension_over_seven_rejects_before_planner_or_search() -> None:
@@ -634,6 +660,13 @@ def test_invalid_candidate_repairs_once_and_preserves_previous_plan() -> None:
     assert response.graph_steps == 8
     assert planner_llm.calls.count("PlannerProposal") == 2
     assert search.calls == []
+    chat_prompt = service.chat._model.prompts[0]
+    assert "schedule_overlap" in chat_prompt
+    assert "Retained prior plan:" in chat_prompt
+    assert "Planner summary:" not in chat_prompt
+    assert '"revision":1' in chat_prompt
+    assert '"id":"entry_2"' not in chat_prompt
+    assert '"revision":2' not in chat_prompt
 
 
 def test_source_provenance_and_opening_hours_claims_are_rejected() -> None:

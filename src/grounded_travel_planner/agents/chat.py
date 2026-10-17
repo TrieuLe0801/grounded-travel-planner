@@ -6,6 +6,7 @@ from collections.abc import Mapping
 
 from grounded_travel_planner.contracts import (
     ChatResponse,
+    PlanCandidate,
     PlanChangeIntent,
     SightseeingPlan,
     ValidationIssue,
@@ -30,6 +31,7 @@ class ChatAgent:
         *,
         message: str,
         intent: PlanChangeIntent | None,
+        candidate: PlanCandidate | None,
         committed: bool,
         current_plan: SightseeingPlan | None,
         issues: list[ValidationIssue],
@@ -37,6 +39,16 @@ class ChatAgent:
         metadata: Mapping[str, str],
     ) -> str:
         issue_text = "; ".join(f"{issue.code}: {issue.message}" for issue in issues)
+        committed_context = ""
+        if committed and candidate is not None and current_plan is not None:
+            committed_context = (
+                f"Planner summary: {candidate.summary}\n"
+                f"Validated committed plan: {current_plan.model_dump_json()}\n"
+            )
+        elif not committed and current_plan is not None:
+            committed_context = (
+                f"Retained prior plan: {current_plan.model_dump_json()}\n"
+            )
         prompt = (
             "Respond entirely in natural Vietnamese, regardless of the user's "
             "input language. Preserve proper place names, times and source "
@@ -49,6 +61,7 @@ class ChatAgent:
             f"Committed: {committed}\n"
             f"Current plan exists: {current_plan is not None}\n"
             f"Issues: {issue_text or 'none'}\n"
+            f"{committed_context}"
             f"Hint: {response_hint[:1000]}"
         )
         response = self._model.generate_structured(

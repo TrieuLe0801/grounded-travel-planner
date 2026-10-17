@@ -25,6 +25,7 @@ import {
   Send,
   ShieldCheck,
   Sparkles,
+  UserRound,
   X,
 } from "lucide-react";
 import "./index.css";
@@ -65,6 +66,13 @@ type TurnResponse = {
   status: string;
   message: string;
   validation_issues: { code: string; message: string }[];
+};
+type ChatMessage = {
+  id: string;
+  role: "user" | "agent";
+  content: string;
+  issues?: string[];
+  status?: string;
 };
 type ApiState = {
   plan: Plan | null;
@@ -399,6 +407,62 @@ function GraphView({
   );
 }
 
+function ChatBubble({
+  role,
+  content,
+  issues = [],
+  status,
+}: Pick<ChatMessage, "role" | "content" | "issues" | "status">) {
+  const agent = role === "agent";
+  const statusLabel =
+    status === "committed"
+      ? "Đã cập nhật lịch trình"
+      : status === "rejected"
+        ? "Chưa áp dụng thay đổi"
+        : status === "unchanged"
+          ? "Lịch trình không thay đổi"
+          : status === "provider_error"
+            ? "Cần thử lại sau"
+            : status;
+  return (
+    <div className={`flex ${agent ? "justify-start" : "justify-end"}`}>
+      <div className={`max-w-[88%] ${agent ? "items-start" : "items-end"}`}>
+        <div
+          className={`mb-1 flex items-center gap-1.5 text-xs font-bold ${agent ? "text-slate-500" : "justify-end text-orange-700"}`}
+        >
+          {agent ? (
+            <Bot size={13} aria-hidden="true" />
+          ) : (
+            <UserRound size={13} aria-hidden="true" />
+          )}
+          {agent ? "Trợ lý" : "Bạn"}
+        </div>
+        <div
+          className={`rounded-2xl px-4 py-3 text-sm leading-6 shadow-sm ${agent ? "rounded-tl-md bg-slate-100 text-slate-800" : "rounded-tr-md bg-coral text-white"}`}
+        >
+          <p className="whitespace-pre-wrap break-words">{content}</p>
+          {status && (
+            <p
+              className={`mt-2 border-t pt-2 text-xs font-semibold ${agent ? "border-slate-200 text-slate-500" : "border-white/25 text-orange-50"}`}
+            >
+              {statusLabel}
+            </p>
+          )}
+          {issues.length > 0 && (
+            <ul
+              className={`mt-2 list-disc space-y-1 border-t pt-2 pl-4 text-xs ${agent ? "border-slate-200 text-slate-600" : "border-white/25 text-orange-50"}`}
+            >
+              {issues.map((issue) => (
+                <li key={issue}>{issue}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ChatWidget({
   open,
   onOpenChange,
@@ -410,6 +474,7 @@ function ChatWidget({
   submitting,
   requestError,
   onSend,
+  resetToken,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -421,8 +486,38 @@ function ChatWidget({
   submitting: boolean;
   requestError: string;
   onSend: (message: string) => Promise<boolean>;
+  resetToken: number;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const lastResponseKeyRef = useRef("");
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+
+  useEffect(() => {
+    const response = state.response;
+    if (!response) return;
+    const responseKey = [
+      response.status,
+      response.message,
+      response.validation_issues.map((issue) => issue.code).join(","),
+    ].join("|");
+    if (responseKey === lastResponseKeyRef.current) return;
+    lastResponseKeyRef.current = responseKey;
+    setMessages((current) => [
+      ...current,
+      {
+        id: `agent-${Date.now()}`,
+        role: "agent",
+        content: response.message,
+        issues: response.validation_issues.map((issue) => issue.message),
+        status: response.status,
+      },
+    ]);
+  }, [state.response]);
+
+  useEffect(() => {
+    setMessages([]);
+    lastResponseKeyRef.current = "";
+  }, [resetToken]);
 
   useEffect(() => {
     if (!open) return;
@@ -448,6 +543,11 @@ function ChatWidget({
     }
     setErrors((current) => ({ ...current, chat: "" }));
     const sent = message.trim();
+    lastResponseKeyRef.current = "";
+    setMessages((current) => [
+      ...current,
+      { id: `user-${Date.now()}`, role: "user", content: sent },
+    ]);
     void onSend(sent).then((accepted) => {
       if (accepted) setMessage((current) => (current === sent ? "" : current));
     });
@@ -488,50 +588,45 @@ function ChatWidget({
           </header>
 
           <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
-            {!state.response ? (
-              <div className="rounded-2xl bg-orange-50 p-4 text-sm text-slate-700">
-                <p className="font-semibold text-ink">Bạn muốn đổi gì?</p>
-                <p className="mt-1 leading-6">
-                  Gửi yêu cầu tự nhiên để thêm, xoá, đổi giờ hoặc kéo dài chuyến
-                  đi. Lịch chỉ được cập nhật sau khi kiểm tra nguồn và thời gian.
-                </p>
-                <div className="mt-4 grid gap-2">
-                  {[
-                    "Thêm Lô Lô Chải vào ngày 2",
-                    "Chuyển điểm 1 sang 11:00 ngày 1",
-                    "Thêm một ngày cho chuyến đi",
-                  ].map((example) => (
-                    <button
-                      type="button"
-                      key={example}
-                      onClick={() => setMessage(example)}
-                      className="min-h-11 rounded-xl border border-orange-200 bg-white px-3 text-left text-sm font-semibold text-slate-700 transition hover:border-coral hover:bg-orange-50"
-                    >
-                      {example}
-                    </button>
-                  ))}
+            <div className="space-y-4">
+              {messages.length === 0 && (
+                <>
+                  <ChatBubble
+                    role="agent"
+                    content="Bạn muốn đổi gì? Gửi yêu cầu tự nhiên để thêm, xoá, đổi giờ hoặc kéo dài chuyến đi. Lịch chỉ được cập nhật sau khi kiểm tra nguồn và thời gian."
+                  />
+                  <div className="ml-auto grid max-w-[88%] gap-2">
+                    {[
+                      "Thêm Lô Lô Chải vào ngày 2",
+                      "Chuyển điểm 1 sang 11:00 ngày 1",
+                      "Thêm một ngày cho chuyến đi",
+                    ].map((example) => (
+                      <button
+                        type="button"
+                        key={example}
+                        onClick={() => setMessage(example)}
+                        className="min-h-11 rounded-xl border border-orange-200 bg-orange-50 px-3 text-left text-sm font-semibold text-slate-700 transition hover:border-coral hover:bg-orange-100"
+                      >
+                        {example}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+              {messages.map((chatMessage) => (
+                <ChatBubble key={chatMessage.id} {...chatMessage} />
+              ))}
+              {state.pending && (
+                <div role="status" aria-live="polite">
+                  <ChatBubble role="agent" content="Đang kiểm tra yêu cầu…" />
                 </div>
-              </div>
-            ) : (
-              <>
-                <p className="mb-3 text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
-                  Phản hồi gần nhất
-                </p>
-                <TurnStatus response={state.response} className="mt-0" />
-              </>
-            )}
-            {state.pending && (
-              <p
-                className="mt-4 flex items-center gap-2 rounded-xl bg-cyan-50 p-3 text-sm font-semibold text-cyan-950"
-                role="status"
-                aria-live="polite"
-              >
-                <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
-                Đang kiểm tra yêu cầu…
-              </p>
-            )}
+              )}
+            </div>
             {requestError && (
-              <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-800" role="alert">
+              <p
+                className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-800"
+                role="alert"
+              >
                 {requestError}
               </p>
             )}
@@ -613,6 +708,7 @@ function App() {
   const [visualsLoading, setVisualsLoading] = useState(false);
   const [view, setView] = useState<View>("itinerary");
   const [chatOpen, setChatOpen] = useState(false);
+  const [chatResetToken, setChatResetToken] = useState(0);
   const [graphSvg, setGraphSvg] = useState("");
   const [graphImageLoading, setGraphImageLoading] = useState(true);
   const [graphImageUnavailable, setGraphImageUnavailable] = useState(false);
@@ -729,6 +825,7 @@ function App() {
       await api<ApiState>("/api/session/reset", { method: "POST" });
       setMessage("");
       setVisuals({});
+      setChatResetToken((current) => current + 1);
       await load();
     } catch (error) {
       setRequestError(
@@ -934,6 +1031,7 @@ function App() {
         submitting={submitting}
         requestError={requestError}
         onSend={(sent) => submit({ message: sent })}
+        resetToken={chatResetToken}
       />
       <footer className="mx-auto flex max-w-7xl flex-wrap gap-4 px-4 py-8 text-sm text-slate-500 sm:px-6">
         <span className="inline-flex items-center gap-1">

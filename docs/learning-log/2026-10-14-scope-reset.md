@@ -95,6 +95,13 @@ three-role runtime and role-specific model policy.
   valid extensions preserve existing entries and require a grounded entry in
   the added days. The host and Docker suites passed 64 tests, and the rebuilt
   runtime reached healthy status on port 8503.
+- A follow-up exposed that Chat received only a boolean indicating whether a
+  plan existed, despite the typed Planner candidate remaining in graph state.
+  The Chat handoff now includes the Planner summary and validated committed plan.
+  Rejected candidates are omitted; Chat receives the validation issues and the
+  retained prior plan instead. Focused tests passed 44 cases, while the full host,
+  Docker build-stage and offline Docker suites each passed 64. The rebuilt
+  runtime became healthy and returned HTTP 200 for the app and graph PNG.
 
 ## Evidence
 
@@ -125,11 +132,16 @@ three-role runtime and role-specific model policy.
 - Coordinator routing, Chat response isolation and trip extension passed 44
   focused tests and 64 full host/Docker tests. Frontend typecheck/build and all
   Python quality gates passed. Live providers were not invoked for this change.
+- Planner-to-Chat context regressions prove that committed replies receive the
+  added entry and grounded source data, while rejected replies cannot see the
+  rejected plan body. The host and both Docker test runs passed 64 tests; no
+  live provider was invoked. The rebuilt Compose runtime reached healthy status.
 - The JavaScript chat composer was then moved into a lower-right floating panel.
   The icon trigger opens it without leaving the itinerary or graph view, the
   input receives focus on open, Escape closes it, and the panel keeps pending,
-  response and error feedback near the input. Frontend typecheck/build passed;
-  real-browser visual QA remains open.
+  response and error feedback near the input. User and assistant turns are
+  rendered as separate right/left conversation bubbles with role labels.
+  Frontend typecheck/build passed; real-browser visual QA remains open.
 
 ## Open Risks
 
@@ -172,3 +184,7 @@ three-role runtime and role-specific model policy.
 - The Docker test stage must include versioned eval data and the smoke script
   imported by tests; excluding them from the build context caused collection
   errors even though host pytest passed.
+- A final response agent needs the validated Planner outcome, rather than only a
+  plan-exists flag. Passing the typed candidate only after commit and retaining
+  the prior plan on rejection keeps response generation aligned with commit
+  semantics without adding graph steps.

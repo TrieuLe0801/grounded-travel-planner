@@ -119,11 +119,19 @@ actual checks count as completion evidence.
   range. The focused suite passed 44 tests, the full host and Docker suites each
   passed 64, frontend checks/build passed, and the rebuilt runtime is healthy at
   `127.0.0.1:8503`.
+- Fixed the Planner-to-Chat context handoff. A committed turn now gives Chat the
+  Planner summary and the validated plan, including schedule entries and
+  grounded source titles/URLs. A rejected turn gives Chat only the validation
+  issues and retained prior plan, so it cannot describe a rejected candidate as
+  applied. Focused tests passed 44 cases; the full host, Docker build-stage and
+  offline Docker suites each passed 64. The rebuilt runtime is healthy at
+  `127.0.0.1:8503` and serves the app and graph PNG with HTTP 200.
 - Replaced the inline JavaScript chat composer with a lower-right floating chat
   widget. The panel opens from an icon button, stays available on the itinerary
-  and graph views, focuses its input, supports Escape-to-close, and shows
-  examples plus pending/result/error states. Frontend typecheck and production
-  build passed; real-browser responsive QA remains pending.
+  and graph views, focuses its input, supports Escape-to-close, and renders user
+  and assistant turns as right/left conversation bubbles with pending, result
+  and error states. Frontend typecheck and production build passed;
+  real-browser responsive QA remains pending.
 
 ## Now
 

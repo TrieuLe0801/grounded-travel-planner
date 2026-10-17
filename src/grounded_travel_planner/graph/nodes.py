@@ -285,6 +285,7 @@ class GraphNodes:
             message = self.chat.respond(
                 message=state["message"],
                 intent=decision.intent if decision else None,
+                candidate=candidate if committed else None,
                 committed=committed,
                 current_plan=current_plan,
                 issues=issues,

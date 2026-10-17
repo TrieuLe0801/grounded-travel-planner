@@ -285,7 +285,26 @@ suites each passed 64. Frontend typecheck/build, isort, Black, flake8, Ruff,
 `uv lock --check` and `git diff --check` passed. The rebuilt Compose runtime is
 healthy at `127.0.0.1:8503`; no new live model/Tavily/LangSmith turn was run.
 
+## Planner-To-Chat Context — Verified Offline
+
+Acceptance:
+
+- Give Chat the Planner summary and complete validated plan after a successful
+  commit, including the new schedule entries and grounded source titles/URLs.
+- On rejection, give Chat the validation issues and retained prior plan while
+  excluding the rejected candidate summary and plan body.
+- Reuse the existing typed `PlanCandidate` graph state without adding a node,
+  edge or graph step.
+
+Evidence: end-to-end prompt regressions cover both committed trip extension and
+rejected repair paths. The focused suite passed 44 tests; the full host, Docker
+build-stage and offline Docker suites each passed 64. isort, Black, flake8,
+Ruff, `uv lock --check` and `git diff --check` passed. The rebuilt Compose
+runtime is healthy at `127.0.0.1:8503`; the app and graph PNG return HTTP 200.
+No live provider turn was run for this fix.
+
 The JavaScript chat composer now uses a fixed lower-right panel with a 44px-plus
 trigger, accessible labels, example prompts and reduced-motion-aware entrance.
-`npm run check` and `npm run build` passed; browser-level responsive inspection
-remains pending.
+User turns render as right-aligned bubbles and assistant turns as left-aligned
+bubbles with role labels, status and validation details. `npm run check` and
+`npm run build` passed; browser-level responsive inspection remains pending.
