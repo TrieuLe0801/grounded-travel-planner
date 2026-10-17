@@ -9,13 +9,17 @@ from pydantic import BaseModel
 
 from grounded_travel_planner.adapters.model import ChatOpenAIStructuredModel
 from grounded_travel_planner.adapters.search import TavilyPlaceSearchProvider
-from grounded_travel_planner.agents import CoordinatorAgent, PlannerAgent
-from grounded_travel_planner.config import DEFAULT_MODEL_NAME, RuntimeConfig
+from grounded_travel_planner.agents import ChatAgent, CoordinatorAgent, PlannerAgent
+from grounded_travel_planner.config import (
+    DEFAULT_LIGHTWEIGHT_MODEL_NAME,
+    DEFAULT_MODEL_NAME,
+    RuntimeConfig,
+)
 from grounded_travel_planner.contracts import (
     SEARCH_SNIPPET_MAX_LENGTH,
     SOURCE_REFERENCE_SNIPPET_MAX_LENGTH,
+    ChatResponse,
     CoordinatorDecision,
-    CoordinatorExplanation,
     IntentAction,
     PlaceRecommendation,
     PlanCandidate,
@@ -200,9 +204,15 @@ def coordinator_model(action: IntentAction) -> ScriptedModel:
                 requires_planner=action is not IntentAction.ORDINARY_CHAT,
                 response_hint="Ready to help.",
             )
-        if schema is CoordinatorExplanation:
-            return CoordinatorExplanation(message="Coordinator explanation.")
         raise AssertionError(schema)
+
+    return ScriptedModel(handler)
+
+
+def chat_model() -> ScriptedModel:
+    def handler(prompt: str, schema: type[BaseModel]) -> BaseModel:
+        assert schema is ChatResponse
+        return ChatResponse(message="Phản hồi Chat.")
 
     return ScriptedModel(handler)
 
@@ -224,27 +234,46 @@ def service_for(
 ) -> tuple[TravelPlannerService, ScriptedModel, ScriptedModel, FakeSearch]:
     coordinator_llm = coordinator_model(action)
     planner_llm = planner_model(candidate_plan)
+    planner_llm.model_name = DEFAULT_LIGHTWEIGHT_MODEL_NAME
+    chat_llm = chat_model()
+    chat_llm.model_name = DEFAULT_LIGHTWEIGHT_MODEL_NAME
     fake_search = search or FakeSearch([search_result()])
     config = RuntimeConfig()
     service = TravelPlannerService(
         CoordinatorAgent(coordinator_llm),
         PlannerAgent(planner_llm, fake_search, config),
+        ChatAgent(chat_llm),
         trace_sink=trace,
         config=config,
     )
     return service, coordinator_llm, planner_llm, fake_search
 
 
-def test_two_runtime_roles_use_exact_requested_model() -> None:
+def test_runtime_roles_use_configured_models() -> None:
     service, _, _, _ = service_for(IntentAction.CREATE_TRIP, plan())
 
     assert service.coordinator.role == "coordinator"
     assert service.planner.role == "planner"
-    assert service.coordinator.model_name == "gpt-5.5"
-    assert service.planner.model_name == "gpt-5.5"
+    assert service.coordinator.model_name == DEFAULT_MODEL_NAME
+    assert service.planner.model_name == DEFAULT_LIGHTWEIGHT_MODEL_NAME
+    assert service.chat.role == "chat"
+    assert service.chat.model_name == DEFAULT_LIGHTWEIGHT_MODEL_NAME
     assert not hasattr(service.coordinator, "propose")
     assert not hasattr(service.planner, "commit")
     assert ChatOpenAIStructuredModel().model_name == "gpt-5.5"
+
+
+def test_environment_service_assigns_lightweight_models_to_planner_and_chat() -> None:
+    config = RuntimeConfig()
+
+    service = TravelPlannerService.from_environment(config)
+
+    assert config.model_name == DEFAULT_MODEL_NAME
+    assert config.planner_model_name == DEFAULT_LIGHTWEIGHT_MODEL_NAME
+    assert config.chat_model_name == DEFAULT_LIGHTWEIGHT_MODEL_NAME
+    assert service.coordinator.model_name == DEFAULT_MODEL_NAME
+    assert service.planner.model_name == DEFAULT_LIGHTWEIGHT_MODEL_NAME
+    assert service.chat.model_name == DEFAULT_LIGHTWEIGHT_MODEL_NAME
 
 
 def test_openai_adapter_uses_function_calling_for_pydantic_schema(
@@ -263,21 +292,21 @@ def test_openai_adapter_uses_function_calling_for_pydantic_schema(
 
         def invoke(self, messages, config):
             observed["metadata"] = config["metadata"]
-            return CoordinatorExplanation(message="ok")
+            return ChatResponse(message="ok")
 
     monkeypatch.setattr("langchain_openai.ChatOpenAI", FakeChatOpenAI)
     adapter = ChatOpenAIStructuredModel()
 
     result = adapter.generate_structured(
         "explain",
-        CoordinatorExplanation,
+        ChatResponse,
         metadata={"thread_id": "thread-adapter"},
     )
 
     assert result.message == "ok"
     assert observed == {
         "model": "gpt-5.5",
-        "schema": CoordinatorExplanation,
+        "schema": ChatResponse,
         "method": "function_calling",
         "metadata": {"thread_id": "thread-adapter"},
     }
@@ -286,7 +315,7 @@ def test_openai_adapter_uses_function_calling_for_pydantic_schema(
 def test_ordinary_chat_does_not_search_or_mutate_plan() -> None:
     existing = plan()
     original = existing.model_copy(deep=True)
-    service, _, planner_llm, search = service_for(
+    service, coordinator_llm, planner_llm, search = service_for(
         IntentAction.ORDINARY_CHAT,
         plan(),
     )
@@ -304,6 +333,107 @@ def test_ordinary_chat_does_not_search_or_mutate_plan() -> None:
     assert search.calls == []
     assert planner_llm.calls == []
     assert response.graph_steps == 2
+    assert coordinator_llm.calls == ["CoordinatorDecision"]
+    assert response.metadata["chat_role"] == "chat"
+    assert response.metadata["chat_model"] == DEFAULT_LIGHTWEIGHT_MODEL_NAME
+
+
+def test_trip_extension_uses_effective_request_and_commits_new_day() -> None:
+    current = plan()
+    new_entry = current.entries[0].model_copy(
+        update={
+            "id": "entry_day_3",
+            "day_index": 3,
+            "place": current.entries[0].place.model_copy(
+                update={"place_id": "place_day_3", "name": "Thien Mu Pagoda"}
+            ),
+        }
+    )
+    candidate_plan = current.model_copy(
+        update={"entries": [*current.entries, new_entry], "day_count": 3}
+    )
+
+    def extension_coordinator(prompt: str, schema: type[BaseModel]) -> BaseModel:
+        assert schema is CoordinatorDecision
+        return CoordinatorDecision(
+            intent=PlanChangeIntent(
+                action=IntentAction.EXTEND_TRIP,
+                day_count_delta=1,
+            ),
+            requires_planner=True,
+        )
+
+    observed_prompts: list[str] = []
+
+    def extension_planner(prompt: str, schema: type[BaseModel]) -> BaseModel:
+        assert schema is PlannerProposal
+        observed_prompts.append(prompt)
+        return PlannerProposal(plan=candidate_plan)
+
+    search = FakeSearch([search_result()])
+
+    service = TravelPlannerService(
+        CoordinatorAgent(ScriptedModel(extension_coordinator)),
+        PlannerAgent(ScriptedModel(extension_planner), search, RuntimeConfig()),
+        ChatAgent(chat_model()),
+        config=RuntimeConfig(),
+    )
+
+    response = service.handle_turn(
+        thread_id="thread-extend",
+        message="thêm một ngày",
+        current_plan=current,
+    )
+
+    assert response.status is ResponseStatus.COMMITTED
+    assert response.committed is True
+    assert response.current_plan is not None
+    assert response.current_plan.day_count == 3
+    assert response.current_plan.revision == 2
+    assert any(entry.day_index == 3 for entry in response.current_plan.entries)
+    assert response.search_calls == 1
+    assert len(search.calls) == 1
+    assert '"day_count":3' in observed_prompts[0]
+    assert "entry_day_out_of_range" not in {
+        issue.code for issue in response.validation_issues
+    }
+
+
+def test_trip_extension_over_seven_rejects_before_planner_or_search() -> None:
+    current = plan().model_copy(update={"day_count": 7})
+
+    def extension_coordinator(prompt: str, schema: type[BaseModel]) -> BaseModel:
+        assert schema is CoordinatorDecision
+        return CoordinatorDecision(
+            intent=PlanChangeIntent(
+                action=IntentAction.EXTEND_TRIP,
+                day_count_delta=1,
+            ),
+            requires_planner=True,
+        )
+
+    planner_llm = planner_model(plan())
+    search = FakeSearch([search_result()])
+    service = TravelPlannerService(
+        CoordinatorAgent(ScriptedModel(extension_coordinator)),
+        PlannerAgent(planner_llm, search, RuntimeConfig()),
+        ChatAgent(chat_model()),
+        config=RuntimeConfig(),
+    )
+
+    response = service.handle_turn(
+        thread_id="thread-extend-over-limit",
+        message="thêm một ngày",
+        current_plan=current,
+    )
+
+    assert response.status is ResponseStatus.REJECTED
+    assert response.current_plan == current
+    assert planner_llm.calls == []
+    assert search.calls == []
+    assert "day_count_out_of_range" in {
+        issue.code for issue in response.validation_issues
+    }
 
 
 def test_vietnamese_chat_uses_localized_fallback_when_explanation_fails() -> None:
@@ -318,6 +448,9 @@ def test_vietnamese_chat_uses_localized_fallback_when_explanation_fails() -> Non
             )
         raise RuntimeError("simulated explanation failure")
 
+    def broken_chat(prompt: str, schema: type[BaseModel]) -> BaseModel:
+        raise RuntimeError("simulated chat failure")
+
     search = FakeSearch([])
     config = RuntimeConfig()
     service = TravelPlannerService(
@@ -325,6 +458,7 @@ def test_vietnamese_chat_uses_localized_fallback_when_explanation_fails() -> Non
         PlannerAgent(
             ScriptedModel(lambda prompt, schema: PlannerProposal()), search, config
         ),
+        ChatAgent(ScriptedModel(broken_chat)),
         config=config,
     )
     current = plan()
@@ -340,7 +474,7 @@ def test_vietnamese_chat_uses_localized_fallback_when_explanation_fails() -> Non
     assert response.message == "Bạn muốn thay đổi điều gì trong lịch trình?"
     assert search.calls == []
     assert "Understand Vietnamese requests" in prompts[0]
-    assert "Respond entirely in natural Vietnamese" in prompts[1]
+    assert len(prompts) == 1
 
 
 def test_valid_create_searches_once_and_commits_grounded_plan() -> None:
@@ -380,7 +514,7 @@ def test_valid_create_searches_once_and_commits_grounded_plan() -> None:
         "planner.propose",
         "validation.input",
         "validation.candidate",
-        "turn.finalize",
+        "chat.respond",
     }
 
 
@@ -484,6 +618,7 @@ def test_repair_does_not_treat_fabricated_candidate_sources_as_returned() -> Non
             FakeSearch([search_result()]),
             config,
         ),
+        ChatAgent(chat_model()),
         config=config,
     )
 
@@ -553,6 +688,7 @@ def test_unverified_opening_hours_are_normalized_and_do_not_block_commit() -> No
             FakeSearch([search_result()]),
             config,
         ),
+        ChatAgent(chat_model()),
         config=config,
     )
 
@@ -688,6 +824,7 @@ def test_model_failure_is_sanitized_and_preserves_plan() -> None:
     service = TravelPlannerService(
         coordinator,
         PlannerAgent(planner_llm, FakeSearch([search_result()]), config),
+        ChatAgent(chat_model()),
         config=config,
     )
 
@@ -1062,7 +1199,7 @@ def test_add_place_keeps_existing_sources_and_adds_live_search_source() -> None:
                 ),
                 requires_planner=True,
             )
-        return CoordinatorExplanation(message="Added the place.")
+        return ChatResponse(message="Added the place.")
 
     live_result = SearchResult(
         source_id=new_source.source_id,
@@ -1076,6 +1213,7 @@ def test_add_place_keeps_existing_sources_and_adds_live_search_source() -> None:
     service = TravelPlannerService(
         CoordinatorAgent(ScriptedModel(coordinator_handler)),
         PlannerAgent(planner_model(candidate_plan), search, config),
+        ChatAgent(chat_model()),
         config=config,
     )
 

@@ -13,9 +13,11 @@ Acceptance:
 - Add LangChain `ChatOpenAI` structured-output adapter.
 - Add Tavily search adapter that returns normalized URLs only.
 - Add LangSmith trace sink that propagates one `thread_id`.
-- Implement a LangGraph runtime with exactly Coordinator and Planner nodes.
-- Coordinator classifies and explains; Planner produces every candidate and owns
-  all search calls.
+- Implement a LangGraph runtime with Coordinator, Planner and Chat nodes.
+- Coordinator classifies and routes; Planner produces every candidate and owns
+  all search calls; Chat writes the final response after policy validation.
+- Keep `gpt-5.5` for Coordinator and use `gpt-5.4-mini` for Planner and Chat by
+  default, with role-specific settings behind the model provider boundary.
 - Validate input, schedule and source references before committing a candidate.
 - Preserve the previous plan when validation fails.
 
@@ -32,7 +34,8 @@ Acceptance:
 - Streamlit itinerary/chat page with destination/place, start date and day count
   input, plus a separate read-only graph-inspection page.
 - Session-only canonical plan and chat history.
-- Chat can request add, remove, replace, reorder, day and time changes.
+- Chat can request add, remove, replace, reorder, trip extension, day and time
+  changes.
 - Ordinary chat does not mutate plan state.
 - Render estimated durations, unverified hours, validation issues and sources.
 - Smoke-run the app with `.env` credentials.
@@ -245,3 +248,17 @@ test verifies `image/png` delivery and that no planning turn runs. On
 build, isort, Black, flake8, Ruff and `uv lock --check` passed. The running
 adapter returned `200 image/png` (24,241 bytes) and its SVG fallback returned
 HTTP 200.
+
+## Role-Specific Runtime Models — Verified
+
+Acceptance:
+
+- Keep Coordinator's `gpt-5.5` default for routing.
+- Use the lighter `gpt-5.4-mini` default for Planner and Chat.
+- Keep each assignment behind `RuntimeConfig` and the typed structured-output
+  adapter, with no silent fallback.
+
+Evidence: `RuntimeConfig` and `TravelPlannerService.from_environment()` wire
+the three role names independently. Focused role/model tests passed 41/41 and
+the full host suite passed 61/61; isort, Black, flake8, Ruff and `git diff
+--check` passed. No new live provider run was claimed.

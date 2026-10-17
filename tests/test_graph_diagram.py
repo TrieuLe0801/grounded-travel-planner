@@ -10,7 +10,7 @@ from typing import Any
 from streamlit.testing.v1 import AppTest
 
 from grounded_travel_planner.adapters import NoOpTraceSink
-from grounded_travel_planner.agents import CoordinatorAgent, PlannerAgent
+from grounded_travel_planner.agents import ChatAgent, CoordinatorAgent, PlannerAgent
 from grounded_travel_planner.config import RuntimeConfig
 from grounded_travel_planner.service import TravelPlannerService
 from grounded_travel_planner.ui.graph_diagram import (
@@ -52,6 +52,7 @@ def _service() -> TravelPlannerService:
     return TravelPlannerService(
         CoordinatorAgent(NoCallModel()),
         PlannerAgent(NoCallModel(), NoCallSearch(), config),
+        ChatAgent(NoCallModel()),
         trace_sink=NoOpTraceSink(),
         config=config,
     )
@@ -71,12 +72,18 @@ def test_svg_copies_compiled_topology_including_repair_loop() -> None:
         "planner_delegate",
         "validate_candidate",
         "prepare_repair",
-        "finalize",
+        "chat_respond",
         "__end__",
     } <= identifiers
     assert ("prepare_repair", "planner_delegate", False) in edge_pairs
     assert ("validate_candidate", "prepare_repair", True) in edge_pairs
+    assert ("coordinator_classify", "validate_input", True) in edge_pairs
+    assert ("coordinator_classify", "chat_respond", True) in edge_pairs
+    assert ("planner_delegate", "validate_candidate", True) in edge_pairs
+    assert ("validate_candidate", "chat_respond", True) in edge_pairs
+    assert ("chat_respond", "__end__", False) in edge_pairs
     assert "Coordinator" in svg
+    assert "Chat" in svg
     assert "Chuẩn bị sửa" in svg
     assert "stroke-dasharray" in svg
 

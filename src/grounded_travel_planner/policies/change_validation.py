@@ -105,6 +105,22 @@ def validate_requested_change(
     if current_plan is None:
         return _issue("A current plan is required for this edit.")
 
+    if intent.action is IntentAction.EXTEND_TRIP:
+        target_day_count = intent.day_count
+        if target_day_count is None and intent.day_count_delta is not None:
+            target_day_count = current_plan.day_count + intent.day_count_delta
+        if target_day_count is None or target_day_count <= current_plan.day_count:
+            return _issue("The extension must increase the current day count.")
+        if candidate_plan.day_count != target_day_count:
+            return _issue("Candidate did not apply the requested trip extension.")
+        if not _retains_current_places(current_plan, candidate_plan):
+            return _issue("Candidate must preserve existing stops when extending.")
+        if not any(
+            entry.day_index > current_plan.day_count for entry in candidate_plan.entries
+        ):
+            return _issue("Candidate needs a grounded entry in the added days.")
+        return []
+
     if intent.action is IntentAction.ADD_PLACE:
         if not intent.place_name:
             return _issue("The add-place request needs a place name.")

@@ -17,7 +17,8 @@ Read these records in order:
 2. `docs/project-charter.md`
 3. `docs/implementation-plan.md`
 4. `docs/learning-log/2026-10-14-scope-reset.md` (current log)
-5. Relevant accepted ADRs; ADR 0004 governs the current product/runtime scope.
+5. Relevant accepted ADRs; ADR 0004 plus ADR 0009 govern the current
+   product/runtime scope.
 6. `docs/experiments/baseline-environment.md` for historical environment context
    when needed. Verify the actual target environment before making claims.
 
@@ -25,12 +26,13 @@ Read these records in order:
 
 - Use LangChain for model, agent, tool and structured-output integrations.
 - Use LangGraph for explicit state, routing, delegation and bounded processing.
-- The runtime requires at least two agents. Start with Coordinator and Planner:
-  Coordinator owns user-facing chat/delegation; Planner proposes all plan changes
-  and searches via Tavily. Both use the requested `gpt-5.5` model.
+- The runtime has Coordinator, Planner and Chat roles. Coordinator classifies and
+  routes work; Planner proposes all plan changes and searches via Tavily; Chat
+  writes the final user-facing response. Coordinator defaults to `gpt-5.5`,
+  while Planner and Chat default to the lighter `gpt-5.4-mini`.
 - Implement schedule, input and source-reference checks in code.
 - Keep one canonical current plan in session state. Commit a candidate only
-  after validation; Coordinator explains the committed result.
+  after validation; Chat explains the committed or rejected result.
 - Trace all chat turns, agents, tools and validation through LangSmith. Propagate
   the same `thread_id` metadata to root and child runs in a session.
 - App conversation/trip state is session-only and isolated between users.
@@ -56,8 +58,9 @@ Read these records in order:
   opening-hour conflicts before treating an edit as successful.
 - Preserve the previous plan when a candidate fails, and explain that it has
   not yet satisfied the new request.
-- Chat supports time/day changes, reordering and adding/removing/replacing places.
-  Ordinary chat should not mutate the plan or trigger unnecessary research.
+- Chat supports time/day changes, trip extension, reordering and
+  adding/removing/replacing places. Ordinary chat should not mutate the plan or
+  trigger unnecessary research.
 - Bound search calls, repairs and graph steps for every turn.
 - Keep secrets out of model inputs, traces, logs and tracked files.
 
@@ -67,7 +70,7 @@ Read these records in order:
   project-scoped `planner`, `coding` and `testing` roles when needed, wait for
   results and coordinate shared-file edits.
 - Codex development agents/configuration are separate from the webapp runtime
-  Coordinator/Planner. Preserve the tooling decision in ADR 0001.
+  Coordinator/Planner/Chat. Preserve the tooling decision in ADR 0001.
 - Retain Python `>=3.10`, `uv`, `pytest`, isort, Black, flake8 and Ruff.
   Runtime dependencies and an application package remain implementation work.
 - Keep modules small, typed and testable. Automated unit tests use mocked

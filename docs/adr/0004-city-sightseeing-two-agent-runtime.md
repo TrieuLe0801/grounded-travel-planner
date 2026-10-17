@@ -3,6 +3,12 @@
 Status: Accepted
 Date: 2026-10-14
 
+Partial supersession, 2026-10-17: ADR 0009 adds a Chat role and limits
+Coordinator to classification and routing. Planner ownership and the remaining
+decisions in this ADR stay active. ADR 0009 also assigns role-specific model
+defaults; the historical `gpt-5.5` default in this ADR is retained only for
+Coordinator and historical evidence.
+
 ## Context
 
 The active product is now a city/place sightseeing planner. The previous POC

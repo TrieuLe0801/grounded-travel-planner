@@ -57,9 +57,9 @@ _NODE_TEXT = {
         "Giới hạn một lượt sửa rồi gửi lại Planner",
         "repair",
     ),
-    "finalize": (
-        "Hoàn tất",
-        "Chỉ phản hồi và commit khi kiểm tra đạt",
+    "chat_respond": (
+        "Chat",
+        "Phản hồi tiếng Việt và chỉ commit khi kiểm tra đạt",
         "finalize",
     ),
     END_NODE: ("KẾT THÚC", "Kết thúc lượt xử lý", "boundary"),
@@ -72,7 +72,7 @@ _POSITIONS = {
     "planner_delegate": (760, 145),
     "validate_candidate": (1010, 145),
     "prepare_repair": (1010, 455),
-    "finalize": (1245, 300),
+    "chat_respond": (1245, 300),
     END_NODE: (1415, 300),
 }
 

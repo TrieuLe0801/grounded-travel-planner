@@ -14,10 +14,10 @@ background only.
 
 | Area | Status | Evidence |
 |---|---|---|
-| Scope reset | Complete | Charter, implementation plan, current log and ADR 0004 |
-| Runtime package | Complete | Coordinator/Planner graph, typed providers and validators |
+| Scope reset | Complete | Charter, implementation plan, current log and ADR 0004/0009 |
+| Runtime package | Complete | Coordinator/Planner/Chat graph, typed providers and validators |
 | Streamlit app | Complete | Session-only itinerary/chat plus read-only graph page |
-| Tests | 57 passed | Core, async UI, graph-image, photo, chat-edit/source eval, AppTest and web API coverage |
+| Tests | 61 passed | Core, async UI, graph-image, photo, chat-edit/source eval, AppTest and web API coverage |
 | Live integration | Passed | OpenAI/Tavily/LangSmith smoke recorded under `docs/experiments/` |
 | Local container | Passed | Test/runtime images, health, non-root and live provider checks |
 | Chat editing | Passed | Successful UI edit, eight offline eval cases and live two-turn smoke |
@@ -34,11 +34,14 @@ actual checks count as completion evidence.
 ## Done
 
 - Replaced the archived POC scope with the city/place sightseeing product scope.
-- Accepted ADR 0004 for the two-runtime-agent LangGraph architecture.
+- Accepted ADR 0004 for the initial runtime and ADR 0009 for the current
+  Coordinator/Planner/Chat architecture.
 - Preserved ADR 0001 as the development-agent/tooling decision; Codex helper
-  roles remain separate from the webapp runtime Coordinator and Planner.
-- Implemented the exact two runtime roles with `gpt-5.5`, typed provider
-  boundaries and code-enforced graph/search/repair limits.
+  roles remain separate from the webapp runtime Coordinator, Planner and Chat.
+- Implemented Coordinator/Planner/Chat with role-specific model defaults:
+  Coordinator uses `gpt-5.5`, while Planner and Chat use `gpt-5.4-mini`. Typed
+  provider boundaries and code-enforced graph/search/repair limits remain in
+  place.
 - Implemented validate-before-commit input, schedule, opening-hours and source
   provenance checks. Failed candidates preserve the previous plan.
 - Temporarily removed `source_place_mismatch` from the commit gate at the
@@ -105,6 +108,9 @@ actual checks count as completion evidence.
   delivery without a planning turn; the full host suite passed 57 tests. The
   running local adapter returned `200 image/png` with 24,241 bytes; its SVG
   fallback also returned HTTP 200.
+- Added role-specific runtime model defaults. Coordinator keeps `gpt-5.5`,
+  while Planner and Chat use `gpt-5.4-mini`; configuration wiring and the full
+  61-test host suite pass. This does not claim a new live provider run.
 
 ## Now
 
@@ -123,9 +129,9 @@ actual checks count as completion evidence.
 ## Blockers And Risks
 
 - Live provider behavior still depends on local credentials and network access.
-- The requested default runtime model is exactly `gpt-5.5`; there is no silent
-  fallback. Missing or unavailable configuration returns a safe response and
-  preserves the previous plan.
+- Coordinator's default runtime model is `gpt-5.5`; Planner and Chat default to
+  `gpt-5.4-mini`. There is no silent fallback. Missing or unavailable
+  configuration returns a safe response and preserves the previous plan.
 - Tavily snippets can be incomplete; opening hours stay unverified unless a
   source result explicitly supports them.
 - Live results can include broad travel pages or video sources. Current code

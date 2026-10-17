@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from grounded_travel_planner.agents.chat import ChatAgent
 from grounded_travel_planner.agents.coordinator import CoordinatorAgent
 from grounded_travel_planner.agents.planner import PlannerAgent
 from grounded_travel_planner.config import RuntimeConfig
@@ -45,17 +46,19 @@ def _candidate_sources(state: PlannerState) -> list[SourceReference]:
 
 
 class GraphNodes:
-    """Deterministic policy nodes around the two injected runtime agents."""
+    """Deterministic policy nodes around the injected runtime agents."""
 
     def __init__(
         self,
         coordinator: CoordinatorAgent,
         planner: PlannerAgent,
+        chat: ChatAgent,
         trace_sink: TraceSink,
         config: RuntimeConfig,
     ) -> None:
         self.coordinator = coordinator
         self.planner = planner
+        self.chat = chat
         self.trace_sink = trace_sink
         self.config = config
 
@@ -94,8 +97,23 @@ class GraphNodes:
     def validate_input(self, state: PlannerState) -> dict:
         step = _step(state)
         request = state.get("request")
-        if request is None and state.get("current_plan") is not None:
-            plan = state["current_plan"]
+        current_plan = state.get("current_plan")
+        decision = state.get("decision")
+        if (
+            decision is not None
+            and decision.intent.action is IntentAction.EXTEND_TRIP
+            and current_plan is not None
+        ):
+            target = decision.intent.day_count
+            if target is None and decision.intent.day_count_delta is not None:
+                target = current_plan.day_count + decision.intent.day_count_delta
+            request = TripRequest.model_construct(
+                destination=current_plan.destination,
+                start_date=current_plan.start_date,
+                day_count=target if target is not None else 0,
+            )
+        elif request is None and current_plan is not None:
+            plan = current_plan
             request = TripRequest(
                 destination=plan.destination,
                 start_date=plan.start_date,
@@ -214,7 +232,7 @@ class GraphNodes:
             "graph_steps": _step(state),
         }
 
-    def finalize(self, state: PlannerState) -> dict:
+    def chat_respond(self, state: PlannerState) -> dict:
         step = _step(state)
         issues = list(state.get("validation_issues", []))
         decision = state.get("decision")
@@ -237,9 +255,9 @@ class GraphNodes:
         else:
             status = ResponseStatus.NEEDS_INPUT
 
-        metadata = _metadata(state, self.coordinator.role)
+        metadata = _metadata(state, self.chat.role)
         try:
-            message = self.coordinator.explain(
+            message = self.chat.respond(
                 committed=committed,
                 current_plan=current_plan,
                 issues=issues,
@@ -270,10 +288,12 @@ class GraphNodes:
                 "turn_id": state["turn_id"],
                 "coordinator_model": self.coordinator.model_name,
                 "planner_model": self.planner.model_name,
+                "chat_role": self.chat.role,
+                "chat_model": self.chat.model_name,
             },
         )
         self.trace_sink.record_event(
-            "turn.finalize",
+            "chat.respond",
             {"status": status.value, "committed": committed},
             thread_id=state["thread_id"],
         )

@@ -6,10 +6,10 @@ three-week POC documents are historical background.
 
 ## Current progress
 
-- Scope-reset charter, implementation plan and ADR 0004 exist.
-- Core runtime has exactly two agent roles: `Coordinator` and `Planner`.
-- Both agents use the exact default model identifier `gpt-5.5` through an
-  injectable LangChain structured-output boundary.
+- Scope-reset charter, implementation plan and ADR 0004/0009 exist.
+- Core runtime has three roles: `Coordinator`, `Planner` and `Chat`.
+- Coordinator defaults to `gpt-5.5`; Planner and Chat default to the lighter
+  `gpt-5.4-mini` through an injectable LangChain structured-output boundary.
 - Tavily, OpenAI and LangSmith integrations sit behind typed provider adapters.
 - The current JavaScript/Tailwind interface uses a same-origin FastAPI adapter.
   The server keeps the canonical plan only in an opaque browser session. The
@@ -26,15 +26,17 @@ See `PROJECT_STATUS.md` for the current Done / Now / Next / Blockers view.
 
 The user supplies a destination/place, concrete start date and one-to-seven-day
 duration. Coordinator classifies and delegates; Planner is the only runtime
-role that searches or proposes a plan mutation. Deterministic code validates
+role that searches or proposes a plan mutation, and Chat writes the response.
+Deterministic code validates
 input, schedule overlap/range, returned-source provenance and supported opening
 hours before committing a candidate.
 
-Chat supports create, add/remove/replace/reorder and day/time change intents.
+Chat supports create, add/remove/replace/reorder, trip extension and day/time
+change intents.
 Ordinary chat does not search or mutate the plan. A rejected edit preserves the
 previous canonical plan.
 
-See `docs/project-charter.md`, `docs/implementation-plan.md` and ADR 0004.
+See `docs/project-charter.md`, `docs/implementation-plan.md` and ADR 0004/0009.
 
 ## Repository map
 
@@ -249,7 +251,7 @@ The primary session acts as manager through `AGENTS.md`; the separate `manager`
 definition supports explicit delegation to a manager subagent. The manager
 assigns bounded tasks, waits for results, and coordinates edits to shared files.
 These are development roles and are separate from the webapp runtime
-Coordinator and Planner. Start a new trusted Codex session to load project
+Coordinator, Planner and Chat. Start a new trusted Codex session to load project
 configuration and agent files.
 
 The `.codex/hooks.json` `PostToolUse` hook runs isort, Black and flake8 on Python

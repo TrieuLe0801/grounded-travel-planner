@@ -25,6 +25,7 @@ _SEARCH_ACTIONS = {
     IntentAction.CREATE_TRIP,
     IntentAction.ADD_PLACE,
     IntentAction.REPLACE_PLACE,
+    IntentAction.EXTEND_TRIP,
 }
 
 
@@ -166,6 +167,8 @@ class PlannerAgent:
             "sorted by day, start time, end time, then entry ID. A reorder must "
             "change that visible chronological order; changing only the entries "
             "list is insufficient.\n"
+            "For extend_trip, preserve all existing entries and add at least one "
+            "grounded entry in the newly added day range.\n"
             f"Request: {request.model_dump_json()}\n"
             f"Intent: {intent.model_dump_json()}\n"
             f"Current plan: {current_payload}\n"

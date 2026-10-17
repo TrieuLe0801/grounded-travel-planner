@@ -1,6 +1,6 @@
 {
-  "version": 24,
-  "updated": "2026-10-17T11:56:39+07:00",
+  "version": 25,
+  "updated": "2026-10-17T15:36:10+07:00",
   "active_scope": "city-place-sightseeing-webapp",
   "current_milestone": "Milestone 1: executable city/place sightseeing vertical slice",
   "completed": {
@@ -26,6 +26,7 @@
     "javascript_tailwind_ui_offline": true,
     "planner_source_schema_hardening": true,
     "javascript_graph_png_rendering": true,
+    "role_specific_runtime_models": true,
     "javascript_tailwind_browser_qa": false
   },
   "evidence": {
@@ -179,9 +180,18 @@
       "local adapter: GET /api/graph/image returned 200 image/png (24,241 bytes)",
       "local adapter: SVG fallback returned HTTP 200"
     ],
+    "role_specific_runtime_models": [
+      "docs/adr/0009-coordinator-routed-chat-agent-and-trip-extension.md",
+      "src/grounded_travel_planner/config.py",
+      "src/grounded_travel_planner/service.py",
+      "focused role/model tests 41 passed",
+      "host pytest 61 passed",
+      "gpt-5.5 Coordinator; gpt-5.4-mini Planner and Chat",
+      "no new live provider run claimed"
+    ],
     "javascript_tailwind_browser_qa": [
       "pending real-browser responsive and pending-turn navigation check"
     ]
   },
-  "notes": "Milestone 1 and chat editing have offline and live evidence. The itinerary now keeps source-attributed photos and omits the route map at the user's request. The Streamlit and JavaScript graph pages display the compiled LangGraph PNG returned by get_graph_image() inside responsive panels, with SVG fallback; JavaScript image delivery has host-test evidence. Vietnamese is the default webapp chat language. Planner model output excludes provider-owned returned-source inventory; grounding attaches trusted sources after structured parsing. Tavily prompt snippets remain capped at 1,000 characters and grounded source references allow 4,000. Source-quality metrics still have a synthetic baseline and live relevance remains unmeasured. Old POC counts are archived. The JavaScript/Tailwind UI is now the current container frontend; browser QA is pending."
+  "notes": "Milestone 1 and chat editing have offline and live evidence. The itinerary now keeps source-attributed photos and omits the route map at the user's request. The Streamlit and JavaScript graph pages display the compiled LangGraph PNG returned by get_graph_image() inside responsive panels, with SVG fallback; JavaScript image delivery has host-test evidence. Vietnamese is the default webapp chat language. Planner model output excludes provider-owned returned-source inventory; grounding attaches trusted sources after structured parsing. Tavily prompt snippets remain capped at 1,000 characters and grounded source references allow 4,000. Coordinator defaults to gpt-5.5 while Planner and Chat default to gpt-5.4-mini; no new live provider run is claimed for the model split. Source-quality metrics still have a synthetic baseline and live relevance remains unmeasured. Old POC counts are archived. The JavaScript/Tailwind UI is now the current container frontend; browser QA is pending."
 }

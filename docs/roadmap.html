@@ -31,11 +31,11 @@
 <main>
   <p>Active scope · reset 2026-10-14</p>
   <h1>City sightseeing planner</h1>
-  <p>LangGraph runtime with exactly two agent roles: Coordinator owns chat and
-  delegation; Planner owns grounded plan proposals and Tavily search.</p>
+  <p>LangGraph runtime with Coordinator routing, Planner grounded proposals and
+  Tavily search, and Chat response generation.</p>
 
   <div class="meta">
-    <div class="card"><strong>Model</strong><p><code>gpt-5.5</code> for both roles</p></div>
+    <div class="card"><strong>Model</strong><p>Coordinator <code>gpt-5.5</code>; Planner/Chat <code>gpt-5.4-mini</code></p></div>
     <div class="card"><strong>State</strong><p>Session-only canonical plan</p></div>
     <div class="card"><strong>Bounds</strong><p>8 graph · 2 search · 1 repair</p></div>
   </div>
@@ -47,7 +47,7 @@
       <h3>1A · Core runtime</h3>
       <ul>
         <li>Typed contracts and provider boundaries</li>
-        <li>Coordinator → Planner LangGraph delegation</li>
+        <li>Coordinator → Planner → Chat LangGraph delegation</li>
         <li>Input, schedule and source validation</li>
         <li>Validate-before-commit plan semantics</li>
         <li>Offline core tests</li>
@@ -68,7 +68,7 @@
       <span class="badge">Verified</span>
       <h3>1C · Live gates</h3>
       <ul>
-        <li>OpenAI <code>gpt-5.5</code> structured output passed</li>
+        <li>OpenAI <code>gpt-5.5</code> structured output passed; lightweight Planner/Chat default selected</li>
         <li>Tavily returned-source provenance passed</li>
         <li>LangSmith root/child <code>thread_id</code> passed</li>
         <li>Offline session-isolation test passed</li>

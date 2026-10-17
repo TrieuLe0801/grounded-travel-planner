@@ -3,6 +3,10 @@
 The active repository scope was reset from the older three-week POC to a
 city/place sightseeing webapp.
 
+The initial two-role and single-model decisions below describe the 2026-10-14
+baseline. ADR 0009 and the 2026-10-17 entry at the end record the current
+three-role runtime and role-specific model policy.
+
 ## Decisions Recorded
 
 - The current product is a session-only Streamlit travel-planning webapp.
@@ -79,6 +83,11 @@ city/place sightseeing webapp.
   viewport height, and requests the existing SVG only when PNG rendering fails.
   A local adapter check returned 24,241 PNG bytes with HTTP 200; the SVG fallback
   also returned HTTP 200.
+- On 2026-10-17, the runtime model policy was split by role. Coordinator keeps
+  `gpt-5.5` for routing, while Planner and Chat default to `gpt-5.4-mini` for
+  lower-cost, higher-volume structured proposal and response calls. The
+  role-specific settings remain behind `RuntimeConfig` and the typed model
+  adapter; historical live `gpt-5.5` evidence remains unchanged.
 
 ## Evidence
 

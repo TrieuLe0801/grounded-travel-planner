@@ -13,7 +13,7 @@ from grounded_travel_planner.adapters import (
     NoOpTraceSink,
     TavilyPlaceSearchProvider,
 )
-from grounded_travel_planner.agents import CoordinatorAgent, PlannerAgent
+from grounded_travel_planner.agents import ChatAgent, CoordinatorAgent, PlannerAgent
 from grounded_travel_planner.config import RuntimeConfig
 from grounded_travel_planner.contracts import (
     AgentResponse,
@@ -22,7 +22,7 @@ from grounded_travel_planner.contracts import (
     TripRequest,
     ValidationIssue,
 )
-from grounded_travel_planner.graph import build_two_agent_graph
+from grounded_travel_planner.graph import build_travel_planner_graph
 from grounded_travel_planner.providers import TraceSink
 from utils.ids import new_id
 from utils.redaction import sanitize_error
@@ -35,6 +35,7 @@ class TravelPlannerService:
         self,
         coordinator: CoordinatorAgent,
         planner: PlannerAgent,
+        chat: ChatAgent,
         *,
         trace_sink: TraceSink | None = None,
         config: RuntimeConfig | None = None,
@@ -43,9 +44,11 @@ class TravelPlannerService:
         self.trace_sink = trace_sink or NoOpTraceSink()
         self.coordinator = coordinator
         self.planner = planner
-        self.graph = build_two_agent_graph(
+        self.chat = chat
+        self.graph = build_travel_planner_graph(
             coordinator,
             planner,
+            chat,
             self.trace_sink,
             self.config,
         )
@@ -60,7 +63,8 @@ class TravelPlannerService:
         load_dotenv()
         runtime_config = config or RuntimeConfig()
         coordinator_model = ChatOpenAIStructuredModel(runtime_config.model_name)
-        planner_model = ChatOpenAIStructuredModel(runtime_config.model_name)
+        planner_model = ChatOpenAIStructuredModel(runtime_config.planner_model_name)
+        chat_model = ChatOpenAIStructuredModel(runtime_config.chat_model_name)
         search = TavilyPlaceSearchProvider()
         tracing_enabled = os.getenv("LANGSMITH_TRACING", "").casefold() in {
             "1",
@@ -75,6 +79,7 @@ class TravelPlannerService:
         return cls(
             CoordinatorAgent(coordinator_model),
             PlannerAgent(planner_model, search, runtime_config),
+            ChatAgent(chat_model),
             trace_sink=trace_sink,
             config=runtime_config,
         )

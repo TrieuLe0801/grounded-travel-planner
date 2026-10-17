@@ -29,4 +29,5 @@ class PlannerState(TypedDict):
     validation_issues: NotRequired[list[ValidationIssue]]
     repair_issues: NotRequired[list[ValidationIssue]]
     response_hint: NotRequired[str]
+    effective_request: NotRequired[TripRequest | None]
     response: NotRequired[AgentResponse]

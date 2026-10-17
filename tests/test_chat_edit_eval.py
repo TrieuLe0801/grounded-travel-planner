@@ -10,11 +10,11 @@ from typing import Any, TypeVar
 import pytest
 from pydantic import BaseModel
 
-from grounded_travel_planner.agents import CoordinatorAgent, PlannerAgent
+from grounded_travel_planner.agents import ChatAgent, CoordinatorAgent, PlannerAgent
 from grounded_travel_planner.config import RuntimeConfig
 from grounded_travel_planner.contracts import (
+    ChatResponse,
     CoordinatorDecision,
-    CoordinatorExplanation,
     PlannerProposal,
     SearchResult,
     SightseeingPlan,
@@ -56,7 +56,7 @@ class _ScriptedModel:
                     "response_hint": "fixture",
                 }
             )
-        if schema is CoordinatorExplanation:
+        if schema is ChatResponse:
             return schema.model_validate({"message": "fixture explanation"})
         if schema is PlannerProposal:
             return schema.model_validate(
@@ -91,6 +91,7 @@ def _service_for(case: dict[str, Any]) -> tuple[TravelPlannerService, _FixtureSe
         TravelPlannerService(
             CoordinatorAgent(coordinator_model),
             PlannerAgent(planner_model, search, config),
+            ChatAgent(planner_model),
             config=config,
         ),
         search,

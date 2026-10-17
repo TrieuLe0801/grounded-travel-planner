@@ -6,19 +6,17 @@ from collections.abc import Mapping
 
 from grounded_travel_planner.contracts import (
     CoordinatorDecision,
-    CoordinatorExplanation,
     IntentAction,
     PlanChangeIntent,
     SightseeingPlan,
     TripRequest,
-    ValidationIssue,
     visible_schedule_context,
 )
 from grounded_travel_planner.providers import StructuredChatModel
 
 
 class CoordinatorAgent:
-    """Classify turns, delegate mutations and explain the final graph result."""
+    """Classify turns and route mutations; it never writes final responses."""
 
     role = "coordinator"
 
@@ -41,7 +39,10 @@ class CoordinatorAgent:
             "Classify the user turn for a city sightseeing planner. "
             "Use ordinary_chat for conversation that does not request a plan "
             "mutation. Plan mutations are create_trip, add_place, remove_place, "
-            "replace_place, reorder_places, change_day or change_time. Do not "
+            "replace_place, reorder_places, change_day, change_time or "
+            "extend_trip. For Vietnamese requests such as 'thêm N ngày', use "
+            "extend_trip and set day_count_delta to the positive N. For an "
+            "absolute requested total, set extend_trip day_count instead. Do not "
             "invent a plan. Understand Vietnamese requests and preserve the "
             "user's place names and diacritics in the structured intent. "
             "Reorder from_index and to_index are zero-based "
@@ -77,32 +78,3 @@ class CoordinatorAgent:
         return decision.model_copy(
             update={"intent": intent, "requires_planner": requires_planner}
         )
-
-    def explain(
-        self,
-        *,
-        committed: bool,
-        current_plan: SightseeingPlan | None,
-        issues: list[ValidationIssue],
-        response_hint: str,
-        metadata: Mapping[str, str],
-    ) -> str:
-        issue_text = "; ".join(f"{issue.code}: {issue.message}" for issue in issues)
-        prompt = (
-            "Respond entirely in natural Vietnamese, regardless of the user's "
-            "input language. Preserve proper place names, times and source "
-            "titles. Explain the validated result concisely. Never claim a "
-            "candidate was applied when committed is false. If validation failed, "
-            "say the previous plan was preserved. Mention that visit/travel times "
-            "are estimates and hours are unverified when relevant.\n"
-            f"Committed: {committed}\n"
-            f"Current plan exists: {current_plan is not None}\n"
-            f"Issues: {issue_text or 'none'}\n"
-            f"Hint: {response_hint[:1000]}"
-        )
-        explanation = self._model.generate_structured(
-            prompt,
-            CoordinatorExplanation,
-            metadata=metadata,
-        )
-        return explanation.message
