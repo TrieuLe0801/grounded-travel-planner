@@ -142,10 +142,11 @@ three-role runtime and role-specific model policy.
   response and error feedback near the input. User and assistant turns are
   rendered as separate right/left conversation bubbles with role labels.
   Frontend typecheck/build passed; real-browser visual QA remains open.
-- The JavaScript interface was then restyled from the previous warm palette to
-  a blue and near-black system. Dark slate surfaces cover the page shell and
-  panels, while blue accents identify primary actions, links and focus states.
-  Frontend typecheck/build passed; browser inspection was unavailable.
+- The JavaScript interface was then lightened from the previous dark palette to
+  a light blue and navy system. A soft blue page background and white surfaces
+  keep the app bright, while blue accents identify primary actions, links and
+  focus states. Frontend typecheck/build passed; browser inspection was
+  unavailable.
 
 ## Open Risks
 

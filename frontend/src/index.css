@@ -3,16 +3,16 @@
 @theme {
   --font-heading: "Lexend", sans-serif;
   --font-body: "Source Sans 3", sans-serif;
-  --color-ink: #020617;
+  --color-ink: #0f172a;
   --color-primary: #2563eb;
   --color-accent: #60a5fa;
 }
 @layer base {
   :root {
-    color-scheme: dark;
+    color-scheme: light;
   }
   body {
-    @apply bg-slate-950 font-body text-slate-100 antialiased;
+    @apply bg-blue-50 font-body text-slate-900 antialiased;
   }
   button,
   input,

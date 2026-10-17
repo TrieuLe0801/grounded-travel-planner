@@ -309,6 +309,6 @@ User turns render as right-aligned bubbles and assistant turns as left-aligned
 bubbles with role labels, status and validation details. `npm run check` and
 `npm run build` passed; browser-level responsive inspection remains pending.
 
-The interface uses a blue and near-black visual system across the page shell,
+The interface uses a light blue and navy visual system across the page shell,
 forms, itinerary cards, graph panel and chat widget. Frontend typecheck/build
 passed; the browser surface was unavailable for live visual inspection.

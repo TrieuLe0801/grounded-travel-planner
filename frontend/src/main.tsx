@@ -103,13 +103,13 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
 }
 function FieldError({ message }: { message?: string }) {
   return message ? (
-    <p className="mt-1 text-sm font-medium text-red-300">{message}</p>
+    <p className="mt-1 text-sm font-medium text-red-700">{message}</p>
   ) : null;
 }
 function Photo({ visual, placeName }: { visual?: Visual; placeName: string }) {
   if (!visual)
     return (
-      <div className="flex aspect-[16/9] items-center justify-center rounded-2xl bg-slate-800 px-4 text-center text-sm text-slate-400">
+      <div className="flex aspect-[16/9] items-center justify-center rounded-2xl bg-blue-50 px-4 text-center text-sm text-slate-500">
         <ImageOff className="mr-2 size-4" />
         Chưa tìm được ảnh có giấy phép cho {placeName}.
       </div>
@@ -129,7 +129,7 @@ function Photo({ visual, placeName }: { visual?: Visual; placeName: string }) {
           loading="lazy"
         />
       </a>
-      <figcaption className="mt-2 text-xs leading-5 text-slate-400">
+      <figcaption className="mt-2 text-xs leading-5 text-slate-500">
         Ảnh: {visual.image_credit} · {visual.image_license} ·{" "}
         <a
           href={visual.image_page_url}
@@ -154,20 +154,20 @@ function TurnStatus({
   const committed = response.status === "committed";
   return (
     <section
-      className={`rise rounded-2xl border p-4 ${className} ${committed ? "border-emerald-500/40 bg-emerald-950/50" : "border-amber-500/40 bg-amber-950/50"}`}
+      className={`rise rounded-2xl border p-4 ${className} ${committed ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}
       role="status"
       aria-live="polite"
     >
       <div className="flex gap-3">
         <CheckCircle2
           className={
-            committed ? "shrink-0 text-emerald-400" : "shrink-0 text-amber-400"
+            committed ? "shrink-0 text-emerald-600" : "shrink-0 text-amber-600"
           }
         />
         <div>
           <p className="font-semibold">{response.message}</p>
           {response.validation_issues.map((issue) => (
-            <p className="mt-1 text-sm text-slate-200" key={issue.code}>
+            <p className="mt-1 text-sm text-slate-700" key={issue.code}>
               {issue.message}
             </p>
           ))}
@@ -195,19 +195,19 @@ function PlanView({
           </p>
           <h2 id="itinerary-title" className="font-heading text-2xl font-bold">
             {plan.destination}{" "}
-            <span className="text-slate-400">· v{plan.revision}</span>
+            <span className="text-slate-500">· v{plan.revision}</span>
           </h2>
         </div>
-        <p className="text-sm text-slate-300">
+        <p className="text-sm text-slate-600">
           {plan.start_date} · {plan.day_count} ngày
         </p>
       </div>
       {plan.summary && (
-        <p className="mb-5 max-w-3xl text-slate-200">{plan.summary}</p>
+        <p className="mb-5 max-w-3xl text-slate-700">{plan.summary}</p>
       )}
       {loading && (
         <p
-          className="mb-4 inline-flex items-center gap-2 text-sm text-slate-300"
+          className="mb-4 inline-flex items-center gap-2 text-sm text-slate-600"
           role="status"
         >
           <LoaderCircle className="size-4 animate-spin" />
@@ -225,7 +225,7 @@ function PlanView({
             );
           return (
             <article
-              className="rounded-3xl border border-slate-800 bg-slate-900 p-5 shadow-sm"
+              className="rounded-3xl border border-blue-100 bg-white p-5 shadow-sm"
               key={day}
             >
               <h3 className="font-heading text-lg font-bold">Ngày {day}</h3>
@@ -236,17 +236,17 @@ function PlanView({
                       className="border-l-2 border-blue-500 pl-4"
                       key={entry.id}
                     >
-                      <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-blue-300">
+                      <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-blue-700">
                         <Clock3 size={16} />
                         {entry.start_time.slice(0, 5)}–
                         {entry.end_time.slice(0, 5)}{" "}
-                        <span className="text-slate-400">·</span> Điểm{" "}
+                        <span className="text-slate-500">·</span> Điểm{" "}
                         {index + 1}
                       </div>
                       <h4 className="mt-1 font-heading text-lg font-semibold">
                         {entry.place.name}
                       </h4>
-                      <p className="mt-1 text-slate-300">
+                      <p className="mt-1 text-slate-600">
                         {entry.place.description}
                       </p>
                       <div className="mt-4">
@@ -256,15 +256,15 @@ function PlanView({
                         />
                       </div>
                       <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold">
-                        <span className="rounded-full bg-blue-900 px-3 py-1 text-blue-200">
+                        <span className="rounded-full bg-blue-100 px-3 py-1 text-blue-800">
                           Tham quan ước tính ~
                           {entry.place.visit_minutes_estimate} phút
                         </span>
-                        <span className="rounded-full bg-blue-950 px-3 py-1 text-blue-300">
+                        <span className="rounded-full bg-blue-50 px-3 py-1 text-blue-700">
                           Di chuyển ước tính ~
                           {entry.place.travel_minutes_estimate} phút
                         </span>
-                        <span className="rounded-full bg-slate-800 px-3 py-1 text-slate-200">
+                        <span className="rounded-full bg-blue-50 px-3 py-1 text-slate-700">
                           Giờ mở cửa:{" "}
                           {entry.place.opening_hours_verified
                             ? entry.place.opening_hours
@@ -272,7 +272,7 @@ function PlanView({
                         </span>
                       </div>
                       {entry.notes && (
-                        <p className="mt-3 text-sm text-slate-300">
+                        <p className="mt-3 text-sm text-slate-600">
                           {entry.notes}
                         </p>
                       )}
@@ -293,7 +293,7 @@ function PlanView({
                     </article>
                   ))
                 ) : (
-                  <p className="text-slate-400">
+                  <p className="text-slate-500">
                     Chưa có điểm nào trong ngày này.
                   </p>
                 )}
@@ -329,30 +329,30 @@ function GraphView({
       <button
         type="button"
         onClick={onBack}
-        className="inline-flex min-h-11 items-center gap-2 rounded-xl px-3 font-semibold text-slate-200 hover:bg-blue-900"
+        className="inline-flex min-h-11 items-center gap-2 rounded-xl px-3 font-semibold text-slate-700 hover:bg-blue-100"
       >
         <ArrowLeft size={18} />
         Về lịch trình
       </button>
-      <div className="mt-4 rounded-3xl border border-slate-800 bg-slate-900 p-5 shadow-sm sm:p-7">
-        <p className="inline-flex items-center gap-2 rounded-full bg-blue-950 px-3 py-1 text-sm font-semibold text-blue-300">
+      <div className="mt-4 rounded-3xl border border-blue-100 bg-white p-5 shadow-sm sm:p-7">
+        <p className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-sm font-semibold text-blue-700">
           <Network size={16} />
           Chỉ đọc
         </p>
         <h1 id="graph-title" className="mt-4 font-heading text-2xl font-bold">
           Kiến trúc LangGraph
         </h1>
-        <p className="mt-2 max-w-3xl text-slate-300">
+        <p className="mt-2 max-w-3xl text-slate-600">
           Sơ đồ lấy từ workflow đã biên dịch. Việc xem trang này không tạo hoặc
           thay đổi lịch trình.
         </p>
         {!imageUnavailable && (
           <figure
-            className="mt-6 min-h-72 overflow-hidden rounded-2xl border border-slate-700 bg-slate-950 p-3 sm:p-6"
+            className="mt-6 min-h-72 overflow-hidden rounded-2xl border border-slate-300 bg-blue-50 p-3 sm:p-6"
             aria-busy={imageLoading}
           >
             {imageLoading && (
-              <p className="flex items-center gap-2 text-slate-300" role="status">
+              <p className="flex items-center gap-2 text-slate-600" role="status">
                 <LoaderCircle className="animate-spin" />
                 Đang tải ảnh kiến trúc…
               </p>
@@ -365,7 +365,7 @@ function GraphView({
               onLoad={onImageLoad}
               onError={onImageError}
             />
-            <figcaption className="mt-3 text-sm text-slate-300">
+            <figcaption className="mt-3 text-sm text-slate-600">
               Ảnh PNG được tạo trực tiếp từ workflow LangGraph đã biên dịch.
             </figcaption>
           </figure>
@@ -373,20 +373,20 @@ function GraphView({
         {imageUnavailable && (
           <>
             <p
-              className="mt-6 rounded-xl bg-amber-950/50 p-4 text-amber-100"
+              className="mt-6 rounded-xl bg-amber-50 p-4 text-amber-900"
               role="status"
             >
               Không thể tạo ảnh PNG lúc này; đang dùng sơ đồ SVG dự phòng.
             </p>
             {fallbackLoading && (
-              <p className="mt-6 flex items-center gap-2 text-slate-300" role="status">
+              <p className="mt-6 flex items-center gap-2 text-slate-600" role="status">
                 <LoaderCircle className="animate-spin" />
                 Đang tải sơ đồ dự phòng…
               </p>
             )}
             {error && (
               <p
-                className="mt-6 rounded-xl bg-red-950/50 p-4 text-red-200"
+                className="mt-6 rounded-xl bg-red-50 p-4 text-red-800"
                 role="alert"
               >
                 {error}
@@ -394,7 +394,7 @@ function GraphView({
             )}
             {svg && (
               <div
-                className="graph-svg mt-6 overflow-hidden rounded-2xl border border-slate-700 bg-slate-950 p-3 sm:p-6"
+                className="graph-svg mt-6 overflow-hidden rounded-2xl border border-slate-300 bg-blue-50 p-3 sm:p-6"
                 role="img"
                 aria-label="Sơ đồ workflow LangGraph gồm Coordinator, Planner, Chat và các bước kiểm tra"
                 dangerouslySetInnerHTML={{ __html: svg }}
@@ -428,7 +428,7 @@ function ChatBubble({
     <div className={`flex ${agent ? "justify-start" : "justify-end"}`}>
       <div className={`max-w-[88%] ${agent ? "items-start" : "items-end"}`}>
         <div
-          className={`mb-1 flex items-center gap-1.5 text-xs font-bold ${agent ? "text-slate-400" : "justify-end text-blue-300"}`}
+          className={`mb-1 flex items-center gap-1.5 text-xs font-bold ${agent ? "text-slate-500" : "justify-end text-blue-700"}`}
         >
           {agent ? (
             <Bot size={13} aria-hidden="true" />
@@ -438,19 +438,19 @@ function ChatBubble({
           {agent ? "Trợ lý" : "Bạn"}
         </div>
         <div
-          className={`rounded-2xl px-4 py-3 text-sm leading-6 shadow-sm ${agent ? "rounded-tl-md bg-slate-800 text-slate-100" : "rounded-tr-md bg-primary text-white"}`}
+          className={`rounded-2xl px-4 py-3 text-sm leading-6 shadow-sm ${agent ? "rounded-tl-md bg-blue-50 text-slate-900" : "rounded-tr-md bg-primary text-white"}`}
         >
           <p className="whitespace-pre-wrap break-words">{content}</p>
           {status && (
             <p
-              className={`mt-2 border-t pt-2 text-xs font-semibold ${agent ? "border-slate-700 text-slate-400" : "border-white/25 text-blue-100"}`}
+              className={`mt-2 border-t pt-2 text-xs font-semibold ${agent ? "border-slate-300 text-slate-500" : "border-white/25 text-blue-900"}`}
             >
               {statusLabel}
             </p>
           )}
           {issues.length > 0 && (
             <ul
-              className={`mt-2 list-disc space-y-1 border-t pt-2 pl-4 text-xs ${agent ? "border-slate-700 text-slate-300" : "border-white/25 text-blue-100"}`}
+              className={`mt-2 list-disc space-y-1 border-t pt-2 pl-4 text-xs ${agent ? "border-slate-300 text-slate-600" : "border-white/25 text-blue-900"}`}
             >
               {issues.map((issue) => (
                 <li key={issue}>{issue}</li>
@@ -558,7 +558,7 @@ function ChatWidget({
       {open && (
         <section
           id="chat-panel"
-          className="chat-panel fixed bottom-24 right-4 z-40 flex h-[min(620px,calc(100dvh-7rem))] w-[calc(100vw-2rem)] max-w-md flex-col overflow-hidden rounded-3xl border border-slate-700 bg-slate-900 shadow-2xl shadow-slate-950/20 sm:right-6"
+          className="chat-panel fixed bottom-24 right-4 z-40 flex h-[min(620px,calc(100dvh-7rem))] w-[calc(100vw-2rem)] max-w-md flex-col overflow-hidden rounded-3xl border border-slate-300 bg-white shadow-2xl shadow-slate-900/10 sm:right-6"
           role="dialog"
           aria-labelledby="chat-panel-title"
         >
@@ -579,7 +579,7 @@ function ChatWidget({
             <button
               type="button"
               onClick={() => onOpenChange(false)}
-              className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-xl text-slate-200 transition hover:bg-slate-900/10 hover:text-white"
+              className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-xl text-slate-200 transition hover:bg-white/10 hover:text-white"
               aria-label="Đóng cửa sổ chat"
               title="Đóng chat"
             >
@@ -605,7 +605,7 @@ function ChatWidget({
                         type="button"
                         key={example}
                         onClick={() => setMessage(example)}
-                        className="min-h-11 rounded-xl border border-blue-800 bg-blue-950 px-3 text-left text-sm font-semibold text-slate-200 transition hover:border-primary hover:bg-blue-900"
+                        className="min-h-11 rounded-xl border border-blue-200 bg-blue-50 px-3 text-left text-sm font-semibold text-slate-700 transition hover:border-primary hover:bg-blue-100"
                       >
                         {example}
                       </button>
@@ -624,7 +624,7 @@ function ChatWidget({
             </div>
             {requestError && (
               <p
-                className="mt-4 rounded-xl bg-red-950/50 p-3 text-sm text-red-200"
+                className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-800"
                 role="alert"
               >
                 {requestError}
@@ -633,7 +633,7 @@ function ChatWidget({
           </div>
 
           <form
-            className="border-t border-slate-700 bg-slate-950 p-3 sm:p-4"
+            className="border-t border-slate-300 bg-blue-50 p-3 sm:p-4"
             onSubmit={submitChat}
           >
             <label className="sr-only" htmlFor="chat-widget-input">
@@ -649,7 +649,7 @@ function ChatWidget({
                   disabled={state.pending || submitting}
                   aria-invalid={Boolean(errors.chat)}
                   aria-describedby={errors.chat ? "chat-widget-error" : undefined}
-                  className="min-h-12 w-full rounded-xl border border-slate-700 bg-slate-900 px-4 text-base text-slate-100 placeholder:text-slate-400"
+                  className="min-h-12 w-full rounded-xl border border-slate-300 bg-white px-4 text-base text-slate-900 placeholder:text-slate-500"
                   placeholder="Ví dụ: thêm một ngày…"
                 />
                 <span id="chat-widget-error">
@@ -678,7 +678,7 @@ function ChatWidget({
       <button
         type="button"
         onClick={() => onOpenChange(!open)}
-        className="fixed bottom-4 right-4 z-40 inline-flex min-h-14 min-w-14 items-center justify-center rounded-full bg-primary text-white shadow-xl shadow-blue-950/40 transition hover:-translate-y-0.5 hover:bg-blue-500 focus-visible:ring-4 focus-visible:ring-blue-400 sm:bottom-6 sm:right-6"
+        className="fixed bottom-4 right-4 z-40 inline-flex min-h-14 min-w-14 items-center justify-center rounded-full bg-primary text-white shadow-xl shadow-blue-900/20 transition hover:-translate-y-0.5 hover:bg-blue-500 focus-visible:ring-4 focus-visible:ring-blue-400 sm:bottom-6 sm:right-6"
         aria-expanded={open}
         aria-controls="chat-panel"
         aria-label={open ? "Đóng cửa sổ chat" : "Mở cửa sổ chat"}
@@ -837,11 +837,11 @@ function App() {
     <div className="min-h-dvh">
       <a
         href="#main"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 rounded bg-slate-900 p-3"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 rounded bg-white p-3"
       >
         Đi tới nội dung
       </a>
-      <header className="border-b border-slate-800 bg-slate-950/90 backdrop-blur">
+      <header className="border-b border-blue-100 bg-white/90 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6">
           <a
             className="flex items-center gap-3 font-heading font-bold"
@@ -857,7 +857,7 @@ function App() {
               type="button"
               onClick={openGraph}
               aria-label="Xem kiến trúc LangGraph"
-              className="inline-flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-slate-200 hover:bg-blue-950"
+              className="inline-flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-slate-700 hover:bg-blue-50"
             >
               <Network size={17} />
               <span className="hidden sm:inline">Xem graph</span>
@@ -867,7 +867,7 @@ function App() {
               onClick={() => void reset()}
               aria-label="Tạo chuyến đi mới"
               disabled={state.pending || submitting}
-              className="inline-flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-slate-200 hover:bg-blue-950 disabled:opacity-50"
+              className="inline-flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-slate-700 hover:bg-blue-50 disabled:opacity-50"
             >
               <RotateCcw size={17} />
               <span className="hidden sm:inline">Chuyến đi mới</span>
@@ -891,7 +891,7 @@ function App() {
           <>
             <section className="grid gap-8 lg:grid-cols-[1.05fr_.95fr] lg:items-center">
               <div>
-                <p className="mb-3 inline-flex items-center gap-2 rounded-full bg-blue-950 px-3 py-1 text-sm font-semibold text-blue-300">
+                <p className="mb-3 inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-sm font-semibold text-blue-700">
                   <ShieldCheck size={16} />
                   Nguồn thật · kiểm tra lịch trước khi lưu
                 </p>
@@ -900,7 +900,7 @@ function App() {
                   <br />
                   <span className="text-primary">Đi đúng nhịp của bạn.</span>
                 </h1>
-                <p className="mt-5 max-w-xl text-lg leading-8 text-slate-300">
+                <p className="mt-5 max-w-xl text-lg leading-8 text-slate-600">
                   Tạo lịch tham quan có nguồn tham khảo, rồi trò chuyện để đổi
                   ngày, giờ hoặc địa điểm. Thời lượng và thông tin chưa xác minh
                   luôn được gắn nhãn rõ.
@@ -909,7 +909,7 @@ function App() {
               <form
                 noValidate
                 onSubmit={makePlan}
-                className="rounded-3xl bg-slate-900 p-5 shadow-xl shadow-blue-950/30 ring-1 ring-slate-800 sm:p-7"
+                className="rounded-3xl bg-white p-5 shadow-xl shadow-blue-900/10 ring-1 ring-blue-100 sm:p-7"
               >
                 <h2 className="font-heading text-xl font-bold">
                   Bắt đầu hành trình
@@ -925,7 +925,7 @@ function App() {
                       aria-describedby={errors.destination ? "destination-error" : undefined}
                       placeholder="Ví dụ: Huế"
                       disabled={state.pending || submitting}
-                      className="mt-2 block min-h-12 w-full rounded-xl border border-slate-700 bg-slate-900 px-4 text-base"
+                      className="mt-2 block min-h-12 w-full rounded-xl border border-slate-300 bg-white px-4 text-base"
                     />
                     <span id="destination-error"><FieldError message={errors.destination} /></span>
                   </label>
@@ -940,7 +940,7 @@ function App() {
                         aria-invalid={Boolean(errors.startDate)}
                         aria-describedby={errors.startDate ? "start-date-error" : undefined}
                         disabled={state.pending || submitting}
-                        className="mt-2 block min-h-12 w-full rounded-xl border border-slate-700 bg-slate-900 px-3"
+                        className="mt-2 block min-h-12 w-full rounded-xl border border-slate-300 bg-white px-3"
                       />
                       <span id="start-date-error"><FieldError message={errors.startDate} /></span>
                     </label>
@@ -955,7 +955,7 @@ function App() {
                         aria-invalid={Boolean(errors.days)}
                         aria-describedby={errors.days ? "day-count-error" : undefined}
                         disabled={state.pending || submitting}
-                        className="mt-2 block min-h-12 w-full rounded-xl border border-slate-700 bg-slate-900 px-3"
+                        className="mt-2 block min-h-12 w-full rounded-xl border border-slate-300 bg-white px-3"
                       >
                         {[1, 2, 3, 4, 5, 6, 7].map((number) => (
                           <option key={number} value={number}>
@@ -982,7 +982,7 @@ function App() {
             </section>
             {requestError && (
               <p
-                className="mt-5 rounded-xl bg-red-950/50 p-4 text-red-200"
+                className="mt-5 rounded-xl bg-red-50 p-4 text-red-800"
                 role="alert"
               >
                 {requestError}
@@ -990,7 +990,7 @@ function App() {
             )}
             {state.pending && (
               <section
-                className="mt-7 flex items-center gap-3 rounded-2xl border border-blue-800 bg-blue-950 p-4 text-blue-100"
+                className="mt-7 flex items-center gap-3 rounded-2xl border border-blue-200 bg-blue-50 p-4 text-blue-900"
                 role="status"
                 aria-live="polite"
               >
@@ -1007,9 +1007,9 @@ function App() {
                 loading={visualsLoading}
               />
             ) : (
-              <section className="mt-8 rounded-3xl border border-dashed border-blue-800 bg-slate-900/70 p-8 text-center text-slate-300">
+              <section className="mt-8 rounded-3xl border border-dashed border-blue-200 bg-white/80 p-8 text-center text-slate-600">
                 <Compass className="mx-auto mb-3 text-primary" />
-                <h2 className="font-heading text-xl font-bold text-slate-100">
+                <h2 className="font-heading text-xl font-bold text-slate-900">
                   Lịch trình của bạn sẽ xuất hiện ở đây
                 </h2>
                 <p className="mt-2">
@@ -1033,7 +1033,7 @@ function App() {
         onSend={(sent) => submit({ message: sent })}
         resetToken={chatResetToken}
       />
-      <footer className="mx-auto flex max-w-7xl flex-wrap gap-4 px-4 py-8 text-sm text-slate-400 sm:px-6">
+      <footer className="mx-auto flex max-w-7xl flex-wrap gap-4 px-4 py-8 text-sm text-slate-500 sm:px-6">
         <span className="inline-flex items-center gap-1">
           <MapPin size={15} />
           Chỉ lưu trong phiên duyệt web
