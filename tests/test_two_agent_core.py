@@ -439,16 +439,16 @@ def test_environment_service_constructs_exact_mixed_role_adapters(
     monkeypatch.setenv("GTP_PLANNER_PROVIDER", "ollama")
     monkeypatch.setenv("GTP_CHAT_PROVIDER", "ollama")
     monkeypatch.setenv("GTP_COORDINATOR_MODEL", "gpt-5.5")
-    monkeypatch.setenv("GTP_PLANNER_MODEL", "qwen3:4b")
-    monkeypatch.setenv("GTP_CHAT_MODEL", "qwen3:4b")
+    monkeypatch.setenv("GTP_PLANNER_MODEL", "qwen2.5:3b")
+    monkeypatch.setenv("GTP_CHAT_MODEL", "qwen2.5:3b")
     monkeypatch.setenv("OLLAMA_BASE_URL", "http://ollama.test:11434")
 
     service = TravelPlannerService.from_environment()
 
     assert constructed == [
         ("openai", "gpt-5.5", None),
-        ("ollama", "qwen3:4b", "http://ollama.test:11434"),
-        ("ollama", "qwen3:4b", "http://ollama.test:11434"),
+        ("ollama", "qwen2.5:3b", "http://ollama.test:11434"),
+        ("ollama", "qwen2.5:3b", "http://ollama.test:11434"),
     ]
     assert isinstance(service.coordinator._model, FakeOpenAIModel)
     assert isinstance(service.planner._model, FakeOllamaModel)
@@ -830,6 +830,76 @@ def test_valid_create_searches_once_and_commits_grounded_plan() -> None:
         "validation.candidate",
         "chat.respond",
     }
+
+
+@pytest.mark.parametrize(
+    "invalid_plan", [pytest.param({}, id="omitted"), {"plan": None}]
+)
+@pytest.mark.parametrize(
+    ("action", "has_current_plan", "expected_search_calls"),
+    [
+        pytest.param(IntentAction.CHANGE_TIME, True, 0, id="edit"),
+        pytest.param(IntentAction.CREATE_TRIP, False, 1, id="create"),
+    ],
+)
+def test_missing_planner_plan_is_a_model_failure_without_retry(
+    invalid_plan: dict[str, object],
+    action: IntentAction,
+    has_current_plan: bool,
+    expected_search_calls: int,
+) -> None:
+    """Reject malformed Planner output at the provider boundary.
+
+    An edit retains its committed itinerary without invoking search. A create
+    may complete its single required search before the invalid model payload is
+    detected, but must not enter candidate validation or retry planning.
+    """
+
+    def malformed_planner(
+        prompt: str, schema: type[BaseModel]
+    ) -> BaseModel | dict[str, object]:
+        assert schema is PlannerProposal
+        return invalid_plan
+
+    current = plan() if has_current_plan else None
+    config = RuntimeConfig()
+    planner_llm = ScriptedModel(malformed_planner)
+    search = FakeSearch([search_result()])
+    service = TravelPlannerService(
+        CoordinatorAgent(coordinator_model(action)),
+        PlannerAgent(planner_llm, search, config),
+        ChatAgent(chat_model()),
+        config=config,
+    )
+
+    response = service.handle_turn(
+        thread_id=f"thread-missing-plan-{action.value}",
+        message="Update this itinerary.",
+        request=(
+            None
+            if current is not None
+            else TripRequest(
+                destination="Hue",
+                start_date=date(2026, 11, 1),
+                day_count=2,
+            )
+        ),
+        current_plan=current,
+    )
+
+    assert response.status is ResponseStatus.PROVIDER_ERROR
+    assert response.committed is False
+    assert response.current_plan == current
+    assert {issue.code for issue in response.validation_issues} == {
+        "planner_model_failure"
+    }
+    assert "candidate_required" not in {
+        issue.code for issue in response.validation_issues
+    }
+    assert planner_llm.calls == ["PlannerProposal"]
+    assert response.repair_attempts == 0
+    assert response.search_calls == expected_search_calls
+    assert len(search.calls) == expected_search_calls
 
 
 def test_invalid_input_stops_before_planner_and_search() -> None:

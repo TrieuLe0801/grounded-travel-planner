@@ -1,6 +1,6 @@
 {
-  "version": 37,
-  "updated": "2026-10-18T23:34:00+07:00",
+  "version": 39,
+  "updated": "2026-10-19T00:04:27+07:00",
   "active_scope": "city-place-sightseeing-webapp",
   "current_milestone": "Milestone 1: executable city/place sightseeing vertical slice",
   "completed": {
@@ -38,7 +38,8 @@
     "compose_host_ollama_endpoint_static_config": true,
     "compose_app_native_ollama_endpoint_live": true,
     "ollama_live_smoke": true,
-    "ollama_compose_profile_live": false
+    "ollama_compose_profile_live": false,
+    "planner_complete_proposal_contract": true
   },
   "evidence": {
     "scope_reset_docs": [
@@ -262,7 +263,8 @@
       "src/grounded_travel_planner/service.py",
       "tests/test_two_agent_core.py",
       "mocked Coordinator OpenAI / Planner and Chat Ollama construction",
-      "native gpt-5.5 Coordinator / qwen3:4b Planner and Chat Hue smoke committed"
+      "historical native gpt-5.5 Coordinator / qwen3:4b Planner and Chat Hue smoke committed",
+      "active native gpt-5.5 Coordinator / qwen2.5:3b Planner and Chat Compose-app Hue smoke committed"
     ],
     "compose_host_ollama_endpoint_static_config": [
       "compose.yaml",
@@ -282,11 +284,20 @@
       "native Ollama 0.9.0 with qwen2.5:3b",
       "one-day Hue plan committed: 2 entries, 1 search, 0 repairs, 0 validation issues",
       "native mixed gpt-5.5 Coordinator / qwen3:4b Planner and Chat: 4-entry Hue plan committed, 1 search, 0 repairs, 0 validation issues",
+      "active mixed gpt-5.5 Coordinator / qwen2.5:3b Planner and Chat: 2-entry Compose-app Hue plan committed, 1 search, 0 repairs, 0 validation issues",
       "LangSmith: 25 matching runs with the same thread_id for each smoke"
     ],
     "ollama_compose_profile_live": [
       "pending Docker daemon availability"
+    ],
+    "planner_complete_proposal_contract": [
+      "src/grounded_travel_planner/contracts.py",
+      "src/grounded_travel_planner/agents/planner.py",
+      "tests/test_two_agent_core.py",
+      "4 missing/null-plan regression cases",
+      "82 host tests and isort/Black/flake8/Ruff passed",
+      "separate rebuilt-image live qwen2.5:3b Hue plan committed: 2 entries, 1 search, 0 repairs"
     ]
   },
-  "notes": "Milestone 1 and chat editing have offline and live evidence. OpenAI remains the global default model provider with established role defaults; optional role overrides support mixed Coordinator OpenAI and Planner/Chat Ollama routing. Native Ollama qwen2.5:3b completed a structured-output call and a sourced Hue create-trip smoke. The selected gpt-5.5 Coordinator plus qwen3:4b Planner/Chat assignment also completed structured output and committed a sourced four-entry Hue plan. Compose separates its app endpoint from direct-host loopback: the recreated app reached native Ollama and committed a fresh HTTP Hue turn, while the internal profile still needs an explicit endpoint override and remains unrun. Source-quality metrics still have a synthetic baseline and live relevance remains unmeasured. The JavaScript/Tailwind UI is the current container frontend; browser QA is pending."
+  "notes": "Milestone 1 and chat editing have offline and live evidence. OpenAI remains the global default model provider with established role defaults; optional role overrides support mixed Coordinator OpenAI and Planner/Chat Ollama routing. Native Ollama qwen2.5:3b completed structured output and sourced Hue create-trip smokes in all-local and active mixed-role configurations. The earlier qwen3:4b mixed smoke remains historical evidence. Compose separates its app endpoint from direct-host loopback: the recreated app reached native Ollama and committed fresh HTTP Hue turns, while the internal profile still needs an explicit endpoint override and remains unrun. Source-quality metrics still have a synthetic baseline and live relevance remains unmeasured. The JavaScript/Tailwind UI is the current container frontend; browser QA is pending. Planner structured output now requires a full plan; a separate rebuilt-image live Hue turn committed without restarting the session-owning app."
 }

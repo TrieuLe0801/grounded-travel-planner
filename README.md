@@ -147,8 +147,8 @@ GTP_COORDINATOR_PROVIDER=openai
 GTP_PLANNER_PROVIDER=ollama
 GTP_CHAT_PROVIDER=ollama
 GTP_COORDINATOR_MODEL=gpt-5.5
-GTP_PLANNER_MODEL=qwen3:4b
-GTP_CHAT_MODEL=qwen3:4b
+GTP_PLANNER_MODEL=qwen2.5:3b
+GTP_CHAT_MODEL=qwen2.5:3b
 ```
 
 To run local models with an Ollama process installed on the host, pull a model,
@@ -157,7 +157,7 @@ containers can reach it at `http://host.docker.internal:11434`; a directly run
 app normally uses `http://127.0.0.1:11434`.
 
 ```bash
-ollama pull qwen3:4b
+ollama pull qwen2.5:3b
 ```
 
 ```dotenv
@@ -166,8 +166,8 @@ GTP_COORDINATOR_PROVIDER=openai
 GTP_PLANNER_PROVIDER=ollama
 GTP_CHAT_PROVIDER=ollama
 GTP_COORDINATOR_MODEL=gpt-5.5
-GTP_PLANNER_MODEL=qwen3:4b
-GTP_CHAT_MODEL=qwen3:4b
+GTP_PLANNER_MODEL=qwen2.5:3b
+GTP_CHAT_MODEL=qwen2.5:3b
 OLLAMA_BASE_URL=http://127.0.0.1:11434
 ```
 
@@ -194,7 +194,8 @@ GTP_COMPOSE_OLLAMA_BASE_URL=http://ollama:11434 \
 
 On 2026-10-18, a native mixed-provider smoke committed a one-day Hue plan with
 OpenAI `gpt-5.5` as Coordinator and local `qwen3:4b` as Planner and Chat. The
-Compose profile itself still needs a live run.
+current recommended local configuration uses `qwen2.5:3b`; the Compose profile
+itself still needs a live run.
 
 ## Verification recorded on 2026-10-14
 

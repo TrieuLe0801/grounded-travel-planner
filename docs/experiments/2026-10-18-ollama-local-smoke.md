@@ -1,6 +1,6 @@
 # Native Ollama Local Smoke
 
-Date: 2026-10-18
+Date: 2026-10-18 to 2026-10-19
 Status: Passed on the host and through the Compose app; internal Ollama profile not run
 
 ## Target environment
@@ -92,3 +92,16 @@ the app container:
    entries, one Tavily search, no repair and no validation issues.
 
 The internal `ollama` Compose profile remains unrun.
+
+## Selected `qwen2.5:3b` configuration
+
+On 2026-10-19, the active mixed assignment keeps OpenAI `gpt-5.5` as Coordinator and uses
+Ollama `qwen2.5:3b` for Planner and Chat. After recreating the Compose app with
+that configuration:
+
+1. `qwen2.5:3b` returned a non-empty structured response from the app
+   container.
+2. A fresh HTTP API session committed a Vietnamese one-day Hue plan: two
+   entries, one Tavily search, no repair and no validation issues.
+
+The earlier `qwen3:4b` records remain historical smoke evidence.

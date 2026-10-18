@@ -149,7 +149,9 @@ class PlannerAgent:
         )
         issue_payload = [issue.model_dump(mode="json") for issue in repair_issues]
         return (
-            "Propose one candidate city sightseeing plan. Use only source URLs "
+            "Propose one complete candidate city sightseeing plan. For every "
+            "plan-changing request, return the full plan object; never omit it "
+            "or return null. Use only source URLs "
             "and source IDs in the supplied search results. Never invent opening "
             "hours. Use opening_hours='unverified' and false unless a supplied "
             "source explicitly supports hours. All visit and travel minute fields "
@@ -185,13 +187,6 @@ class PlannerAgent:
         sources: list[SourceReference],
     ) -> PlanCandidate:
         allowed = {str(source.url).rstrip("/"): source for source in sources}
-        if proposed.plan is None:
-            return PlanCandidate(
-                summary=proposed.summary,
-                issues=proposed.issues,
-                returned_source_urls=set(allowed),
-                returned_sources=list(allowed.values()),
-            )
         grounded_entries = []
         for entry in proposed.plan.entries:
             grounded_refs: list[SourceReference] = []

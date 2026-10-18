@@ -272,7 +272,9 @@ structured invocation. On 2026-10-18, native Ollama `qwen2.5:3b` completed a
 structured-output call and committed a one-day Hue plan. The requested mixed
 assignment also committed a one-day Hue plan: Coordinator OpenAI `gpt-5.5`,
 Planner/Chat Ollama `qwen3:4b`, four entries, one Tavily search, no repair and
-no validation issues. LangSmith returned 25 runs, all with the same
+no validation issues. The active Planner/Chat setting was then changed to
+`qwen2.5:3b`; it returned structured output from the Compose app and committed
+a two-entry Hue API plan with one search and no repair. LangSmith returned 25 runs, all with the same
 `thread_id`. The Compose app also reached native host Ollama through
 `host.docker.internal` and committed a fresh HTTP API Hue turn after its
 endpoint was separated from the direct-host loopback setting. See

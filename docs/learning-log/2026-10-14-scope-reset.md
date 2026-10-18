@@ -127,9 +127,22 @@ three-role runtime and role-specific model policy.
   recreated Compose app passed a native-host `qwen3:4b` structured call and a
   fresh HTTP Hue turn committed four entries with one search and no repair; the
   internal Compose profile and local chat-edit flow remain unverified.
+- On 2026-10-19, the user selected `qwen2.5:3b` in place of `qwen3:4b` for Planner and
+  Chat. The Compose default pull list and local runtime configuration now use
+  that smaller model. Its structured output passed inside the app container, and
+  a fresh HTTP Hue request committed two entries with one search, no repair and
+  no validation issues.
 
 ## Evidence
 
+- On 2026-10-19, a reported `Planner did not produce a candidate plan` result
+  exposed that `PlannerProposal.plan` was optional. The structured schema now
+  requires a complete plan, and Planner's prompt explicitly asks for one.
+  Missing or null model output fails at the provider boundary and retains the
+  prior plan. Four offline regression cases and the full 82-test suite passed,
+  along with isort, Black, flake8 and Ruff. A separate rebuilt-image live Hue
+  request using `qwen2.5:3b` committed two entries, one search and no repair.
+  The already running app was not restarted so existing sessions remain intact.
 - New charter and implementation plan describe the active product.
 - ADR 0004 records the accepted two-agent runtime architecture.
 - Phase 1A added the importable Coordinator/Planner runtime, typed provider

@@ -145,7 +145,9 @@ class ValidationIssue(BaseModel):
 class PlannerProposal(BaseModel):
     """Model-authored plan fields before trusted search data is attached."""
 
-    plan: SightseeingPlan | None = None
+    plan: SightseeingPlan = Field(
+        description="Complete candidate itinerary for the requested plan change."
+    )
     summary: str = Field(default="", max_length=2000)
     issues: list[ValidationIssue] = Field(default_factory=list)
 
