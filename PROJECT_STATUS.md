@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-10-17
+Last updated: 2026-10-18
 
 ## Current Milestone
 
@@ -17,7 +17,7 @@ background only.
 | Scope reset | Complete | Charter, implementation plan, current log and ADR 0004/0009 |
 | Runtime package | Complete | Coordinator/Planner/Chat graph, typed providers and validators |
 | Streamlit app | Complete | Session-only itinerary/chat plus read-only graph page |
-| Tests | 64 passed | Core, async UI, graph-image, photo, chat-edit/source eval, AppTest and web API coverage |
+| Tests | 78 passed | Core, async UI, graph-image, photo, chat-edit/source eval, AppTest, web API and model-provider coverage |
 | Live integration | Passed | OpenAI/Tavily/LangSmith smoke recorded under `docs/experiments/` |
 | Local container | Passed | Test/runtime images, health, non-root and live provider checks |
 | Chat editing | Passed | Trip extension plus eight prior offline eval cases and live two-turn smoke |
@@ -27,6 +27,7 @@ background only.
 | Graph inspection | Complete | PNG from `get_graph_image()` fits the Streamlit and JavaScript graph views; SVG fallback; offline coverage |
 | Async page navigation | Implemented | Background Future, exact-once session integration; browser QA pending |
 | JavaScript/Tailwind UI | Implemented | React itinerary/chat/graph, FastAPI session adapter, optional credited photos; browser QA pending |
+| Configurable model provider | Passed on host and Compose app | Native mixed routing and an HTTP Compose-app Hue plan committed with OpenAI `gpt-5.5` Coordinator and Ollama `qwen3:4b` Planner/Chat |
 
 Planning progress is not implementation progress. Only executable artifacts and
 actual checks count as completion evidence.
@@ -137,6 +138,25 @@ actual checks count as completion evidence.
   primary/focus accents so the interface stays bright without losing contrast.
   Frontend typecheck and production build passed; the browser surface was
   unavailable for live visual inspection.
+- Added explicit OpenAI/Ollama model-provider configuration. `RuntimeConfig`
+  validates the global provider, optional per-role overrides and all three role
+  model names; the service resolves each adapter to the existing OpenAI adapter
+  or typed `ChatOllama` structured-output adapter without fallback. Compose now
+  has an opt-in persistent Ollama profile and initializer for `qwen3:4b`. Its
+  app endpoint now defaults separately to host Ollama through
+  `GTP_COMPOSE_OLLAMA_BASE_URL`; the profile requires an explicit internal
+  `http://ollama:11434` override. ADR 0010 records the provider decision.
+  Mocked/offline checks cover configuration, routing and
+  structured calls. Native `qwen2.5:3b` completed structured output and a
+  create-trip smoke. The selected mixed assignment then committed a one-day Hue
+  plan with OpenAI `gpt-5.5` as Coordinator and local `qwen3:4b` as Planner and
+  Chat: four entries, one Tavily search, no repair and no validation issues.
+  LangSmith returned 25 matching runs with the same `thread_id`. The full
+  78-test suite and required formatting, lint, lockfile, Compose and diff checks
+  passed. The Compose app endpoint now reaches host-native Ollama at
+  `host.docker.internal`; its fresh HTTP API Hue smoke committed four entries
+  with one search and no repair. Docker's internal Ollama profile remains
+  unrun.
 
 ## Now
 
@@ -189,6 +209,10 @@ actual checks count as completion evidence.
   recorded evidence; runtime OpenAI `gpt-5.5` calls remain verified separately.
 - The JavaScript frontend has typecheck, build, mocked API and HTTP smoke
   evidence, but no real-browser responsive or live-provider acceptance yet.
+- Native Ollama evidence covers one all-local `qwen2.5:3b` create-trip flow and
+  one mixed `gpt-5.5`/`qwen3:4b` create-trip flow, plus a Compose-app HTTP
+  create-trip flow to native Ollama. The internal Compose profile and chat edits
+  have not yet been run live. Providers do not fall back to OpenAI.
 
 ## Important Files
 
@@ -207,8 +231,10 @@ actual checks count as completion evidence.
 - `docs/experiments/2026-10-16-live-lo-lo-chai-add.md`
 - `docs/experiments/2026-10-16-vietnamese-chat-smoke.md`
 - `docs/experiments/2026-10-16-visual-itinerary-smoke.md`
+- `docs/experiments/2026-10-18-ollama-local-smoke.md`
 - `docs/adr/0005-visual-itinerary-enrichment.md`
 - `docs/adr/0006-photo-only-itinerary-and-graph-inspection.md`
+- `docs/adr/0010-configurable-openai-ollama-model-provider.md`
 - `docs/adr/0007-session-owned-background-turns.md`
 - `Dockerfile`
 - `compose.yaml`

@@ -1,7 +1,7 @@
 # Implementation Plan
 
 Status: Active
-Last updated: 2026-10-17
+Last updated: 2026-10-18
 
 ## Phase 1A - Core Runtime — Implemented
 
@@ -18,6 +18,9 @@ Acceptance:
   all search calls; Chat writes the final response after policy validation.
 - Keep `gpt-5.5` for Coordinator and use `gpt-5.4-mini` for Planner and Chat by
   default, with role-specific settings behind the model provider boundary.
+- Select `openai` or local `ollama` explicitly through `GTP_MODEL_PROVIDER`;
+  load all three model names through role-specific environment variables and
+  keep each provider behind the structured-output interface.
 - Validate input, schedule and source references before committing a candidate.
 - Preserve the previous plan when validation fails.
 
@@ -250,6 +253,31 @@ test verifies `image/png` delivery and that no planning turn runs. On
 build, isort, Black, flake8, Ruff and `uv lock --check` passed. The running
 adapter returned `200 image/png` (24,241 bytes) and its SVG fallback returned
 HTTP 200.
+
+## Configurable OpenAI/Ollama Runtime Models — Host Smoke Verified
+
+Acceptance:
+
+- `GTP_MODEL_PROVIDER` accepts only `openai` (default) or `ollama` as the
+  legacy global fallback. Optional role-provider variables override it for
+  Coordinator, Planner and Chat; role model variables are validated before
+  adapters are built.
+- OpenAI keeps the established role defaults. Ollama uses `ChatOllama` and its
+  documented LangChain structured-output method without an OpenAI fallback.
+- Compose exposes an opt-in Ollama profile with persistent weights and a
+  one-shot model pull initializer. No model weights are baked into the app.
+
+Evidence: mocked provider-selection and adapter tests cover configuration and
+structured invocation. On 2026-10-18, native Ollama `qwen2.5:3b` completed a
+structured-output call and committed a one-day Hue plan. The requested mixed
+assignment also committed a one-day Hue plan: Coordinator OpenAI `gpt-5.5`,
+Planner/Chat Ollama `qwen3:4b`, four entries, one Tavily search, no repair and
+no validation issues. LangSmith returned 25 runs, all with the same
+`thread_id`. The Compose app also reached native host Ollama through
+`host.docker.internal` and committed a fresh HTTP API Hue turn after its
+endpoint was separated from the direct-host loopback setting. See
+`docs/experiments/2026-10-18-ollama-local-smoke.md`. The internal Docker
+Ollama profile remains unrun.
 
 ## Role-Specific Runtime Models — Verified
 

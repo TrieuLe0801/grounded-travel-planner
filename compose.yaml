@@ -8,8 +8,40 @@ services:
       target: runtime
     env_file:
       - .env
+    environment:
+      OLLAMA_BASE_URL: ${GTP_COMPOSE_OLLAMA_BASE_URL:-http://host.docker.internal:11434}
     init: true
     restart: "no"
     ports:
       - "127.0.0.1:${GTP_PORT:-8503}:8000"
     stop_grace_period: 10s
+
+  ollama:
+    image: ollama/ollama:latest
+    profiles: ["ollama"]
+    volumes:
+      - ollama-models:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+      start_period: 10s
+
+  ollama-init:
+    image: ollama/ollama:latest
+    profiles: ["ollama"]
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      OLLAMA_HOST: ollama:11434
+      OLLAMA_PULL_MODELS: ${OLLAMA_PULL_MODELS:-qwen3:4b}
+    volumes:
+      - ollama-models:/root/.ollama
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      ["set -f; for model in $${OLLAMA_PULL_MODELS}; do ollama pull \"$$model\"; done"]
+
+volumes:
+  ollama-models:

@@ -5,9 +5,12 @@ from datetime import date, time
 from typing import Any, TypeVar
 
 import pytest
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
-from grounded_travel_planner.adapters.model import ChatOpenAIStructuredModel
+from grounded_travel_planner.adapters.model import (
+    ChatOpenAIStructuredModel,
+    OllamaStructuredChatModel,
+)
 from grounded_travel_planner.adapters.search import TavilyPlaceSearchProvider
 from grounded_travel_planner.agents import ChatAgent, CoordinatorAgent, PlannerAgent
 from grounded_travel_planner.config import (
@@ -278,6 +281,180 @@ def test_environment_service_assigns_lightweight_models_to_planner_and_chat() ->
     assert service.chat.model_name == DEFAULT_LIGHTWEIGHT_MODEL_NAME
 
 
+def test_runtime_config_reads_openai_defaults_from_environment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    for name in (
+        "GTP_MODEL_PROVIDER",
+        "GTP_COORDINATOR_PROVIDER",
+        "GTP_PLANNER_PROVIDER",
+        "GTP_CHAT_PROVIDER",
+        "GTP_COORDINATOR_MODEL",
+        "GTP_PLANNER_MODEL",
+        "GTP_CHAT_MODEL",
+    ):
+        monkeypatch.delenv(name, raising=False)
+
+    config = RuntimeConfig.from_environment()
+
+    assert config.model_provider == "openai"
+    assert config.coordinator_model_provider == "openai"
+    assert config.planner_model_provider == "openai"
+    assert config.chat_model_provider == "openai"
+    assert config.model_name == DEFAULT_MODEL_NAME
+    assert config.planner_model_name == DEFAULT_LIGHTWEIGHT_MODEL_NAME
+    assert config.chat_model_name == DEFAULT_LIGHTWEIGHT_MODEL_NAME
+
+
+def test_runtime_config_reads_all_role_model_overrides(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("GTP_MODEL_PROVIDER", "ollama")
+    monkeypatch.setenv("GTP_COORDINATOR_MODEL", "qwen2.5:7b")
+    monkeypatch.setenv("GTP_PLANNER_MODEL", "qwen2.5:3b")
+    monkeypatch.setenv("GTP_CHAT_MODEL", "llama3.2:3b")
+
+    config = RuntimeConfig.from_environment()
+
+    assert config.model_provider == "ollama"
+    assert config.model_name == "qwen2.5:7b"
+    assert config.planner_model_name == "qwen2.5:3b"
+    assert config.chat_model_name == "llama3.2:3b"
+
+
+@pytest.mark.parametrize(
+    ("name", "value", "match"),
+    [
+        ("GTP_MODEL_PROVIDER", "azure", "model_provider"),
+        ("GTP_COORDINATOR_PROVIDER", "azure", "coordinator_provider"),
+        ("GTP_PLANNER_PROVIDER", "azure", "planner_provider"),
+        ("GTP_CHAT_PROVIDER", "azure", "chat_provider"),
+        ("GTP_COORDINATOR_MODEL", "   ", "model name must not be blank"),
+        ("GTP_PLANNER_MODEL", "", "model name must not be blank"),
+        ("GTP_CHAT_MODEL", "\t", "model name must not be blank"),
+    ],
+)
+def test_runtime_config_rejects_invalid_environment_values(
+    monkeypatch: pytest.MonkeyPatch,
+    name: str,
+    value: str,
+    match: str,
+) -> None:
+    monkeypatch.setenv(name, value)
+
+    with pytest.raises(ValidationError, match=match):
+        RuntimeConfig.from_environment()
+
+
+def test_legacy_global_ollama_provider_selects_all_runtime_roles(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("GTP_MODEL_PROVIDER", "ollama")
+    monkeypatch.setenv("GTP_COORDINATOR_PROVIDER", "")
+    monkeypatch.setenv("GTP_PLANNER_PROVIDER", "")
+    monkeypatch.setenv("GTP_CHAT_PROVIDER", "")
+    monkeypatch.setenv("GTP_COORDINATOR_MODEL", "qwen2.5:7b")
+    monkeypatch.setenv("GTP_PLANNER_MODEL", "qwen2.5:3b")
+    monkeypatch.setenv("GTP_CHAT_MODEL", "llama3.2:3b")
+    monkeypatch.setenv("OLLAMA_BASE_URL", "http://ollama.test:11434")
+
+    service = TravelPlannerService.from_environment()
+
+    assert isinstance(service.coordinator._model, OllamaStructuredChatModel)
+    assert isinstance(service.planner._model, OllamaStructuredChatModel)
+    assert isinstance(service.chat._model, OllamaStructuredChatModel)
+    assert [
+        service.coordinator.model_name,
+        service.planner.model_name,
+        service.chat.model_name,
+    ] == ["qwen2.5:7b", "qwen2.5:3b", "llama3.2:3b"]
+    assert service.coordinator._model._base_url == "http://ollama.test:11434"
+
+
+def test_role_provider_overrides_take_precedence_over_global_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("GTP_MODEL_PROVIDER", "ollama")
+    monkeypatch.setenv("GTP_COORDINATOR_PROVIDER", "openai")
+    monkeypatch.setenv("GTP_PLANNER_PROVIDER", "ollama")
+    monkeypatch.setenv("GTP_CHAT_PROVIDER", "openai")
+
+    config = RuntimeConfig.from_environment()
+
+    assert config.model_provider == "ollama"
+    assert config.coordinator_model_provider == "openai"
+    assert config.planner_model_provider == "ollama"
+    assert config.chat_model_provider == "openai"
+
+
+def test_blank_role_provider_override_uses_global_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("GTP_MODEL_PROVIDER", "ollama")
+    monkeypatch.setenv("GTP_COORDINATOR_PROVIDER", "")
+    monkeypatch.setenv("GTP_PLANNER_PROVIDER", "   ")
+    monkeypatch.setenv("GTP_CHAT_PROVIDER", "\t")
+
+    config = RuntimeConfig.from_environment()
+
+    assert config.coordinator_provider is None
+    assert config.planner_provider is None
+    assert config.chat_provider is None
+    assert config.coordinator_model_provider == "ollama"
+    assert config.planner_model_provider == "ollama"
+    assert config.chat_model_provider == "ollama"
+
+
+def test_environment_service_constructs_exact_mixed_role_adapters(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    constructed: list[tuple[str, str, str | None]] = []
+
+    class FakeOpenAIModel:
+        def __init__(self, model_name: str) -> None:
+            self._model_name = model_name
+            constructed.append(("openai", model_name, None))
+
+        @property
+        def model_name(self) -> str:
+            return self._model_name
+
+    class FakeOllamaModel:
+        def __init__(self, model_name: str, base_url: str | None = None) -> None:
+            self._model_name = model_name
+            constructed.append(("ollama", model_name, base_url))
+
+        @property
+        def model_name(self) -> str:
+            return self._model_name
+
+    monkeypatch.setattr(
+        "grounded_travel_planner.service.ChatOpenAIStructuredModel", FakeOpenAIModel
+    )
+    monkeypatch.setattr(
+        "grounded_travel_planner.service.OllamaStructuredChatModel", FakeOllamaModel
+    )
+    monkeypatch.setenv("GTP_MODEL_PROVIDER", "openai")
+    monkeypatch.setenv("GTP_COORDINATOR_PROVIDER", "openai")
+    monkeypatch.setenv("GTP_PLANNER_PROVIDER", "ollama")
+    monkeypatch.setenv("GTP_CHAT_PROVIDER", "ollama")
+    monkeypatch.setenv("GTP_COORDINATOR_MODEL", "gpt-5.5")
+    monkeypatch.setenv("GTP_PLANNER_MODEL", "qwen3:4b")
+    monkeypatch.setenv("GTP_CHAT_MODEL", "qwen3:4b")
+    monkeypatch.setenv("OLLAMA_BASE_URL", "http://ollama.test:11434")
+
+    service = TravelPlannerService.from_environment()
+
+    assert constructed == [
+        ("openai", "gpt-5.5", None),
+        ("ollama", "qwen3:4b", "http://ollama.test:11434"),
+        ("ollama", "qwen3:4b", "http://ollama.test:11434"),
+    ]
+    assert isinstance(service.coordinator._model, FakeOpenAIModel)
+    assert isinstance(service.planner._model, FakeOllamaModel)
+    assert isinstance(service.chat._model, FakeOllamaModel)
+
+
 def test_openai_adapter_uses_function_calling_for_pydantic_schema(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -312,6 +489,49 @@ def test_openai_adapter_uses_function_calling_for_pydantic_schema(
         "method": "function_calling",
         "metadata": {"thread_id": "thread-adapter"},
     }
+
+
+def test_ollama_adapter_uses_structured_output_without_network(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    observed: dict[str, object] = {}
+
+    class FakeChatOllama:
+        def __init__(self, *, model: str, base_url: str) -> None:
+            observed["model"] = model
+            observed["base_url"] = base_url
+
+        def with_structured_output(self, schema):
+            observed["schema"] = schema
+            return self
+
+        def invoke(self, messages, config):
+            observed["messages"] = messages
+            observed["metadata"] = config["metadata"]
+            return ChatResponse(message="ok")
+
+    monkeypatch.setattr("langchain_ollama.ChatOllama", FakeChatOllama)
+    adapter = OllamaStructuredChatModel("qwen2.5:3b", "http://localhost:11434")
+
+    result = adapter.generate_structured(
+        "explain",
+        ChatResponse,
+        metadata={"thread_id": "thread-adapter"},
+    )
+
+    assert result.message == "ok"
+    assert observed["model"] == "qwen2.5:3b"
+    assert observed["base_url"] == "http://localhost:11434"
+    assert observed["schema"] is ChatResponse
+    assert observed["metadata"] == {"thread_id": "thread-adapter"}
+    assert [message.content for message in observed["messages"]] == [
+        (
+            "You are a bounded travel-planner runtime component. Return only "
+            "the requested structured output. Do not include secrets, API keys, "
+            "or unsupported claims."
+        ),
+        "explain",
+    ]
 
 
 def test_ordinary_chat_does_not_search_or_mutate_plan() -> None:

@@ -11,10 +11,11 @@ from grounded_travel_planner.adapters import (
     ChatOpenAIStructuredModel,
     LangSmithTraceSink,
     NoOpTraceSink,
+    OllamaStructuredChatModel,
     TavilyPlaceSearchProvider,
 )
 from grounded_travel_planner.agents import ChatAgent, CoordinatorAgent, PlannerAgent
-from grounded_travel_planner.config import RuntimeConfig
+from grounded_travel_planner.config import ModelProvider, RuntimeConfig
 from grounded_travel_planner.contracts import (
     AgentResponse,
     ResponseStatus,
@@ -61,10 +62,16 @@ class TravelPlannerService:
         """Build live adapters lazily; keys never enter graph state or prompts."""
 
         load_dotenv()
-        runtime_config = config or RuntimeConfig()
-        coordinator_model = ChatOpenAIStructuredModel(runtime_config.model_name)
-        planner_model = ChatOpenAIStructuredModel(runtime_config.planner_model_name)
-        chat_model = ChatOpenAIStructuredModel(runtime_config.chat_model_name)
+        runtime_config = config or RuntimeConfig.from_environment()
+        coordinator_model = cls._model_factory(
+            runtime_config.coordinator_model_provider
+        )(runtime_config.model_name)
+        planner_model = cls._model_factory(runtime_config.planner_model_provider)(
+            runtime_config.planner_model_name
+        )
+        chat_model = cls._model_factory(runtime_config.chat_model_provider)(
+            runtime_config.chat_model_name
+        )
         search = TavilyPlaceSearchProvider()
         tracing_enabled = os.getenv("LANGSMITH_TRACING", "").casefold() in {
             "1",
@@ -83,6 +90,21 @@ class TravelPlannerService:
             trace_sink=trace_sink,
             config=runtime_config,
         )
+
+    @staticmethod
+    def _model_factory(provider: ModelProvider):
+        """Return the selected provider constructor without cross-provider fallback."""
+
+        if provider == "openai":
+            return ChatOpenAIStructuredModel
+        if provider == "ollama":
+            base_url = os.getenv("OLLAMA_BASE_URL", "").strip() or None
+
+            def create_ollama(model_name: str) -> OllamaStructuredChatModel:
+                return OllamaStructuredChatModel(model_name, base_url=base_url)
+
+            return create_ollama
+        raise ValueError(f"Unsupported model provider: {provider}")
 
     def create_session(self) -> str:
         return new_id("thread")

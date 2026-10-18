@@ -1,6 +1,6 @@
 {
-  "version": 31,
-  "updated": "2026-10-17T16:21:25+07:00",
+  "version": 37,
+  "updated": "2026-10-18T23:34:00+07:00",
   "active_scope": "city-place-sightseeing-webapp",
   "current_milestone": "Milestone 1: executable city/place sightseeing vertical slice",
   "completed": {
@@ -32,7 +32,13 @@
     "floating_chat_widget": true,
     "javascript_tailwind_browser_qa": false,
     "chat_conversation_bubbles": true,
-    "light_blue_navy_visual_system": true
+    "light_blue_navy_visual_system": true,
+    "configurable_openai_ollama_models_offline": true,
+    "mixed_role_model_provider_routing": true,
+    "compose_host_ollama_endpoint_static_config": true,
+    "compose_app_native_ollama_endpoint_live": true,
+    "ollama_live_smoke": true,
+    "ollama_compose_profile_live": false
   },
   "evidence": {
     "scope_reset_docs": [
@@ -243,7 +249,44 @@
       "frontend npm run check passed",
       "frontend npm run build passed",
       "browser surface unavailable for visual inspection"
+    ],
+    "configurable_openai_ollama_models_offline": [
+      "docs/adr/0010-configurable-openai-ollama-model-provider.md",
+      "src/grounded_travel_planner/config.py",
+      "src/grounded_travel_planner/adapters/model.py",
+      "compose.yaml",
+      "mocked provider configuration and adapter tests"
+    ],
+    "mixed_role_model_provider_routing": [
+      "src/grounded_travel_planner/config.py",
+      "src/grounded_travel_planner/service.py",
+      "tests/test_two_agent_core.py",
+      "mocked Coordinator OpenAI / Planner and Chat Ollama construction",
+      "native gpt-5.5 Coordinator / qwen3:4b Planner and Chat Hue smoke committed"
+    ],
+    "compose_host_ollama_endpoint_static_config": [
+      "compose.yaml",
+      "GTP_COMPOSE_OLLAMA_BASE_URL defaults to host.docker.internal",
+      "opt-in profile uses an explicit http://ollama:11434 override",
+      "static configuration only; no Compose live smoke"
+    ],
+    "compose_app_native_ollama_endpoint_live": [
+      "compose.yaml",
+      "recreated app container healthy on 127.0.0.1:8503",
+      "container qwen3:4b structured output through host.docker.internal",
+      "fresh HTTP API Hue plan committed: 4 entries, 1 search, 0 repairs, 0 validation issues",
+      "internal Compose ollama profile remains unrun"
+    ],
+    "ollama_live_smoke": [
+      "docs/experiments/2026-10-18-ollama-local-smoke.md",
+      "native Ollama 0.9.0 with qwen2.5:3b",
+      "one-day Hue plan committed: 2 entries, 1 search, 0 repairs, 0 validation issues",
+      "native mixed gpt-5.5 Coordinator / qwen3:4b Planner and Chat: 4-entry Hue plan committed, 1 search, 0 repairs, 0 validation issues",
+      "LangSmith: 25 matching runs with the same thread_id for each smoke"
+    ],
+    "ollama_compose_profile_live": [
+      "pending Docker daemon availability"
     ]
   },
-  "notes": "Milestone 1 and chat editing have offline and live evidence. The itinerary now keeps source-attributed photos and omits the route map at the user's request. The Streamlit and JavaScript graph pages display the compiled LangGraph PNG returned by get_graph_image() inside responsive panels, with SVG fallback; JavaScript image delivery has host-test evidence. Vietnamese is the default webapp chat language. Coordinator routes work, Planner owns search/proposals, and Chat writes responses. Committed Chat replies receive the Planner summary and validated plan; rejected replies receive validation issues and the retained prior plan without the rejected candidate. The JavaScript chat composer is a lower-right floating panel with accessible focus/close behavior and separate right/left user and assistant conversation bubbles. The interface now uses a light blue and navy visual system; frontend check/build pass while browser QA remains pending. Trip extension resolves the requested total before Planner and rejects invalid bounds before search. Planner model output excludes provider-owned returned-source inventory; grounding attaches trusted sources after structured parsing. Tavily prompt snippets remain capped at 1,000 characters and grounded source references allow 4,000. Coordinator defaults to gpt-5.5 while Planner and Chat default to gpt-5.4-mini; no new live provider run is claimed for the model split, extension flow or Chat context fix. Source-quality metrics still have a synthetic baseline and live relevance remains unmeasured. Old POC counts are archived. The JavaScript/Tailwind UI is now the current container frontend; browser QA is pending."
+  "notes": "Milestone 1 and chat editing have offline and live evidence. OpenAI remains the global default model provider with established role defaults; optional role overrides support mixed Coordinator OpenAI and Planner/Chat Ollama routing. Native Ollama qwen2.5:3b completed a structured-output call and a sourced Hue create-trip smoke. The selected gpt-5.5 Coordinator plus qwen3:4b Planner/Chat assignment also completed structured output and committed a sourced four-entry Hue plan. Compose separates its app endpoint from direct-host loopback: the recreated app reached native Ollama and committed a fresh HTTP Hue turn, while the internal profile still needs an explicit endpoint override and remains unrun. Source-quality metrics still have a synthetic baseline and live relevance remains unmeasured. The JavaScript/Tailwind UI is the current container frontend; browser QA is pending."
 }

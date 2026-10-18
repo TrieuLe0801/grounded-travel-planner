@@ -8,9 +8,12 @@ three-week POC documents are historical background.
 
 - Scope-reset charter, implementation plan and ADR 0004/0009 exist.
 - Core runtime has three roles: `Coordinator`, `Planner` and `Chat`.
-- Coordinator defaults to `gpt-5.5`; Planner and Chat default to the lighter
-  `gpt-5.4-mini` through an injectable LangChain structured-output boundary.
-- Tavily, OpenAI and LangSmith integrations sit behind typed provider adapters.
+- `GTP_MODEL_PROVIDER` selects the global `openai` (default) or local `ollama`
+  fallback. `GTP_COORDINATOR_PROVIDER`, `GTP_PLANNER_PROVIDER` and
+  `GTP_CHAT_PROVIDER` can override it for individual roles. `GTP_COORDINATOR_MODEL`, `GTP_PLANNER_MODEL` and
+  `GTP_CHAT_MODEL` select the three role models; OpenAI defaults remain
+  `gpt-5.5`, `gpt-5.4-mini` and `gpt-5.4-mini`.
+- Tavily, OpenAI, Ollama and LangSmith integrations sit behind typed provider adapters.
 - The current JavaScript/Tailwind interface uses a same-origin FastAPI adapter.
   The server keeps the canonical plan only in an opaque browser session. The
   Streamlit implementation remains available during migration.
@@ -133,6 +136,65 @@ uv run --env-file .env streamlit run src/grounded_travel_planner/ui/streamlit_ap
 
 Automated tests do not load credentials or call live services. Live OpenAI,
 Tavily and LangSmith gates are recorded separately when executed.
+
+## Model provider configuration
+
+Copy `.env.example` to `.env`. The provider and every role model are explicit:
+
+```dotenv
+GTP_MODEL_PROVIDER=openai
+GTP_COORDINATOR_PROVIDER=openai
+GTP_PLANNER_PROVIDER=ollama
+GTP_CHAT_PROVIDER=ollama
+GTP_COORDINATOR_MODEL=gpt-5.5
+GTP_PLANNER_MODEL=qwen3:4b
+GTP_CHAT_MODEL=qwen3:4b
+```
+
+To run local models with an Ollama process installed on the host, pull a model,
+then point the app at the host endpoint. On macOS and Windows, Docker Desktop
+containers can reach it at `http://host.docker.internal:11434`; a directly run
+app normally uses `http://127.0.0.1:11434`.
+
+```bash
+ollama pull qwen3:4b
+```
+
+```dotenv
+GTP_MODEL_PROVIDER=openai
+GTP_COORDINATOR_PROVIDER=openai
+GTP_PLANNER_PROVIDER=ollama
+GTP_CHAT_PROVIDER=ollama
+GTP_COORDINATOR_MODEL=gpt-5.5
+GTP_PLANNER_MODEL=qwen3:4b
+GTP_CHAT_MODEL=qwen3:4b
+OLLAMA_BASE_URL=http://127.0.0.1:11434
+```
+
+The Compose Ollama profile is opt-in and keeps weights in the named
+`ollama-models` volume. It does not start with ordinary `docker compose up`.
+Initialize its default lightweight model (or the whitespace-separated names in
+`OLLAMA_PULL_MODELS`) before starting the app:
+
+```bash
+docker compose --profile ollama up --wait ollama ollama-init
+docker compose --profile ollama up -d app
+```
+
+For a normal Compose app, `GTP_COMPOSE_OLLAMA_BASE_URL` defaults to
+`http://host.docker.internal:11434`, so it reaches Ollama running on the host.
+This is separate from the direct-host `OLLAMA_BASE_URL` setting. When using the
+opt-in Compose Ollama profile, explicitly set
+`GTP_COMPOSE_OLLAMA_BASE_URL=http://ollama:11434` before starting `app`:
+
+```bash
+GTP_COMPOSE_OLLAMA_BASE_URL=http://ollama:11434 \
+  docker compose --profile ollama up -d app
+```
+
+On 2026-10-18, a native mixed-provider smoke committed a one-day Hue plan with
+OpenAI `gpt-5.5` as Coordinator and local `qwen3:4b` as Planner and Chat. The
+Compose profile itself still needs a live run.
 
 ## Verification recorded on 2026-10-14
 

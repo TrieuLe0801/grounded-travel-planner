@@ -35,7 +35,7 @@
   Tavily search, and Chat response generation.</p>
 
   <div class="meta">
-    <div class="card"><strong>Model</strong><p>Coordinator <code>gpt-5.5</code>; Planner/Chat <code>gpt-5.4-mini</code></p></div>
+    <div class="card"><strong>Model</strong><p><code>openai</code> by default; opt-in local <code>ollama</code> with role model variables</p></div>
     <div class="card"><strong>State</strong><p>Session-only canonical plan</p></div>
     <div class="card"><strong>Bounds</strong><p>8 graph · 2 search · 1 repair</p></div>
   </div>
@@ -135,6 +135,18 @@
         <li>One pending turn per browser session</li>
         <li>Exact-once result integration after page return</li>
         <li>50/50 host and Docker tests passed</li>
+      </ul>
+    </section>
+    <section class="card done">
+      <span class="badge">Host smoke verified</span>
+      <h3>1J · Configurable models</h3>
+      <ul>
+        <li>Global provider fallback with explicit per-role <code>openai</code>/<code>ollama</code> overrides</li>
+        <li>Coordinator, Planner and Chat model environment variables</li>
+        <li>Typed <code>ChatOllama</code> structured output adapter</li>
+        <li>Opt-in persistent Compose profile and model initializer</li>
+        <li>Native mixed <code>gpt-5.5</code> / <code>qwen3:4b</code> Hue smoke passed</li>
+        <li>Compose app to native Ollama HTTP smoke passed</li>
       </ul>
     </section>
     <section class="card active">

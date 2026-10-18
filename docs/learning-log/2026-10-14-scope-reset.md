@@ -102,6 +102,31 @@ three-role runtime and role-specific model policy.
   retained prior plan instead. Focused tests passed 44 cases, while the full host,
   Docker build-stage and offline Docker suites each passed 64. The rebuilt
   runtime became healthy and returned HTTP 200 for the app and graph PNG.
+- On 2026-10-18, the user requested configurable local Ollama support. ADR
+  0010 selects explicit `openai`/`ollama` provider configuration, a global
+  fallback with optional per-role overrides, and three role-model variables.
+  The offline implementation uses the typed
+  `ChatOllama` structured-output adapter and an opt-in Compose profile that
+  persists pulled weights. Native Ollama 0.9.0 then pulled `qwen2.5:3b` on the
+  Mac M1, passed a structured-output call and committed a one-day Hue plan with
+  two entries, one Tavily search and no repair or validation issues. LangSmith
+  found 25 matching runs, all with the same `thread_id`. Detailed evidence is
+  `docs/experiments/2026-10-18-ollama-local-smoke.md`.
+- Later on 2026-10-18, the user selected OpenAI `gpt-5.5` for Coordinator and
+  local Ollama `qwen3:4b` for Planner and Chat. Per-role provider overrides now
+  preserve the global provider as a backward-compatible fallback. The native
+  mixed-provider smoke loaded `qwen3:4b`, passed direct structured output, and
+  committed a one-day Hue plan with four entries, one Tavily search, no repair
+  and no validation issues. LangSmith returned 25 matching runs (seven root,
+  18 child), all carrying the smoke `thread_id`. The Docker Compose profile and
+  local chat-edit flow remain unverified. The full pytest suite passed 78 tests;
+  isort, Black, flake8, Ruff, lockfile, Compose configuration and JSON/diff
+  checks also passed. Compose subsequently separated its app endpoint from the
+  direct-host endpoint: `GTP_COMPOSE_OLLAMA_BASE_URL` defaults to host Ollama,
+  while the opt-in profile requires explicit `http://ollama:11434` routing. The
+  recreated Compose app passed a native-host `qwen3:4b` structured call and a
+  fresh HTTP Hue turn committed four entries with one search and no repair; the
+  internal Compose profile and local chat-edit flow remain unverified.
 
 ## Evidence
 

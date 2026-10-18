@@ -1,9 +1,14 @@
 """Runtime configuration and product bounds."""
 
-from pydantic import BaseModel, Field
+import os
+from typing import Literal, TypeAlias
+
+from pydantic import BaseModel, Field, field_validator
 
 DEFAULT_MODEL_NAME = "gpt-5.5"
 DEFAULT_LIGHTWEIGHT_MODEL_NAME = "gpt-5.4-mini"
+DEFAULT_MODEL_PROVIDER = "openai"
+ModelProvider: TypeAlias = Literal["openai", "ollama"]
 
 
 class RuntimeConfig(BaseModel):
@@ -15,8 +20,56 @@ class RuntimeConfig(BaseModel):
     model_name: str = DEFAULT_MODEL_NAME
     planner_model_name: str = DEFAULT_LIGHTWEIGHT_MODEL_NAME
     chat_model_name: str = DEFAULT_LIGHTWEIGHT_MODEL_NAME
+    # ``model_provider`` is the legacy global fallback. Per-role providers are
+    # optional so existing injected RuntimeConfig instances keep their meaning.
+    model_provider: ModelProvider = DEFAULT_MODEL_PROVIDER
+    coordinator_provider: ModelProvider | None = None
+    planner_provider: ModelProvider | None = None
+    chat_provider: ModelProvider | None = None
     graph_step_limit: int = Field(default=8, ge=1, le=8)
     search_call_limit: int = Field(default=2, ge=0, le=2)
     repair_attempt_limit: int = Field(default=1, ge=0, le=1)
     default_visit_minutes: int = Field(default=90, ge=15)
     default_travel_minutes: int = Field(default=20, ge=0)
+
+    @field_validator("model_name", "planner_model_name", "chat_model_name")
+    @classmethod
+    def model_names_must_not_be_blank(cls, value: str) -> str:
+        """Reject unusable role names before live providers are constructed."""
+
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("model name must not be blank")
+        return normalized
+
+    @classmethod
+    def from_environment(cls) -> "RuntimeConfig":
+        """Read provider fallback, role overrides and all model names from env."""
+
+        def optional_provider(name: str) -> str | None:
+            value = os.getenv(name)
+            return value if value and value.strip() else None
+
+        return cls(
+            model_provider=os.getenv("GTP_MODEL_PROVIDER", DEFAULT_MODEL_PROVIDER),
+            coordinator_provider=optional_provider("GTP_COORDINATOR_PROVIDER"),
+            planner_provider=optional_provider("GTP_PLANNER_PROVIDER"),
+            chat_provider=optional_provider("GTP_CHAT_PROVIDER"),
+            model_name=os.getenv("GTP_COORDINATOR_MODEL", DEFAULT_MODEL_NAME),
+            planner_model_name=os.getenv(
+                "GTP_PLANNER_MODEL", DEFAULT_LIGHTWEIGHT_MODEL_NAME
+            ),
+            chat_model_name=os.getenv("GTP_CHAT_MODEL", DEFAULT_LIGHTWEIGHT_MODEL_NAME),
+        )
+
+    @property
+    def coordinator_model_provider(self) -> ModelProvider:
+        return self.coordinator_provider or self.model_provider
+
+    @property
+    def planner_model_provider(self) -> ModelProvider:
+        return self.planner_provider or self.model_provider
+
+    @property
+    def chat_model_provider(self) -> ModelProvider:
+        return self.chat_provider or self.model_provider
