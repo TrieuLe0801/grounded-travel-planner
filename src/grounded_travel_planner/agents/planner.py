@@ -3,9 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass
 
-from grounded_travel_planner.config import RuntimeConfig
 from grounded_travel_planner.contracts import (
     IntentAction,
     PlanCandidate,
@@ -29,23 +27,13 @@ _SEARCH_ACTIONS = {
 }
 
 
-@dataclass(frozen=True)
-class PlannerResult:
-    candidate: PlanCandidate
-
-
 class PlannerAgent:
     """Create or revise a candidate; it never commits canonical state."""
 
     role = "planner"
 
-    def __init__(
-        self,
-        model: StructuredChatModel,
-        config: RuntimeConfig,
-    ) -> None:
+    def __init__(self, model: StructuredChatModel) -> None:
         self._model = model
-        self._config = config
 
     @property
     def model_name(self) -> str:
@@ -69,7 +57,7 @@ class PlannerAgent:
         session_summary: str = "",
         repair_issues: list[ValidationIssue] | None = None,
         retained_sources: list[SourceReference] | None = None,
-    ) -> PlannerResult:
+    ) -> PlanCandidate:
         sources = self._sources_from_plan(current_plan) if current_plan else []
         for source in retained_sources or []:
             if all(
@@ -96,7 +84,7 @@ class PlannerAgent:
             current_plan=current_plan,
             sources=sources,
         )
-        return PlannerResult(candidate=candidate)
+        return candidate
 
     def search_query(self, intent: PlanChangeIntent, request: TripRequest) -> str:
         place = intent.replacement_place_name or intent.place_name or "attractions"

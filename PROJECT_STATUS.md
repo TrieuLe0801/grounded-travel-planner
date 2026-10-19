@@ -17,7 +17,7 @@ background only.
 | Scope reset | Complete | Charter, implementation plan, current log and ADR 0004/0009/0011/0012 |
 | Runtime package | Complete | Coordinator/Planner/Chat graph, typed providers and validators |
 | Streamlit app | Complete | Session-only itinerary/chat plus read-only graph page |
-| Tests | 89 passed | Core, async UI, graph-image, photo, chat-edit/source eval, bounded chat context/search, AppTest, web API and model-provider coverage |
+| Tests | 90 passed | Core, async UI, graph-image, photo, chat-edit/source eval, bounded chat context/search, AppTest, web API and model-provider coverage |
 | Live integration | Passed | OpenAI/Tavily/LangSmith smoke recorded under `docs/experiments/` |
 | Local container | Passed | Test/runtime images, health, non-root and live provider checks |
 | Chat editing | Passed | Trip extension plus eight prior offline eval cases and live two-turn smoke |
@@ -204,6 +204,14 @@ actual checks count as completion evidence.
   Compose image is healthy; `/` and `/api/graph/image` return HTTP 200. ADR 0012
   and `docs/experiments/2026-10-19-live-shared-tool-node-smoke.md` record the
   implementation and current evidence.
+- Simplified the runtime flow without changing graph topology or policy. Removed
+  unused role-level `RuntimeConfig` injection, one-field Planner/Chat result
+  wrappers, two dead graph-state fields, a duplicate service search reference,
+  and duplicate summary/history storage in `PendingTurn`. Session transcript
+  and summary bounds now use the shared conversation constants in the HTTP
+  adapter. Focused tests passed 63 cases and the full host suite passed 90;
+  isort, Black, flake8 and Ruff passed. No live provider run or container
+  rebuild was performed for this internal refactor.
 
 ## Now
 

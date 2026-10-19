@@ -27,8 +27,6 @@ class PendingTurn:
     message: str
     current_plan: SightseeingPlan | None
     request: TripRequest | None
-    session_summary: str
-    conversation_history: list[ConversationTurn]
     future: Future[AgentResponse]
 
 
@@ -76,8 +74,6 @@ class TurnRunner:
             message=captured_message,
             current_plan=captured_plan,
             request=captured_request,
-            session_summary=captured_summary,
-            conversation_history=captured_history,
             future=future,
         )
 

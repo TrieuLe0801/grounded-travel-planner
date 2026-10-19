@@ -49,7 +49,6 @@ class TravelPlannerService:
         self.coordinator = coordinator
         self.planner = planner
         self.chat = chat
-        self.search = search
         self.graph = build_travel_planner_graph(
             coordinator,
             planner,
@@ -90,8 +89,8 @@ class TravelPlannerService:
         )
         return cls(
             CoordinatorAgent(coordinator_model),
-            PlannerAgent(planner_model, runtime_config),
-            ChatAgent(chat_model, runtime_config),
+            PlannerAgent(planner_model),
+            ChatAgent(chat_model),
             search=search,
             trace_sink=trace_sink,
             config=runtime_config,

@@ -51,8 +51,8 @@ def _service() -> TravelPlannerService:
     config = RuntimeConfig()
     return TravelPlannerService(
         CoordinatorAgent(NoCallModel()),
-        PlannerAgent(NoCallModel(), config),
-        ChatAgent(NoCallModel(), config),
+        PlannerAgent(NoCallModel()),
+        ChatAgent(NoCallModel()),
         search=NoCallSearch(),
         trace_sink=NoOpTraceSink(),
         config=config,

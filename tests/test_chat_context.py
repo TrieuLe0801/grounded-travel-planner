@@ -148,8 +148,8 @@ def _service(
     search_provider = search or Search()
     return TravelPlannerService(
         CoordinatorAgent(ScriptedModel(coordinator)),
-        PlannerAgent(ScriptedModel(planner), runtime),
-        ChatAgent(ScriptedModel(chat), runtime),
+        PlannerAgent(ScriptedModel(planner)),
+        ChatAgent(ScriptedModel(chat)),
         search=search_provider,
         trace_sink=trace,
         config=runtime,
@@ -174,7 +174,16 @@ def test_only_graph_tool_node_calls_search_and_routes_owner_sources() -> None:
     assert [call[1] for call in search.calls] == [8, 5]
     assert not hasattr(service.planner, "_search")
     assert not hasattr(service.chat, "_search")
-    assert response.source_references[0].retrieval_query == "private current query"
+    expected_chat_sources = [
+        SourceReference(
+            source_id="source",
+            title="Offline source",
+            url="https://example.test/a",
+            snippet="Offline grounded result.",
+            retrieval_query="private current query",
+        )
+    ]
+    assert response.source_references == expected_chat_sources
     assert all(
         reference.retrieval_query != "private current query"
         for entry in response.current_plan.entries
@@ -268,9 +277,7 @@ def test_coordinator_receives_bounded_history_and_handoff_summary() -> None:
     runtime = RuntimeConfig()
     service = TravelPlannerService(
         CoordinatorAgent(ScriptedModel(coordinator)),
-        PlannerAgent(
-            ScriptedModel(lambda _p, _s: PlannerProposal(plan=_plan())), runtime
-        ),
+        PlannerAgent(ScriptedModel(lambda _p, _s: PlannerProposal(plan=_plan()))),
         ChatAgent(
             ScriptedModel(
                 lambda _p, schema: (
@@ -279,7 +286,6 @@ def test_coordinator_receives_bounded_history_and_handoff_summary() -> None:
                     else ChatResponse(message="Đã hiểu.")
                 )
             ),
-            runtime,
         ),
         search=Search(),
         config=runtime,
@@ -340,8 +346,8 @@ def test_repair_then_chat_search_fits_eight_steps_and_isolates_sources() -> None
 
     service = TravelPlannerService(
         CoordinatorAgent(ScriptedModel(coordinator)),
-        PlannerAgent(ScriptedModel(planner), runtime),
-        ChatAgent(ScriptedModel(chat), runtime),
+        PlannerAgent(ScriptedModel(planner)),
+        ChatAgent(ScriptedModel(chat)),
         search=Search(),
         config=runtime,
     )

@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from dataclasses import fields
 from datetime import date, time
 from threading import Event
 
 from grounded_travel_planner.contracts import (
     AgentResponse,
+    ConversationTurn,
     PlaceRecommendation,
     ResponseStatus,
     ScheduleEntry,
@@ -75,6 +77,10 @@ def test_turn_runner_captures_copies_and_completes_after_foreground_rerun() -> N
     runner = TurnRunner(max_workers=1)
     plan = _plan()
     request = TripRequest(destination="Hue", start_date=date(2026, 11, 1), day_count=1)
+    history = [
+        ConversationTurn(role="user", content=f"turn-{index}-" + ("x" * 2500))
+        for index in range(13)
+    ]
 
     pending = runner.submit(
         service,  # type: ignore[arg-type]
@@ -82,6 +88,8 @@ def test_turn_runner_captures_copies_and_completes_after_foreground_rerun() -> N
         message="Tạo lịch trình",
         current_plan=plan,
         request=request,
+        session_summary="summary-" + ("s" * 1300),
+        conversation_history=history,
     )
 
     assert service.entered.wait(timeout=1)
@@ -96,12 +104,14 @@ def test_turn_runner_captures_copies_and_completes_after_foreground_rerun() -> N
     plan.destination = "Đà Nẵng"
     plan.entries[0].place.name = "Địa điểm đã bị sửa ngoài luồng"
     request.destination = "Đà Nẵng"
+    history[-1].content = "mutated after submission"
     service.release.set()
 
     response = pending.future.result(timeout=2)
     captured = service.calls[0]
     captured_plan = captured["current_plan"]
     captured_request = captured["request"]
+    captured_history = captured["conversation_history"]
     assert pending.thread_id == "thread-original"
     assert pending.message == "Tạo lịch trình"
     assert pending.current_plan is not plan
@@ -111,6 +121,13 @@ def test_turn_runner_captures_copies_and_completes_after_foreground_rerun() -> N
     assert captured_plan.destination == "Hue"
     assert captured_plan.entries[0].place.name == "Imperial City"
     assert captured_request.destination == "Hue"
+    assert captured["session_summary"] == "summary-" + ("s" * 1192)
+    assert isinstance(captured_history, list)
+    assert len(captured_history) == 12
+    assert captured_history[-1].content == "turn-12-" + ("x" * 1992)
+    assert {field.name for field in fields(pending)}.isdisjoint(
+        {"session_summary", "conversation_history"}
+    )
     assert response.status is ResponseStatus.COMMITTED
     assert TurnRunner.collect(pending) == response
 

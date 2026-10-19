@@ -285,3 +285,19 @@ three-role runtime and role-specific model policy.
 - Offline tests and one live request verified owner routing, failure/count
   behavior, plan isolation, and the new trace names. See ADR 0012 and
   `docs/experiments/2026-10-19-live-shared-tool-node-smoke.md`.
+
+## Runtime Flow Cleanup — 2026-10-19
+
+- A repository-wide usage check found two graph-state declarations, two agent
+  config references, two one-field result wrappers and one service search
+  reference with no runtime consumers. They were removed without changing the
+  graph topology or provider boundary.
+- The background Future still receives bounded deep copies of summary and chat
+  history; `PendingTurn` no longer stores a second copy that no foreground code
+  reads. It retains the captured plan needed for safe failure recovery.
+- The HTTP adapter now uses the conversation module's shared transcript and
+  summary limits instead of repeating the values `12` and `1200`.
+- Regression coverage confirms exact Chat citations from the tool-owned source
+  list, Planner repair behavior, worker input isolation, API session bounds and
+  reset behavior. Focused tests passed 63 cases; the full host suite passed 90,
+  and all Python formatting/lint gates passed.

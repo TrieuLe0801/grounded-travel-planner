@@ -108,6 +108,7 @@ class FakeTravelPlannerService:
             message="Offline committed plan.",
             current_plan=plan,
             committed=True,
+            metadata={"session_summary": "summary-" + ("s" * 1300)},
         )
 
 
@@ -191,6 +192,32 @@ def test_pending_turn_rejects_competing_submission() -> None:
     completed = client.get("/api/session")
     assert completed.status_code == 200
     assert completed.json()["pending"] is False
+
+
+def test_api_bounds_conversation_summary_and_reset_session() -> None:
+    service = FakeTravelPlannerService()
+    client = TestClient(create_app(service, FakeVisualService()))
+    _start(client)
+
+    for index in range(7):
+        accepted = client.post("/api/turns", json={"message": f"turn-{index}"})
+        assert accepted.status_code == 202
+        assert client.get("/api/session").status_code == 200
+
+    state = client.get("/api/session").json()
+    assert len(state["conversation"]) == 12
+    assert state["conversation"][0]["content"] == "turn-1"
+    assert [turn["role"] for turn in state["conversation"]] == [
+        "user",
+        "assistant",
+    ] * 6
+    assert len(str(service.turns[-1]["session_summary"])) == 1200
+
+    before_reset = client.post("/api/session/reset")
+    assert before_reset.status_code == 200
+    assert before_reset.json()["conversation"] == []
+    assert before_reset.json()["plan"] is None
+    assert before_reset.json()["thread_id"] == "thread-2"
 
 
 def test_visuals_require_current_revision_and_expose_attribution() -> None:

@@ -290,7 +290,7 @@ class GraphNodes:
     def planner_delegate(self, state: PlannerState) -> dict:
         step = _step(state)
         try:
-            result = self.planner.propose(
+            candidate = self.planner.propose(
                 intent=state["decision"].intent,
                 request=state["request"],
                 current_plan=state.get("current_plan"),
@@ -304,7 +304,7 @@ class GraphNodes:
                 thread_id=state["thread_id"],
             )
             return {
-                "candidate": result.candidate,
+                "candidate": candidate,
                 "validation_issues": [],
                 "graph_steps": step,
             }
@@ -339,7 +339,7 @@ class GraphNodes:
         ):
             repair_attempts += 1
             try:
-                repaired = self.planner.propose(
+                candidate = self.planner.propose(
                     intent=state["decision"].intent,
                     request=state["request"],
                     current_plan=state.get("current_plan"),
@@ -348,7 +348,6 @@ class GraphNodes:
                     repair_issues=issues,
                     retained_sources=_candidate_sources(state),
                 )
-                candidate = repaired.candidate
                 issues = validate_candidate(
                     candidate,
                     state.get("request"),
@@ -427,7 +426,7 @@ class GraphNodes:
             sources: list[SourceReference] = []
         else:
             try:
-                result = self.chat.respond(
+                response_message = self.chat.respond(
                     decision=chat_decision,
                     message=state["message"],
                     intent=decision.intent if decision else None,
@@ -441,7 +440,8 @@ class GraphNodes:
                     search_failed=state.get("chat_search_failed", False),
                     metadata=_metadata(state, self.chat.role),
                 )
-                message, sources = result.message, result.source_references
+                message = response_message.message
+                sources = list(state.get("chat_search_sources", []))
             except Exception:  # noqa: BLE001 - stable user-safe fallback
                 message, sources = (
                     "Chưa thể hoàn tất yêu cầu; lịch trình trước đó đã được giữ nguyên.",

@@ -95,8 +95,8 @@ def _service_for(case: dict[str, Any]) -> tuple[TravelPlannerService, _FixtureSe
     return (
         TravelPlannerService(
             CoordinatorAgent(coordinator_model),
-            PlannerAgent(planner_model, config),
-            ChatAgent(planner_model, config),
+            PlannerAgent(planner_model),
+            ChatAgent(planner_model),
             search=search,
             config=config,
         ),

@@ -409,3 +409,22 @@ Docker app image rebuilt and ran healthy; `/` and `/api/graph/image` returned
 HTTP 200. See ADR 0012 and
 `docs/experiments/2026-10-19-live-shared-tool-node-smoke.md`. One smoke verifies
 the integration path, not broad answer accuracy or source quality.
+
+## Runtime Flow Cleanup — Verified
+
+Acceptance:
+
+- Remove graph-state fields and service/agent dependencies with no runtime
+  readers while preserving the shared Tavily tool topology and bounds.
+- Return `PlanCandidate` and `ChatResponse` directly instead of wrapping each in
+  a one-field internal result object.
+- Keep background-worker input copies but avoid storing additional summary and
+  conversation copies in `PendingTurn` after the Future owns its captured args.
+- Reuse the conversation module's 12-message and 1,200-character constants in
+  the HTTP session adapter.
+- Preserve validate-before-commit behavior, exact tool-owned Chat citations,
+  one repair, two searches, eight graph steps and session isolation.
+
+Evidence: 63 focused tests and all 90 host tests passed. isort, Black, flake8
+and Ruff passed. This cleanup changed no accepted architecture and required no
+new ADR or live-provider run.

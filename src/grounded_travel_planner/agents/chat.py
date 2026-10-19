@@ -3,9 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass
 
-from grounded_travel_planner.config import RuntimeConfig
 from grounded_travel_planner.contracts import (
     ChatResponse,
     ChatSearchDecision,
@@ -20,20 +18,13 @@ from grounded_travel_planner.contracts import (
 from grounded_travel_planner.providers import StructuredChatModel
 
 
-@dataclass(frozen=True)
-class ChatResult:
-    message: str
-    source_references: list[SourceReference]
-
-
 class ChatAgent:
     """Write Vietnamese responses and request, but never run, one tool call."""
 
     role = "chat"
 
-    def __init__(self, model: StructuredChatModel, config: RuntimeConfig) -> None:
+    def __init__(self, model: StructuredChatModel) -> None:
         self._model = model
-        self._config = config
 
     @property
     def model_name(self) -> str:
@@ -89,9 +80,9 @@ class ChatAgent:
         sources: list[SourceReference],
         search_failed: bool,
         metadata: Mapping[str, str],
-    ) -> ChatResult:
+    ) -> ChatResponse:
         if not decision.should_search and decision.message.strip():
-            return ChatResult(decision.message.strip(), [])
+            return ChatResponse(message=decision.message.strip())
         issue_text = "; ".join(f"{issue.code}: {issue.message}" for issue in issues)
         if search_failed:
             search_status = "unavailable"
@@ -131,7 +122,7 @@ class ChatAgent:
         response = self._model.generate_structured(
             prompt, ChatResponse, metadata=metadata
         )
-        return ChatResult(response.message, sources)
+        return response
 
     def _search_decision_prompt(self, **kwargs: object) -> str:
         message = str(kwargs["message"])[:4000]

@@ -19,6 +19,10 @@ from grounded_travel_planner.contracts import (
     SightseeingPlan,
     TripRequest,
 )
+from grounded_travel_planner.conversation import (
+    MAX_CONVERSATION_TURNS,
+    MAX_SESSION_SUMMARY,
+)
 from grounded_travel_planner.service import TravelPlannerService
 from grounded_travel_planner.ui.graph_diagram import compiled_graph_svg
 from grounded_travel_planner.ui.turn_runner import PendingTurn, TurnRunner
@@ -80,6 +84,13 @@ def _response_payload(response: AgentResponse | None) -> dict[str, object] | Non
     return response.model_dump(mode="json") if response else None
 
 
+def _append_conversation(session: WebSession, turn: ConversationTurn) -> None:
+    """Store one bounded transcript turn while its caller owns the session lock."""
+
+    session.conversation.append(turn)
+    session.conversation = session.conversation[-MAX_CONVERSATION_TURNS:]
+
+
 def _session_payload(
     session: WebSession, response: AgentResponse | None
 ) -> dict[str, object]:
@@ -120,17 +131,17 @@ def create_app(
         session.response = completed
         if completed.committed and completed.current_plan is not None:
             session.current_plan = completed.current_plan
-        session.conversation.append(
+        _append_conversation(
+            session,
             ConversationTurn(
                 role="assistant",
                 content=completed.message,
                 source_references=completed.source_references,
-            )
+            ),
         )
-        session.conversation = session.conversation[-12:]
         session.session_summary = str(
             completed.metadata.get("session_summary", session.session_summary)
-        )[:1200]
+        )[:MAX_SESSION_SUMMARY]
         return completed
 
     @app.post("/api/session", status_code=201)
@@ -175,10 +186,9 @@ def create_app(
                     status_code=409, detail="Một yêu cầu đang được xử lý."
                 )
             session.response = None
-            session.conversation.append(
-                ConversationTurn(role="user", content=payload.message)
+            _append_conversation(
+                session, ConversationTurn(role="user", content=payload.message)
             )
-            session.conversation = session.conversation[-12:]
             session.pending = runner.submit(
                 planner_service,
                 thread_id=session.thread_id,

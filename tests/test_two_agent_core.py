@@ -250,8 +250,8 @@ def service_for(
     config = RuntimeConfig()
     service = TravelPlannerService(
         CoordinatorAgent(coordinator_llm),
-        PlannerAgent(planner_llm, config),
-        ChatAgent(chat_llm, config),
+        PlannerAgent(planner_llm),
+        ChatAgent(chat_llm),
         search=fake_search,
         trace_sink=trace,
         config=config,
@@ -566,7 +566,7 @@ def test_ordinary_chat_does_not_search_or_mutate_plan() -> None:
     assert "User message: Thanks, that looks good." in service.chat._model.prompts[0]
 
 
-def test_trip_extension_uses_effective_request_and_commits_new_day() -> None:
+def test_trip_extension_resolves_request_and_commits_new_day() -> None:
     current = plan()
     pagoda_source = source(
         title="Thien Mu Pagoda Hue visitor guide",
@@ -621,8 +621,8 @@ def test_trip_extension_uses_effective_request_and_commits_new_day() -> None:
 
     service = TravelPlannerService(
         CoordinatorAgent(ScriptedModel(extension_coordinator)),
-        PlannerAgent(ScriptedModel(extension_planner), RuntimeConfig()),
-        ChatAgent(chat_model(), RuntimeConfig()),
+        PlannerAgent(ScriptedModel(extension_planner)),
+        ChatAgent(chat_model()),
         search=search,
         config=RuntimeConfig(),
     )
@@ -667,8 +667,8 @@ def test_trip_extension_over_seven_rejects_before_planner_or_search() -> None:
     search = FakeSearch([search_result()])
     service = TravelPlannerService(
         CoordinatorAgent(ScriptedModel(extension_coordinator)),
-        PlannerAgent(planner_llm, RuntimeConfig()),
-        ChatAgent(chat_model(), RuntimeConfig()),
+        PlannerAgent(planner_llm),
+        ChatAgent(chat_model()),
         search=search,
         config=RuntimeConfig(),
     )
@@ -712,8 +712,8 @@ def test_invalid_trip_extension_rejects_before_planner_or_search(
     search = FakeSearch([search_result()])
     service = TravelPlannerService(
         CoordinatorAgent(ScriptedModel(extension_coordinator)),
-        PlannerAgent(planner_llm, RuntimeConfig()),
-        ChatAgent(chat_model(), RuntimeConfig()),
+        PlannerAgent(planner_llm),
+        ChatAgent(chat_model()),
         search=search,
         config=RuntimeConfig(),
     )
@@ -773,8 +773,8 @@ def test_vietnamese_chat_uses_localized_fallback_when_explanation_fails() -> Non
     config = RuntimeConfig()
     service = TravelPlannerService(
         CoordinatorAgent(ScriptedModel(coordinator_handler)),
-        PlannerAgent(ScriptedModel(lambda prompt, schema: PlannerProposal()), config),
-        ChatAgent(ScriptedModel(broken_chat), config),
+        PlannerAgent(ScriptedModel(lambda prompt, schema: PlannerProposal())),
+        ChatAgent(ScriptedModel(broken_chat)),
         search=search,
         config=config,
     )
@@ -869,8 +869,8 @@ def test_missing_planner_plan_is_a_model_failure_without_retry(
     search = FakeSearch([search_result()])
     service = TravelPlannerService(
         CoordinatorAgent(coordinator_model(action)),
-        PlannerAgent(planner_llm, config),
-        ChatAgent(chat_model(), config),
+        PlannerAgent(planner_llm),
+        ChatAgent(chat_model()),
         search=search,
         config=config,
     )
@@ -1007,8 +1007,8 @@ def test_repair_does_not_treat_fabricated_candidate_sources_as_returned() -> Non
     search = FakeSearch([search_result()])
     service = TravelPlannerService(
         CoordinatorAgent(coordinator_model(IntentAction.CREATE_TRIP)),
-        PlannerAgent(ScriptedModel(planner_handler), config),
-        ChatAgent(chat_model(), config),
+        PlannerAgent(ScriptedModel(planner_handler)),
+        ChatAgent(chat_model()),
         search=search,
         config=config,
     )
@@ -1075,8 +1075,8 @@ def test_unverified_opening_hours_are_normalized_and_do_not_block_commit() -> No
     search = FakeSearch([search_result()])
     service = TravelPlannerService(
         CoordinatorAgent(coordinator_model(IntentAction.CREATE_TRIP)),
-        PlannerAgent(ScriptedModel(planner_handler), config),
-        ChatAgent(chat_model(), config),
+        PlannerAgent(ScriptedModel(planner_handler)),
+        ChatAgent(chat_model()),
         search=search,
         config=config,
     )
@@ -1117,7 +1117,7 @@ def test_planner_ignores_untrusted_model_sources_before_validation() -> None:
         }
         return schema.model_validate(payload)
 
-    planner = PlannerAgent(ScriptedModel(planner_handler), RuntimeConfig())
+    planner = PlannerAgent(ScriptedModel(planner_handler))
     result = planner.propose(
         intent=PlanChangeIntent(action=IntentAction.CREATE_TRIP),
         request=TripRequest(
@@ -1139,7 +1139,7 @@ def test_planner_ignores_untrusted_model_sources_before_validation() -> None:
         ],
     )
 
-    assert result.candidate.returned_sources == [
+    assert result.returned_sources == [
         SourceReference(
             source_id=trusted.source_id,
             title=trusted.title,
@@ -1149,10 +1149,9 @@ def test_planner_ignores_untrusted_model_sources_before_validation() -> None:
             supports_opening_hours=trusted.supports_opening_hours,
         )
     ]
-    assert result.candidate.returned_source_urls == {str(trusted.url)}
-    assert result.candidate.plan is not None
-    assert result.candidate.plan.entries[0].place.source_references == [
-        result.candidate.returned_sources[0]
+    assert result.returned_source_urls == {str(trusted.url)}
+    assert result.plan.entries[0].place.source_references == [
+        result.returned_sources[0]
     ]
     assert "returned_sources" not in PlannerProposal.model_json_schema()["properties"]
 
@@ -1217,8 +1216,8 @@ def test_model_failure_is_sanitized_and_preserves_plan() -> None:
     planner_llm = planner_model(plan())
     service = TravelPlannerService(
         coordinator,
-        PlannerAgent(planner_llm, config),
-        ChatAgent(chat_model(), config),
+        PlannerAgent(planner_llm),
+        ChatAgent(chat_model()),
         search=FakeSearch([search_result()]),
         config=config,
     )
@@ -1607,8 +1606,8 @@ def test_add_place_keeps_existing_sources_and_adds_live_search_source() -> None:
     search = FakeSearch([live_result])
     service = TravelPlannerService(
         CoordinatorAgent(ScriptedModel(coordinator_handler)),
-        PlannerAgent(planner_model(candidate_plan), config),
-        ChatAgent(chat_model(), config),
+        PlannerAgent(planner_model(candidate_plan)),
+        ChatAgent(chat_model()),
         search=search,
         config=config,
     )
