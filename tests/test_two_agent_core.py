@@ -14,6 +14,7 @@ from grounded_travel_planner.adapters.model import (
 from grounded_travel_planner.adapters.search import TavilyPlaceSearchProvider
 from grounded_travel_planner.agents import ChatAgent, CoordinatorAgent, PlannerAgent
 from grounded_travel_planner.config import (
+    DEFAULT_CHAT_MODEL_NAME,
     DEFAULT_LIGHTWEIGHT_MODEL_NAME,
     DEFAULT_MODEL_NAME,
     RuntimeConfig,
@@ -241,7 +242,7 @@ def service_for(
     planner_llm = planner_model(candidate_plan)
     planner_llm.model_name = DEFAULT_LIGHTWEIGHT_MODEL_NAME
     chat_llm = chat_model()
-    chat_llm.model_name = DEFAULT_LIGHTWEIGHT_MODEL_NAME
+    chat_llm.model_name = DEFAULT_CHAT_MODEL_NAME
     fake_search = search or FakeSearch([search_result()])
     config = RuntimeConfig()
     service = TravelPlannerService(
@@ -262,23 +263,23 @@ def test_runtime_roles_use_configured_models() -> None:
     assert service.coordinator.model_name == DEFAULT_MODEL_NAME
     assert service.planner.model_name == DEFAULT_LIGHTWEIGHT_MODEL_NAME
     assert service.chat.role == "chat"
-    assert service.chat.model_name == DEFAULT_LIGHTWEIGHT_MODEL_NAME
+    assert service.chat.model_name == DEFAULT_CHAT_MODEL_NAME
     assert not hasattr(service.coordinator, "propose")
     assert not hasattr(service.planner, "commit")
     assert ChatOpenAIStructuredModel().model_name == "gpt-5.5"
 
 
-def test_environment_service_assigns_lightweight_models_to_planner_and_chat() -> None:
+def test_environment_service_assigns_default_models_to_all_roles() -> None:
     config = RuntimeConfig()
 
     service = TravelPlannerService.from_environment(config)
 
     assert config.model_name == DEFAULT_MODEL_NAME
     assert config.planner_model_name == DEFAULT_LIGHTWEIGHT_MODEL_NAME
-    assert config.chat_model_name == DEFAULT_LIGHTWEIGHT_MODEL_NAME
+    assert config.chat_model_name == DEFAULT_CHAT_MODEL_NAME
     assert service.coordinator.model_name == DEFAULT_MODEL_NAME
     assert service.planner.model_name == DEFAULT_LIGHTWEIGHT_MODEL_NAME
-    assert service.chat.model_name == DEFAULT_LIGHTWEIGHT_MODEL_NAME
+    assert service.chat.model_name == DEFAULT_CHAT_MODEL_NAME
 
 
 def test_runtime_config_reads_openai_defaults_from_environment(
@@ -303,7 +304,7 @@ def test_runtime_config_reads_openai_defaults_from_environment(
     assert config.chat_model_provider == "openai"
     assert config.model_name == DEFAULT_MODEL_NAME
     assert config.planner_model_name == DEFAULT_LIGHTWEIGHT_MODEL_NAME
-    assert config.chat_model_name == DEFAULT_LIGHTWEIGHT_MODEL_NAME
+    assert config.chat_model_name == DEFAULT_CHAT_MODEL_NAME
 
 
 def test_runtime_config_reads_all_role_model_overrides(
@@ -557,7 +558,7 @@ def test_ordinary_chat_does_not_search_or_mutate_plan() -> None:
     assert response.graph_steps == 2
     assert coordinator_llm.calls == ["CoordinatorDecision"]
     assert response.metadata["chat_role"] == "chat"
-    assert response.metadata["chat_model"] == DEFAULT_LIGHTWEIGHT_MODEL_NAME
+    assert response.metadata["chat_model"] == DEFAULT_CHAT_MODEL_NAME
     assert "User message: Thanks, that looks good." in service.chat._model.prompts[0]
 
 

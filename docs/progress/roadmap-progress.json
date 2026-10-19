@@ -1,6 +1,6 @@
 {
-  "version": 39,
-  "updated": "2026-10-19T00:04:27+07:00",
+  "version": 40,
+  "updated": "2026-10-19T09:04:23+07:00",
   "active_scope": "city-place-sightseeing-webapp",
   "current_milestone": "Milestone 1: executable city/place sightseeing vertical slice",
   "completed": {
@@ -39,7 +39,9 @@
     "compose_app_native_ollama_endpoint_live": true,
     "ollama_live_smoke": true,
     "ollama_compose_profile_live": false,
-    "planner_complete_proposal_contract": true
+    "planner_complete_proposal_contract": true,
+    "api_defaults_without_local_ollama": true,
+    "container_rebuild_after_model_defaults": true
   },
   "evidence": {
     "scope_reset_docs": [
@@ -198,7 +200,7 @@
       "src/grounded_travel_planner/service.py",
       "focused role/model tests 41 passed",
       "host pytest 61 passed",
-      "gpt-5.5 Coordinator; gpt-5.4-mini Planner and Chat",
+      "gpt-5.5 Coordinator; gpt-5.4-mini Planner; gpt-4.1 Chat",
       "no new live provider run claimed"
     ],
     "coordinator_chat_routing_and_trip_extension": [
@@ -297,7 +299,25 @@
       "4 missing/null-plan regression cases",
       "82 host tests and isort/Black/flake8/Ruff passed",
       "separate rebuilt-image live qwen2.5:3b Hue plan committed: 2 entries, 1 search, 0 repairs"
+    ],
+    "api_defaults_without_local_ollama": [
+      "src/grounded_travel_planner/config.py",
+      ".env.example",
+      "README.md",
+      "docs/adr/0010-configurable-openai-ollama-model-provider.md",
+      "tests/test_two_agent_core.py: 49 focused tests passed",
+      "full host pytest: 82 passed",
+      "loaded local .env resolved openai gpt-5.5 / gpt-5.4-mini / gpt-4.1",
+      "isort, Black, flake8, Ruff, uv lock --check and git diff --check passed"
+    ],
+    "container_rebuild_after_model_defaults": [
+      "docker test target passed 82 pytest tests",
+      "runtime image and frontend production build completed",
+      "Compose app healthy on 127.0.0.1:8503",
+      "container RuntimeConfig resolved openai gpt-5.5 / gpt-5.4-mini / gpt-4.1",
+      "GET / and GET /api/graph/image returned HTTP 200",
+      "no live model request was made"
     ]
   },
-  "notes": "Milestone 1 and chat editing have offline and live evidence. OpenAI remains the global default model provider with established role defaults; optional role overrides support mixed Coordinator OpenAI and Planner/Chat Ollama routing. Native Ollama qwen2.5:3b completed structured output and sourced Hue create-trip smokes in all-local and active mixed-role configurations. The earlier qwen3:4b mixed smoke remains historical evidence. Compose separates its app endpoint from direct-host loopback: the recreated app reached native Ollama and committed fresh HTTP Hue turns, while the internal profile still needs an explicit endpoint override and remains unrun. Source-quality metrics still have a synthetic baseline and live relevance remains unmeasured. The JavaScript/Tailwind UI is the current container frontend; browser QA is pending. Planner structured output now requires a full plan; a separate rebuilt-image live Hue turn committed without restarting the session-owning app."
+  "notes": "Milestone 1 and chat editing have offline and live evidence. OpenAI remains the global default provider with Coordinator gpt-5.5, Planner gpt-5.4-mini and Chat gpt-4.1 defaults; optional per-role overrides support local Ollama without automatic provider fallback. Native Ollama qwen2.5:3b completed structured output and sourced Hue create-trip smokes in all-local and active mixed-role configurations. The earlier qwen3:4b mixed smoke remains historical evidence. Compose separates its app endpoint from direct-host loopback; the internal Ollama profile remains unrun. Source-quality metrics still have a synthetic baseline and live relevance remains unmeasured. The JavaScript/Tailwind UI is the current container frontend; browser QA is pending. Planner structured output now requires a full plan. The rebuilt Compose container reads the new API defaults; no live model request was made."
 }

@@ -16,11 +16,13 @@ Acceptance:
 - Implement a LangGraph runtime with Coordinator, Planner and Chat nodes.
 - Coordinator classifies and routes; Planner produces every candidate and owns
   all search calls; Chat writes the final response after policy validation.
-- Keep `gpt-5.5` for Coordinator and use `gpt-5.4-mini` for Planner and Chat by
-  default, with role-specific settings behind the model provider boundary.
+- Keep `gpt-5.5` for Coordinator, `gpt-5.4-mini` for Planner and `gpt-4.1` for
+  Chat by default, with role-specific settings behind the model provider
+  boundary.
 - Select `openai` or local `ollama` explicitly through `GTP_MODEL_PROVIDER`;
   load all three model names through role-specific environment variables and
-  keep each provider behind the structured-output interface.
+  keep each provider behind the structured-output interface. The default
+  `.env.example` uses OpenAI so it works without a local model server.
 - Validate input, schedule and source references before committing a candidate.
 - Preserve the previous plan when validation fails.
 
@@ -262,8 +264,9 @@ Acceptance:
   legacy global fallback. Optional role-provider variables override it for
   Coordinator, Planner and Chat; role model variables are validated before
   adapters are built.
-- OpenAI keeps the established role defaults. Ollama uses `ChatOllama` and its
-  documented LangChain structured-output method without an OpenAI fallback.
+- OpenAI defaults to `gpt-5.5` for Coordinator, `gpt-5.4-mini` for Planner and
+  `gpt-4.1` for Chat. Ollama uses `ChatOllama` and its documented LangChain
+  structured-output method without an OpenAI fallback.
 - Compose exposes an opt-in Ollama profile with persistent weights and a
   one-shot model pull initializer. No model weights are baked into the app.
 
@@ -286,14 +289,20 @@ Ollama profile remains unrun.
 Acceptance:
 
 - Keep Coordinator's `gpt-5.5` default for routing.
-- Use the lighter `gpt-5.4-mini` default for Planner and Chat.
+- Use `gpt-5.4-mini` for Planner and `gpt-4.1` for Chat when using OpenAI.
 - Keep each assignment behind `RuntimeConfig` and the typed structured-output
-  adapter, with no silent fallback.
+  adapter. Ollama remains explicitly selected; a missing local server does not
+  silently trigger an OpenAI call.
 
 Evidence: `RuntimeConfig` and `TravelPlannerService.from_environment()` wire
-the three role names independently. Focused role/model tests passed 41/41 and
-the full host suite passed 61/61; isort, Black, flake8, Ruff and `git diff
---check` passed. No new live provider run was claimed.
+the three role names independently. After the Chat default changed to
+`gpt-4.1`, 49 focused core tests and all 82 host tests passed. isort, Black,
+flake8, Ruff, `uv lock --check` and `git diff --check` passed. Loading the local
+`.env` resolved all roles to OpenAI with `gpt-5.5`, `gpt-5.4-mini` and
+`gpt-4.1`. The Docker test image passed all 82 tests; the rebuilt runtime image
+and frontend production build completed. The Compose app started healthy, read
+the same three role assignments, and returned HTTP 200 for `/` and
+`/api/graph/image`. No live model provider request was run.
 
 ## Coordinator Routing And Trip Extension — Verified Offline
 

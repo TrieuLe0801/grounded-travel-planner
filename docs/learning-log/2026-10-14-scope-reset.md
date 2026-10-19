@@ -132,6 +132,21 @@ three-role runtime and role-specific model policy.
   that smaller model. Its structured output passed inside the app container, and
   a fresh HTTP Hue request committed two entries with one search, no repair and
   no validation issues.
+- Later on 2026-10-19, the user requested API/local model selection through
+  `.env` and API defaults when no local model is serving. Per-role routing
+  already supported this. This host has no Ollama CLI or configured
+  `OLLAMA_BASE_URL`, so `.env` now selects OpenAI for all roles with
+  `gpt-5.5` Coordinator, `gpt-5.4-mini` Planner and `gpt-4.1` Chat. The copied
+  `.env.example` uses the same defaults and documents explicit local overrides.
+  No automatic provider fallback was added; selecting an unavailable local
+  model still returns a safe error rather than making an unexpected API call.
+- Loading `.env` resolved the expected three model/provider assignments without
+  a live API request. The focused suite passed 49 tests; the full host suite
+  passed 82, and all formatting/lint/lock/diff checks passed. Docker was
+  initially unavailable, then returned; the test image passed 82 tests and the
+  rebuilt Compose app became healthy. The container reads the expected model
+  assignments and both the root page and graph PNG endpoint returned HTTP 200.
+  No live model API request was made.
 
 ## Evidence
 

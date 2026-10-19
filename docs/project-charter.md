@@ -36,9 +36,11 @@ The runtime has three roles:
 `GTP_MODEL_PROVIDER` explicitly selects the global `openai` (the default) or
 `ollama` fallback. `GTP_COORDINATOR_PROVIDER`, `GTP_PLANNER_PROVIDER` and
 `GTP_CHAT_PROVIDER` optionally override that provider by role. The three model
-variables select their respective role models; OpenAI defaults remain `gpt-5.5`,
-`gpt-5.4-mini` and `gpt-5.4-mini`. The webapp keeps only session-local state.
-It does not use LangSmith traces as state storage.
+variables select their respective role models; OpenAI defaults are `gpt-5.5`
+for Coordinator, `gpt-5.4-mini` for Planner and `gpt-4.1` for Chat. The default
+`.env.example` does not require a local server. Ollama must be selected
+explicitly and does not silently fall back to OpenAI. The webapp keeps only
+session-local state. It does not use LangSmith traces as state storage.
 
 Model/search turns run as bounded background jobs so they can continue while a
 user navigates between app pages. Each session owns at most one pending turn and

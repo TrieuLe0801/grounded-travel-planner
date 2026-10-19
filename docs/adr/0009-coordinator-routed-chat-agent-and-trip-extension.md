@@ -62,3 +62,11 @@ This ADR supersedes ADR 0004 only where ADR 0004 requires exactly two runtime
 roles and assigns user-facing explanation to Coordinator. ADR 0004's Planner
 ownership, provider boundaries, validate-before-commit rules and source-policy
 amendment remain accepted.
+
+## User Amendment — 2026-10-19
+
+When using OpenAI without a local model server, Chat defaults to `gpt-4.1`;
+Coordinator remains `gpt-5.5` and Planner remains `gpt-5.4-mini`. Each role can
+still select an Ollama model through its `.env` provider and model variables.
+An explicitly selected but unavailable Ollama provider does not silently route
+the request to OpenAI.

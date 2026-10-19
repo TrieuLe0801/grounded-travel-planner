@@ -20,9 +20,11 @@ the same accepted values. Read every role model from the environment:
 and unsupported providers fail during configuration parsing.
 
 OpenAI keeps its current `ChatOpenAI` adapter and defaults: `gpt-5.5` for
-Coordinator and `gpt-5.4-mini` for Planner and Chat. Ollama uses a separate
-typed `ChatOllama` adapter with LangChain structured output, common system/human
-messages and trace metadata. It never falls back to OpenAI.
+Coordinator, `gpt-5.4-mini` for Planner, and `gpt-4.1` for Chat. This is the
+default `.env.example` configuration when no local model is being served.
+Ollama uses a separate typed `ChatOllama` adapter with LangChain structured
+output, common system/human messages and trace metadata. It never falls back to
+OpenAI.
 
 `OLLAMA_BASE_URL` continues to control an app run directly on the host; an empty
 value lets ChatOllama use its provider default. Compose uses the separate
@@ -38,6 +40,9 @@ image and Ollama does not start in the default Compose workflow.
 
 - Each runtime role uses its resolved provider and model, while preserving the
   legacy global-provider behavior when no override is set.
+- A local role is selected only by explicit environment configuration. If its
+  Ollama server is unavailable, the turn returns a safe failure instead of
+  making an unexpected OpenAI API call.
 - Tests can verify provider routing and structured calls without network access.
 - Native `qwen2.5:3b` has passed both all-local and active mixed-role
   (OpenAI `gpt-5.5` Coordinator, Ollama `qwen2.5:3b` Planner/Chat) create-trip

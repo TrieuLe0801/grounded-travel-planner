@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field, field_validator
 
 DEFAULT_MODEL_NAME = "gpt-5.5"
 DEFAULT_LIGHTWEIGHT_MODEL_NAME = "gpt-5.4-mini"
+DEFAULT_CHAT_MODEL_NAME = "gpt-4.1"
 DEFAULT_MODEL_PROVIDER = "openai"
 ModelProvider: TypeAlias = Literal["openai", "ollama"]
 
@@ -19,7 +20,7 @@ class RuntimeConfig(BaseModel):
     # can use a smaller model without changing that contract.
     model_name: str = DEFAULT_MODEL_NAME
     planner_model_name: str = DEFAULT_LIGHTWEIGHT_MODEL_NAME
-    chat_model_name: str = DEFAULT_LIGHTWEIGHT_MODEL_NAME
+    chat_model_name: str = DEFAULT_CHAT_MODEL_NAME
     # ``model_provider`` is the legacy global fallback. Per-role providers are
     # optional so existing injected RuntimeConfig instances keep their meaning.
     model_provider: ModelProvider = DEFAULT_MODEL_PROVIDER
@@ -59,7 +60,7 @@ class RuntimeConfig(BaseModel):
             planner_model_name=os.getenv(
                 "GTP_PLANNER_MODEL", DEFAULT_LIGHTWEIGHT_MODEL_NAME
             ),
-            chat_model_name=os.getenv("GTP_CHAT_MODEL", DEFAULT_LIGHTWEIGHT_MODEL_NAME),
+            chat_model_name=os.getenv("GTP_CHAT_MODEL", DEFAULT_CHAT_MODEL_NAME),
         )
 
     @property

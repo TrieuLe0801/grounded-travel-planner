@@ -28,6 +28,7 @@ background only.
 | Async page navigation | Implemented | Background Future, exact-once session integration; browser QA pending |
 | JavaScript/Tailwind UI | Implemented | React itinerary/chat/graph, FastAPI session adapter, optional credited photos; browser QA pending |
 | Configurable model provider | Passed on host and Compose app | Active mixed routing and an HTTP Compose-app Hue plan committed with OpenAI `gpt-5.5` Coordinator and Ollama `qwen2.5:3b` Planner/Chat |
+| No-local API defaults | Verified in Compose | Container resolves to OpenAI `gpt-5.5` / `gpt-5.4-mini` / `gpt-4.1`; root and graph image return HTTP 200 |
 
 Planning progress is not implementation progress. Only executable artifacts and
 actual checks count as completion evidence.
@@ -47,7 +48,8 @@ actual checks count as completion evidence.
 - Preserved ADR 0001 as the development-agent/tooling decision; Codex helper
   roles remain separate from the webapp runtime Coordinator, Planner and Chat.
 - Implemented Coordinator/Planner/Chat with role-specific model defaults:
-  Coordinator uses `gpt-5.5`, while Planner and Chat use `gpt-5.4-mini`. Typed
+  Coordinator uses `gpt-5.5`, Planner uses `gpt-5.4-mini`, and Chat uses
+  `gpt-4.1`. Typed
   provider boundaries and code-enforced graph/search/repair limits remain in
   place.
 - Implemented validate-before-commit input, schedule, opening-hours and source
@@ -167,6 +169,13 @@ actual checks count as completion evidence.
   `host.docker.internal`; its fresh HTTP API Hue smoke committed four entries
   with one search and no repair. Docker's internal Ollama profile remains
   unrun.
+- With no local Ollama server available on this machine, changed `.env` to use
+  OpenAI for all roles with the requested Planner/Chat models, and made the same
+  configuration the default in `.env.example`. Parsing `.env` and the rebuilt
+  container resolve to `gpt-5.5`, `gpt-5.4-mini` and `gpt-4.1`; the 49 focused
+  and 82 full host/Docker tests and standard quality checks passed. The rebuilt
+  Compose app is healthy and returns HTTP 200 for the root page and graph PNG.
+  No live model API request was made.
 
 ## Now
 
@@ -177,6 +186,8 @@ actual checks count as completion evidence.
    coverage and host diversity before a broad demo.
 3. Exercise additional live edit intents, especially reorder and replace, with
    separate evidence from the offline gate.
+4. Rebuild the runtime container after Docker becomes available so the new Chat
+   model default is included in the image.
 
 ## Next
 
@@ -185,8 +196,9 @@ actual checks count as completion evidence.
 ## Blockers And Risks
 
 - Live provider behavior still depends on local credentials and network access.
-- Coordinator's default runtime model is `gpt-5.5`; Planner and Chat default to
-  `gpt-5.4-mini`. There is no silent fallback. Missing or unavailable
+- Coordinator's default runtime model is `gpt-5.5`; Planner defaults to
+  `gpt-5.4-mini` and Chat to `gpt-4.1`. There is no silent provider fallback.
+  Missing or unavailable
   configuration returns a safe response and preserves the previous plan.
 - Tavily snippets can be incomplete; opening hours stay unverified unless a
   source result explicitly supports them.

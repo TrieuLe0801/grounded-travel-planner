@@ -9,11 +9,12 @@ three-week POC documents are historical background.
 - Scope-reset charter, implementation plan and ADR 0004/0009 exist.
 - Core runtime has three roles: `Coordinator`, `Planner` and `Chat`.
 - `GTP_MODEL_PROVIDER` selects the global `openai` (default) or local `ollama`
-  fallback. `GTP_COORDINATOR_PROVIDER`, `GTP_PLANNER_PROVIDER` and
-  `GTP_CHAT_PROVIDER` can override it for individual roles. `GTP_COORDINATOR_MODEL`, `GTP_PLANNER_MODEL` and
-  `GTP_CHAT_MODEL` select the three role models; OpenAI defaults remain
-  `gpt-5.5`, `gpt-5.4-mini` and `gpt-5.4-mini`.
-- Tavily, OpenAI, Ollama and LangSmith integrations sit behind typed provider adapters.
+  provider. `GTP_COORDINATOR_PROVIDER`, `GTP_PLANNER_PROVIDER` and
+  `GTP_CHAT_PROVIDER` can override it for individual roles. The three
+  `GTP_*_MODEL` settings choose model names; OpenAI defaults are `gpt-5.5`,
+  `gpt-5.4-mini` and `gpt-4.1` for Coordinator, Planner and Chat.
+- Tavily, OpenAI, Ollama and LangSmith integrations sit behind typed provider
+  adapters.
 - The current JavaScript/Tailwind interface uses a same-origin FastAPI adapter.
   The server keeps the canonical plan only in an opaque browser session. The
   Streamlit implementation remains available during migration.
@@ -143,12 +144,9 @@ Copy `.env.example` to `.env`. The provider and every role model are explicit:
 
 ```dotenv
 GTP_MODEL_PROVIDER=openai
-GTP_COORDINATOR_PROVIDER=openai
-GTP_PLANNER_PROVIDER=ollama
-GTP_CHAT_PROVIDER=ollama
 GTP_COORDINATOR_MODEL=gpt-5.5
-GTP_PLANNER_MODEL=qwen2.5:3b
-GTP_CHAT_MODEL=qwen2.5:3b
+GTP_PLANNER_MODEL=gpt-5.4-mini
+GTP_CHAT_MODEL=gpt-4.1
 ```
 
 To run local models with an Ollama process installed on the host, pull a model,
@@ -170,6 +168,14 @@ GTP_PLANNER_MODEL=qwen2.5:3b
 GTP_CHAT_MODEL=qwen2.5:3b
 OLLAMA_BASE_URL=http://127.0.0.1:11434
 ```
+
+To run Coordinator locally as well, set `GTP_COORDINATOR_PROVIDER=ollama` and
+`GTP_COORDINATOR_MODEL` to a model served by that Ollama instance. The same
+per-role provider/model pattern applies to Planner and Chat.
+
+The application uses OpenAI for all three roles when no local provider is
+selected. Choosing `ollama` requires a reachable Ollama server; it does not
+silently send that role to OpenAI.
 
 The Compose Ollama profile is opt-in and keeps weights in the named
 `ollama-models` volume. It does not start with ordinary `docker compose up`.

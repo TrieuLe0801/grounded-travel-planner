@@ -35,7 +35,7 @@
   Tavily search, and Chat response generation.</p>
 
   <div class="meta">
-    <div class="card"><strong>Model</strong><p><code>openai</code> by default; opt-in local <code>ollama</code> with role model variables</p></div>
+    <div class="card"><strong>Models</strong><p>OpenAI defaults: Coordinator <code>gpt-5.5</code>, Planner <code>gpt-5.4-mini</code>, Chat <code>gpt-4.1</code>; opt-in local <code>ollama</code> by role</p></div>
     <div class="card"><strong>State</strong><p>Session-only canonical plan</p></div>
     <div class="card"><strong>Bounds</strong><p>8 graph · 2 search · 1 repair</p></div>
   </div>
@@ -143,6 +143,9 @@
       <ul>
         <li>Global provider fallback with explicit per-role <code>openai</code>/<code>ollama</code> overrides</li>
         <li>Coordinator, Planner and Chat model environment variables</li>
+        <li>OpenAI defaults work without a local model server</li>
+        <li>Container resolves all three API role defaults</li>
+        <li>Rebuilt app and graph image return HTTP 200</li>
         <li>Typed <code>ChatOllama</code> structured output adapter</li>
         <li>Opt-in persistent Compose profile and model initializer</li>
         <li>Active mixed <code>gpt-5.5</code> / <code>qwen2.5:3b</code> Hue smoke passed</li>
