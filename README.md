@@ -6,7 +6,7 @@ three-week POC documents are historical background.
 
 ## Current progress
 
-- Scope-reset charter, implementation plan and ADR 0004/0009 exist.
+- Scope-reset charter, implementation plan and ADR 0004/0009/0011/0012 exist.
 - Core runtime has three roles: `Coordinator`, `Planner` and `Chat`.
 - `GTP_MODEL_PROVIDER` selects the global `openai` (default) or local `ollama`
   provider. `GTP_COORDINATOR_PROVIDER`, `GTP_PLANNER_PROVIDER` and
@@ -14,11 +14,19 @@ three-week POC documents are historical background.
   `GTP_*_MODEL` settings choose model names; OpenAI defaults are `gpt-5.5`,
   `gpt-5.4-mini` and `gpt-4.1` for Coordinator, Planner and Chat.
 - Tavily, OpenAI, Ollama and LangSmith integrations sit behind typed provider
-  adapters.
+  adapters. Planner and Chat route typed requests through the shared LangGraph
+  `tavily_tool`; it is the sole runtime caller of the search provider.
 - The current JavaScript/Tailwind interface uses a same-origin FastAPI adapter.
-  The server keeps the canonical plan only in an opaque browser session. The
-  Streamlit implementation remains available during migration.
+  The server keeps the canonical plan, up to 12 conversation messages and a
+  rolling summary in an opaque in-memory browser session. The Streamlit
+  implementation remains available during migration.
 - Deterministic tests use fakes and never call live services.
+- Coordinator receives a bounded recent-history slice and summarizes context;
+  Planner and Chat receive the summary instead of the raw transcript.
+- Chat can use a structured function-call decision to make one Tavily search
+  for current facts when needed. It returns citations from actual search results
+  and cannot change the plan; its search shares the two-call turn budget with
+  Planner. Search attempts appear as `tool.tavily.*` LangSmith events.
 - Chat edits are covered by nine versioned offline cases, a successful/rejected
   Streamlit AppTest sequence and a separate live create-then-remove smoke.
 - Planning turns run in a bounded background pool, remain owned by the browser
@@ -29,18 +37,22 @@ See `PROJECT_STATUS.md` for the current Done / Now / Next / Blockers view.
 ## Active product
 
 The user supplies a destination/place, concrete start date and one-to-seven-day
-duration. Coordinator classifies and delegates; Planner is the only runtime
-role that searches or proposes a plan mutation, and Chat writes the response.
+duration. Coordinator classifies, delegates and summarizes bounded session
+history. Planner is the only runtime role that proposes a plan mutation and
+searches to ground it; Chat writes the response and may search when current
+facts are needed.
 Deterministic code validates
 input, schedule overlap/range, returned-source provenance and supported opening
 hours before committing a candidate.
 
 Chat supports create, add/remove/replace/reorder, trip extension and day/time
 change intents.
-Ordinary chat does not search or mutate the plan. A rejected edit preserves the
+Ordinary chat does not search unnecessarily or mutate the plan. Planner and
+Chat share a two-call Tavily limit per turn. A rejected edit preserves the
 previous canonical plan.
 
-See `docs/project-charter.md`, `docs/implementation-plan.md` and ADR 0004/0009.
+See `docs/project-charter.md`, `docs/implementation-plan.md` and ADR
+0004/0009/0011/0012.
 
 ## Repository map
 
@@ -136,7 +148,8 @@ uv run --env-file .env streamlit run src/grounded_travel_planner/ui/streamlit_ap
 ```
 
 Automated tests do not load credentials or call live services. Live OpenAI,
-Tavily and LangSmith gates are recorded separately when executed.
+Tavily and LangSmith gates are recorded separately when executed. The bounded
+Chat search smoke is `scripts/live_chat_search_smoke.py`.
 
 ## Model provider configuration
 

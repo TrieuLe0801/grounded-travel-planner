@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field
 
 from grounded_travel_planner.contracts import (
     AgentResponse,
+    ConversationTurn,
     SightseeingPlan,
     TripRequest,
 )
@@ -44,6 +45,8 @@ class WebSession:
     current_plan: SightseeingPlan | None = None
     pending: PendingTurn | None = None
     response: AgentResponse | None = None
+    conversation: list[ConversationTurn] = field(default_factory=list)
+    session_summary: str = ""
     lock: Lock = field(default_factory=Lock)
 
 
@@ -77,6 +80,21 @@ def _response_payload(response: AgentResponse | None) -> dict[str, object] | Non
     return response.model_dump(mode="json") if response else None
 
 
+def _session_payload(
+    session: WebSession, response: AgentResponse | None
+) -> dict[str, object]:
+    return {
+        "plan": (
+            session.current_plan.model_dump(mode="json")
+            if session.current_plan
+            else None
+        ),
+        "response": _response_payload(response or session.response),
+        "pending": session.pending is not None,
+        "conversation": [turn.model_dump(mode="json") for turn in session.conversation],
+    }
+
+
 def create_app(
     service: TravelPlannerService | None = None,
     visual_service: VisualEnrichmentService | None = None,
@@ -102,6 +120,17 @@ def create_app(
         session.response = completed
         if completed.committed and completed.current_plan is not None:
             session.current_plan = completed.current_plan
+        session.conversation.append(
+            ConversationTurn(
+                role="assistant",
+                content=completed.message,
+                source_references=completed.source_references,
+            )
+        )
+        session.conversation = session.conversation[-12:]
+        session.session_summary = str(
+            completed.metadata.get("session_summary", session.session_summary)
+        )[:1200]
         return completed
 
     @app.post("/api/session", status_code=201)
@@ -115,12 +144,7 @@ def create_app(
             secure=False,
             path="/",
         )
-        return {
-            "plan": None,
-            "response": None,
-            "pending": False,
-            "thread_id": session.thread_id,
-        }
+        return {**_session_payload(session, None), "thread_id": session.thread_id}
 
     @app.post("/api/session/reset")
     def reset_session(response: Response) -> dict[str, object]:
@@ -128,12 +152,7 @@ def create_app(
         response.set_cookie(
             COOKIE_NAME, session_id, httponly=True, samesite="lax", path="/"
         )
-        return {
-            "plan": None,
-            "response": None,
-            "pending": False,
-            "thread_id": session.thread_id,
-        }
+        return {**_session_payload(session, None), "thread_id": session.thread_id}
 
     @app.get("/api/session")
     def read_session(
@@ -142,15 +161,7 @@ def create_app(
         session = current_session(gtp_session)
         with session.lock:
             completed = collect(session)
-            return {
-                "plan": (
-                    session.current_plan.model_dump(mode="json")
-                    if session.current_plan
-                    else None
-                ),
-                "response": _response_payload(completed or session.response),
-                "pending": session.pending is not None,
-            }
+            return _session_payload(session, completed)
 
     @app.post("/api/turns", status_code=202)
     def submit_turn(
@@ -164,12 +175,18 @@ def create_app(
                     status_code=409, detail="Một yêu cầu đang được xử lý."
                 )
             session.response = None
+            session.conversation.append(
+                ConversationTurn(role="user", content=payload.message)
+            )
+            session.conversation = session.conversation[-12:]
             session.pending = runner.submit(
                 planner_service,
                 thread_id=session.thread_id,
                 message=payload.message,
                 current_plan=session.current_plan,
                 request=payload.request,
+                session_summary=session.session_summary,
+                conversation_history=session.conversation[:-1],
             )
         return {"accepted": True}
 

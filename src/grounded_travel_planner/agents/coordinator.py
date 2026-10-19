@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 
 from grounded_travel_planner.contracts import (
+    ConversationTurn,
     CoordinatorDecision,
     IntentAction,
     PlanChangeIntent,
@@ -12,6 +13,7 @@ from grounded_travel_planner.contracts import (
     TripRequest,
     visible_schedule_context,
 )
+from grounded_travel_planner.conversation import history_prompt
 from grounded_travel_planner.providers import StructuredChatModel
 
 
@@ -34,6 +36,8 @@ class CoordinatorAgent:
         request: TripRequest | None,
         current_plan: SightseeingPlan | None,
         metadata: Mapping[str, str],
+        session_summary: str = "",
+        conversation_history: list[ConversationTurn] | None = None,
     ) -> CoordinatorDecision:
         prompt = (
             "Classify the user turn for a city sightseeing planner. "
@@ -49,8 +53,12 @@ class CoordinatorAgent:
             "positions in the chronological itinerary the user sees, sorted by "
             "day, start time, end time, then entry ID. When the user names a "
             "user-facing Stop N, set its internal index to N - 1 using the "
-            "current visible itinerary.\n"
+            "current visible itinerary. Return a concise rolling session_summary "
+            "of durable user constraints and the current request for the next "
+            "roles. Do not include a verbatim transcript or unsupported facts.\n"
             f"User message: {message[:4000]}\n"
+            f"Prior session summary: {session_summary[:1200]}\n"
+            f"Recent conversation: {history_prompt(conversation_history or [])}\n"
             f"Structured request supplied: {request is not None}\n"
             f"Current plan exists: {current_plan is not None}\n"
             f"Current visible itinerary: {visible_schedule_context(current_plan)}"

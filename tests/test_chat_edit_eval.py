@@ -14,6 +14,7 @@ from grounded_travel_planner.agents import ChatAgent, CoordinatorAgent, PlannerA
 from grounded_travel_planner.config import RuntimeConfig
 from grounded_travel_planner.contracts import (
     ChatResponse,
+    ChatSearchDecision,
     CoordinatorDecision,
     PlannerProposal,
     SearchResult,
@@ -58,6 +59,10 @@ class _ScriptedModel:
             )
         if schema is ChatResponse:
             return schema.model_validate({"message": "fixture explanation"})
+        if schema is ChatSearchDecision:
+            return schema.model_validate(
+                {"should_search": False, "message": "fixture explanation"}
+            )
         if schema is PlannerProposal:
             return schema.model_validate(
                 {
@@ -90,8 +95,9 @@ def _service_for(case: dict[str, Any]) -> tuple[TravelPlannerService, _FixtureSe
     return (
         TravelPlannerService(
             CoordinatorAgent(coordinator_model),
-            PlannerAgent(planner_model, search, config),
-            ChatAgent(planner_model),
+            PlannerAgent(planner_model, config),
+            ChatAgent(planner_model, config),
+            search=search,
             config=config,
         ),
         search,

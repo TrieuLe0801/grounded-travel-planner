@@ -11,11 +11,13 @@ from pydantic import ValidationError
 
 from grounded_travel_planner.contracts import (
     AgentResponse,
+    ConversationTurn,
     ResponseStatus,
     SightseeingPlan,
     TripRequest,
     visible_schedule_entries,
 )
+from grounded_travel_planner.conversation import MAX_CONVERSATION_TURNS
 from grounded_travel_planner.service import TravelPlannerService
 from grounded_travel_planner.ui.turn_runner import PendingTurn, TurnRunner
 from grounded_travel_planner.visuals import (
@@ -68,6 +70,7 @@ def _ensure_session(service: TravelPlannerService) -> None:
         st.session_state.thread_id = service.create_session()
     st.session_state.setdefault("current_plan", None)
     st.session_state.setdefault("conversation", [])
+    st.session_state.setdefault("session_summary", "")
     st.session_state.setdefault("last_response", None)
     st.session_state.setdefault("visuals_by_revision", {})
     st.session_state.setdefault("pending_turn", None)
@@ -77,6 +80,7 @@ def _reset_session(service: TravelPlannerService) -> None:
     st.session_state.thread_id = service.create_session()
     st.session_state.current_plan = None
     st.session_state.conversation = []
+    st.session_state.session_summary = ""
     st.session_state.last_response = None
     st.session_state.visuals_by_revision = {}
     st.session_state.pending_turn = None
@@ -86,14 +90,26 @@ def _record_submitted_turn(user_message: str) -> None:
     """Show submitted text at once while its bounded worker is running."""
 
     st.session_state.conversation.append({"role": "user", "content": user_message})
+    st.session_state.conversation = st.session_state.conversation[
+        -MAX_CONVERSATION_TURNS:
+    ]
 
 
 def _record_completed_turn(response: AgentResponse) -> None:
     """Commit a worker result once it has returned to the UI session."""
 
-    st.session_state.conversation.append(
-        {"role": "assistant", "content": response.message}
-    )
+    assistant_turn: dict[str, object] = {
+        "role": "assistant",
+        "content": response.message,
+    }
+    if response.source_references:
+        assistant_turn["source_references"] = [
+            source.model_dump(mode="json") for source in response.source_references
+        ]
+    st.session_state.conversation.append(assistant_turn)
+    st.session_state.conversation = st.session_state.conversation[
+        -MAX_CONVERSATION_TURNS:
+    ]
     if (
         response.status is ResponseStatus.COMMITTED
         and response.current_plan is not None
@@ -101,6 +117,9 @@ def _record_completed_turn(response: AgentResponse) -> None:
         st.session_state.current_plan = response.current_plan
         st.session_state.visuals_by_revision = {}
     st.session_state.last_response = response
+    st.session_state.session_summary = str(
+        response.metadata.get("session_summary", st.session_state.session_summary)
+    )[:1200]
 
 
 def _submit_turn(
@@ -120,6 +139,10 @@ def _submit_turn(
         message=message,
         current_plan=st.session_state.current_plan,
         request=request,
+        session_summary=st.session_state.session_summary,
+        conversation_history=[
+            ConversationTurn(**turn) for turn in st.session_state.conversation[-12:]
+        ],
     )
     _record_submitted_turn(message)
 
@@ -344,6 +367,8 @@ def main(
         for turn in st.session_state.conversation:
             with st.chat_message(turn["role"]):
                 st.write(turn["content"])
+                for source in turn.get("source_references", []):
+                    st.link_button(source["title"], source["url"])
 
     user_message = st.chat_input(
         "Nhắn tin hoặc yêu cầu thay đổi lịch trình", disabled=turn_pending

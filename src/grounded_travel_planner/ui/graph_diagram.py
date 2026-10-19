@@ -37,25 +37,25 @@ _NODE_TEXT = {
         "Phân loại yêu cầu và quyết định có cần Planner",
         "agent",
     ),
-    "validate_input": (
-        "Kiểm tra đầu vào",
-        "Kiểm tra điểm đến, ngày bắt đầu và số ngày",
+    "planner_prepare": (
+        "Planner yêu cầu tool",
+        "Tạo yêu cầu Tavily có giới hạn cho Planner khi cần",
+        "agent",
+    ),
+    "tavily_tool": (
+        "Tavily tool",
+        "Một node chung tìm kiếm cho Planner và Chat",
         "validation",
     ),
     "planner_delegate": (
         "Planner",
-        "Tìm kiếm Tavily và đề xuất lịch trình ứng viên",
+        "Nhận nguồn từ tool và đề xuất lịch trình ứng viên",
         "agent",
     ),
     "validate_candidate": (
         "Kiểm tra ứng viên",
         "Kiểm tra lịch, nguồn và thay đổi được yêu cầu",
         "validation",
-    ),
-    "prepare_repair": (
-        "Chuẩn bị sửa",
-        "Giới hạn một lượt sửa rồi gửi lại Planner",
-        "repair",
     ),
     "chat_respond": (
         "Chat",
@@ -68,12 +68,12 @@ _NODE_TEXT = {
 _POSITIONS = {
     START_NODE: (90, 300),
     "coordinator_route": (275, 300),
-    "validate_input": (510, 145),
-    "planner_delegate": (760, 145),
-    "validate_candidate": (1010, 145),
-    "prepare_repair": (1010, 455),
-    "chat_respond": (1245, 300),
-    END_NODE: (1415, 300),
+    "planner_prepare": (510, 145),
+    "tavily_tool": (750, 145),
+    "planner_delegate": (990, 145),
+    "validate_candidate": (1230, 145),
+    "chat_respond": (1230, 370),
+    END_NODE: (1415, 370),
 }
 
 _COLORS = {
@@ -138,8 +138,10 @@ def _edge_path(
 def _edge_label(edge: DiagramEdge) -> str:
     if edge.conditional:
         return "nhánh điều kiện"
-    if edge.source == "prepare_repair" and edge.target == "planner_delegate":
-        return "sửa lại"
+    if edge.target == "tavily_tool":
+        return "gọi tool"
+    if edge.source == "tavily_tool":
+        return "trả nguồn"
     return "luồng xử lý"
 
 

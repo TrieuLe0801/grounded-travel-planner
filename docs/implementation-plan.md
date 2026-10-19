@@ -1,7 +1,7 @@
 # Implementation Plan
 
 Status: Active
-Last updated: 2026-10-18
+Last updated: 2026-10-19
 
 ## Phase 1A - Core Runtime — Implemented
 
@@ -14,8 +14,12 @@ Acceptance:
 - Add Tavily search adapter that returns normalized URLs only.
 - Add LangSmith trace sink that propagates one `thread_id`.
 - Implement a LangGraph runtime with Coordinator, Planner and Chat nodes.
-- Coordinator classifies and routes; Planner produces every candidate and owns
-  all search calls; Chat writes the final response after policy validation.
+- Coordinator classifies, routes, reads bounded recent history and summarizes
+  session context. Planner produces every candidate and emits typed requests
+  for grounded search. Chat writes the final response after policy validation
+  and may request one bounded Tavily search for current facts. Both roles route
+  through the shared `tavily_tool` graph node, the only runtime caller of the
+  typed search provider.
 - Keep `gpt-5.5` for Coordinator, `gpt-5.4-mini` for Planner and `gpt-4.1` for
   Chat by default, with role-specific settings behind the model provider
   boundary.
@@ -25,6 +29,12 @@ Acceptance:
   `.env.example` uses OpenAI so it works without a local model server.
 - Validate input, schedule and source references before committing a candidate.
 - Preserve the previous plan when validation fails.
+- Keep session-only conversation history (maximum 12 messages) and a rolling
+  1,200-character summary. Coordinator sees at most eight recent 600-character
+  turns; Planner and Chat receive the bounded summary rather than the transcript.
+- Share a maximum of two Tavily calls per turn across Planner and Chat. Chat
+  citations come only from provider-returned sources and never enter plan
+  validation or mutation.
 
 Checks:
 
@@ -193,7 +203,8 @@ they do not describe the current UI.
 
 - Show a separate Streamlit page using the PNG returned by
   `TravelPlannerService.get_graph_image()`, including START/END, Coordinator,
-  Planner, validators and repair. Retain an SVG fallback for render outages.
+  Planner, the shared `tavily_tool`, validators and repair. Retain an SVG
+  fallback for render outages.
 - Expose the actual node and edge list, and distinguish conditional branches.
 - Opening this page does not call live providers, invoke a graph turn, or change
   the canonical session plan.
@@ -351,3 +362,50 @@ bubbles with role labels, status and validation details. `npm run check` and
 The interface uses a light blue and navy visual system across the page shell,
 forms, itinerary cards, graph panel and chat widget. Frontend typecheck/build
 passed; the browser surface was unavailable for live visual inspection.
+
+## Session Context And Chat Research — Verified
+
+Acceptance:
+
+- Restore the active session's bounded user/assistant transcript from the API
+  after page navigation or refresh; reset creates a clean session.
+- Give Coordinator the previous rolling summary and a bounded recent-history
+  slice. Give Planner and Chat the resulting concise summary plus task-specific
+  context, not an unbounded raw transcript.
+- Let Chat use a structured function-call decision to request at most one Tavily
+  search when current facts are needed and the shared per-turn budget permits.
+- Keep search results and citations out of plan candidates; emit redacted
+  start/success/failure trace events with the session `thread_id`.
+- Preserve a maximum of 8 graph steps, 2 combined Planner/Chat search calls and
+  1 repair attempt. Never claim current facts verified when Tavily returned no
+  usable source.
+
+ADR 0011 records this amendment to the role/context and search ownership in
+ADR 0009. The first direct-call iteration passed 88 host tests and recorded one
+live Chat search with five sources and `chat.search.*` LangSmith events. ADR
+0012 supersedes its provider-call mechanism with a shared graph node; current
+tool-node evidence is recorded below. The original smoke is preserved in
+`docs/experiments/2026-10-19-live-chat-search-smoke.md`.
+
+## Shared LangGraph Tavily Tool Node — Verified
+
+Acceptance:
+
+- Planner and Chat emit typed search requests; neither agent invokes the
+  provider directly.
+- One `tavily_tool` graph node validates requests, owns provider invocation,
+  increments the shared two-call budget before attempts, and returns normalized
+  sources only to the requester.
+- Trace redacted `tool.tavily.start/success/failure` events with the requester
+  and same session `thread_id`.
+- Keep the graph within 8 node executions and 1 repair; skip Chat search if the
+  remaining graph steps cannot fit a search and response.
+
+On 2026-10-19, 89 host tests passed, including tool ownership/routing,
+provider-failure accounting, source isolation, repair and graph-step bounds.
+The live smoke made one Chat search, received five Tavily sources and found
+`tool.tavily.start/success` LangSmith events with the same `thread_id`. The
+Docker app image rebuilt and ran healthy; `/` and `/api/graph/image` returned
+HTTP 200. See ADR 0012 and
+`docs/experiments/2026-10-19-live-shared-tool-node-smoke.md`. One smoke verifies
+the integration path, not broad answer accuracy or source quality.

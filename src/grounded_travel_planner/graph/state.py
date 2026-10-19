@@ -2,13 +2,19 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from typing_extensions import NotRequired, TypedDict
 
 from grounded_travel_planner.contracts import (
     AgentResponse,
+    ChatSearchDecision,
+    ConversationTurn,
     CoordinatorDecision,
     PlanCandidate,
     SightseeingPlan,
+    SourceReference,
+    TavilyToolRequest,
     TripRequest,
     ValidationIssue,
 )
@@ -20,6 +26,8 @@ class PlannerState(TypedDict):
     message: str
     request: TripRequest | None
     current_plan: SightseeingPlan | None
+    session_summary: str
+    conversation_history: list[ConversationTurn]
     graph_steps: int
     search_calls: int
     repair_attempts: int
@@ -30,4 +38,10 @@ class PlannerState(TypedDict):
     repair_issues: NotRequired[list[ValidationIssue]]
     response_hint: NotRequired[str]
     effective_request: NotRequired[TripRequest | None]
+    search_request: NotRequired[TavilyToolRequest | None]
+    last_search_owner: NotRequired[Literal["planner", "chat"] | None]
+    planner_search_sources: NotRequired[list[SourceReference]]
+    chat_search_sources: NotRequired[list[SourceReference]]
+    chat_search_failed: NotRequired[bool]
+    chat_decision: NotRequired[ChatSearchDecision | None]
     response: NotRequired[AgentResponse]

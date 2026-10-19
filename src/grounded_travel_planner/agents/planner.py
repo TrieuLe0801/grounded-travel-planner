@@ -1,4 +1,4 @@
-"""Planner agent; the only runtime role allowed to search or propose plans."""
+"""Planner agent; it proposes grounded candidates from graph-provided sources."""
 
 from __future__ import annotations
 
@@ -11,14 +11,14 @@ from grounded_travel_planner.contracts import (
     PlanCandidate,
     PlanChangeIntent,
     PlannerProposal,
-    SearchResult,
     SightseeingPlan,
     SourceReference,
+    TavilyToolRequest,
     TripRequest,
     ValidationIssue,
     visible_schedule_context,
 )
-from grounded_travel_planner.providers import PlaceSearchProvider, StructuredChatModel
+from grounded_travel_planner.providers import StructuredChatModel
 from utils.ids import new_id
 
 _SEARCH_ACTIONS = {
@@ -32,7 +32,6 @@ _SEARCH_ACTIONS = {
 @dataclass(frozen=True)
 class PlannerResult:
     candidate: PlanCandidate
-    search_calls: int
 
 
 class PlannerAgent:
@@ -43,11 +42,9 @@ class PlannerAgent:
     def __init__(
         self,
         model: StructuredChatModel,
-        search: PlaceSearchProvider,
         config: RuntimeConfig,
     ) -> None:
         self._model = model
-        self._search = search
         self._config = config
 
     @property
@@ -68,35 +65,23 @@ class PlannerAgent:
         intent: PlanChangeIntent,
         request: TripRequest,
         current_plan: SightseeingPlan | None,
-        thread_id: str,
         metadata: Mapping[str, str],
+        session_summary: str = "",
         repair_issues: list[ValidationIssue] | None = None,
         retained_sources: list[SourceReference] | None = None,
     ) -> PlannerResult:
-        search_calls = 0
-        query = self._search_query(intent, request)
-        sources = list(retained_sources or [])
-        if not sources and current_plan is not None:
-            sources = self._sources_from_plan(current_plan)
-        if self.requires_search(intent, is_repair=bool(repair_issues)):
-            if self._config.search_call_limit < 1:
-                raise RuntimeError("Search call limit prevents grounded research")
-            search_results = self._search.search_places(
-                query,
-                max_results=8,
-                thread_id=thread_id,
-            )
-            search_calls = 1
-            new_sources = [self._to_source(item, query) for item in search_results]
-            combined = {str(source.url).rstrip("/"): source for source in sources}
-            for source in new_sources:
-                combined.setdefault(str(source.url).rstrip("/"), source)
-            sources = list(combined.values())
-
+        sources = self._sources_from_plan(current_plan) if current_plan else []
+        for source in retained_sources or []:
+            if all(
+                str(source.url).rstrip("/") != str(item.url).rstrip("/")
+                for item in sources
+            ):
+                sources.append(source)
         prompt = self._proposal_prompt(
             intent=intent,
             request=request,
             current_plan=current_plan,
+            session_summary=session_summary,
             sources=sources,
             repair_issues=repair_issues or [],
         )
@@ -111,20 +96,21 @@ class PlannerAgent:
             current_plan=current_plan,
             sources=sources,
         )
-        return PlannerResult(candidate=candidate, search_calls=search_calls)
+        return PlannerResult(candidate=candidate)
 
-    def _search_query(self, intent: PlanChangeIntent, request: TripRequest) -> str:
+    def search_query(self, intent: PlanChangeIntent, request: TripRequest) -> str:
         place = intent.replacement_place_name or intent.place_name or "attractions"
         return f"{place} {request.destination} sightseeing official visitor information"
 
-    def _to_source(self, result: SearchResult, query: str) -> SourceReference:
-        return SourceReference(
-            source_id=result.source_id,
-            title=result.title,
-            url=result.url,
-            snippet=result.snippet,
-            retrieval_query=query,
-            supports_opening_hours=result.supports_opening_hours,
+    def tool_request(
+        self, intent: PlanChangeIntent, request: TripRequest
+    ) -> TavilyToolRequest | None:
+        """Request grounded research; the graph tool node performs the call."""
+
+        if not self.requires_search(intent):
+            return None
+        return TavilyToolRequest(
+            owner="planner", query=self.search_query(intent, request), max_results=8
         )
 
     def _sources_from_plan(self, plan: SightseeingPlan) -> list[SourceReference]:
@@ -140,6 +126,7 @@ class PlannerAgent:
         intent: PlanChangeIntent,
         request: TripRequest,
         current_plan: SightseeingPlan | None,
+        session_summary: str,
         sources: list[SourceReference],
         repair_issues: list[ValidationIssue],
     ) -> str:
@@ -172,6 +159,7 @@ class PlannerAgent:
             "grounded entry in the newly added day range.\n"
             f"Request: {request.model_dump_json()}\n"
             f"Intent: {intent.model_dump_json()}\n"
+            f"Coordinator handoff summary: {session_summary[:1200]}\n"
             f"Current plan: {current_payload}\n"
             f"Current visible itinerary: {visible_schedule_context(current_plan)}\n"
             f"Returned sources: {source_payload}\n"

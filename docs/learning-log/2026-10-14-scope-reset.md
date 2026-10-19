@@ -246,3 +246,42 @@ three-role runtime and role-specific model policy.
   plan-exists flag. Passing the typed candidate only after commit and retaining
   the prior plan on rejection keeps response generation aligned with commit
   semantics without adding graph steps.
+
+## User Decision — Bounded Session Context And Chat Search — 2026-10-19
+
+- The user asked Chat to call Tavily through a bounded structured function-call
+  decision when current information is needed. Planner remains the only role
+  that proposes plan changes; the shared per-turn cap stays at two calls.
+- Keep the active transcript in the existing session only (12 messages max).
+  Coordinator reads at most eight recent messages, capped at 600 characters
+  each, with a rolling 1,200-character summary. Planner and Chat receive that
+  summary and task-specific context, not the raw transcript.
+- Return actual Chat search citations in the assistant transcript. Search
+  results do not enter the candidate plan or validation state. If there are no
+  usable sources, Chat must say the current fact was not verified.
+- Record redacted Tavily start/success/failure events with the same session
+  `thread_id`; do not include user transcript, query or credential data.
+- The offline tests cover the no-search, search, failure, citation, shared
+  budget, bounded handoff, API hydration, reset and session-isolation paths.
+  The first direct-call iteration had a live factual Chat request that made one
+  Tavily call, returned five sources and produced `chat.search.*` LangSmith
+  events with a matching `thread_id`. ADR 0012 later replaced that direct-call
+  path with the shared graph node and `tool.tavily.*` events. The original smoke
+  is preserved at `docs/experiments/2026-10-19-live-chat-search-smoke.md`.
+
+## User Decision — Shared Tavily Graph Tool Node — 2026-10-19
+
+- The user requested a graph tool node shared by Planner and Chat. Both roles
+  now emit bounded `TavilyToolRequest`s; the single `tavily_tool` node owns all
+  provider calls, increments the shared call budget before attempting search,
+  and returns normalized sources only to the requesting role.
+- LangSmith events use `tool.tavily.start/success/failure` with requester,
+  count and session `thread_id`; event payloads omit query and conversation
+  content.
+- Keep the 8-node graph limit and one repair. Coordinator now performs
+  deterministic input checks in its route node; candidate validation invokes
+  at most one Planner repair. Chat skips search when there is no remaining room
+  for the tool node and final response.
+- Offline tests and one live request verified owner routing, failure/count
+  behavior, plan isolation, and the new trace names. See ADR 0012 and
+  `docs/experiments/2026-10-19-live-shared-tool-node-smoke.md`.

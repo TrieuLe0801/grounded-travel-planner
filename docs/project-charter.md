@@ -1,7 +1,7 @@
 # Project Charter
 
 Status: Active
-Last updated: 2026-10-18
+Last updated: 2026-10-19
 
 ## Product
 
@@ -27,11 +27,17 @@ migration; the Coordinator/Planner/Chat runtime and validation rules are shared.
 
 The runtime has three roles:
 
-- Coordinator: classifies the request and selects the graph route.
-- Planner: proposes every plan change and calls Tavily search through a typed
-  provider interface.
+- Coordinator: classifies the request, reads bounded recent session history
+  and produces a short handoff summary for downstream roles.
+- Planner: proposes every plan change and emits a typed search request when
+  grounded plan recommendations need Tavily research.
 - Chat: writes the final Vietnamese response after deterministic policy nodes
-  decide whether a candidate can be committed.
+  decide whether a candidate can be committed. When current facts are needed
+  and search budget remains, Chat may request one Tavily search and cite only
+  provider-returned sources; it never proposes or mutates the plan.
+- `tavily_tool`: one shared LangGraph node executes typed search requests from
+  Planner or Chat. It is the only runtime node that calls the search provider,
+  and returns sources only to the requesting role.
 
 `GTP_MODEL_PROVIDER` explicitly selects the global `openai` (the default) or
 `ollama` fallback. `GTP_COORDINATOR_PROVIDER`, `GTP_PLANNER_PROVIDER` and
@@ -41,6 +47,14 @@ for Coordinator, `gpt-5.4-mini` for Planner and `gpt-4.1` for Chat. The default
 `.env.example` does not require a local server. Ollama must be selected
 explicitly and does not silently fall back to OpenAI. The webapp keeps only
 session-local state. It does not use LangSmith traces as state storage.
+
+The webapp keeps the canonical plan, at most 12 conversation messages and a
+rolling summary of at most 1,200 characters in session-only state. Coordinator
+prompts receive at most eight recent messages of 600 characters each plus the
+summary. Planner and Chat receive the summary and task-specific plan context,
+not the raw transcript. Reloading the JavaScript page rehydrates the transcript
+from the same in-memory session; reset creates a new isolated session. The app
+does not use LangSmith traces as state storage.
 
 Model/search turns run as bounded background jobs so they can continue while a
 user navigates between app pages. Each session owns at most one pending turn and
@@ -61,7 +75,9 @@ integrates its result exactly once when the chat page polls or is reopened.
 - Do not mutate the canonical plan from a background worker. Integrate a
   completed result only in its originating UI session.
 - Ordinary chat should not mutate the plan or perform unnecessary search.
-- Bound every turn to 8 graph steps, 2 search calls and 1 repair attempt.
+- Bound every turn to 8 graph steps, 2 shared Planner/Chat Tavily calls and 1
+  repair attempt. Chat skips search when the remaining graph steps cannot fit
+  the tool node and its final response.
 - Keep provider secrets out of model prompts, traces, logs and tracked files.
 - Visual enrichment never changes or blocks the validated current plan. Do not
   invent photos; show image creator, license and source-page credit.

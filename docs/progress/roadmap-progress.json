@@ -1,6 +1,6 @@
 {
-  "version": 40,
-  "updated": "2026-10-19T09:04:23+07:00",
+  "version": 42,
+  "updated": "2026-10-19T12:34:07+07:00",
   "active_scope": "city-place-sightseeing-webapp",
   "current_milestone": "Milestone 1: executable city/place sightseeing vertical slice",
   "completed": {
@@ -41,7 +41,9 @@
     "ollama_compose_profile_live": false,
     "planner_complete_proposal_contract": true,
     "api_defaults_without_local_ollama": true,
-    "container_rebuild_after_model_defaults": true
+    "container_rebuild_after_model_defaults": true,
+    "chat_search_bounded_session_context": true,
+    "shared_tavily_tool_node": true
   },
   "evidence": {
     "scope_reset_docs": [
@@ -317,7 +319,45 @@
       "container RuntimeConfig resolved openai gpt-5.5 / gpt-5.4-mini / gpt-4.1",
       "GET / and GET /api/graph/image returned HTTP 200",
       "no live model request was made"
+    ],
+    "chat_search_bounded_session_context": [
+      "README.md",
+      "PROJECT_STATUS.md",
+      "docs/project-charter.md",
+      "docs/implementation-plan.md",
+      "docs/adr/0011-bounded-session-context-and-chat-search.md",
+      "src/grounded_travel_planner/conversation.py",
+      "src/grounded_travel_planner/agents/chat.py",
+      "src/grounded_travel_planner/graph/nodes.py",
+      "src/grounded_travel_planner/ui/streamlit_app.py",
+      "src/grounded_travel_planner/web/api.py",
+      "frontend/src/main.tsx",
+      "tests/test_chat_context.py",
+      "scripts/live_chat_search_smoke.py",
+      "88 host tests passed",
+      "frontend npm run check and npm run build passed",
+      "one live Chat Tavily call returned five sources",
+      "LangSmith chat.search.start/success events matched the same thread_id",
+      "Compose app rebuilt and healthy; root and graph PNG returned HTTP 200",
+      "docs/experiments/2026-10-19-live-chat-search-smoke.md"
+    ],
+    "shared_tavily_tool_node": [
+      "docs/adr/0012-shared-tavily-tool-node.md",
+      "src/grounded_travel_planner/contracts.py#TavilyToolRequest",
+      "src/grounded_travel_planner/graph/nodes.py#tavily_tool",
+      "src/grounded_travel_planner/graph/workflow.py",
+      "tests/test_chat_context.py",
+      "tests/test_graph_diagram.py",
+      "tests/test_two_agent_core.py",
+      "67 focused tests passed; 89 full host tests passed",
+      "isort, Black, flake8, Ruff and uv lock --check passed",
+      "frontend npm run check and npm run build passed",
+      "one live Chat tool call returned five sources",
+      "LangSmith tool.tavily.start/success events had matching thread_id",
+      "Compose app rebuilt and healthy; root and graph PNG returned HTTP 200",
+      "GET /api/graph returned SVG containing the Tavily node label",
+      "docs/experiments/2026-10-19-live-shared-tool-node-smoke.md"
     ]
   },
-  "notes": "Milestone 1 and chat editing have offline and live evidence. OpenAI remains the global default provider with Coordinator gpt-5.5, Planner gpt-5.4-mini and Chat gpt-4.1 defaults; optional per-role overrides support local Ollama without automatic provider fallback. Native Ollama qwen2.5:3b completed structured output and sourced Hue create-trip smokes in all-local and active mixed-role configurations. The earlier qwen3:4b mixed smoke remains historical evidence. Compose separates its app endpoint from direct-host loopback; the internal Ollama profile remains unrun. Source-quality metrics still have a synthetic baseline and live relevance remains unmeasured. The JavaScript/Tailwind UI is the current container frontend; browser QA is pending. Planner structured output now requires a full plan. The rebuilt Compose container reads the new API defaults; no live model request was made."
+  "notes": "Milestone 1 and chat editing have offline and live evidence. OpenAI remains the global default provider with Coordinator gpt-5.5, Planner gpt-5.4-mini and Chat gpt-4.1 defaults; optional per-role overrides support local Ollama without automatic provider fallback. Native Ollama qwen2.5:3b completed structured output and sourced Hue create-trip smokes in all-local and active mixed-role configurations. The earlier qwen3:4b mixed smoke remains historical evidence. Compose separates its app endpoint from direct-host loopback; the internal Ollama profile remains unrun. Source-quality metrics still have a synthetic baseline and live relevance remains unmeasured. The JavaScript/Tailwind UI is the current container frontend; browser QA is pending. Planner structured output now requires a full plan. Planner and Chat requests execute through one shared Tavily graph node with a two-call turn cap; one live Chat call returned five sources and matching tool events. Broad answer quality remains unmeasured."
 }

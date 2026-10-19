@@ -70,3 +70,13 @@ Coordinator remains `gpt-5.5` and Planner remains `gpt-5.4-mini`. Each role can
 still select an Ollama model through its `.env` provider and model variables.
 An explicitly selected but unavailable Ollama provider does not silently route
 the request to OpenAI.
+
+## User Amendment — 2026-10-19 (superseded in part by ADR 0011)
+
+The user authorized Chat to request Tavily search when current facts are needed.
+The original Planner-only search statement is superseded only for this bounded
+Chat use: Planner remains the only role that proposes plan changes and searches
+to ground those proposals. Chat search supports its response only, does not
+change plan state, and shares the per-turn limit of two calls. ADR 0011 defines
+the session-history and Coordinator-summary handoff; ADR 0012 defines the
+shared graph tool node that executes both roles' search requests.

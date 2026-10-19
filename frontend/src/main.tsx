@@ -73,12 +73,18 @@ type ChatMessage = {
   content: string;
   issues?: string[];
   status?: string;
+  source_references?: Source[];
 };
 type ApiState = {
   plan: Plan | null;
   pending: boolean;
   response: TurnResponse | null;
   visuals_by_entry?: Record<string, Visual>;
+  conversation: {
+    role: "user" | "assistant";
+    content: string;
+    source_references?: Source[];
+  }[];
 };
 type View = "itinerary" | "graph";
 const today = (() => {
@@ -412,7 +418,8 @@ function ChatBubble({
   content,
   issues = [],
   status,
-}: Pick<ChatMessage, "role" | "content" | "issues" | "status">) {
+  source_references = [],
+}: Pick<ChatMessage, "role" | "content" | "issues" | "status" | "source_references">) {
   const agent = role === "agent";
   const statusLabel =
     status === "committed"
@@ -457,6 +464,22 @@ function ChatBubble({
               ))}
             </ul>
           )}
+          {source_references.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 border-t border-slate-300 pt-2 text-xs">
+              {source_references.map((source) => (
+                <a
+                  key={source.url}
+                  href={source.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 font-semibold text-accent hover:underline"
+                >
+                  {source.title}
+                  <ExternalLink size={12} />
+                </a>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -474,7 +497,6 @@ function ChatWidget({
   submitting,
   requestError,
   onSend,
-  resetToken,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -486,38 +508,14 @@ function ChatWidget({
   submitting: boolean;
   requestError: string;
   onSend: (message: string) => Promise<boolean>;
-  resetToken: number;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const lastResponseKeyRef = useRef("");
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-
-  useEffect(() => {
-    const response = state.response;
-    if (!response) return;
-    const responseKey = [
-      response.status,
-      response.message,
-      response.validation_issues.map((issue) => issue.code).join(","),
-    ].join("|");
-    if (responseKey === lastResponseKeyRef.current) return;
-    lastResponseKeyRef.current = responseKey;
-    setMessages((current) => [
-      ...current,
-      {
-        id: `agent-${Date.now()}`,
-        role: "agent",
-        content: response.message,
-        issues: response.validation_issues.map((issue) => issue.message),
-        status: response.status,
-      },
-    ]);
-  }, [state.response]);
-
-  useEffect(() => {
-    setMessages([]);
-    lastResponseKeyRef.current = "";
-  }, [resetToken]);
+  const messages: ChatMessage[] = state.conversation.map((turn, index) => ({
+    id: `session-${index}-${turn.role}`,
+    role: turn.role === "assistant" ? "agent" : "user",
+    content: turn.content,
+    source_references: turn.source_references,
+  }));
 
   useEffect(() => {
     if (!open) return;
@@ -543,11 +541,6 @@ function ChatWidget({
     }
     setErrors((current) => ({ ...current, chat: "" }));
     const sent = message.trim();
-    lastResponseKeyRef.current = "";
-    setMessages((current) => [
-      ...current,
-      { id: `user-${Date.now()}`, role: "user", content: sent },
-    ]);
     void onSend(sent).then((accepted) => {
       if (accepted) setMessage((current) => (current === sent ? "" : current));
     });
@@ -696,6 +689,7 @@ function App() {
     plan: null,
     pending: false,
     response: null,
+    conversation: [],
   });
   const [destination, setDestination] = useState("");
   const [startDate, setStartDate] = useState(today);
@@ -708,7 +702,6 @@ function App() {
   const [visualsLoading, setVisualsLoading] = useState(false);
   const [view, setView] = useState<View>("itinerary");
   const [chatOpen, setChatOpen] = useState(false);
-  const [chatResetToken, setChatResetToken] = useState(0);
   const [graphSvg, setGraphSvg] = useState("");
   const [graphImageLoading, setGraphImageLoading] = useState(true);
   const [graphImageUnavailable, setGraphImageUnavailable] = useState(false);
@@ -825,7 +818,6 @@ function App() {
       await api<ApiState>("/api/session/reset", { method: "POST" });
       setMessage("");
       setVisuals({});
-      setChatResetToken((current) => current + 1);
       await load();
     } catch (error) {
       setRequestError(
@@ -1031,7 +1023,6 @@ function App() {
         submitting={submitting}
         requestError={requestError}
         onSend={(sent) => submit({ message: sent })}
-        resetToken={chatResetToken}
       />
       <footer className="mx-auto flex max-w-7xl flex-wrap gap-4 px-4 py-8 text-sm text-slate-500 sm:px-6">
         <span className="inline-flex items-center gap-1">

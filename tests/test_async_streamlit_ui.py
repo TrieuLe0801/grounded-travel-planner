@@ -139,3 +139,25 @@ def test_pending_turn_survives_rerun_and_integrates_once() -> None:
         "content": "Đã hoàn tất lịch trình nền.",
     }
     assert "Đã hoàn tất lịch trình nền." in _page_text(app)
+
+
+def test_streamlit_conversation_keeps_only_twelve_messages() -> None:
+    GATED_SERVICE.reset()
+    GATED_SERVICE.release.set()
+    app = AppTest.from_file(APP_PATH).run(timeout=10)
+    app.session_state.conversation = [
+        {"role": "user", "content": f"old-{index}"} for index in range(12)
+    ]
+
+    app.chat_input[0].set_value("new turn").run(timeout=10)
+    pending = app.session_state.pending_turn
+    if pending is not None:
+        pending.future.result(timeout=10)
+        app.run(timeout=10)
+
+    assert len(app.session_state.conversation) == 12
+    assert app.session_state.conversation[-2] == {
+        "role": "user",
+        "content": "new turn",
+    }
+    assert app.session_state.conversation[-1]["role"] == "assistant"

@@ -8,11 +8,13 @@ from uuid import uuid4
 
 from grounded_travel_planner.contracts import (
     AgentResponse,
+    ConversationTurn,
     ResponseStatus,
     SightseeingPlan,
     TripRequest,
     ValidationIssue,
 )
+from grounded_travel_planner.conversation import bounded_history, bounded_summary
 from grounded_travel_planner.service import TravelPlannerService
 
 
@@ -25,6 +27,8 @@ class PendingTurn:
     message: str
     current_plan: SightseeingPlan | None
     request: TripRequest | None
+    session_summary: str
+    conversation_history: list[ConversationTurn]
     future: Future[AgentResponse]
 
 
@@ -45,6 +49,8 @@ class TurnRunner:
         message: str,
         current_plan: SightseeingPlan | None,
         request: TripRequest | None = None,
+        session_summary: str = "",
+        conversation_history: list[ConversationTurn] | None = None,
     ) -> PendingTurn:
         """Capture a turn before scheduling it on the shared bounded executor."""
 
@@ -52,6 +58,8 @@ class TurnRunner:
         captured_request = request.model_copy(deep=True) if request else None
         captured_thread_id = str(thread_id)
         captured_message = str(message)
+        captured_summary = bounded_summary(session_summary)
+        captured_history = bounded_history(conversation_history or [])
         future = self._executor.submit(
             self._run_turn,
             service,
@@ -59,6 +67,8 @@ class TurnRunner:
             captured_message,
             captured_plan,
             captured_request,
+            captured_summary,
+            captured_history,
         )
         return PendingTurn(
             token=uuid4().hex,
@@ -66,6 +76,8 @@ class TurnRunner:
             message=captured_message,
             current_plan=captured_plan,
             request=captured_request,
+            session_summary=captured_summary,
+            conversation_history=captured_history,
             future=future,
         )
 
@@ -87,6 +99,8 @@ class TurnRunner:
         message: str,
         current_plan: SightseeingPlan | None,
         request: TripRequest | None,
+        session_summary: str,
+        conversation_history: list[ConversationTurn],
     ) -> AgentResponse:
         """Invoke the service from a worker with captured data only."""
 
@@ -96,6 +110,8 @@ class TurnRunner:
                 message=message,
                 current_plan=current_plan,
                 request=request,
+                session_summary=session_summary,
+                conversation_history=conversation_history,
             )
         except Exception:  # noqa: BLE001 - the UI must remain responsive
             return TurnRunner._provider_error(current_plan)

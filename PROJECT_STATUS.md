@@ -14,10 +14,10 @@ background only.
 
 | Area | Status | Evidence |
 |---|---|---|
-| Scope reset | Complete | Charter, implementation plan, current log and ADR 0004/0009 |
+| Scope reset | Complete | Charter, implementation plan, current log and ADR 0004/0009/0011/0012 |
 | Runtime package | Complete | Coordinator/Planner/Chat graph, typed providers and validators |
 | Streamlit app | Complete | Session-only itinerary/chat plus read-only graph page |
-| Tests | 82 passed | Core, async UI, graph-image, photo, chat-edit/source eval, AppTest, web API and model-provider coverage |
+| Tests | 89 passed | Core, async UI, graph-image, photo, chat-edit/source eval, bounded chat context/search, AppTest, web API and model-provider coverage |
 | Live integration | Passed | OpenAI/Tavily/LangSmith smoke recorded under `docs/experiments/` |
 | Local container | Passed | Test/runtime images, health, non-root and live provider checks |
 | Chat editing | Passed | Trip extension plus eight prior offline eval cases and live two-turn smoke |
@@ -29,6 +29,7 @@ background only.
 | JavaScript/Tailwind UI | Implemented | React itinerary/chat/graph, FastAPI session adapter, optional credited photos; browser QA pending |
 | Configurable model provider | Passed on host and Compose app | Active mixed routing and an HTTP Compose-app Hue plan committed with OpenAI `gpt-5.5` Coordinator and Ollama `qwen2.5:3b` Planner/Chat |
 | No-local API defaults | Verified in Compose | Container resolves to OpenAI `gpt-5.5` / `gpt-5.4-mini` / `gpt-4.1`; root and graph image return HTTP 200 |
+| Shared Tavily tool node | Verified offline and with one live request | Planner/Chat route through one graph node; one live Chat call returned five sources and matching `tool.tavily.*` events; rebuilt Compose app healthy |
 
 Planning progress is not implementation progress. Only executable artifacts and
 actual checks count as completion evidence.
@@ -176,6 +177,33 @@ actual checks count as completion evidence.
   and 82 full host/Docker tests and standard quality checks passed. The rebuilt
   Compose app is healthy and returns HTTP 200 for the root page and graph PNG.
   No live model API request was made.
+- Added session-only conversation context to both UIs. The JavaScript API
+  rehydrates up to 12 conversation messages after page navigation or reload;
+  reset starts a separate transcript. Coordinator receives the prior summary
+  and at most eight 600-character messages, then gives Planner and Chat a
+  1,200-character handoff summary rather than the raw transcript. Chat may
+  request one structured function-call Tavily search for current facts, sharing
+  the two-call turn budget with Planner. Search citations use actual provider
+  sources and never change the plan. Both roles emit redacted search events with
+  the same `thread_id`. All 88 host tests, frontend typecheck/build, formatting
+  and lint checks passed. A live factual Chat request used one Tavily call,
+  returned five sources and confirmed `chat.search.start/success` in LangSmith.
+  The rebuilt Compose image is healthy and serves the app and graph PNG with
+  HTTP 200. ADR 0011 and
+  `docs/experiments/2026-10-19-live-chat-search-smoke.md` record the decision
+  and evidence for the direct-call version.
+- Replaced per-agent search execution with a shared `tavily_tool` graph node.
+  Planner and Chat emit typed requests; the node is the only runtime caller of
+  Tavily and returns normalized sources to the requesting role. It counts
+  attempts before provider execution and records redacted `tool.tavily.*`
+  events with requester and session `thread_id`. The graph remains bounded to
+  8 nodes, 2 shared searches and 1 repair. The focused suite passed 67 tests,
+  the full host suite passed 89, and the required formatter/lint/lock checks
+  passed. A live Chat request used one search, returned five sources and
+  confirmed `tool.tavily.start/success` with a matching `thread_id`. The rebuilt
+  Compose image is healthy; `/` and `/api/graph/image` return HTTP 200. ADR 0012
+  and `docs/experiments/2026-10-19-live-shared-tool-node-smoke.md` record the
+  implementation and current evidence.
 
 ## Now
 
@@ -186,8 +214,8 @@ actual checks count as completion evidence.
    coverage and host diversity before a broad demo.
 3. Exercise additional live edit intents, especially reorder and replace, with
    separate evidence from the offline gate.
-4. Rebuild the runtime container after Docker becomes available so the new Chat
-   model default is included in the image.
+4. Evaluate Chat answer accuracy and live source relevance across more than
+   one factual question; the current live smoke verifies plumbing only.
 
 ## Next
 
@@ -231,6 +259,9 @@ actual checks count as completion evidence.
   recorded evidence; runtime OpenAI `gpt-5.5` calls remain verified separately.
 - The JavaScript frontend has typecheck, build, mocked API and HTTP smoke
   evidence, but no real-browser responsive or live-provider acceptance yet.
+- Shared `tavily_tool` has one live factual-question smoke. It confirms source
+  return and trace propagation, but not broad factual accuracy, opening-hour
+  verification or source relevance.
 - Native Ollama evidence covers one all-local `qwen2.5:3b` create-trip flow and
   one mixed `gpt-5.5`/`qwen3:4b` create-trip flow, plus a Compose-app HTTP
   create-trip flow to native Ollama. The internal Compose profile and chat edits
@@ -242,6 +273,8 @@ actual checks count as completion evidence.
 - `docs/implementation-plan.md`
 - `docs/learning-log/2026-10-14-scope-reset.md`
 - `docs/adr/0004-city-sightseeing-two-agent-runtime.md`
+- `docs/adr/0011-bounded-session-context-and-chat-search.md`
+- `docs/adr/0012-shared-tavily-tool-node.md`
 - `src/grounded_travel_planner/`
 - `src/utils/`
 - `docs/experiments/2026-10-14-live-two-agent-smoke.md`
@@ -254,6 +287,8 @@ actual checks count as completion evidence.
 - `docs/experiments/2026-10-16-vietnamese-chat-smoke.md`
 - `docs/experiments/2026-10-16-visual-itinerary-smoke.md`
 - `docs/experiments/2026-10-18-ollama-local-smoke.md`
+- `docs/experiments/2026-10-19-live-chat-search-smoke.md`
+- `docs/experiments/2026-10-19-live-shared-tool-node-smoke.md`
 - `docs/adr/0005-visual-itinerary-enrichment.md`
 - `docs/adr/0006-photo-only-itinerary-and-graph-inspection.md`
 - `docs/adr/0010-configurable-openai-ollama-model-provider.md`

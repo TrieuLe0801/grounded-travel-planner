@@ -18,13 +18,15 @@ from grounded_travel_planner.agents import ChatAgent, CoordinatorAgent, PlannerA
 from grounded_travel_planner.config import ModelProvider, RuntimeConfig
 from grounded_travel_planner.contracts import (
     AgentResponse,
+    ConversationTurn,
     ResponseStatus,
     SightseeingPlan,
     TripRequest,
     ValidationIssue,
 )
+from grounded_travel_planner.conversation import bounded_history, bounded_summary
 from grounded_travel_planner.graph import build_travel_planner_graph
-from grounded_travel_planner.providers import TraceSink
+from grounded_travel_planner.providers import PlaceSearchProvider, TraceSink
 from utils.ids import new_id
 from utils.redaction import sanitize_error
 
@@ -38,6 +40,7 @@ class TravelPlannerService:
         planner: PlannerAgent,
         chat: ChatAgent,
         *,
+        search: PlaceSearchProvider,
         trace_sink: TraceSink | None = None,
         config: RuntimeConfig | None = None,
     ) -> None:
@@ -46,10 +49,12 @@ class TravelPlannerService:
         self.coordinator = coordinator
         self.planner = planner
         self.chat = chat
+        self.search = search
         self.graph = build_travel_planner_graph(
             coordinator,
             planner,
             chat,
+            search,
             self.trace_sink,
             self.config,
         )
@@ -85,8 +90,9 @@ class TravelPlannerService:
         )
         return cls(
             CoordinatorAgent(coordinator_model),
-            PlannerAgent(planner_model, search, runtime_config),
-            ChatAgent(chat_model),
+            PlannerAgent(planner_model, runtime_config),
+            ChatAgent(chat_model, runtime_config),
+            search=search,
             trace_sink=trace_sink,
             config=runtime_config,
         )
@@ -135,6 +141,8 @@ class TravelPlannerService:
         message: str,
         current_plan: SightseeingPlan | None = None,
         request: TripRequest | None = None,
+        session_summary: str = "",
+        conversation_history: list[ConversationTurn] | None = None,
     ) -> AgentResponse:
         """Return the committed plan or the untouched previous plan."""
 
@@ -153,6 +161,8 @@ class TravelPlannerService:
             "message": message[:4000],
             "request": request,
             "current_plan": safe_current,
+            "session_summary": bounded_summary(session_summary),
+            "conversation_history": bounded_history(conversation_history or []),
             "graph_steps": 0,
             "search_calls": 0,
             "repair_attempts": 0,

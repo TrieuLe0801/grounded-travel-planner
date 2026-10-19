@@ -2,7 +2,7 @@
 
 from datetime import date, time
 from enum import Enum
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, HttpUrl, field_validator
 
@@ -69,6 +69,30 @@ class SearchResult(BaseModel):
     snippet: str | None = Field(default=None, max_length=SEARCH_SNIPPET_MAX_LENGTH)
     score: float | None = None
     supports_opening_hours: bool = False
+
+
+class ConversationTurn(BaseModel):
+    """A bounded transcript item kept only in the active browser session."""
+
+    role: Literal["user", "assistant"]
+    content: str = Field(min_length=1, max_length=4000)
+    source_references: list[SourceReference] = Field(default_factory=list, max_length=8)
+
+
+class ChatSearchDecision(BaseModel):
+    """The only model-authorized search request the Chat role can make."""
+
+    should_search: bool = False
+    query: str = Field(default="", max_length=400)
+    message: str = Field(default="", max_length=2000)
+
+
+class TavilyToolRequest(BaseModel):
+    """A bounded request consumed only by the shared Tavily graph tool node."""
+
+    owner: Literal["planner", "chat"]
+    query: str = Field(min_length=1, max_length=400)
+    max_results: int = Field(ge=1, le=8)
 
 
 class PlaceRecommendation(BaseModel):
@@ -186,6 +210,7 @@ class CoordinatorDecision(BaseModel):
     intent: PlanChangeIntent
     requires_planner: bool = False
     response_hint: str = Field(default="", max_length=1000)
+    session_summary: str = Field(default="", max_length=1200)
 
 
 class ChatResponse(BaseModel):
@@ -204,4 +229,5 @@ class AgentResponse(BaseModel):
     graph_steps: int = Field(default=0, ge=0)
     search_calls: int = Field(default=0, ge=0)
     repair_attempts: int = Field(default=0, ge=0)
+    source_references: list[SourceReference] = Field(default_factory=list, max_length=8)
     metadata: dict[str, Any] = Field(default_factory=dict)
