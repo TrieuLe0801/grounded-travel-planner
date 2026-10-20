@@ -30,6 +30,7 @@ background only.
 | Configurable model provider | Passed on host and Compose app | Active mixed routing and an HTTP Compose-app Hue plan committed with OpenAI `gpt-5.5` Coordinator and Ollama `qwen2.5:3b` Planner/Chat |
 | No-local API defaults | Verified in Compose | Container resolves to OpenAI `gpt-5.5` / `gpt-5.4-mini` / `gpt-4.1`; root and graph image return HTTP 200 |
 | Shared Tavily tool node | Verified offline and with one live request | Planner/Chat route through one graph node; one live Chat call returned five sources and matching `tool.tavily.*` events; rebuilt Compose app healthy |
+| Bilingual webapp | Implemented; build/static checks pass | Session-scoped Vietnamese/English preference; focused existing API/runner/chat-context suite 14 passed (no locale-specific test added); React build and Python static checks passed; browser QA not run |
 
 Planning progress is not implementation progress. Only executable artifacts and
 actual checks count as completion evidence.
@@ -219,6 +220,13 @@ actual checks count as completion evidence.
   local Travel Planner overlay while retaining its upstream catalog separately.
   This documentation/configuration update has static parse and diff evidence
   only; no application, frontend, container, browser or live-provider check ran.
+- Added a Vietnamese/English language selector to the React app, Streamlit
+  fallback and graph page. The locale is session-scoped, survives a new-trip
+  reset, and is captured by each pending turn. New agent-authored content follows
+  the selected locale; user text, place names, existing plan/transcript content
+  and source evidence remain unchanged. The existing focused API/runner/chat
+  suites passed 14 tests; frontend build and Python static gates passed. No
+  browser, container or live-provider check is claimed.
 
 ## Now
 

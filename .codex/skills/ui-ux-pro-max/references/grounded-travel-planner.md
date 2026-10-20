@@ -7,8 +7,12 @@ migration.
 
 ## Product constraints
 
-- Write user-facing chat and safe fallbacks in Vietnamese. Preserve proper place
-  names, quoted requests and source titles as supplied.
+- Vietnamese is the default UI and assistant language; English is also
+  selectable. Keep that preference in the current session and apply changes to
+  future turns without resetting itinerary, conversation or pending work.
+- Keep user messages, proper place names, quoted requests and source titles as
+  supplied. Do not translate source evidence or existing conversation content
+  when the user changes the UI language.
 - The itinerary shows source-backed place photos with attribution when available.
   Do not add a route map, vehicle animation or map-based click interaction: the
   user removed that experience.

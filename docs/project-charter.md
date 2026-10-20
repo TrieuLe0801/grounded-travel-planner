@@ -1,7 +1,7 @@
 # Project Charter
 
 Status: Active
-Last updated: 2026-10-19
+Last updated: 2026-10-20
 
 ## Product
 
@@ -11,9 +11,13 @@ creates one current itinerary and lets the user chat to add constraints or make
 bounded changes such as add, remove, replace, reorder, trip extension, day
 changes and time changes.
 
-The chat accepts Vietnamese requests and responds in Vietnamese by default.
-Place names and source titles retain their original spelling; internal intent
-codes, source evidence and validation rules remain language-independent.
+The UI and assistant default to Vietnamese and provide an English option. The
+selected language is stored in the current session and captured when a turn is
+submitted, so switching languages does not reset the plan, transcript or
+pending work. New model-authored responses and itinerary prose follow that
+captured language. User messages, place names, source titles and provider source
+data retain their original text; internal intent codes, source evidence and
+validation rules remain language-independent.
 
 The itinerary also presents source-attributed place photos when available;
 missing imagery leaves the text itinerary usable. A separate read-only page
@@ -27,14 +31,15 @@ migration; the Coordinator/Planner/Chat runtime and validation rules are shared.
 
 The runtime has three roles:
 
-- Coordinator: classifies the request, reads bounded recent session history
-  and produces a short handoff summary for downstream roles.
+- Coordinator: classifies the request in either supported language, reads
+  bounded recent session history and produces a short handoff summary in the
+  selected language for downstream roles.
 - Planner: proposes every plan change and emits a typed search request when
   grounded plan recommendations need Tavily research.
-- Chat: writes the final Vietnamese response after deterministic policy nodes
-  decide whether a candidate can be committed. When current facts are needed
-  and search budget remains, Chat may request one Tavily search and cite only
-  provider-returned sources; it never proposes or mutates the plan.
+- Chat: writes the final response in the selected language after deterministic
+  policy nodes decide whether a candidate can be committed. When current facts
+  are needed and search budget remains, Chat may request one Tavily search and
+  cite only provider-returned sources; it never proposes or mutates the plan.
 - `tavily_tool`: one shared LangGraph node executes typed search requests from
   Planner or Chat. It is the only runtime node that calls the search provider,
   and returns sources only to the requesting role.
@@ -74,6 +79,9 @@ integrates its result exactly once when the chat page polls or is reopened.
 - Preserve the previous current plan when validation fails.
 - Do not mutate the canonical plan from a background worker. Integrate a
   completed result only in its originating UI session.
+- Changing language changes UI labels and the locale for future turns; it does
+  not translate stored user messages, existing plan text, place names or source
+  metadata, and it does not change an already-running turn's captured locale.
 - Ordinary chat should not mutate the plan or perform unnecessary search.
 - Bound every turn to 8 graph steps, 2 shared Planner/Chat Tavily calls and 1
   repair attempt. Chat skips search when the remaining graph steps cannot fit

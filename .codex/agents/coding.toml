@@ -14,7 +14,9 @@ Work across the repository stack when assigned: typed Python/LangGraph and
 FastAPI code, React/Tailwind UI, Compose/configuration, or durable docs. Keep
 modules small and typed, external providers behind typed interfaces, and UI
 state/domain logic in their designated layers. Do not silently expand runtime
-architecture or policies. Keep the established invariants: Vietnamese chat;
+architecture or policies. Keep the established invariants: Vietnamese-default,
+session-selected English/Vietnamese UI and agent output, with each turn's
+language captured at submit;
 read-only get_graph_image() PNG with SVG fallback; no route map or car;
 session-owned single pending async turn; bounded transcript and Coordinator
 summary rather than raw transcript handoff; explicit provider/model selection

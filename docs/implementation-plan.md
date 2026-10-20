@@ -1,7 +1,7 @@
 # Implementation Plan
 
 Status: Active
-Last updated: 2026-10-19
+Last updated: 2026-10-20
 
 ## Phase 1A - Core Runtime — Implemented
 
@@ -54,6 +54,27 @@ Acceptance:
 - Ordinary chat does not mutate plan state.
 - Render estimated durations, unverified hours, validation issues and sources.
 - Smoke-run the app with `.env` credentials.
+
+## Bilingual Session Language — Implemented
+
+- Provide Vietnamese (default) and English UI language choices in the React
+  frontend and the Streamlit fallback, including the read-only graph page.
+- Keep the language preference in the current session. Updating it does not
+  clear the plan, transcript, summary, view or pending turn; session reset for a
+  new trip carries the preference forward.
+- Capture the selected language when a turn is submitted and pass it through
+  the background runner and LangGraph roles. The active turn keeps that locale;
+  later turns use the updated preference.
+- Make new Coordinator summaries, Planner itinerary prose, Chat responses and
+  safe fallbacks follow the selected language. Preserve user messages, place
+  names, source titles/snippets/URLs and evidence text verbatim.
+- Keep validation and source policies language-independent; localize
+  user-facing issue messages by stable issue code.
+
+Evidence: ADR 0013; existing focused API/runner/chat-context checks passed 14
+tests; frontend typecheck and production build passed; Python compileall,
+flake8, Black, isort, Ruff, lock and diff checks passed. No new locale-specific
+test was added, and no browser, container or live-provider run is claimed.
 
 ## Phase 1C - Tests And Live Gates — Verified
 
@@ -176,6 +197,11 @@ Acceptance:
 - Reply in Vietnamese for normal and committed turns, with Vietnamese
   deterministic fallback messages on model or graph failure.
 - Keep place names and source titles faithful to user input and search results.
+
+ADR 0013 extends this behavior with an English option while keeping Vietnamese
+as the default. The 2026-10-16 live evidence below proves the Vietnamese path;
+current locale/session behavior is recorded in the Bilingual Session Language
+section above.
 
 Evidence: `uv run pytest` passed 40 tests on 2026-10-16; the full formatting and
 lint suite passed. A live Vietnamese add-place turn in the rebuilt container

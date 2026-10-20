@@ -317,3 +317,20 @@ three-role runtime and role-specific model policy.
 - This was a configuration/documentation update only. Static parsing and diff
   checks were run; no application, frontend, container, browser or live-provider
   check is claimed.
+
+## User Decision — Bilingual Webapp — 2026-10-20
+
+- Add English as a selectable UI and assistant language while keeping Vietnamese
+  as the default. Store the choice in the current session; changing it must not
+  clear the itinerary, conversation, summary or pending turn. A pending turn
+  uses the locale captured when it was submitted; new turns use the current
+  selection.
+- Apply the choice to React/Tailwind, Streamlit and its graph page, Coordinator
+  summaries, Planner itinerary prose, Chat responses and code-owned fallbacks.
+  Preserve user text, place names, existing plan/transcript content and source
+  metadata without translation. Validation and source policies remain
+  language-independent.
+- ADR 0013 records the decision. Existing focused API/runner/chat-context checks
+  passed 14 tests; `npm run check`, `npm run build`, Python compileall, flake8,
+  Black, isort, Ruff, lock and diff checks passed. No browser, container or
+  live-provider verification was run.

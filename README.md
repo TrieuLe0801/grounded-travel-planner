@@ -6,7 +6,7 @@ three-week POC documents are historical background.
 
 ## Current progress
 
-- Scope-reset charter, implementation plan and ADR 0004/0009/0011/0012 exist.
+- Scope-reset charter, implementation plan and ADR 0004/0009/0011/0012/0013 exist.
 - Core runtime has three roles: `Coordinator`, `Planner` and `Chat`.
 - `GTP_MODEL_PROVIDER` selects the global `openai` (default) or local `ollama`
   provider. `GTP_COORDINATOR_PROVIDER`, `GTP_PLANNER_PROVIDER` and
@@ -31,6 +31,9 @@ three-week POC documents are historical background.
   Streamlit AppTest sequence and a separate live create-then-remove smoke.
 - Planning turns run in a bounded background pool, remain owned by the browser
   session and continue while the user opens the read-only graph view.
+- The React app and Streamlit fallback support Vietnamese (default) and English.
+  The locale stays in the session, and a pending turn keeps the language chosen
+  when it was submitted.
 
 See `PROJECT_STATUS.md` for the current Done / Now / Next / Blockers view.
 
@@ -257,10 +260,12 @@ recheck had hit OpenAI HTTP 429 `billing_not_active`; the original user's
 session was not replayed. See
 `docs/experiments/2026-10-16-live-lo-lo-chai-add.md`.
 
-The webapp uses Vietnamese for chat and form guidance by default. A Vietnamese
-add-place request and assistant reply passed in the running container; source
-titles and proper place names keep their original spelling. See
-`docs/experiments/2026-10-16-vietnamese-chat-smoke.md`.
+The webapp defaults to Vietnamese and now offers an English language switch for
+the React and Streamlit interfaces. New assistant and itinerary prose follows
+the session locale, while source titles and proper place names retain their
+original spelling. The representative live Vietnamese add-place smoke remains
+historical evidence at `docs/experiments/2026-10-16-vietnamese-chat-smoke.md`;
+ADR 0013 records the bilingual session behavior.
 
 ## Visual itinerary
 

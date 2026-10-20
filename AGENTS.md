@@ -39,6 +39,11 @@ Read these records in order:
   of at most 1,200 characters instead of forwarding the transcript. Commit a
   candidate only after validation; Chat explains the result and cannot mutate
   the plan. Planner and Chat share a maximum of two Tavily calls per turn.
+- UI and assistant language defaults to Vietnamese and can switch to English.
+  Store the preference in the current session and capture it when a turn is
+  submitted; a language change must not reset the plan, transcript or pending
+  turn. Keep user text, place names and provider source data in their original
+  language; new model-authored content follows the captured locale.
 - Trace all chat turns, agents, tools and validation through LangSmith. Propagate
   the same `thread_id` metadata to root and child runs in a session.
 - App conversation/trip state is session-only and isolated between users.
@@ -67,6 +72,8 @@ Read these records in order:
 - Chat supports time/day changes, trip extension, reordering and
   adding/removing/replacing places. Ordinary chat should not mutate the plan or
   trigger unnecessary research.
+- Keep language switching independent from itinerary validation and session
+  plan/history state.
 - Bound search calls, repairs and graph steps for every turn.
 - Keep secrets out of model inputs, traces, logs and tracked files.
 

@@ -12,8 +12,9 @@ test.
 Focus on user-corrected behavior and charter invariants: session isolation and
 bounded context, one pending async turn, plan preservation on rejection,
 grounded sources, bounded shared Tavily calls, explicit provider routing,
-Vietnamese responses, graph-image read-only behavior, and the removed route-map
-experience. When assigned a behavioral change, add a focused regression test
+selected-language responses with Vietnamese as the default, graph-image
+read-only behavior, and the removed route-map experience. When assigned a
+behavioral change, add a focused regression test
 for a missing contract where it provides useful coverage. Use deterministic
 offline fixtures for unit tests; never make network, model, Tavily or LangSmith
 calls from automated tests. Do not change application code unless assigned a

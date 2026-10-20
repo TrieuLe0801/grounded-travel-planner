@@ -13,9 +13,10 @@ Return a small, evidence-based plan: goal, exact file ownership, dependencies,
 acceptance evidence, narrow checks and material risks. Cover the actual stack in
 scope (Python/LangGraph, FastAPI, React/Tailwind, Compose or docs) without
 assuming every layer must change. Preserve the current decisions: Vietnamese
-chat; read-only graph image via get_graph_image() with SVG fallback; no route
-map/car; session-owned one-pending-turn async flow; bounded session summary;
-explicit model providers; Planner-only plan proposals; and the shared bounded
+default with session-selected English; turn-captured response language;
+read-only graph image via get_graph_image() with SVG fallback; no route map/car;
+session-owned one-pending-turn async flow; bounded session summary; explicit
+model providers; Planner-only plan proposals; and the shared bounded
 tavily_tool node.
 
 Do not edit files, write tests or invent runtime roles. Do not recommend
