@@ -61,3 +61,19 @@ runtime agent topology, which remains single-agent-first.
 - Black, isort and Ruff produce incompatible output on real application code.
 - A controlled workflow comparison justifies changing the development agents.
 - A requested model is unavailable in the selected Codex client or account.
+
+## Amendment — 2026-10-20
+
+The development-agent instructions now cover the repository's full product
+stack: typed Python/LangGraph and FastAPI code, React/Tailwind UI, container and
+environment configuration, and durable project documents. The coding role no
+longer describes itself as Python-only. The manager must preserve pre-existing
+dirty hunks, use direct user steering as a constraint, assign explicit file
+ownership, and avoid restarting an approach that the user has rejected.
+
+The delivery workflow detects explicit commit/push authorization and otherwise
+does neither; it does not pause to ask a yes/no authorization question. Agents
+must distinguish static, offline, browser, container and live-provider evidence
+and may not make the latter claims without a corresponding executed artifact.
+These development roles remain separate from the runtime Coordinator, Planner,
+Chat and `tavily_tool` graph node.

@@ -301,3 +301,19 @@ three-role runtime and role-specific model policy.
   list, Planner repair behavior, worker input isolation, API session bounds and
   reset behavior. Focused tests passed 63 cases; the full host suite passed 90,
   and all Python formatting/lint gates passed.
+
+## Development Agent And Skill Refinement — 2026-10-20
+
+- The project-scoped Codex manager, planner, coding and testing instructions
+  now reflect the actual Python/LangGraph, FastAPI, React/Tailwind, Compose and
+  documentation stack. They preserve unrelated dirty hunks, treat subsequent
+  user corrections as hard constraints, and distinguish static/offline evidence
+  from browser, container and live-provider evidence.
+- The delivery skill detects explicit commit/push intent and defaults to neither
+  action without interrupting a completed change to request authorization.
+- UI/UX Pro Max keeps its upstream catalog and adds a small repository overlay
+  for Vietnamese chat, photo-only itinerary, read-only graph image, pending-turn
+  navigation and current UI evidence rules.
+- This was a configuration/documentation update only. Static parsing and diff
+  checks were run; no application, frontend, container, browser or live-provider
+  check is claimed.

@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-10-19
+Last updated: 2026-10-20
 
 ## Current Milestone
 
@@ -212,6 +212,13 @@ actual checks count as completion evidence.
   adapter. Focused tests passed 63 cases and the full host suite passed 90;
   isort, Black, flake8 and Ruff passed. No live provider run or container
   rebuild was performed for this internal refactor.
+- Refined the project Codex development roles and delivery skill from repository
+  evidence. The coding role now covers the full product stack, agents preserve
+  pre-existing dirty work and direct user corrections, and delivery defaults to
+  no commit/push unless explicitly requested. The UI/UX skill now links a small
+  local Travel Planner overlay while retaining its upstream catalog separately.
+  This documentation/configuration update has static parse and diff evidence
+  only; no application, frontend, container, browser or live-provider check ran.
 
 ## Now
 

@@ -17,8 +17,8 @@ Read these records in order:
 2. `docs/project-charter.md`
 3. `docs/implementation-plan.md`
 4. `docs/learning-log/2026-10-14-scope-reset.md` (current log)
-5. Relevant accepted ADRs; ADR 0004 plus ADR 0009 govern the current
-   product/runtime scope.
+5. Relevant accepted ADRs; ADR 0004, ADR 0009, ADR 0011 and ADR 0012 govern the
+   current product/runtime scope.
 6. `docs/experiments/baseline-environment.md` for historical environment context
    when needed. Verify the actual target environment before making claims.
 
@@ -26,13 +26,19 @@ Read these records in order:
 
 - Use LangChain for model, agent, tool and structured-output integrations.
 - Use LangGraph for explicit state, routing, delegation and bounded processing.
-- The runtime has Coordinator, Planner and Chat roles. Coordinator classifies and
-  routes work; Planner proposes all plan changes and searches via Tavily; Chat
-  writes the final user-facing response. Coordinator defaults to `gpt-5.5`,
-  while Planner and Chat default to the lighter `gpt-5.4-mini`.
+- The runtime has Coordinator, Planner and Chat roles. Coordinator classifies,
+  routes and summarizes session context; Planner proposes all plan changes;
+  Planner and Chat request Tavily search through the shared `tavily_tool` graph
+  node when needed. That node is the only runtime caller of the search provider.
+  Coordinator defaults to `gpt-5.5`,
+  Planner defaults to `gpt-5.4-mini`, and Chat defaults to `gpt-4.1`.
 - Implement schedule, input and source-reference checks in code.
-- Keep one canonical current plan in session state. Commit a candidate only
-  after validation; Chat explains the committed or rejected result.
+- Keep one canonical current plan, bounded transcript and rolling summary in
+  session state. Coordinator receives at most eight recent messages (600
+  characters each) and the prior summary, then gives Planner and Chat a summary
+  of at most 1,200 characters instead of forwarding the transcript. Commit a
+  candidate only after validation; Chat explains the result and cannot mutate
+  the plan. Planner and Chat share a maximum of two Tavily calls per turn.
 - Trace all chat turns, agents, tools and validation through LangSmith. Propagate
   the same `thread_id` metadata to root and child runs in a session.
 - App conversation/trip state is session-only and isolated between users.

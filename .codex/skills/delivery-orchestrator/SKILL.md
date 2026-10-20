@@ -10,14 +10,15 @@ primary Codex session stays responsible for integration and final judgment.
 
 ## Required Input
 
-Confirm the request includes:
+Determine from the request:
 
 - the development goal and acceptance criteria;
 - whether the user explicitly requested a commit;
 - whether the user explicitly requested a push.
 
-Implicit skill invocation never authorizes commit or push. If commit or push
-intent is absent, complete the code workflow and report what remains.
+Implicit skill invocation never authorizes commit or push. Treat absent intent
+as no commit and no push; do not interrupt delivery with a yes/no authorization
+question.
 
 ## Workflow
 
@@ -25,17 +26,23 @@ intent is absent, complete the code workflow and report what remains.
 2. Run a git preflight with `git status --short`, current branch, upstream, and
    recent log. Identify unrelated dirty files and coordinate shared-file edits
    before touching them.
-3. Assign bounded work sequentially to the project development agents:
-   `planner` for the implementation plan, `coding` for scoped edits, then
-   `testing` for verification. These are Codex development helpers, not runtime
+3. Assign only the bounded work needed for the goal. For a change that benefits
+   from planning, use `planner` before `coding`; use `testing` for assigned
+   behavioral verification. Documentation/configuration-only work may use a
+   scoped coding task and static validation. Declare file ownership and preserve
+   unrelated dirty hunks. These are Codex development helpers, not runtime
    travel-research specialist agents.
 4. The primary session integrates results, reviews changed files, preserves the
-   charter's product invariants, and keeps external providers behind typed
-   interfaces.
+   charter's product invariants and explicit user corrections, and keeps
+   external providers behind typed interfaces. Do not revive rejected behavior
+   or silently broaden architecture/policy.
 5. Update durable docs only when a checklist item is actually complete and the
    required evidence exists.
 6. Run the narrowest relevant check first, then the full available checks from
-   `AGENTS.md` when applicable. If checks are unavailable, report `N/A`.
+   `AGENTS.md` when applicable. Do not run application, frontend, container,
+   browser or live-provider checks for documentation/configuration-only work
+   unless the acceptance criteria require them. If checks are unavailable,
+   report `N/A`.
 7. If testing reports a specific failure, allow at most two
    coding-fix/testing-retest cycles. Stop after the second failed retest and
    report the remaining blocker.

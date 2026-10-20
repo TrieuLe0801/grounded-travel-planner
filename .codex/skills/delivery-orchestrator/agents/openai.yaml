@@ -1,4 +1,4 @@
 interface:
   display_name: "Delivery Orchestrator"
   short_description: "Coordinate project agents from goal to verified delivery."
-  default_prompt: "Use $delivery-orchestrator with a concrete development goal plus explicit commit and push intent. Example: $delivery-orchestrator Goal: implement the next vertical slice; commit: yes; push: no."
+  default_prompt: "Use $delivery-orchestrator with a concrete goal and acceptance criteria. Commit and push default to no unless explicitly requested. Example: $delivery-orchestrator Goal: fix the graph image layout; acceptance: the image fits the page; commit: no; push: no."
