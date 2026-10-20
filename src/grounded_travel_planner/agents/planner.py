@@ -16,6 +16,7 @@ from grounded_travel_planner.contracts import (
     ValidationIssue,
     visible_schedule_context,
 )
+from grounded_travel_planner.i18n import Language, response_language_instruction
 from grounded_travel_planner.providers import StructuredChatModel
 from utils.ids import new_id
 
@@ -57,6 +58,7 @@ class PlannerAgent:
         session_summary: str = "",
         repair_issues: list[ValidationIssue] | None = None,
         retained_sources: list[SourceReference] | None = None,
+        language: Language = "vi",
     ) -> PlanCandidate:
         sources = self._sources_from_plan(current_plan) if current_plan else []
         for source in retained_sources or []:
@@ -72,6 +74,7 @@ class PlannerAgent:
             session_summary=session_summary,
             sources=sources,
             repair_issues=repair_issues or [],
+            language=language,
         )
         proposed = self._model.generate_structured(
             prompt,
@@ -117,6 +120,7 @@ class PlannerAgent:
         session_summary: str,
         sources: list[SourceReference],
         repair_issues: list[ValidationIssue],
+        language: Language,
     ) -> str:
         source_payload = [source.model_dump(mode="json") for source in sources]
         current_payload = (
@@ -131,7 +135,7 @@ class PlannerAgent:
             "hours. Use opening_hours='unverified' and false unless a supplied "
             "source explicitly supports hours. All visit and travel minute fields "
             "are estimates. Write user-visible plan summaries, place descriptions "
-            "and schedule notes in Vietnamese; preserve proper names and source "
+            f"and schedule notes in {response_language_instruction(language)}; preserve proper names and source "
             "titles as supplied. Do not overlap schedule entries and keep day_index "
             "within the requested day count. Apply the requested edit to the prior "
             "plan when present. Preserve existing entry IDs and stops for "

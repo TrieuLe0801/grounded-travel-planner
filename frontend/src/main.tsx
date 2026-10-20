@@ -29,6 +29,7 @@ import {
   X,
 } from "lucide-react";
 import "./index.css";
+import { text, type Language } from "./i18n";
 
 type Source = { title: string; url: string };
 type Visual = {
@@ -76,6 +77,7 @@ type ChatMessage = {
   source_references?: Source[];
 };
 type ApiState = {
+  language: Language;
   plan: Plan | null;
   pending: boolean;
   response: TurnResponse | null;
@@ -103,7 +105,7 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
     const body = (await response.json().catch(() => null)) as {
       detail?: string;
     } | null;
-    throw new Error(body?.detail || "Không thể kết nối máy chủ.");
+    throw new Error(body?.detail || response.statusText);
   }
   return response.json() as Promise<T>;
 }
@@ -112,12 +114,13 @@ function FieldError({ message }: { message?: string }) {
     <p className="mt-1 text-sm font-medium text-red-700">{message}</p>
   ) : null;
 }
-function Photo({ visual, placeName }: { visual?: Visual; placeName: string }) {
+function Photo({ visual, placeName, language }: { visual?: Visual; placeName: string; language: Language }) {
+  const labels = text(language);
   if (!visual)
     return (
       <div className="flex aspect-[16/9] items-center justify-center rounded-2xl bg-blue-50 px-4 text-center text-sm text-slate-500">
         <ImageOff className="mr-2 size-4" />
-        Chưa tìm được ảnh có giấy phép cho {placeName}.
+        {labels.photoUnavailable} {placeName}.
       </div>
     );
   return (
@@ -136,14 +139,14 @@ function Photo({ visual, placeName }: { visual?: Visual; placeName: string }) {
         />
       </a>
       <figcaption className="mt-2 text-xs leading-5 text-slate-500">
-        Ảnh: {visual.image_credit} · {visual.image_license} ·{" "}
+        {labels.photoCredit}: {visual.image_credit} · {visual.image_license} ·{" "}
         <a
           href={visual.image_page_url}
           target="_blank"
           rel="noreferrer"
           className="font-semibold text-accent hover:underline"
         >
-          nguồn ảnh
+          {labels.photoSource}
         </a>
       </figcaption>
     </figure>
@@ -186,18 +189,21 @@ function PlanView({
   plan,
   visuals,
   loading,
+  language,
 }: {
   plan: Plan;
   visuals: Record<string, Visual>;
   loading: boolean;
+  language: Language;
 }) {
+  const labels = text(language);
   const days = Array.from({ length: plan.day_count }, (_, index) => index + 1);
   return (
     <section aria-labelledby="itinerary-title" className="rise mt-8">
       <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
         <div>
           <p className="text-sm font-semibold uppercase tracking-wider text-primary">
-            Lịch trình đã kiểm tra
+            {labels.verified}
           </p>
           <h2 id="itinerary-title" className="font-heading text-2xl font-bold">
             {plan.destination}{" "}
@@ -205,7 +211,7 @@ function PlanView({
           </h2>
         </div>
         <p className="text-sm text-slate-600">
-          {plan.start_date} · {plan.day_count} ngày
+          {plan.start_date} · {plan.day_count} {labels.dayUnit}
         </p>
       </div>
       {plan.summary && (
@@ -217,7 +223,7 @@ function PlanView({
           role="status"
         >
           <LoaderCircle className="size-4 animate-spin" />
-          Đang tìm ảnh có giấy phép…
+          {labels.findingPhotos}
         </p>
       )}
       <div className="grid gap-5 xl:grid-cols-2">
@@ -234,7 +240,7 @@ function PlanView({
               className="rounded-3xl border border-blue-100 bg-white p-5 shadow-sm"
               key={day}
             >
-              <h3 className="font-heading text-lg font-bold">Ngày {day}</h3>
+              <h3 className="font-heading text-lg font-bold">{labels.day} {day}</h3>
               <div className="mt-4 space-y-6">
                 {entries.length ? (
                   entries.map((entry, index) => (
@@ -246,7 +252,7 @@ function PlanView({
                         <Clock3 size={16} />
                         {entry.start_time.slice(0, 5)}–
                         {entry.end_time.slice(0, 5)}{" "}
-                        <span className="text-slate-500">·</span> Điểm{" "}
+                        <span className="text-slate-500">·</span> {labels.stop}{" "}
                         {index + 1}
                       </div>
                       <h4 className="mt-1 font-heading text-lg font-semibold">
@@ -259,22 +265,23 @@ function PlanView({
                         <Photo
                           visual={visuals[entry.id]}
                           placeName={entry.place.name}
+                          language={language}
                         />
                       </div>
                       <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold">
                         <span className="rounded-full bg-blue-100 px-3 py-1 text-blue-800">
-                          Tham quan ước tính ~
-                          {entry.place.visit_minutes_estimate} phút
+                          {labels.visit} ~
+                          {entry.place.visit_minutes_estimate} {labels.minutes}
                         </span>
                         <span className="rounded-full bg-blue-50 px-3 py-1 text-blue-700">
-                          Di chuyển ước tính ~
-                          {entry.place.travel_minutes_estimate} phút
+                          {labels.travel} ~
+                          {entry.place.travel_minutes_estimate} {labels.minutes}
                         </span>
                         <span className="rounded-full bg-blue-50 px-3 py-1 text-slate-700">
-                          Giờ mở cửa:{" "}
+                          {labels.hours}:{" "}
                           {entry.place.opening_hours_verified
                             ? entry.place.opening_hours
-                            : "chưa xác minh"}
+                            : labels.unverified}
                         </span>
                       </div>
                       {entry.notes && (
@@ -300,7 +307,7 @@ function PlanView({
                   ))
                 ) : (
                   <p className="text-slate-500">
-                    Chưa có điểm nào trong ngày này.
+                    {labels.noStops}
                   </p>
                 )}
               </div>
@@ -320,6 +327,7 @@ function GraphView({
   onImageLoad,
   onImageError,
   onBack,
+  language,
 }: {
   svg: string;
   imageLoading: boolean;
@@ -329,7 +337,9 @@ function GraphView({
   onImageLoad: () => void;
   onImageError: () => void;
   onBack: () => void;
+  language: Language;
 }) {
+  const labels = text(language);
   return (
     <section aria-labelledby="graph-title" className="rise mt-8">
       <button
@@ -338,19 +348,18 @@ function GraphView({
         className="inline-flex min-h-11 items-center gap-2 rounded-xl px-3 font-semibold text-slate-700 hover:bg-blue-100"
       >
         <ArrowLeft size={18} />
-        Về lịch trình
+        {labels.back}
       </button>
       <div className="mt-4 rounded-3xl border border-blue-100 bg-white p-5 shadow-sm sm:p-7">
         <p className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-sm font-semibold text-blue-700">
           <Network size={16} />
-          Chỉ đọc
+          {labels.readOnly}
         </p>
         <h1 id="graph-title" className="mt-4 font-heading text-2xl font-bold">
-          Kiến trúc LangGraph
+          {labels.graphTitle}
         </h1>
         <p className="mt-2 max-w-3xl text-slate-600">
-          Sơ đồ lấy từ workflow đã biên dịch. Việc xem trang này không tạo hoặc
-          thay đổi lịch trình.
+          {labels.graphDescription}
         </p>
         {!imageUnavailable && (
           <figure
@@ -360,19 +369,19 @@ function GraphView({
             {imageLoading && (
               <p className="flex items-center gap-2 text-slate-600" role="status">
                 <LoaderCircle className="animate-spin" />
-                Đang tải ảnh kiến trúc…
+                {labels.graphLoading}
               </p>
             )}
             <img
               src="/api/graph/image"
-              alt="Sơ đồ workflow LangGraph gồm Coordinator, Planner, Chat và các bước kiểm tra"
+              alt={labels.graphAlt}
               className="graph-image mx-auto max-h-[70dvh] max-w-full object-contain"
               decoding="async"
               onLoad={onImageLoad}
               onError={onImageError}
             />
             <figcaption className="mt-3 text-sm text-slate-600">
-              Ảnh PNG được tạo trực tiếp từ workflow LangGraph đã biên dịch.
+              {labels.graphCaption}
             </figcaption>
           </figure>
         )}
@@ -382,12 +391,12 @@ function GraphView({
               className="mt-6 rounded-xl bg-amber-50 p-4 text-amber-900"
               role="status"
             >
-              Không thể tạo ảnh PNG lúc này; đang dùng sơ đồ SVG dự phòng.
+              {labels.graphFallback}
             </p>
             {fallbackLoading && (
               <p className="mt-6 flex items-center gap-2 text-slate-600" role="status">
                 <LoaderCircle className="animate-spin" />
-                Đang tải sơ đồ dự phòng…
+                {labels.graphFallbackLoading}
               </p>
             )}
             {error && (
@@ -402,7 +411,7 @@ function GraphView({
               <div
                 className="graph-svg mt-6 overflow-hidden rounded-2xl border border-slate-300 bg-blue-50 p-3 sm:p-6"
                 role="img"
-                aria-label="Sơ đồ workflow LangGraph gồm Coordinator, Planner, Chat và các bước kiểm tra"
+                aria-label={labels.graphAlt}
                 dangerouslySetInnerHTML={{ __html: svg }}
               />
             )}
@@ -419,17 +428,19 @@ function ChatBubble({
   issues = [],
   status,
   source_references = [],
-}: Pick<ChatMessage, "role" | "content" | "issues" | "status" | "source_references">) {
+  language,
+}: Pick<ChatMessage, "role" | "content" | "issues" | "status" | "source_references"> & { language: Language }) {
+  const labels = text(language);
   const agent = role === "agent";
   const statusLabel =
     status === "committed"
-      ? "Đã cập nhật lịch trình"
+      ? labels.statusCommitted
       : status === "rejected"
-        ? "Chưa áp dụng thay đổi"
+        ? labels.statusRejected
         : status === "unchanged"
-          ? "Lịch trình không thay đổi"
+          ? labels.statusUnchanged
           : status === "provider_error"
-            ? "Cần thử lại sau"
+            ? labels.statusProviderError
             : status;
   return (
     <div className={`flex ${agent ? "justify-start" : "justify-end"}`}>
@@ -442,7 +453,7 @@ function ChatBubble({
           ) : (
             <UserRound size={13} aria-hidden="true" />
           )}
-          {agent ? "Trợ lý" : "Bạn"}
+          {agent ? labels.assistant : labels.you}
         </div>
         <div
           className={`rounded-2xl px-4 py-3 text-sm leading-6 shadow-sm ${agent ? "rounded-tl-md bg-blue-50 text-slate-900" : "rounded-tr-md bg-primary text-white"}`}
@@ -497,6 +508,7 @@ function ChatWidget({
   submitting,
   requestError,
   onSend,
+  language,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -508,7 +520,9 @@ function ChatWidget({
   submitting: boolean;
   requestError: string;
   onSend: (message: string) => Promise<boolean>;
+  language: Language;
 }) {
+  const labels = text(language);
   const inputRef = useRef<HTMLInputElement>(null);
   const messages: ChatMessage[] = state.conversation.map((turn, index) => ({
     id: `session-${index}-${turn.role}`,
@@ -535,7 +549,7 @@ function ChatWidget({
     if (!message.trim()) {
       setErrors((current) => ({
         ...current,
-        chat: "Hãy nhập yêu cầu trước khi gửi.",
+        chat: labels.chatRequired,
       }));
       return;
     }
@@ -562,10 +576,10 @@ function ChatWidget({
               </span>
               <div className="min-w-0">
                 <h2 id="chat-panel-title" className="font-heading font-bold">
-                  Trợ lý hành trình
+                  {labels.chatTitle}
                 </h2>
                 <p className="truncate text-sm text-slate-300">
-                  Điều chỉnh lịch trình bằng chat
+                  {labels.chatSubtitle}
                 </p>
               </div>
             </div>
@@ -573,8 +587,8 @@ function ChatWidget({
               type="button"
               onClick={() => onOpenChange(false)}
               className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-xl text-slate-200 transition hover:bg-white/10 hover:text-white"
-              aria-label="Đóng cửa sổ chat"
-              title="Đóng chat"
+              aria-label={labels.closeChat}
+              title={labels.closeChat}
             >
               <X size={20} aria-hidden="true" />
             </button>
@@ -586,14 +600,11 @@ function ChatWidget({
                 <>
                   <ChatBubble
                     role="agent"
-                    content="Bạn muốn đổi gì? Gửi yêu cầu tự nhiên để thêm, xoá, đổi giờ hoặc kéo dài chuyến đi. Lịch chỉ được cập nhật sau khi kiểm tra nguồn và thời gian."
+                    content={labels.chatEmpty}
+                    language={language}
                   />
                   <div className="ml-auto grid max-w-[88%] gap-2">
-                    {[
-                      "Thêm Lô Lô Chải vào ngày 2",
-                      "Chuyển điểm 1 sang 11:00 ngày 1",
-                      "Thêm một ngày cho chuyến đi",
-                    ].map((example) => (
+                  {labels.chatExamples.map((example) => (
                       <button
                         type="button"
                         key={example}
@@ -607,11 +618,11 @@ function ChatWidget({
                 </>
               )}
               {messages.map((chatMessage) => (
-                <ChatBubble key={chatMessage.id} {...chatMessage} />
+                <ChatBubble key={chatMessage.id} {...chatMessage} language={language} />
               ))}
               {state.pending && (
                 <div role="status" aria-live="polite">
-                  <ChatBubble role="agent" content="Đang kiểm tra yêu cầu…" />
+                  <ChatBubble role="agent" content={labels.chatPending} language={language} />
                 </div>
               )}
             </div>
@@ -630,7 +641,7 @@ function ChatWidget({
             onSubmit={submitChat}
           >
             <label className="sr-only" htmlFor="chat-widget-input">
-              Yêu cầu thay đổi lịch trình
+              {labels.chatRequest}
             </label>
             <div className="flex items-end gap-2">
               <div className="min-w-0 flex-1">
@@ -643,7 +654,7 @@ function ChatWidget({
                   aria-invalid={Boolean(errors.chat)}
                   aria-describedby={errors.chat ? "chat-widget-error" : undefined}
                   className="min-h-12 w-full rounded-xl border border-slate-300 bg-white px-4 text-base text-slate-900 placeholder:text-slate-500"
-                  placeholder="Ví dụ: thêm một ngày…"
+                  placeholder={labels.chatPlaceholder}
                 />
                 <span id="chat-widget-error">
                   <FieldError message={errors.chat} />
@@ -653,15 +664,15 @@ function ChatWidget({
                 type="submit"
                 disabled={state.pending || submitting || !message.trim()}
                 className="inline-flex min-h-12 min-w-12 items-center justify-center rounded-xl bg-primary px-4 font-bold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
-                aria-label="Gửi yêu cầu chat"
-                title="Gửi yêu cầu"
+                aria-label={labels.send}
+                title={labels.send}
               >
                 {submitting || state.pending ? (
                   <LoaderCircle className="animate-spin" aria-hidden="true" />
                 ) : (
                   <Send size={19} aria-hidden="true" />
                 )}
-                <span className="sr-only">Gửi</span>
+                <span className="sr-only">{labels.send}</span>
               </button>
             </div>
           </form>
@@ -674,11 +685,11 @@ function ChatWidget({
         className="fixed bottom-4 right-4 z-40 inline-flex min-h-14 min-w-14 items-center justify-center rounded-full bg-primary text-white shadow-xl shadow-blue-900/20 transition hover:-translate-y-0.5 hover:bg-blue-500 focus-visible:ring-4 focus-visible:ring-blue-400 sm:bottom-6 sm:right-6"
         aria-expanded={open}
         aria-controls="chat-panel"
-        aria-label={open ? "Đóng cửa sổ chat" : "Mở cửa sổ chat"}
-        title={open ? "Đóng chat" : "Mở chat"}
+        aria-label={open ? labels.closeChat : labels.openChat}
+        title={open ? labels.closeChat : labels.openChat}
       >
         {open ? <X aria-hidden="true" /> : <MessageCircle aria-hidden="true" />}
-        <span className="sr-only">{open ? "Đóng chat" : "Mở chat"}</span>
+        <span className="sr-only">{open ? labels.closeChat : labels.openChat}</span>
       </button>
     </>
   );
@@ -686,6 +697,7 @@ function ChatWidget({
 
 function App() {
   const [state, setState] = useState<ApiState>({
+    language: "vi",
     plan: null,
     pending: false,
     response: null,
@@ -707,6 +719,14 @@ function App() {
   const [graphImageUnavailable, setGraphImageUnavailable] = useState(false);
   const [graphFallbackLoading, setGraphFallbackLoading] = useState(false);
   const [graphError, setGraphError] = useState("");
+  const labels = text(state.language);
+  useEffect(() => {
+    document.documentElement.lang = state.language;
+    document.title = labels.pageTitle;
+    document
+      .querySelector('meta[name="description"]')
+      ?.setAttribute("content", labels.metaDescription);
+  }, [state.language]);
   const load = async () => {
     try {
       setState(await api<ApiState>("/api/session"));
@@ -718,7 +738,7 @@ function App() {
   useEffect(() => {
     void load().catch((error: unknown) =>
       setRequestError(
-        error instanceof Error ? error.message : "Không thể bắt đầu phiên.",
+        error instanceof Error ? error.message : labels.errorStart,
       ),
     );
   }, []);
@@ -763,7 +783,7 @@ function App() {
       .then((result) => setGraphSvg(result.svg))
       .catch((error: unknown) =>
         setGraphError(
-          error instanceof Error ? error.message : "Không thể tải sơ đồ.",
+          error instanceof Error ? error.message : labels.errorGraph,
         ),
       )
       .finally(() => setGraphFallbackLoading(false));
@@ -780,7 +800,7 @@ function App() {
       return true;
     } catch (error) {
       setRequestError(
-        error instanceof Error ? error.message : "Không thể gửi yêu cầu.",
+        error instanceof Error ? error.message : labels.errorSend,
       );
       return false;
     } finally {
@@ -791,14 +811,14 @@ function App() {
     event.preventDefault();
     const next: Record<string, string> = {};
     if (!destination.trim())
-      next.destination = "Hãy nhập điểm đến hoặc địa danh.";
-    if (!startDate) next.startDate = "Hãy chọn ngày bắt đầu cụ thể.";
+      next.destination = labels.requiredDestination;
+    if (!startDate) next.startDate = labels.requiredStartDate;
     if (!Number.isInteger(days) || days < 1 || days > 7)
-      next.days = "Số ngày phải từ 1 đến 7.";
+      next.days = labels.requiredDays;
     setErrors(next);
     if (Object.keys(next).length) return;
     void submit({
-      message: `Hãy tạo lịch trình tham quan ${days} ngày tại ${destination.trim()}, bắt đầu ngày ${startDate}.`,
+      message: state.language === "en" ? `Create a ${days}-day sightseeing itinerary in ${destination.trim()}, starting on ${startDate}.` : `Hãy tạo lịch trình tham quan ${days} ngày tại ${destination.trim()}, bắt đầu ngày ${startDate}.`,
       request: {
         destination: destination.trim(),
         start_date: startDate,
@@ -812,7 +832,7 @@ function App() {
     setGraphImageUnavailable(true);
   };
   const reset = async () => {
-    if (state.plan && !window.confirm("Tạo chuyến đi mới và bỏ lịch trình hiện tại?")) return;
+    if (state.plan && !window.confirm(labels.confirmReset)) return;
     setRequestError("");
     try {
       await api<ApiState>("/api/session/reset", { method: "POST" });
@@ -821,8 +841,21 @@ function App() {
       await load();
     } catch (error) {
       setRequestError(
-        error instanceof Error ? error.message : "Không thể tạo chuyến đi mới.",
+        error instanceof Error ? error.message : labels.errorReset,
       );
+    }
+  };
+  const changeLanguage = async (language: Language) => {
+    if (language === state.language) return;
+    try {
+      const updated = await api<ApiState>("/api/session/language", {
+        method: "PUT",
+        body: JSON.stringify({ language }),
+      });
+      setState(updated);
+      setRequestError("");
+    } catch (error) {
+      setRequestError(error instanceof Error ? error.message : labels.errorConnection);
     }
   };
   return (
@@ -831,7 +864,7 @@ function App() {
         href="#main"
         className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 rounded bg-white p-3"
       >
-        Đi tới nội dung
+        {labels.skip}
       </a>
       <header className="border-b border-blue-100 bg-white/90 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6">
@@ -842,27 +875,55 @@ function App() {
             <span className="grid size-10 place-items-center rounded-2xl bg-primary text-white">
               <Compass />
             </span>
-            <span>Hành trình có căn cứ</span>
+            <span>{labels.brand}</span>
           </a>
           <div className="flex items-center gap-1">
+            <div
+              className="inline-flex items-center rounded-xl border border-blue-100 bg-blue-50/70 p-1"
+              role="group"
+              aria-label={labels.language}
+            >
+              <button
+                type="button"
+                aria-label={labels.switchToVietnamese}
+                aria-pressed={state.language === "vi"}
+                title={labels.switchToVietnamese}
+                onClick={() => void changeLanguage("vi")}
+                className={`min-h-9 min-w-10 rounded-lg px-2 text-sm font-bold transition-colors ${state.language === "vi" ? "bg-primary text-white shadow-sm" : "text-slate-700 hover:bg-white"}`}
+              >
+                <span className="sm:hidden">VI</span>
+                <span className="hidden sm:inline">Tiếng Việt</span>
+              </button>
+              <button
+                type="button"
+                aria-label={labels.switchToEnglish}
+                aria-pressed={state.language === "en"}
+                title={labels.switchToEnglish}
+                onClick={() => void changeLanguage("en")}
+                className={`min-h-9 min-w-10 rounded-lg px-2 text-sm font-bold transition-colors ${state.language === "en" ? "bg-primary text-white shadow-sm" : "text-slate-700 hover:bg-white"}`}
+              >
+                <span className="sm:hidden">EN</span>
+                <span className="hidden sm:inline">English</span>
+              </button>
+            </div>
             <button
               type="button"
               onClick={openGraph}
-              aria-label="Xem kiến trúc LangGraph"
+              aria-label={labels.graph}
               className="inline-flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-slate-700 hover:bg-blue-50"
             >
               <Network size={17} />
-              <span className="hidden sm:inline">Xem graph</span>
+              <span className="hidden sm:inline">{labels.graph}</span>
             </button>
             <button
               type="button"
               onClick={() => void reset()}
-              aria-label="Tạo chuyến đi mới"
+              aria-label={labels.newTrip}
               disabled={state.pending || submitting}
               className="inline-flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-slate-700 hover:bg-blue-50 disabled:opacity-50"
             >
               <RotateCcw size={17} />
-              <span className="hidden sm:inline">Chuyến đi mới</span>
+              <span className="hidden sm:inline">{labels.newTrip}</span>
             </button>
           </div>
         </div>
@@ -878,6 +939,7 @@ function App() {
             onImageLoad={() => setGraphImageLoading(false)}
             onImageError={graphImageFailed}
             onBack={() => setView("itinerary")}
+            language={state.language}
           />
         ) : (
           <>
@@ -885,17 +947,15 @@ function App() {
               <div>
                 <p className="mb-3 inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-sm font-semibold text-blue-700">
                   <ShieldCheck size={16} />
-                  Nguồn thật · kiểm tra lịch trước khi lưu
+                  {labels.badge}
                 </p>
                 <h1 className="font-heading text-4xl font-bold tracking-tight sm:text-5xl">
-                  Chọn điểm đến.
+                  {labels.heroTitle}
                   <br />
-                  <span className="text-primary">Đi đúng nhịp của bạn.</span>
+                  <span className="text-primary">{labels.heroAccent}</span>
                 </h1>
                 <p className="mt-5 max-w-xl text-lg leading-8 text-slate-600">
-                  Tạo lịch tham quan có nguồn tham khảo, rồi trò chuyện để đổi
-                  ngày, giờ hoặc địa điểm. Thời lượng và thông tin chưa xác minh
-                  luôn được gắn nhãn rõ.
+                  {labels.heroDescription}
                 </p>
               </div>
               <form
@@ -904,18 +964,18 @@ function App() {
                 className="rounded-3xl bg-white p-5 shadow-xl shadow-blue-900/10 ring-1 ring-blue-100 sm:p-7"
               >
                 <h2 className="font-heading text-xl font-bold">
-                  Bắt đầu hành trình
+                  {labels.startJourney}
                 </h2>
                 <div className="mt-5 grid gap-4">
                   <label className="font-semibold" htmlFor="destination">
-                    Điểm đến
+                    {labels.destination}
                     <input
                       id="destination"
                       value={destination}
                       onChange={(event) => setDestination(event.target.value)}
                       aria-invalid={Boolean(errors.destination)}
                       aria-describedby={errors.destination ? "destination-error" : undefined}
-                      placeholder="Ví dụ: Huế"
+                      placeholder={labels.destinationPlaceholder}
                       disabled={state.pending || submitting}
                       className="mt-2 block min-h-12 w-full rounded-xl border border-slate-300 bg-white px-4 text-base"
                     />
@@ -923,7 +983,7 @@ function App() {
                   </label>
                   <div className="grid gap-4 sm:grid-cols-2">
                     <label className="font-semibold" htmlFor="start-date">
-                      Ngày bắt đầu
+                      {labels.startDate}
                       <input
                         id="start-date"
                         type="date"
@@ -937,7 +997,7 @@ function App() {
                       <span id="start-date-error"><FieldError message={errors.startDate} /></span>
                     </label>
                     <label className="font-semibold" htmlFor="day-count">
-                      Số ngày
+                      {labels.days}
                       <select
                         id="day-count"
                         value={days}
@@ -951,7 +1011,7 @@ function App() {
                       >
                         {[1, 2, 3, 4, 5, 6, 7].map((number) => (
                           <option key={number} value={number}>
-                            {number} ngày
+                            {number} {labels.dayUnit}
                           </option>
                         ))}
                       </select>
@@ -967,7 +1027,7 @@ function App() {
                     ) : (
                       <Sparkles size={18} />
                     )}
-                    Tạo lịch trình
+                    {labels.create}
                   </button>
                 </div>
               </form>
@@ -987,8 +1047,7 @@ function App() {
                 aria-live="polite"
               >
                 <LoaderCircle className="animate-spin" />
-                Coordinator đang phân phối yêu cầu cho Planner và Chat. Bạn có
-                thể tiếp tục xem lịch hiện tại hoặc xem graph.
+                {labels.pending}
               </section>
             )}
             <TurnStatus response={state.response} />
@@ -997,15 +1056,16 @@ function App() {
                 plan={state.plan}
                 visuals={visuals}
                 loading={visualsLoading}
+                language={state.language}
               />
             ) : (
               <section className="mt-8 rounded-3xl border border-dashed border-blue-200 bg-white/80 p-8 text-center text-slate-600">
                 <Compass className="mx-auto mb-3 text-primary" />
                 <h2 className="font-heading text-xl font-bold text-slate-900">
-                  Lịch trình của bạn sẽ xuất hiện ở đây
+                  {labels.emptyTitle}
                 </h2>
                 <p className="mt-2">
-                  Chọn điểm đến, ngày bắt đầu và số ngày để bắt đầu.
+                  {labels.emptyDescription}
                 </p>
               </section>
             )}
@@ -1023,19 +1083,20 @@ function App() {
         submitting={submitting}
         requestError={requestError}
         onSend={(sent) => submit({ message: sent })}
+        language={state.language}
       />
       <footer className="mx-auto flex max-w-7xl flex-wrap gap-4 px-4 py-8 text-sm text-slate-500 sm:px-6">
         <span className="inline-flex items-center gap-1">
           <MapPin size={15} />
-          Chỉ lưu trong phiên duyệt web
+          {labels.sessionOnly}
         </span>
         <span className="inline-flex items-center gap-1">
           <CalendarDays size={15} />
-          Tối đa 7 ngày
+          {labels.maxDays}
         </span>
         <span className="inline-flex items-center gap-1">
           <Plus size={15} />
-          Không tự tạo nguồn hoặc giờ mở cửa
+          {labels.noFabrication}
         </span>
       </footer>
     </div>

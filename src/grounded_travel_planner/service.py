@@ -26,6 +26,7 @@ from grounded_travel_planner.contracts import (
 )
 from grounded_travel_planner.conversation import bounded_history, bounded_summary
 from grounded_travel_planner.graph import build_travel_planner_graph
+from grounded_travel_planner.i18n import Language, localized
 from grounded_travel_planner.providers import PlaceSearchProvider, TraceSink
 from utils.ids import new_id
 from utils.redaction import sanitize_error
@@ -142,6 +143,7 @@ class TravelPlannerService:
         request: TripRequest | None = None,
         session_summary: str = "",
         conversation_history: list[ConversationTurn] | None = None,
+        language: Language = "vi",
     ) -> AgentResponse:
         """Return the committed plan or the untouched previous plan."""
 
@@ -158,6 +160,7 @@ class TravelPlannerService:
             "thread_id": thread_id,
             "turn_id": turn_id,
             "message": message[:4000],
+            "language": language,
             "request": request,
             "current_plan": safe_current,
             "session_summary": bounded_summary(session_summary),
@@ -181,7 +184,7 @@ class TravelPlannerService:
                 return response
             return AgentResponse(
                 status=ResponseStatus.PROVIDER_ERROR,
-                message="Chưa nhận được phản hồi hợp lệ cho yêu cầu này.",
+                message=localized("missing_graph_response", language),
                 current_plan=safe_current,
                 validation_issues=[
                     ValidationIssue(
@@ -194,7 +197,7 @@ class TravelPlannerService:
         except Exception as error:  # noqa: BLE001 - preserve canonical plan
             return AgentResponse(
                 status=ResponseStatus.PROVIDER_ERROR,
-                message="Chưa thể hoàn tất yêu cầu; lịch trình cũ đã được giữ nguyên.",
+                message=localized("graph_failure", language),
                 current_plan=safe_current,
                 validation_issues=[
                     ValidationIssue(

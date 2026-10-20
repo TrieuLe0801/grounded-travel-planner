@@ -18,12 +18,14 @@ from grounded_travel_planner.contracts import (
     TripRequest,
     ValidationIssue,
 )
+from grounded_travel_planner.i18n import Language
 
 
 class PlannerState(TypedDict):
     thread_id: str
     turn_id: str
     message: str
+    language: Language
     request: TripRequest | None
     current_plan: SightseeingPlan | None
     session_summary: str

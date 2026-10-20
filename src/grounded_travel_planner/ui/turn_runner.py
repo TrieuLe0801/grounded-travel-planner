@@ -15,6 +15,7 @@ from grounded_travel_planner.contracts import (
     ValidationIssue,
 )
 from grounded_travel_planner.conversation import bounded_history, bounded_summary
+from grounded_travel_planner.i18n import Language, localized
 from grounded_travel_planner.service import TravelPlannerService
 
 
@@ -28,6 +29,7 @@ class PendingTurn:
     current_plan: SightseeingPlan | None
     request: TripRequest | None
     future: Future[AgentResponse]
+    language: Language = "vi"
 
 
 class TurnRunner:
@@ -49,6 +51,7 @@ class TurnRunner:
         request: TripRequest | None = None,
         session_summary: str = "",
         conversation_history: list[ConversationTurn] | None = None,
+        language: Language = "vi",
     ) -> PendingTurn:
         """Capture a turn before scheduling it on the shared bounded executor."""
 
@@ -67,6 +70,7 @@ class TurnRunner:
             captured_request,
             captured_summary,
             captured_history,
+            language,
         )
         return PendingTurn(
             token=uuid4().hex,
@@ -74,6 +78,7 @@ class TurnRunner:
             message=captured_message,
             current_plan=captured_plan,
             request=captured_request,
+            language=language,
             future=future,
         )
 
@@ -86,7 +91,7 @@ class TurnRunner:
         try:
             return pending.future.result()
         except Exception:  # noqa: BLE001 - executor failures must preserve the plan
-            return TurnRunner._provider_error(pending.current_plan)
+            return TurnRunner._provider_error(pending.current_plan, pending.language)
 
     @staticmethod
     def _run_turn(
@@ -97,6 +102,7 @@ class TurnRunner:
         request: TripRequest | None,
         session_summary: str,
         conversation_history: list[ConversationTurn],
+        language: Language,
     ) -> AgentResponse:
         """Invoke the service from a worker with captured data only."""
 
@@ -108,18 +114,19 @@ class TurnRunner:
                 request=request,
                 session_summary=session_summary,
                 conversation_history=conversation_history,
+                language=language,
             )
         except Exception:  # noqa: BLE001 - the UI must remain responsive
-            return TurnRunner._provider_error(current_plan)
+            return TurnRunner._provider_error(current_plan, language)
 
     @staticmethod
-    def _provider_error(current_plan: SightseeingPlan | None) -> AgentResponse:
+    def _provider_error(
+        current_plan: SightseeingPlan | None, language: Language = "vi"
+    ) -> AgentResponse:
         safe_plan = current_plan.model_copy(deep=True) if current_plan else None
         return AgentResponse(
             status=ResponseStatus.PROVIDER_ERROR,
-            message=(
-                "Chưa thể hoàn tất yêu cầu; lịch trình trước đó vẫn được giữ nguyên."
-            ),
+            message=localized("background_failure", language),
             current_plan=safe_plan,
             validation_issues=[
                 ValidationIssue(

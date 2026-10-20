@@ -17,6 +17,7 @@ from grounded_travel_planner.contracts import (
     ValidationIssue,
 )
 from grounded_travel_planner.graph.state import PlannerState
+from grounded_travel_planner.i18n import localized
 from grounded_travel_planner.policies.input_validation import validate_trip_request
 from grounded_travel_planner.policies.plan_commit import validate_candidate
 from grounded_travel_planner.providers import (
@@ -96,6 +97,7 @@ class GraphNodes:
                 session_summary=state.get("session_summary", ""),
                 conversation_history=state.get("conversation_history", []),
                 metadata=_metadata(state, self.coordinator.role),
+                language=state.get("language", "vi"),
             )
             if decision.requires_planner:
                 request, issues = self._validated_request(state, decision.intent)
@@ -297,6 +299,7 @@ class GraphNodes:
                 metadata=_metadata(state, self.planner.role),
                 session_summary=state.get("session_summary", ""),
                 retained_sources=state.get("planner_search_sources"),
+                language=state.get("language", "vi"),
             )
             self.trace_sink.record_event(
                 "planner.propose",
@@ -347,6 +350,7 @@ class GraphNodes:
                     session_summary=state.get("session_summary", ""),
                     repair_issues=issues,
                     retained_sources=_candidate_sources(state),
+                    language=state.get("language", "vi"),
                 )
                 issues = validate_candidate(
                     candidate,
@@ -401,6 +405,7 @@ class GraphNodes:
                     response_hint=state.get("response_hint", ""),
                     session_summary=state.get("session_summary", ""),
                     metadata=_metadata(state, self.chat.role),
+                    language=state.get("language", "vi"),
                 )
                 request = self.chat.tool_request(chat_decision)
                 if (
@@ -420,9 +425,7 @@ class GraphNodes:
             except Exception:  # noqa: BLE001 - stable user-safe fallback
                 chat_decision = None
         if chat_decision is None:
-            message = (
-                "Chưa thể hoàn tất yêu cầu; lịch trình trước đó đã được giữ nguyên."
-            )
+            message = localized("background_failure", state.get("language", "vi"))
             sources: list[SourceReference] = []
         else:
             try:
@@ -439,12 +442,13 @@ class GraphNodes:
                     sources=state.get("chat_search_sources", []),
                     search_failed=state.get("chat_search_failed", False),
                     metadata=_metadata(state, self.chat.role),
+                    language=state.get("language", "vi"),
                 )
                 message = response_message.message
                 sources = list(state.get("chat_search_sources", []))
             except Exception:  # noqa: BLE001 - stable user-safe fallback
                 message, sources = (
-                    "Chưa thể hoàn tất yêu cầu; lịch trình trước đó đã được giữ nguyên.",
+                    localized("background_failure", state.get("language", "vi")),
                     [],
                 )
         status = (

@@ -14,6 +14,7 @@ from grounded_travel_planner.contracts import (
     visible_schedule_context,
 )
 from grounded_travel_planner.conversation import history_prompt
+from grounded_travel_planner.i18n import Language, response_language_instruction
 from grounded_travel_planner.providers import StructuredChatModel
 
 
@@ -38,17 +39,19 @@ class CoordinatorAgent:
         metadata: Mapping[str, str],
         session_summary: str = "",
         conversation_history: list[ConversationTurn] | None = None,
+        language: Language = "vi",
     ) -> CoordinatorDecision:
         prompt = (
-            "Classify the user turn for a city sightseeing planner. "
+            f"Classify the user turn for a city sightseeing planner. Write the rolling session_summary in {response_language_instruction(language)}. "
             "Use ordinary_chat for conversation that does not request a plan "
             "mutation. Plan mutations are create_trip, add_place, remove_place, "
             "replace_place, reorder_places, change_day, change_time or "
-            "extend_trip. For Vietnamese requests such as 'thêm N ngày', use "
-            "extend_trip and set day_count_delta to the positive N. For an "
-            "absolute requested total, set extend_trip day_count instead. Do not "
-            "invent a plan. Understand Vietnamese requests and preserve the "
-            "user's place names and diacritics in the structured intent. "
+            "extend_trip. Understand requests in Vietnamese or English. For "
+            "Vietnamese requests such as 'thêm N ngày' or English requests "
+            "such as 'add N days', use extend_trip and set day_count_delta to "
+            "the positive N. For an absolute requested total, set "
+            "extend_trip day_count instead. Do not invent a plan. Preserve "
+            "the user's place names and original spelling in the structured intent. "
             "Reorder from_index and to_index are zero-based "
             "positions in the chronological itinerary the user sees, sorted by "
             "day, start time, end time, then entry ID. When the user names a "

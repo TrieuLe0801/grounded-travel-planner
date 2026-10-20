@@ -15,6 +15,7 @@ from grounded_travel_planner.contracts import (
     ValidationIssue,
     visible_schedule_context,
 )
+from grounded_travel_planner.i18n import Language, response_language_instruction
 from grounded_travel_planner.providers import StructuredChatModel
 
 
@@ -42,6 +43,7 @@ class ChatAgent:
         response_hint: str,
         session_summary: str,
         metadata: Mapping[str, str],
+        language: Language = "vi",
     ) -> ChatSearchDecision:
         return self._model.generate_structured(
             self._search_decision_prompt(
@@ -53,6 +55,7 @@ class ChatAgent:
                 candidate=candidate,
                 issues=issues,
                 response_hint=response_hint,
+                language=language,
             ),
             ChatSearchDecision,
             metadata=metadata,
@@ -80,6 +83,7 @@ class ChatAgent:
         sources: list[SourceReference],
         search_failed: bool,
         metadata: Mapping[str, str],
+        language: Language = "vi",
     ) -> ChatResponse:
         if not decision.should_search and decision.message.strip():
             return ChatResponse(message=decision.message.strip())
@@ -103,7 +107,7 @@ class ChatAgent:
                 f"Retained prior plan: {current_plan.model_dump_json()}\n"
             )
         prompt = (
-            "Respond entirely in natural Vietnamese. Preserve proper place names, "
+            f"Respond entirely in natural {response_language_instruction(language)}. Preserve proper place names, "
             "times and source titles. Never claim an uncommitted candidate was "
             "applied. If validation failed, say the previous plan was preserved. "
             "Mention estimates and unverified hours when relevant.\n"
@@ -133,8 +137,9 @@ class ChatAgent:
         candidate = kwargs["candidate"]
         issues = kwargs["issues"]
         response_hint = str(kwargs["response_hint"])[:1000]
+        language = kwargs.get("language", "vi")
         return (
-            "Write a concise Vietnamese response and decide whether one current web "
+            f"Write a concise {response_language_instruction(language)} response and decide whether one current web "
             "search is necessary. Search only for factual current travel information "
             "absent from the itinerary or handoff. Do not search casual conversation "
             "or plan edits handled by Planner. With no search, return should_search=false, "

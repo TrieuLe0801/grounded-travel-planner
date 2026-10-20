@@ -18,6 +18,7 @@ from grounded_travel_planner.contracts import (
     visible_schedule_entries,
 )
 from grounded_travel_planner.conversation import MAX_CONVERSATION_TURNS
+from grounded_travel_planner.i18n import localized_issue_message
 from grounded_travel_planner.service import TravelPlannerService
 from grounded_travel_planner.ui.turn_runner import PendingTurn, TurnRunner
 from grounded_travel_planner.visuals import (
@@ -25,6 +26,83 @@ from grounded_travel_planner.visuals import (
     PlaceVisual,
     VisualEnrichmentService,
 )
+
+_TEXT = {
+    "vi": {
+        "title": "Trợ lý lập lịch tham quan",
+        "subtitle": "Coordinator + Planner + Chat · lịch chỉ lưu trong phiên · gợi ý có nguồn tham khảo",
+        "language": "Ngôn ngữ",
+        "new_trip": "Chuyến đi mới",
+        "destination": "Điểm đến hoặc địa điểm",
+        "start_date": "Ngày bắt đầu",
+        "days": "Số ngày",
+        "create": "Tạo lịch tham quan",
+        "pending": "Đang xử lý yêu cầu. Bạn có thể chuyển trang và quay lại sau.",
+        "current": "Lịch trình hiện tại",
+        "starts": "bắt đầu",
+        "photos": "Ảnh được tra cứu cho {count} điểm đầu; các điểm còn lại vẫn có trong lịch trình bên dưới.",
+        "day": "Ngày",
+        "no_stops": "Chưa có địa điểm nào trong ngày này.",
+        "stop": "Điểm",
+        "photo_alt": "Ảnh địa điểm {place}",
+        "photo": "Ảnh",
+        "view_image": "Xem ảnh gốc và giấy phép",
+        "photo_missing": "Chưa có ảnh đã xác minh nguồn và giấy phép.",
+        "visit": "Tham quan ước tính",
+        "travel": "Di chuyển ước tính",
+        "minutes": "phút",
+        "hours": "Giờ mở cửa",
+        "unverified": "chưa xác minh",
+        "details": "Chi tiết kiểm tra",
+        "steps": "Bước xử lý",
+        "searches": "Lần tìm kiếm",
+        "repairs": "Lần sửa lại",
+        "chat_hint": "Nhắn tin để sửa lịch, ví dụ: 'Chuyển điểm 1 sang 11:00 ngày 1', 'Đổi thứ tự điểm 2 và 3', hoặc 'Thay Imperial City bằng một địa điểm khác'. Số thứ tự điểm được tính trên toàn bộ lịch trình.",
+        "chat": "Trò chuyện",
+        "chat_input": "Nhắn tin hoặc yêu cầu thay đổi lịch trình",
+        "invalid": "Thông tin chuyến đi không hợp lệ",
+        "create_message": "Hãy tạo lịch trình tham quan {days} ngày tại {destination}, bắt đầu ngày {date}.",
+    },
+    "en": {
+        "title": "Sightseeing itinerary assistant",
+        "subtitle": "Coordinator + Planner + Chat · itinerary stored only in this session · sourced suggestions",
+        "language": "Language",
+        "new_trip": "New trip",
+        "destination": "Destination or place",
+        "start_date": "Start date",
+        "days": "Days",
+        "create": "Create itinerary",
+        "pending": "Your request is being processed. You can navigate away and return later.",
+        "current": "Current itinerary",
+        "starts": "starts",
+        "photos": "Photos are being looked up for the first {count} stops; remaining stops are still listed below.",
+        "day": "Day",
+        "no_stops": "No places are scheduled for this day.",
+        "stop": "Stop",
+        "photo_alt": "Photo of {place}",
+        "photo": "Photo",
+        "view_image": "View original image and licence",
+        "photo_missing": "No photo with verified source and licence is available.",
+        "visit": "Estimated visit",
+        "travel": "Estimated travel",
+        "minutes": "minutes",
+        "hours": "Opening hours",
+        "unverified": "unverified",
+        "details": "Validation details",
+        "steps": "Graph steps",
+        "searches": "Searches",
+        "repairs": "Repair attempts",
+        "chat_hint": "Send a message to change the itinerary, for example: 'Move stop 1 to 11:00 on day 1', 'Swap stops 2 and 3', or 'Replace Imperial City with another place'. Stop numbers span the whole itinerary.",
+        "chat": "Chat",
+        "chat_input": "Message or request an itinerary change",
+        "invalid": "Trip details are invalid",
+        "create_message": "Create a {days}-day sightseeing itinerary in {destination}, starting on {date}.",
+    },
+}
+
+
+def _labels() -> dict[str, str]:
+    return _TEXT[st.session_state.get("language", "vi")]
 
 
 class _CreditTextParser(HTMLParser):
@@ -74,6 +152,7 @@ def _ensure_session(service: TravelPlannerService) -> None:
     st.session_state.setdefault("last_response", None)
     st.session_state.setdefault("visuals_by_revision", {})
     st.session_state.setdefault("pending_turn", None)
+    st.session_state.setdefault("language", "vi")
 
 
 def _reset_session(service: TravelPlannerService) -> None:
@@ -143,6 +222,7 @@ def _submit_turn(
         conversation_history=[
             ConversationTurn(**turn) for turn in st.session_state.conversation[-12:]
         ],
+        language=st.session_state.language,
     )
     _record_submitted_turn(message)
 
@@ -172,7 +252,7 @@ def _poll_pending_turn() -> None:
         st.rerun()
     if st.session_state.pending_turn is None:
         return
-    st.info("Đang xử lý yêu cầu. Bạn có thể chuyển trang và quay lại sau.")
+    st.info(_labels()["pending"])
 
 
 def _safe_external_url(value: str | None) -> str | None:
@@ -202,34 +282,32 @@ def _visuals_for_plan(
 def _render_plan(
     plan: SightseeingPlan, visual_service: VisualEnrichmentService
 ) -> None:
-    st.subheader(f"Lịch trình hiện tại · phiên bản {plan.revision}")
+    labels = _labels()
+    st.subheader(f"{labels['current']} · v{plan.revision}")
     st.caption(
-        f"{plan.destination} · bắt đầu {plan.start_date.isoformat()} · "
-        f"{plan.day_count} ngày"
+        f"{plan.destination} · {labels['starts']} {plan.start_date.isoformat()} · "
+        f"{plan.day_count} {labels['days'].lower()}"
     )
     if plan.summary:
         st.write(plan.summary)
     numbered_entries = list(enumerate(visible_schedule_entries(plan), start=1))
     if len(numbered_entries) > MAX_VISUAL_STOPS:
-        st.caption(
-            f"Ảnh được tra cứu cho {MAX_VISUAL_STOPS} điểm đầu; "
-            "các điểm còn lại vẫn có trong lịch trình bên dưới."
-        )
+        st.caption(labels["photos"].format(count=MAX_VISUAL_STOPS))
     visuals = _visuals_for_plan(plan, visual_service)
     for day_index in range(1, plan.day_count + 1):
-        st.markdown(f"### Ngày {day_index}")
+        st.markdown(f"### {labels['day']} {day_index}")
         day_entries = [
             (position, entry)
             for position, entry in numbered_entries
             if entry.day_index == day_index
         ]
         if not day_entries:
-            st.caption("Chưa có địa điểm nào trong ngày này.")
+            st.caption(labels["no_stops"])
             continue
         for position, entry in day_entries:
             place = entry.place
             with st.expander(
-                f"Điểm {position} · {entry.start_time.strftime('%H:%M')}–"
+                f"{labels['stop']} {position} · {entry.start_time.strftime('%H:%M')}–"
                 f"{entry.end_time.strftime('%H:%M')} · {place.name}",
                 expanded=True,
             ):
@@ -247,31 +325,33 @@ def _render_plan(
                 ):
                     st.image(
                         image_url,
-                        alt=visual.image_alt or f"Ảnh địa điểm {place.name}",
+                        alt=visual.image_alt
+                        or labels["photo_alt"].format(place=place.name),
                         width="stretch",
                     )
                     st.text(
-                        f"Ảnh: {_plain_credit(visual.image_credit)} · "
+                        f"{labels['photo']}: {_plain_credit(visual.image_credit)} · "
                         f"{_plain_credit(visual.image_license)}"
                     )
-                    st.link_button("Xem ảnh gốc và giấy phép", image_page)
+                    st.link_button(labels["view_image"], image_page)
                 else:
-                    st.caption("Chưa có ảnh đã xác minh nguồn và giấy phép.")
+                    st.caption(labels["photo_missing"])
                 st.caption(
-                    f"Tham quan ước tính: {place.visit_minutes_estimate} phút · "
-                    f"Di chuyển ước tính: {place.travel_minutes_estimate} phút"
+                    f"{labels['visit']}: {place.visit_minutes_estimate} {labels['minutes']} · "
+                    f"{labels['travel']}: {place.travel_minutes_estimate} {labels['minutes']}"
                 )
                 hours = (
                     place.opening_hours
                     if place.opening_hours_verified
-                    else "chưa xác minh"
+                    else labels["unverified"]
                 )
-                st.caption(f"Giờ mở cửa: {hours}")
+                st.caption(f"{labels['hours']}: {hours}")
                 for source in place.source_references:
                     st.markdown(f"- [{source.title}]({source.url})")
 
 
 def _render_response(response: AgentResponse) -> None:
+    labels = _labels()
     if response.status is ResponseStatus.COMMITTED:
         st.success(response.message)
     elif response.status is ResponseStatus.UNCHANGED:
@@ -279,12 +359,17 @@ def _render_response(response: AgentResponse) -> None:
     else:
         st.warning(response.message)
     if response.validation_issues:
-        with st.expander("Chi tiết kiểm tra", expanded=True):
+        with st.expander(labels["details"], expanded=True):
             for issue in response.validation_issues:
-                st.write(f"{issue.code}: {issue.message}")
+                message = localized_issue_message(
+                    issue.code,
+                    issue.message,
+                    st.session_state.get("language", "vi"),
+                )
+                st.write(f"{issue.code}: {message}")
     st.caption(
-        f"Bước xử lý: {response.graph_steps} · Lần tìm kiếm: "
-        f"{response.search_calls} · Lần sửa lại: {response.repair_attempts}"
+        f"{labels['steps']}: {response.graph_steps} · {labels['searches']}: "
+        f"{response.search_calls} · {labels['repairs']}: {response.repair_attempts}"
     )
 
 
@@ -299,35 +384,41 @@ def main(
     if _collect_completed_turn():
         st.rerun()
 
-    st.set_page_config(page_title="Trợ lý lập lịch tham quan", layout="wide")
-    st.title("Trợ lý lập lịch tham quan")
-    st.caption(
-        "Coordinator + Planner + Chat · lịch chỉ lưu trong phiên · "
-        "gợi ý có nguồn tham khảo"
+    labels = _labels()
+    st.set_page_config(page_title=labels["title"], layout="wide")
+    st.selectbox(
+        labels["language"],
+        options=("vi", "en"),
+        format_func=lambda value: "Tiếng Việt" if value == "vi" else "English",
+        index=0 if st.session_state.language == "vi" else 1,
+        key="language",
     )
+    labels = _labels()
+    st.title(labels["title"])
+    st.caption(labels["subtitle"])
     turn_pending = st.session_state.pending_turn is not None
-    if st.button("Chuyến đi mới", disabled=turn_pending):
+    if st.button(labels["new_trip"], disabled=turn_pending):
         _reset_session(runtime_service)
         st.rerun()
 
     with st.form("trip_request"):
         destination = st.text_input(
-            "Điểm đến hoặc địa điểm", placeholder="Huế", disabled=turn_pending
+            labels["destination"], placeholder="Huế", disabled=turn_pending
         )
         start_date = st.date_input(
-            "Ngày bắt đầu",
+            labels["start_date"],
             value=datetime.now().astimezone().date(),
             disabled=turn_pending,
         )
         day_count = st.number_input(
-            "Số ngày",
+            labels["days"],
             min_value=1,
             max_value=7,
             value=2,
             step=1,
             disabled=turn_pending,
         )
-        submitted = st.form_submit_button("Tạo lịch tham quan", disabled=turn_pending)
+        submitted = st.form_submit_button(labels["create"], disabled=turn_pending)
 
     if submitted:
         try:
@@ -336,9 +427,10 @@ def main(
                 start_date=start_date,
                 day_count=int(day_count),
             )
-            message = (
-                f"Hãy tạo lịch trình tham quan {request.day_count} ngày tại "
-                f"{request.destination}, bắt đầu ngày {request.start_date.isoformat()}."
+            message = labels["create_message"].format(
+                days=request.day_count,
+                destination=request.destination,
+                date=request.start_date.isoformat(),
             )
             _submit_turn(
                 turn_runner,
@@ -347,8 +439,8 @@ def main(
                 request=request,
             )
             st.rerun()
-        except ValidationError as error:
-            st.error(f"Thông tin chuyến đi không hợp lệ: {error.errors()[0]['msg']}")
+        except ValidationError:
+            st.error(labels["invalid"])
 
     response: AgentResponse | None = st.session_state.last_response
     if response is not None:
@@ -356,23 +448,17 @@ def main(
     plan: SightseeingPlan | None = st.session_state.current_plan
     if plan is not None:
         _render_plan(plan, runtime_visual_service)
-        st.caption(
-            "Nhắn tin để sửa lịch, ví dụ: 'Chuyển điểm 1 sang 11:00 ngày 1', "
-            "'Đổi thứ tự điểm 2 và 3', hoặc 'Thay Imperial City bằng một địa "
-            "điểm khác'. Số thứ tự điểm được tính trên toàn bộ lịch trình."
-        )
+        st.caption(labels["chat_hint"])
 
     if st.session_state.conversation:
-        st.subheader("Trò chuyện")
+        st.subheader(labels["chat"])
         for turn in st.session_state.conversation:
             with st.chat_message(turn["role"]):
                 st.write(turn["content"])
                 for source in turn.get("source_references", []):
                     st.link_button(source["title"], source["url"])
 
-    user_message = st.chat_input(
-        "Nhắn tin hoặc yêu cầu thay đổi lịch trình", disabled=turn_pending
-    )
+    user_message = st.chat_input(labels["chat_input"], disabled=turn_pending)
     if user_message:
         _submit_turn(turn_runner, runtime_service, message=user_message)
         st.rerun()

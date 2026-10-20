@@ -6,6 +6,7 @@ import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from threading import Lock
+from typing import Literal
 from uuid import uuid4
 
 from fastapi import Cookie, FastAPI, HTTPException, Query, Response
@@ -23,6 +24,7 @@ from grounded_travel_planner.conversation import (
     MAX_CONVERSATION_TURNS,
     MAX_SESSION_SUMMARY,
 )
+from grounded_travel_planner.i18n import Language, localized, localized_issue_message
 from grounded_travel_planner.service import TravelPlannerService
 from grounded_travel_planner.ui.graph_diagram import compiled_graph_svg
 from grounded_travel_planner.ui.turn_runner import PendingTurn, TurnRunner
@@ -41,11 +43,16 @@ class TurnInput(BaseModel):
     request: TripRequest | None = None
 
 
+class LanguageInput(BaseModel):
+    language: Literal["vi", "en"]
+
+
 @dataclass
 class WebSession:
     """Volatile state keyed only by an opaque HttpOnly browser cookie."""
 
     thread_id: str
+    language: Language = "vi"
     current_plan: SightseeingPlan | None = None
     pending: PendingTurn | None = None
     response: AgentResponse | None = None
@@ -80,8 +87,20 @@ class SessionStore:
         return session
 
 
-def _response_payload(response: AgentResponse | None) -> dict[str, object] | None:
-    return response.model_dump(mode="json") if response else None
+def _response_payload(
+    response: AgentResponse | None, language: Language
+) -> dict[str, object] | None:
+    if response is None:
+        return None
+    payload = response.model_dump(mode="json")
+    payload["validation_issues"] = [
+        {
+            **issue.model_dump(mode="json"),
+            "message": localized_issue_message(issue.code, issue.message, language),
+        }
+        for issue in response.validation_issues
+    ]
+    return payload
 
 
 def _append_conversation(session: WebSession, turn: ConversationTurn) -> None:
@@ -100,8 +119,9 @@ def _session_payload(
             if session.current_plan
             else None
         ),
-        "response": _response_payload(response or session.response),
+        "response": _response_payload(response or session.response, session.language),
         "pending": session.pending is not None,
+        "language": session.language,
         "conversation": [turn.model_dump(mode="json") for turn in session.conversation],
     }
 
@@ -158,12 +178,35 @@ def create_app(
         return {**_session_payload(session, None), "thread_id": session.thread_id}
 
     @app.post("/api/session/reset")
-    def reset_session(response: Response) -> dict[str, object]:
+    def reset_session(
+        response: Response, gtp_session: str | None = Cookie(default=None)
+    ) -> dict[str, object]:
+        language: Language = "vi"
+        if gtp_session:
+            try:
+                previous_session = current_session(gtp_session)
+                with previous_session.lock:
+                    language = previous_session.language
+            except HTTPException:
+                pass
         session_id, session = sessions.create(planner_service)
+        session.language = language
         response.set_cookie(
             COOKIE_NAME, session_id, httponly=True, samesite="lax", path="/"
         )
         return {**_session_payload(session, None), "thread_id": session.thread_id}
+
+    @app.put("/api/session/language")
+    def update_language(
+        payload: LanguageInput,
+        gtp_session: str | None = Cookie(default=None),
+    ) -> dict[str, object]:
+        """Change only UI/next-turn language for this existing browser session."""
+
+        session = current_session(gtp_session)
+        with session.lock:
+            session.language = payload.language
+            return _session_payload(session, session.response)
 
     @app.get("/api/session")
     def read_session(
@@ -183,7 +226,8 @@ def create_app(
             collect(session)
             if session.pending is not None:
                 raise HTTPException(
-                    status_code=409, detail="Một yêu cầu đang được xử lý."
+                    status_code=409,
+                    detail=localized("turn_pending", session.language),
                 )
             session.response = None
             _append_conversation(
@@ -197,6 +241,7 @@ def create_app(
                 request=payload.request,
                 session_summary=session.session_summary,
                 conversation_history=session.conversation[:-1],
+                language=session.language,
             )
         return {"accepted": True}
 
