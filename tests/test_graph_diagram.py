@@ -102,7 +102,9 @@ def test_service_get_graph_image_returns_png_and_optionally_writes_file(
             received_paths.append(output_file_path)
             return expected
 
-    monkeypatch.setattr(service.graph, "get_graph", lambda: FakeRenderableGraph())
+    monkeypatch.setattr(
+        service.graph, "get_graph", lambda *, xray=False: FakeRenderableGraph()
+    )
 
     assert service.get_graph_image() == expected
     assert received_paths == [None]

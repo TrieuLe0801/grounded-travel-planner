@@ -126,7 +126,7 @@ class TravelPlannerService:
         output_file_path = (
             str(Path(parent_path) / "flow.png") if parent_path is not None else None
         )
-        image = self.graph.get_graph().draw_mermaid_png(
+        image = self.graph.get_graph(xray=True).draw_mermaid_png(
             output_file_path=output_file_path
         )
         if not image.startswith(b"\x89PNG\r\n\x1a\n"):
