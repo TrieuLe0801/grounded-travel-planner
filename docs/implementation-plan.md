@@ -36,8 +36,25 @@ and no validation issues under the same intentionally invalid OpenAI key. The
 running app was subsequently recreated from that image at the user's request,
 clearing its prior session-only state. The app reached healthy status; `/` and
 `/api/graph/image` returned HTTP 200, and `POST /api/session` returned 201.
-The Compose Ollama profile and web UI failover path were not tested in this
-change.
+The web UI failover path was not tested in this change.
+
+## Ollama Container And Apple M1 Routing — Verified — 2026-10-26
+
+The opt-in Compose `ollama` and `ollama-init` services started successfully;
+the initializer pulled `qwen2.5:3b` into the named volume. With the app
+temporarily pointed at `http://ollama:11434`, a live turn using an intentionally
+invalid OpenAI key committed a one-entry Hue plan with one Tavily search, no
+repair and no validation issues. `ollama ps` inside the container reported
+`100% CPU`.
+
+The user then chose the Apple M1 chip for inference. Docker Desktop for macOS
+does not expose the Apple GPU to the Ollama Linux container, so the app now
+uses native Ollama through `http://host.docker.internal:11434`. The macOS
+Ollama app is serving that endpoint. A fallback call from the running app
+container returned a structured `ChatResponse` after a deliberately invalid
+OpenAI key, and host `ollama ps` reported `100% GPU`. The CPU Ollama container
+remains healthy but is not the app's active endpoint. No source, graph or plan
+policy changed; this was a local deployment configuration change.
 
 ## Phase 1A - Core Runtime — Implemented
 
@@ -355,7 +372,8 @@ a two-entry Hue API plan with one search and no repair. LangSmith returned 25 ru
 `host.docker.internal` and committed a fresh HTTP API Hue turn after its
 endpoint was separated from the direct-host loopback setting. See
 `docs/experiments/2026-10-18-ollama-local-smoke.md`. The internal Docker
-Ollama profile remains unrun.
+Ollama profile was subsequently verified in the Apple M1 routing section
+above.
 
 ## Role-Specific Runtime Models — Verified
 

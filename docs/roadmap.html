@@ -161,7 +161,8 @@
         <li>Typed <code>ChatOllama</code> structured output adapter</li>
         <li>Automatic OpenAI failure fallback to local <code>qwen2.5:3b</code>: 110 host tests and a sourced live Hue turn passed</li>
         <li>New runtime image committed a live Hue plan through fallback in a one-shot container; Compose app was then recreated and reached healthy status</li>
-        <li>Opt-in persistent Compose profile and model initializer</li>
+        <li>Opt-in Compose Ollama profile verified with a persistent model volume and a sourced Hue turn; Apple M1 Docker inference uses CPU</li>
+        <li>Active app reaches native macOS Ollama through <code>host.docker.internal</code>; fallback returned structured output and <code>ollama ps</code> showed 100% GPU</li>
         <li>Active mixed <code>gpt-5.5</code> / <code>qwen2.5:3b</code> Hue smoke passed</li>
         <li>Compose app to native Ollama HTTP smoke passed</li>
         <li>Planner structured output requires a complete candidate plan; missing-plan regressions passed</li>

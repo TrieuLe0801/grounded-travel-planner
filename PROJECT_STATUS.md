@@ -35,12 +35,22 @@ background only.
 | Temporary ngrok sharing | Verified, now stopped | Public root and graph PNG returned 200; session POST 201 and cookie-backed GET 200; app remains healthy locally |
 | Invalid model key diagnosis | Reproduced; error handling verified offline | Exact Hà Giang request received OpenAI HTTP 401 `token_invalidated` before search; 94 host/Docker tests passed; runtime image rebuilt but running app retained its sessions |
 | OpenAI to Ollama fallback | Deployed to healthy Compose app | 110 offline tests; invalid-key host and one-shot image Hue turns committed through Ollama; current app image healthy, root/graph HTTP 200 and session POST 201 |
+| Apple M1 Ollama deployment | Native GPU active; container CPU available | Docker Ollama profile healthy with `qwen2.5:3b` and one sourced Hue commit on CPU; app then switched to native macOS Ollama through `host.docker.internal`; invalid-key fallback returned structured output and `ollama ps` showed `100% GPU` |
 
 Planning progress is not implementation progress. Only executable artifacts and
 actual checks count as completion evidence.
 
 ## Done
 
+- Started the opt-in Ollama Compose profile and pulled `qwen2.5:3b` into its
+  persistent volume. The app reached it at `http://ollama:11434`; a live
+  invalid-key Hue turn committed one grounded entry with one Tavily search,
+  no repair and no validation issues. That Linux container used CPU on this
+  Apple M1 Mac. At the user's request, the app was then switched back to
+  native Ollama at `http://host.docker.internal:11434`. A structured fallback
+  call from the app succeeded, and host `ollama ps` showed `100% GPU`.
+  Ollama.app now serves the native endpoint; the CPU container remains healthy
+  and idle as an optional route. Ngrok remains stopped.
 - Added one automatic Ollama attempt for OpenAI authentication, rate-limit,
   server, connection or timeout failures, using a separately configured local
   fallback model. Explicit Ollama roles remain Ollama-only; malformed model
@@ -211,8 +221,8 @@ actual checks count as completion evidence.
   78-test suite and required formatting, lint, lockfile, Compose and diff checks
   passed. The Compose app endpoint now reaches host-native Ollama at
   `host.docker.internal`; its fresh HTTP API Hue smoke committed four entries
-  with one search and no repair. Docker's internal Ollama profile remains
-  unrun.
+  with one search and no repair. Docker's internal Ollama profile was later
+  verified as recorded in the Apple M1 deployment entry above.
 - With no local Ollama server available on this machine, changed `.env` to use
   OpenAI for all roles with the requested Planner/Chat models, and made the same
   configuration the default in `.env.example`. Parsing `.env` and the rebuilt

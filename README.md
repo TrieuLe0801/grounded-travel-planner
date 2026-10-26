@@ -182,6 +182,15 @@ then point the app at the host endpoint. On macOS and Windows, Docker Desktop
 containers can reach it at `http://host.docker.internal:11434`; a directly run
 app normally uses `http://127.0.0.1:11434`.
 
+On an Apple Silicon Mac, run the native Ollama macOS app and set
+`GTP_COMPOSE_OLLAMA_BASE_URL=http://host.docker.internal:11434` in the ignored
+`.env` to use Metal acceleration from the Compose app. Check `ollama ps` on the
+Mac; the `PROCESSOR` column should show GPU while a model is loaded. The
+optional Ollama **container** runs on CPU under Docker Desktop for macOS because
+Docker does not pass the Apple GPU through to that Linux container. It can
+remain available as a CPU option, but use `http://ollama:11434` only when that
+CPU path is intended. See the [Ollama GPU FAQ](https://github.com/ollama/ollama/blob/main/docs/faq.mdx).
+
 ```bash
 ollama pull qwen2.5:3b
 ```

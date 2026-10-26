@@ -433,3 +433,21 @@ three-role runtime and role-specific model policy.
   session creation returned 201. Existing in-memory sessions were cleared.
   The earlier ngrok stop state was restored after it appeared running during
   preflight; the app remained healthy.
+
+## User Decision — Apple M1 Inference — 2026-10-26
+
+- The user observed that no Ollama container was running. The opt-in Compose
+  `ollama` service was started and became healthy; `ollama-init` exited 0 after
+  pulling `qwen2.5:3b` (1.9 GB) into the named model volume. The app reached
+  `http://ollama:11434` and an invalid-key live Hue turn committed one entry
+  with one Tavily search, zero repairs and no validation issues.
+- The user then requested use of the Apple M1 chip. The Ollama Linux container
+  reported `100% CPU`, consistent with Ollama's documented lack of Apple GPU
+  passthrough in Docker Desktop. Native Ollama on macOS reported `100% GPU`.
+- The ignored `.env` now sets
+  `GTP_COMPOSE_OLLAMA_BASE_URL=http://host.docker.internal:11434`. Compose
+  recreated the app and it reached healthy status. The app container reached
+  the host Ollama endpoint and returned a structured response through the
+  OpenAI-to-Ollama fallback with an intentionally invalid OpenAI key. Ollama.app
+  was opened to own the native server. The Ollama container remains healthy as
+  an idle CPU option; its model was unloaded. Ngrok was stopped again.
