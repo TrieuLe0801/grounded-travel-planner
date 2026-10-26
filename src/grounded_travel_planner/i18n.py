@@ -19,6 +19,10 @@ _TEXT: dict[str, dict[Language, str]] = {
         "vi": "Chưa thể hoàn tất yêu cầu; lịch trình trước đó vẫn được giữ nguyên.",
         "en": "The request could not be completed; the previous itinerary was preserved.",
     },
+    "model_authentication_failure": {
+        "vi": "Khóa API của nhà cung cấp mô hình không hợp lệ hoặc đã bị vô hiệu hóa. Hãy cập nhật khóa trong cấu hình rồi khởi động lại ứng dụng; lịch trình trước đó được giữ nguyên.",
+        "en": "The model provider API key is invalid or has been disabled. Update the key in the configuration and restart the app; the previous itinerary was preserved.",
+    },
     "turn_pending": {
         "vi": "Một yêu cầu đang được xử lý.",
         "en": "A request is already being processed.",
@@ -103,6 +107,7 @@ def localized_issue_message(code: str, message: str, language: Language) -> str:
             "vi": "Chưa thể hiểu yêu cầu này.",
             "en": "The request could not be understood.",
         },
+        "model_authentication_failure": _TEXT["model_authentication_failure"],
         "planner_model_failure": {
             "vi": "Chưa thể tạo lịch trình đề xuất; lịch trình trước đó được giữ nguyên.",
             "en": "A candidate itinerary could not be created; the previous itinerary was preserved.",

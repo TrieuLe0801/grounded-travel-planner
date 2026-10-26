@@ -32,12 +32,30 @@ background only.
 | Shared Tavily tool node | Verified offline and with one live request | Planner/Chat route through one graph node; one live Chat call returned five sources and matching `tool.tavily.*` events; rebuilt Compose app healthy |
 | Bilingual webapp | Implemented; build/static checks pass | Session-scoped Vietnamese/English preference; focused existing API/runner/chat-context suite 14 passed (no locale-specific test added); React build and Python static checks passed; browser QA not run |
 | Chat trip duration | Offline and local container verified | Chat extends or shortens a trip, with grounded stops on every added day and validation of the revised schedule; 92 host and Docker tests passed; Compose healthy, root and graph PNG HTTP 200 |
+| Temporary ngrok sharing | Verified, now stopped | Public root and graph PNG returned 200; session POST 201 and cookie-backed GET 200; app remains healthy locally |
+| Invalid model key diagnosis | Reproduced; error handling verified offline | Exact Hà Giang request received OpenAI HTTP 401 `token_invalidated` before search; 94 host/Docker tests passed; runtime image rebuilt but running app retained its sessions |
 
 Planning progress is not implementation progress. Only executable artifacts and
 actual checks count as completion evidence.
 
 ## Done
 
+- Reproduced the Hà Giang request with the container's current OpenAI
+  configuration. Coordinator received HTTP 401 `token_invalidated`; Planner and
+  Tavily did not run. The graph now gives a localized authentication error and
+  skips further model calls on this failure, preserving the current plan. The
+  94-test host and Docker suites passed and a runtime image was rebuilt. The
+  running app was not recreated, so existing in-memory sessions remain owned by
+  that container. A valid `OPENAI_API_KEY` is still needed for a sourced plan.
+- Added an opt-in ngrok Compose profile for temporary sharing of the existing
+  HTTP app. It receives only `NGROK_AUTHTOKEN`, forwards to `app:8000`, and
+  writes its assigned URL to container logs. The official image was pulled and
+  Compose configuration passed. The running public HTTPS URL returned 200 for
+  `/` and `/api/graph/image`; a cookie-backed session POST returned 201 and
+  its subsequent GET returned 200. Compose recreated the app when `.env`
+  changed, so prior in-memory sessions were lost.
+- Stopped only the ngrok container at the user's request. The app stayed healthy
+  on `127.0.0.1:8503` and its root endpoint returned HTTP 200.
 - New trip proposals ignore the previous session itinerary. Chat can extend a
   trip with grounded stops on every added day, or shorten it while preserving
   retained-day stops and removing or rescheduling later stops. Requests to move
@@ -250,7 +268,7 @@ actual checks count as completion evidence.
 
 ## Next
 
-1. Add deployment/authentication only under a separate decision.
+1. Add production deployment/authentication only under a separate decision.
 
 ## Blockers And Risks
 

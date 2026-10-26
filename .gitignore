@@ -28,3 +28,5 @@ htmlcov/
 build/
 dist/
 node_modules/
+.build/
+artifacts/

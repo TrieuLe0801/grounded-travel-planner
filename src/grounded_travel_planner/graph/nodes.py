@@ -8,6 +8,7 @@ from grounded_travel_planner.agents.planner import PlannerAgent
 from grounded_travel_planner.config import RuntimeConfig
 from grounded_travel_planner.contracts import (
     AgentResponse,
+    ChatSearchDecision,
     IntentAction,
     ResponseStatus,
     SearchResult,
@@ -119,15 +120,24 @@ class GraphNodes:
                 "graph_steps": step,
             }
         except Exception as error:  # noqa: BLE001
+            authentication_failed = getattr(error, "status_code", None) == 401
             return {
                 "graph_steps": step,
                 "validation_issues": [
                     ValidationIssue(
-                        code="coordinator_model_failure",
-                        message=f"Coordinator failed safely: {sanitize_error(error)}",
+                        code=(
+                            "model_authentication_failure"
+                            if authentication_failed
+                            else "coordinator_model_failure"
+                        ),
+                        message=(
+                            "The model provider rejected authentication."
+                            if authentication_failed
+                            else f"Coordinator failed safely: {sanitize_error(error)}"
+                        ),
                     )
                 ],
-                "response_hint": "Chưa thể hiểu yêu cầu này.",
+                "response_hint": "",
             }
 
     def _validated_request(
@@ -432,6 +442,13 @@ class GraphNodes:
             candidate.plan if committed and candidate else state.get("current_plan")
         )
         chat_decision = state.get("chat_decision")
+        if any(issue.code == "model_authentication_failure" for issue in issues):
+            chat_decision = ChatSearchDecision(
+                should_search=False,
+                message=localized(
+                    "model_authentication_failure", state.get("language", "vi")
+                ),
+            )
         if chat_decision is None:
             try:
                 chat_decision = self.chat.decide_search(

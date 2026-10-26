@@ -16,6 +16,17 @@ services:
       - "127.0.0.1:${GTP_PORT:-8503}:8000"
     stop_grace_period: 10s
 
+  ngrok:
+    image: ngrok/ngrok:latest
+    profiles: ["ngrok"]
+    environment:
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN:-}
+    command: ["http", "app:8000", "--log", "stdout", "--inspect=false"]
+    depends_on:
+      app:
+        condition: service_started
+    restart: "no"
+
   ollama:
     image: ollama/ollama:latest
     profiles: ["ollama"]

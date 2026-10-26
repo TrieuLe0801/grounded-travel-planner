@@ -856,6 +856,49 @@ def test_vietnamese_chat_uses_localized_fallback_when_explanation_fails() -> Non
     assert len(prompts) == 1
 
 
+@pytest.mark.parametrize("language", ["vi", "en"])
+def test_invalid_model_key_preserves_plan_without_retrying_chat(language: str) -> None:
+    class InvalidKeyError(Exception):
+        status_code = 401
+
+    def coordinator_failure(prompt: str, schema: type[BaseModel]) -> BaseModel:
+        raise InvalidKeyError("token_invalidated")
+
+    def unexpected_model_call(prompt: str, schema: type[BaseModel]) -> BaseModel:
+        raise AssertionError("Planner and Chat must not be called after auth failure")
+
+    coordinator_llm = ScriptedModel(coordinator_failure)
+    planner_llm = ScriptedModel(unexpected_model_call)
+    chat_llm = ScriptedModel(unexpected_model_call)
+    search = FakeSearch([search_result()])
+    service = TravelPlannerService(
+        CoordinatorAgent(coordinator_llm),
+        PlannerAgent(planner_llm),
+        ChatAgent(chat_llm),
+        search=search,
+        config=RuntimeConfig(),
+    )
+    current = plan()
+
+    response = service.handle_turn(
+        thread_id=f"invalid-key-{language}",
+        message="Hãy tạo lịch trình tham quan 2 ngày tại Hà Giang, bắt đầu ngày 2026-10-26.",
+        current_plan=current,
+        language=language,
+    )
+
+    assert response.status is ResponseStatus.PROVIDER_ERROR
+    assert response.current_plan == current
+    assert response.committed is False
+    assert [issue.code for issue in response.validation_issues] == [
+        "model_authentication_failure"
+    ]
+    assert ("Khóa API" if language == "vi" else "API key") in response.message
+    assert "token_invalidated" not in response.message
+    assert coordinator_llm.calls == ["CoordinatorDecision"]
+    assert planner_llm.calls == chat_llm.calls == search.calls == []
+
+
 def test_valid_create_searches_once_and_commits_grounded_plan() -> None:
     trace = RecordingTrace()
     service, _, _, search = service_for(

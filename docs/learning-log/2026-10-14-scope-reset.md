@@ -371,3 +371,37 @@ three-role runtime and role-specific model policy.
   status on `127.0.0.1:8503`. The root endpoint returned HTTP 200 and
   `/api/graph/image` returned HTTP 200 with an image/png response.
 - No new live model, Tavily or LangSmith turn was run for this verification.
+
+## Temporary ngrok Sharing — 2026-10-26
+
+- The user requested a public tunnel to the locally running app and will supply
+  the needed `.env` variable. The app was healthy at `127.0.0.1:8503` and its
+  root endpoint returned HTTP 200 before tunnel setup.
+- Added an opt-in Compose ngrok service targeting `app:8000`, with only
+  `NGROK_AUTHTOKEN` passed to that container. The official image was pulled;
+  `docker compose --profile ngrok config --quiet` passed.
+- After the token was added to the ignored `.env`, the ngrok container started
+  and logged its public HTTPS URL. External requests returned 200 for `/` and
+  `/api/graph/image`; `POST /api/session` returned 201, and a cookie-backed
+  `GET /api/session` returned 200. A bare session GET returned the expected 401.
+- Compose recreated the app when `.env` changed. The new app reached healthy
+  status, but prior in-memory sessions were lost. No model, Tavily or LangSmith
+  turn was invoked during tunnel verification.
+- The user then requested that ngrok be turned off. `docker compose --profile
+  ngrok stop ngrok` stopped only the tunnel; `docker compose ps` still showed
+  the app healthy, and its local root endpoint returned HTTP 200.
+
+## Invalid OpenAI Key Diagnosis — 2026-10-26
+
+- Replayed the user's exact two-day Hà Giang request against the local Compose
+  service. The configured OpenAI Coordinator returned HTTP 401 with provider
+  code `token_invalidated`. No Planner or Tavily call occurred; the date and
+  request text were not the cause of this failure.
+- The prior generic fallback hid the provider error. Coordinator now emits a
+  stable authentication issue, and Chat response handling returns a localized
+  code-owned explanation without calling the failed model again. It preserves
+  the canonical plan and does not expose the provider exception to the UI.
+- Two mocked locale cases were added. All 94 host and Docker tests passed;
+  focused Black, isort, Ruff and app/test flake8 checks passed. The runtime
+  image was rebuilt; the running container was left intact to preserve its
+  session-only state. A new valid `OPENAI_API_KEY` is required for live planning.

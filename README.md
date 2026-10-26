@@ -315,6 +315,24 @@ $env:GTP_PORT = "8513"
 docker compose up -d --wait
 ```
 
+To share the running app through ngrok, set `NGROK_AUTHTOKEN` in the ignored
+`.env` file, then start the optional tunnel:
+
+```powershell
+docker compose --profile ngrok up -d ngrok
+docker compose logs ngrok
+```
+
+Use the HTTPS forwarding URL shown in the ngrok logs. The tunnel connects to
+`app:8000` inside Compose; the app remains bound to `127.0.0.1:8503` on this
+host. The URL is public, so stop the tunnel when sharing is finished. Changing
+`.env` and starting the profile can recreate the app and clear its in-memory
+sessions. To stop sharing without stopping the app:
+
+```powershell
+docker compose --profile ngrok stop ngrok
+```
+
 Stop only this project while retaining the local images:
 
 ```bash

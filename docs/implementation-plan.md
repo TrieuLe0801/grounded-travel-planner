@@ -3,6 +3,15 @@
 Status: Active
 Last updated: 2026-10-26
 
+## Model Authentication Failure Diagnosis — 2026-10-26
+
+The exact two-day Hà Giang request reached the configured OpenAI Coordinator
+and returned HTTP 401 `token_invalidated` before Planner or Tavily ran. A
+deterministic, localized authentication failure now explains why the plan was
+preserved and avoids a redundant Chat call. The 94-test host and Docker suites
+passed; the runtime image was rebuilt without recreating the running container.
+Successful live planning remains pending a valid `OPENAI_API_KEY`.
+
 ## Phase 1A - Core Runtime — Implemented
 
 Acceptance:

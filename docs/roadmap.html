@@ -59,8 +59,9 @@
         <li>Chat can request one Tavily function-call search and cite returned sources</li>
         <li>Planner and Chat use one shared <code>tavily_tool</code>; it is the only provider caller</li>
         <li>Two search calls per turn; <code>tool.tavily.*</code> traces carry the session thread ID</li>
+        <li>Invalid model credentials yield a localized error while preserving the plan</li>
         <li>Unused agent config/result wrappers and dead graph state removed</li>
-        <li>90 host tests passed</li>
+        <li>94 host and Docker tests passed</li>
       </ul>
     </section>
     <section class="card done">
@@ -187,7 +188,8 @@
   <h2>Later</h2>
   <div class="grid">
     <section class="card pending"><span class="badge">Next</span><h3>Live quality evaluation</h3><p>Measure Chat answer accuracy and source relevance across more factual questions; label source diversity and extend edit coverage to reorder and replace.</p></section>
-    <section class="card pending"><span class="badge">Deferred</span><h3>Production concerns</h3><p>Authentication, durable storage, deployment, rate limits and operational security.</p></section>
+    <section class="card done"><span class="badge">Verified, stopped</span><h3>Temporary sharing</h3><p>Ngrok HTTPS tunnel passed app, graph and session checks, then was stopped on request; the local app remains healthy.</p></section>
+    <section class="card pending"><span class="badge">Deferred</span><h3>Production concerns</h3><p>Authentication, durable storage, production deployment, rate limits and operational security.</p></section>
   </div>
 
   <p>Durable detail: <a href="project-charter.md">charter</a>,

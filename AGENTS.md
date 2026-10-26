@@ -69,9 +69,10 @@ Read these records in order:
   opening-hour conflicts before treating an edit as successful.
 - Preserve the previous plan when a candidate fails, and explain that it has
   not yet satisfied the new request.
-- Chat supports time/day changes, trip extension, reordering and
-  adding/removing/replacing places. Ordinary chat should not mutate the plan or
-  trigger unnecessary research.
+- Chat supports time/day changes, trip extension and shortening, reordering and
+  adding/removing/replacing places. Every added trip day needs a grounded stop;
+  shortening updates entries to fit the new duration. Ordinary chat should not
+  mutate the plan or trigger unnecessary research.
 - Keep language switching independent from itinerary validation and session
   plan/history state.
 - Bound search calls, repairs and graph steps for every turn.
