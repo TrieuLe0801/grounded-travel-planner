@@ -48,3 +48,23 @@ image and Ollama does not start in the default Compose workflow.
   (OpenAI `gpt-5.5` Coordinator, Ollama `qwen2.5:3b` Planner/Chat) create-trip
   smokes. The earlier `qwen3:4b` mixed smoke remains historical evidence.
   Chat-edit intents and the Compose profile still need separate live checks.
+
+## User Amendment — 2026-10-26 — OpenAI Failure Fallback
+
+When a role is configured for OpenAI and its API call fails, try the same
+structured request once with the local Ollama model selected by
+`GTP_OLLAMA_FALLBACK_MODEL` (default `qwen2.5:3b`), with optional
+`GTP_COORDINATOR_OLLAMA_FALLBACK_MODEL`, `GTP_PLANNER_OLLAMA_FALLBACK_MODEL`
+and `GTP_CHAT_OLLAMA_FALLBACK_MODEL` overrides. Preserve the prompt, output
+schema and turn trace metadata. This is a one-way failover: a role explicitly
+configured for Ollama still never calls OpenAI. Invalid structured output and
+application errors are not provider availability failures and do not trigger
+failover. If Ollama is unavailable or also fails, retain the existing safe
+failure and previous-plan behavior. The fallback does not add graph steps,
+search calls or repair attempts, and all candidate plans still require normal
+validation before commit.
+
+The local model must be installed and reachable from the app environment.
+The default Compose path remains OpenAI-first and does not start Ollama by
+itself; its existing host endpoint or opt-in Ollama profile can serve the
+fallback model.

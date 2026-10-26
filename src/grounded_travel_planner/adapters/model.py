@@ -1,5 +1,6 @@
 """LangChain structured-output model adapters."""
 
+import os
 from collections.abc import Mapping
 from typing import TypeVar
 
@@ -9,6 +10,8 @@ from grounded_travel_planner.config import DEFAULT_MODEL_NAME
 from grounded_travel_planner.providers import StructuredChatModel
 
 T = TypeVar("T", bound=BaseModel)
+OPENAI_MAX_RETRIES = 0
+OPENAI_TIMEOUT_SECONDS = 20
 
 
 class ChatOpenAIStructuredModel(StructuredChatModel):
@@ -31,7 +34,11 @@ class ChatOpenAIStructuredModel(StructuredChatModel):
         from langchain_core.messages import HumanMessage, SystemMessage
         from langchain_openai import ChatOpenAI
 
-        model = ChatOpenAI(model=self._model_name).with_structured_output(
+        model = ChatOpenAI(
+            model=self._model_name,
+            max_retries=OPENAI_MAX_RETRIES,
+            timeout=OPENAI_TIMEOUT_SECONDS,
+        ).with_structured_output(
             schema,
             method="function_calling",
         )
@@ -94,3 +101,69 @@ class OllamaStructuredChatModel(StructuredChatModel):
         if isinstance(result, schema):
             return result
         return schema.model_validate(result)
+
+
+class OpenAIWithOllamaFallbackStructuredModel(StructuredChatModel):
+    """Make one local attempt only for an unavailable selected OpenAI model."""
+
+    def __init__(
+        self,
+        primary: StructuredChatModel,
+        fallback: StructuredChatModel,
+    ) -> None:
+        self._primary = primary
+        self._fallback = fallback
+
+    @property
+    def model_name(self) -> str:
+        """Expose the selected OpenAI model, never the fallback identifier."""
+
+        return self._primary.model_name
+
+    def generate_structured(
+        self,
+        prompt: str,
+        schema: type[T],
+        *,
+        metadata: Mapping[str, str] | None = None,
+    ) -> T:
+        try:
+            return self._primary.generate_structured(prompt, schema, metadata=metadata)
+        except Exception as error:
+            if not _is_openai_fallback_error(
+                error,
+                missing_api_key=not os.getenv("OPENAI_API_KEY", "").strip(),
+            ):
+                raise
+        return self._fallback.generate_structured(prompt, schema, metadata=metadata)
+
+
+def _is_openai_fallback_error(error: Exception, *, missing_api_key: bool) -> bool:
+    """Return whether a failed remote OpenAI request can use local Ollama."""
+
+    from openai import (
+        APIConnectionError,
+        APIStatusError,
+        APITimeoutError,
+        AuthenticationError,
+        InternalServerError,
+        OpenAIError,
+        RateLimitError,
+    )
+
+    if isinstance(
+        error,
+        (
+            APIConnectionError,
+            APITimeoutError,
+            AuthenticationError,
+            InternalServerError,
+            RateLimitError,
+        ),
+    ):
+        return True
+    if missing_api_key and isinstance(error, OpenAIError):
+        return True
+    return isinstance(error, APIStatusError) and (
+        error.status_code in {401, 403, 408, 429} or error.status_code >= 500
+    )

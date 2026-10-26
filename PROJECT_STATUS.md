@@ -17,7 +17,7 @@ background only.
 | Scope reset | Complete | Charter, implementation plan, current log and ADR 0004/0009/0011/0012 |
 | Runtime package | Complete | Coordinator/Planner/Chat graph, typed providers and validators |
 | Streamlit app | Complete | Session-only itinerary/chat plus read-only graph page |
-| Tests | 92 passed | Core, async UI, graph-image, photo, chat-edit/source eval, bounded chat context/search, AppTest, web API, model-provider and trip-duration coverage |
+| Tests | 110 passed | Core, async UI, graph-image, photo, chat-edit/source eval, bounded chat context/search, AppTest, web API, model-provider, fallback and trip-duration coverage |
 | Live integration | Passed | OpenAI/Tavily/LangSmith smoke recorded under `docs/experiments/` |
 | Local container | Passed | Test/runtime images, health, non-root and live provider checks |
 | Chat editing | Passed | Trip extension plus eight prior offline eval cases and live two-turn smoke |
@@ -34,19 +34,35 @@ background only.
 | Chat trip duration | Offline and local container verified | Chat extends or shortens a trip, with grounded stops on every added day and validation of the revised schedule; 92 host and Docker tests passed; Compose healthy, root and graph PNG HTTP 200 |
 | Temporary ngrok sharing | Verified, now stopped | Public root and graph PNG returned 200; session POST 201 and cookie-backed GET 200; app remains healthy locally |
 | Invalid model key diagnosis | Reproduced; error handling verified offline | Exact Hà Giang request received OpenAI HTTP 401 `token_invalidated` before search; 94 host/Docker tests passed; runtime image rebuilt but running app retained its sessions |
+| OpenAI to Ollama fallback | Deployed to healthy Compose app | 110 offline tests; invalid-key host and one-shot image Hue turns committed through Ollama; current app image healthy, root/graph HTTP 200 and session POST 201 |
 
 Planning progress is not implementation progress. Only executable artifacts and
 actual checks count as completion evidence.
 
 ## Done
 
+- Added one automatic Ollama attempt for OpenAI authentication, rate-limit,
+  server, connection or timeout failures, using a separately configured local
+  fallback model. Explicit Ollama roles remain Ollama-only; malformed model
+  output does not trigger failover. The 110-test host suite and all Python
+  quality checks passed. A live adapter call with an intentionally invalid
+  OpenAI key returned a structured Ollama response; a full live Hue turn with
+  the same invalid key committed one plan with three Tavily citations, one
+  search and no repair. The Compose runtime image built successfully, and a
+  one-shot container from that image also committed a Hue plan through the
+  fallback with one entry, one search and no validation issues. LangSmith was
+  not checked. At the user's request, the running Compose app was then
+  recreated from the new image. It reached healthy status; the root page and
+  graph PNG returned HTTP 200 and session creation returned HTTP 201. Prior
+  in-memory sessions were cleared by the restart.
 - Reproduced the Hà Giang request with the container's current OpenAI
   configuration. Coordinator received HTTP 401 `token_invalidated`; Planner and
   Tavily did not run. The graph now gives a localized authentication error and
   skips further model calls on this failure, preserving the current plan. The
   94-test host and Docker suites passed and a runtime image was rebuilt. The
   running app was not recreated, so existing in-memory sessions remain owned by
-  that container. A valid `OPENAI_API_KEY` is still needed for a sourced plan.
+  that container. This was the pre-fallback diagnostic; the new local Ollama
+  path has since committed a sourced plan with an invalid OpenAI key.
 - Added an opt-in ngrok Compose profile for temporary sharing of the existing
   HTTP app. It receives only `NGROK_AUTHTOKEN`, forwards to `app:8000`, and
   writes its assigned URL to container logs. The official image was pulled and
@@ -274,9 +290,8 @@ actual checks count as completion evidence.
 
 - Live provider behavior still depends on local credentials and network access.
 - Coordinator's default runtime model is `gpt-5.5`; Planner defaults to
-  `gpt-5.4-mini` and Chat to `gpt-4.1`. There is no silent provider fallback.
-  Missing or unavailable
-  configuration returns a safe response and preserves the previous plan.
+  `gpt-5.4-mini` and Chat to `gpt-4.1`. OpenAI API failures try local Ollama
+  once, if reachable. If both providers fail, the previous plan is preserved.
 - Tavily snippets can be incomplete; opening hours stay unverified unless a
   source result explicitly supports them.
 - Live results can include broad travel pages or video sources. Current code
@@ -314,7 +329,7 @@ actual checks count as completion evidence.
 - Native Ollama evidence covers one all-local `qwen2.5:3b` create-trip flow and
   one mixed `gpt-5.5`/`qwen3:4b` create-trip flow, plus a Compose-app HTTP
   create-trip flow to native Ollama. The internal Compose profile and chat edits
-  have not yet been run live. Providers do not fall back to OpenAI.
+  have not yet been run live. Explicit Ollama roles do not fall back to OpenAI.
 
 ## Important Files
 

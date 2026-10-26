@@ -405,3 +405,31 @@ three-role runtime and role-specific model policy.
   focused Black, isort, Ruff and app/test flake8 checks passed. The runtime
   image was rebuilt; the running container was left intact to preserve its
   session-only state. A new valid `OPENAI_API_KEY` is required for live planning.
+
+## User Decision — Automatic Ollama Fallback — 2026-10-26
+
+- The user requested Ollama when the OpenAI API is unavailable. Roles assigned
+  to OpenAI now try one local Ollama structured-output call after an OpenAI API
+  failure, using a separately configured Ollama model. Explicit Ollama roles
+  remain Ollama-only.
+- The prompt, schema and trace metadata remain the same across that retry;
+  graph, search and repair limits and validate-before-commit still apply. If
+  both providers fail, the previous plan remains current and the app gives a
+  safe error. ADR 0010 records the changed provider policy.
+- The host had Ollama 0.9.0 and `qwen2.5:3b` installed but its server was
+  initially stopped. After starting it, a live call with an intentionally
+  invalid OpenAI key returned a structured Ollama response. A full live Hue
+  turn with the same invalid key committed with three Tavily citations, one
+  search, zero repairs and six graph steps. LangSmith was not checked.
+- Sixteen new fallback cases and updated provider-construction assertions
+  contributed to 110 passing host tests. isort, Black, flake8, Ruff and
+  `git diff --check` passed. The Compose runtime image built successfully. The
+  one-shot image also committed a Hue plan through host Ollama with one entry,
+  one Tavily search, no repair and no validation issues. The running app was
+  initially left intact. At the user's subsequent request, Compose recreated
+  it from image
+  `sha256:29d02ba30f145eab4731c980f3cef38d353560acbe81e6b4a26d27b509ca8097`.
+  It reached healthy status; the root and graph PNG returned HTTP 200 and
+  session creation returned 201. Existing in-memory sessions were cleared.
+  The earlier ngrok stop state was restored after it appeared running during
+  preflight; the app remained healthy.

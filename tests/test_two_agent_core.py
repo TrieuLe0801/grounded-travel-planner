@@ -454,8 +454,10 @@ def test_environment_service_constructs_exact_mixed_role_adapters(
         ("openai", "gpt-5.5", None),
         ("ollama", "qwen2.5:3b", "http://ollama.test:11434"),
         ("ollama", "qwen2.5:3b", "http://ollama.test:11434"),
+        ("ollama", "qwen2.5:3b", "http://ollama.test:11434"),
     ]
-    assert isinstance(service.coordinator._model, FakeOpenAIModel)
+    assert isinstance(service.coordinator._model._primary, FakeOpenAIModel)
+    assert isinstance(service.coordinator._model._fallback, FakeOllamaModel)
     assert isinstance(service.planner._model, FakeOllamaModel)
     assert isinstance(service.chat._model, FakeOllamaModel)
 
@@ -466,8 +468,16 @@ def test_openai_adapter_uses_function_calling_for_pydantic_schema(
     observed: dict[str, object] = {}
 
     class FakeChatOpenAI:
-        def __init__(self, *, model: str) -> None:
+        def __init__(
+            self,
+            *,
+            model: str,
+            max_retries: int,
+            timeout: int,
+        ) -> None:
             observed["model"] = model
+            observed["max_retries"] = max_retries
+            observed["timeout"] = timeout
 
         def with_structured_output(self, schema, *, method: str):
             observed["schema"] = schema
@@ -490,6 +500,8 @@ def test_openai_adapter_uses_function_calling_for_pydantic_schema(
     assert result.message == "ok"
     assert observed == {
         "model": "gpt-5.5",
+        "max_retries": 0,
+        "timeout": 20,
         "schema": ChatResponse,
         "method": "function_calling",
         "metadata": {"thread_id": "thread-adapter"},

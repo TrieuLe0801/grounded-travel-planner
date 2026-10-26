@@ -164,7 +164,18 @@ GTP_MODEL_PROVIDER=openai
 GTP_COORDINATOR_MODEL=gpt-5.5
 GTP_PLANNER_MODEL=gpt-5.4-mini
 GTP_CHAT_MODEL=gpt-4.1
+GTP_OLLAMA_FALLBACK_MODEL=qwen2.5:3b
 ```
+
+When an OpenAI API call fails, that role retries the same structured request
+once with the local Ollama fallback model. Start Ollama and make sure the model
+has been pulled before relying on this path. If the fallback also fails, the
+turn returns a safe error and keeps the current itinerary. An explicitly
+selected Ollama role never calls OpenAI. Invalid model output does not trigger
+provider failover. The default Ollama endpoint is local for a directly run app;
+the Compose app uses `GTP_COMPOSE_OLLAMA_BASE_URL` as described below.
+`GTP_COORDINATOR_OLLAMA_FALLBACK_MODEL`, `GTP_PLANNER_OLLAMA_FALLBACK_MODEL`
+and `GTP_CHAT_OLLAMA_FALLBACK_MODEL` can override the fallback model by role.
 
 To run local models with an Ollama process installed on the host, pull a model,
 then point the app at the host endpoint. On macOS and Windows, Docker Desktop
@@ -190,7 +201,7 @@ To run Coordinator locally as well, set `GTP_COORDINATOR_PROVIDER=ollama` and
 `GTP_COORDINATOR_MODEL` to a model served by that Ollama instance. The same
 per-role provider/model pattern applies to Planner and Chat.
 
-The application uses OpenAI for all three roles when no local provider is
+The application uses OpenAI first for all three roles when no local provider is
 selected. Choosing `ollama` requires a reachable Ollama server; it does not
 silently send that role to OpenAI.
 

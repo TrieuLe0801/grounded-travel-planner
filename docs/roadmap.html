@@ -36,7 +36,7 @@
   one shared Tavily graph node.</p>
 
   <div class="meta">
-    <div class="card"><strong>Models</strong><p>OpenAI defaults: Coordinator <code>gpt-5.5</code>, Planner <code>gpt-5.4-mini</code>, Chat <code>gpt-4.1</code>; opt-in local <code>ollama</code> by role</p></div>
+    <div class="card"><strong>Models</strong><p>OpenAI defaults: Coordinator <code>gpt-5.5</code>, Planner <code>gpt-5.4-mini</code>, Chat <code>gpt-4.1</code>; one local Ollama attempt after OpenAI API failure; explicit Ollama by role</p></div>
     <div class="card"><strong>State</strong><p>Session-only plan, 12-message transcript and 1,200-character handoff summary</p></div>
     <div class="card"><strong>Bounds</strong><p>8 graph · 2 search · 1 repair</p></div>
   </div>
@@ -159,6 +159,8 @@
         <li>Container resolves all three API role defaults</li>
         <li>Rebuilt app and graph image return HTTP 200</li>
         <li>Typed <code>ChatOllama</code> structured output adapter</li>
+        <li>Automatic OpenAI failure fallback to local <code>qwen2.5:3b</code>: 110 host tests and a sourced live Hue turn passed</li>
+        <li>New runtime image committed a live Hue plan through fallback in a one-shot container; Compose app was then recreated and reached healthy status</li>
         <li>Opt-in persistent Compose profile and model initializer</li>
         <li>Active mixed <code>gpt-5.5</code> / <code>qwen2.5:3b</code> Hue smoke passed</li>
         <li>Compose app to native Ollama HTTP smoke passed</li>

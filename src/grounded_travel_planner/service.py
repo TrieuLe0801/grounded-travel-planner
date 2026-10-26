@@ -12,6 +12,7 @@ from grounded_travel_planner.adapters import (
     LangSmithTraceSink,
     NoOpTraceSink,
     OllamaStructuredChatModel,
+    OpenAIWithOllamaFallbackStructuredModel,
     TavilyPlaceSearchProvider,
 )
 from grounded_travel_planner.agents import ChatAgent, CoordinatorAgent, PlannerAgent
@@ -69,14 +70,17 @@ class TravelPlannerService:
         load_dotenv()
         runtime_config = config or RuntimeConfig.from_environment()
         coordinator_model = cls._model_factory(
-            runtime_config.coordinator_model_provider
+            runtime_config.coordinator_model_provider,
+            ollama_fallback_model_name=runtime_config.coordinator_ollama_fallback_model,
         )(runtime_config.model_name)
-        planner_model = cls._model_factory(runtime_config.planner_model_provider)(
-            runtime_config.planner_model_name
-        )
-        chat_model = cls._model_factory(runtime_config.chat_model_provider)(
-            runtime_config.chat_model_name
-        )
+        planner_model = cls._model_factory(
+            runtime_config.planner_model_provider,
+            ollama_fallback_model_name=runtime_config.planner_ollama_fallback_model,
+        )(runtime_config.planner_model_name)
+        chat_model = cls._model_factory(
+            runtime_config.chat_model_provider,
+            ollama_fallback_model_name=runtime_config.chat_ollama_fallback_model,
+        )(runtime_config.chat_model_name)
         search = TavilyPlaceSearchProvider()
         tracing_enabled = os.getenv("LANGSMITH_TRACING", "").casefold() in {
             "1",
@@ -98,11 +102,29 @@ class TravelPlannerService:
         )
 
     @staticmethod
-    def _model_factory(provider: ModelProvider):
-        """Return the selected provider constructor without cross-provider fallback."""
+    def _model_factory(
+        provider: ModelProvider,
+        *,
+        ollama_fallback_model_name: str | None = None,
+    ):
+        """Return a selected provider constructor with bounded OpenAI fallback."""
 
         if provider == "openai":
-            return ChatOpenAIStructuredModel
+            if not ollama_fallback_model_name:
+                return ChatOpenAIStructuredModel
+            base_url = os.getenv("OLLAMA_BASE_URL", "").strip() or None
+
+            def create_openai(
+                model_name: str,
+            ) -> OpenAIWithOllamaFallbackStructuredModel:
+                return OpenAIWithOllamaFallbackStructuredModel(
+                    ChatOpenAIStructuredModel(model_name),
+                    OllamaStructuredChatModel(
+                        ollama_fallback_model_name, base_url=base_url
+                    ),
+                )
+
+            return create_openai
         if provider == "ollama":
             base_url = os.getenv("OLLAMA_BASE_URL", "").strip() or None
 

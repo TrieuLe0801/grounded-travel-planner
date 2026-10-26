@@ -10,7 +10,34 @@ and returned HTTP 401 `token_invalidated` before Planner or Tavily ran. A
 deterministic, localized authentication failure now explains why the plan was
 preserved and avoids a redundant Chat call. The 94-test host and Docker suites
 passed; the runtime image was rebuilt without recreating the running container.
-Successful live planning remains pending a valid `OPENAI_API_KEY`.
+This diagnosis preceded the OpenAI-to-Ollama fallback below.
+
+## Automatic Ollama Fallback — Host And Live Smoke Verified — 2026-10-26
+
+An OpenAI-configured Coordinator, Planner or Chat role now attempts the same
+structured call once with local Ollama after an OpenAI authentication,
+rate-limit, server, connection or timeout failure. The fallback model defaults
+to `qwen2.5:3b` through `GTP_OLLAMA_FALLBACK_MODEL`, with optional per-role
+model overrides. OpenAI calls have no SDK retry and a 20-second timeout so a
+failure is bounded. Explicit Ollama roles remain Ollama-only; schema and
+application errors do not trigger failover. Prompt, schema and trace metadata
+carry through to Ollama, and deterministic plan validation still controls
+commit. ADR 0010 records the amended provider policy.
+
+The 110-test host suite, isort, Black, flake8, Ruff and diff check passed. A
+live call with an intentionally invalid OpenAI key returned a structured
+`ChatResponse` from host Ollama `qwen2.5:3b`. A complete live Hue turn with the
+same invalid key committed a sourced plan with three citations, one Tavily
+search and no repair in six graph steps. LangSmith was disabled for that turn.
+The host Ollama process was started for verification and the Compose runtime
+image built successfully. A one-shot container from that image also committed
+a Hue plan through host Ollama with one entry, one Tavily search, zero repairs
+and no validation issues under the same intentionally invalid OpenAI key. The
+running app was subsequently recreated from that image at the user's request,
+clearing its prior session-only state. The app reached healthy status; `/` and
+`/api/graph/image` returned HTTP 200, and `POST /api/session` returned 201.
+The Compose Ollama profile and web UI failover path were not tested in this
+change.
 
 ## Phase 1A - Core Runtime — Implemented
 

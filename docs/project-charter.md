@@ -44,13 +44,16 @@ The runtime has three roles:
   Planner or Chat. It is the only runtime node that calls the search provider,
   and returns sources only to the requesting role.
 
-`GTP_MODEL_PROVIDER` explicitly selects the global `openai` (the default) or
-`ollama` fallback. `GTP_COORDINATOR_PROVIDER`, `GTP_PLANNER_PROVIDER` and
+`GTP_MODEL_PROVIDER` selects the global `openai` (the default) or `ollama`
+provider. `GTP_COORDINATOR_PROVIDER`, `GTP_PLANNER_PROVIDER` and
 `GTP_CHAT_PROVIDER` optionally override that provider by role. The three model
 variables select their respective role models; OpenAI defaults are `gpt-5.5`
 for Coordinator, `gpt-5.4-mini` for Planner and `gpt-4.1` for Chat. The default
-`.env.example` does not require a local server. Ollama must be selected
-explicitly and does not silently fall back to OpenAI. The webapp keeps only
+`.env.example` does not require a local server for normal OpenAI calls. When an
+OpenAI API call fails, the same role tries the configured local Ollama fallback
+model once. This path requires a reachable local server and installed model;
+failure leaves the prior plan intact. A role explicitly assigned to Ollama
+never falls back to OpenAI. The webapp keeps only
 session-local state. It does not use LangSmith traces as state storage.
 
 The webapp keeps the canonical plan, at most 12 conversation messages and a
