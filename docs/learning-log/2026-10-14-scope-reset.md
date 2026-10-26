@@ -334,3 +334,40 @@ three-role runtime and role-specific model policy.
   passed 14 tests; `npm run check`, `npm run build`, Python compileall, flake8,
   Black, isort, Ruff, lock and diff checks passed. No browser, container or
   live-provider verification was run.
+
+## Trip-Day Boundary Follow-Up — 2026-10-23 (Superseded)
+
+- New-trip proposals now ignore the prior session itinerary and start at
+  revision 1, preventing entries from a longer prior itinerary from leaking
+  into a newly selected shorter trip.
+- A request to move a stop to a day beyond the trip length now stops before
+  Planner and displays a localized explanation.
+- `git diff --check` passed and the rebuilt Compose container reached healthy
+  status. Regression tests and live provider checks were not run.
+
+## User Amendment — Bidirectional Chat Trip-Length Changes — 2026-10-23
+
+- The user clarified that trip duration changes must work both ways through
+  chat: adding days updates the full schedule, and removing days shortens and
+  updates the full schedule.
+- Each added day must contain a grounded stop. Shortening preserves stops on
+  retained days and may remove or reschedule existing stops from removed days;
+  it does not create unsupported new places.
+- `shorten_trip` uses an absolute target or a positive relative count of days to
+  remove. Both directions keep the 1–7 day bound and use validate-before-commit.
+- Code and durable project records are updated; the Compose image rebuilt and
+  the container reached healthy status. Regression tests and live provider
+  checks were not run.
+
+## Trip-Length Verification And Local Rebuild — 2026-10-26
+
+- Added regression checks that require a stop on each added day and reject
+  changed retained stops or invented stops when shortening. Updated older UI
+  and Vietnamese fallback assertions to match existing app wording.
+- The 92-test host suite and Docker test target passed. Ruff, Black and isort
+  passed; flake8 passed for app and test code. The all-repo flake8 command still
+  reports three unused variables in ignored `artifacts/presentations/` scripts.
+- The Compose runtime image rebuilt and the app container reached healthy
+  status on `127.0.0.1:8503`. The root endpoint returned HTTP 200 and
+  `/api/graph/image` returned HTTP 200 with an image/png response.
+- No new live model, Tavily or LangSmith turn was run for this verification.

@@ -80,3 +80,19 @@ to ground those proposals. Chat search supports its response only, does not
 change plan state, and shares the per-turn limit of two calls. ADR 0011 defines
 the session-history and Coordinator-summary handoff; ADR 0012 defines the
 shared graph tool node that executes both roles' search requests.
+
+## User Amendment — 2026-10-23 — Bidirectional Trip-Length Changes
+
+Chat may both extend and shorten the current trip, with the duration kept within
+the existing 1–7 day bound. Coordinator uses `extend_trip` for additions and
+`shorten_trip` for reductions; an absolute duration uses `day_count`, while a
+relative change uses a positive `day_count_delta` interpreted according to the
+action.
+
+An extension searches for grounded recommendations and must add at least one
+grounded stop to every newly added day while preserving prior entries. A
+shortening does not need new research: Planner preserves stops on retained days
+and removes stops from dropped days, or may reschedule an existing stop into a
+retained day. It cannot invent new stops or alter their source data. Both
+changes pass the existing validate-before-commit checks; a rejected candidate
+keeps the prior itinerary.

@@ -48,8 +48,9 @@ Deterministic code validates
 input, schedule overlap/range, returned-source provenance and supported opening
 hours before committing a candidate.
 
-Chat supports create, add/remove/replace/reorder, trip extension and day/time
-change intents.
+Chat supports create, add/remove/replace/reorder, trip extension and shortening,
+and day/time change intents. Every added trip day gets a grounded stop;
+shortening updates the schedule to fit the new duration.
 Ordinary chat does not search unnecessarily or mutate the plan. Planner and
 Chat share a two-call Tavily limit per turn. A rejected edit preserves the
 previous canonical plan.

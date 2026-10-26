@@ -181,7 +181,7 @@ def test_create_and_failed_chat_edit_render_canonical_plan() -> None:
 
     text = _page_text(app)
     assert "Lịch tham quan đã được cập nhật" in text
-    assert "Lịch trình hiện tại · phiên bản 1" in text
+    assert "Lịch trình hiện tại · v1" in text
     assert "Tham quan ước tính: 90 phút" in text
     assert "Giờ mở cửa: chưa xác minh" in text
     assert "https://travel.example/hue/imperial-city" in text
@@ -199,7 +199,7 @@ def test_create_and_failed_chat_edit_render_canonical_plan() -> None:
     _integrate_pending_turn(app)
     text = _page_text(app)
     assert "Đã chuyển Imperial City sang 11:00" in text
-    assert "Lịch trình hiện tại · phiên bản 2" in text
+    assert "Lịch trình hiện tại · v2" in text
     assert "Imperial City được chuyển sang 11:00" in text
     assert any("11:00–12:30" in item.label for item in app.get("expander"))
     assert app.session_state.current_plan.revision == 2
@@ -212,7 +212,7 @@ def test_create_and_failed_chat_edit_render_canonical_plan() -> None:
     text = _page_text(app)
     assert "Lịch trình trước đó đã được giữ nguyên" in text
     assert "schedule_overlap" in text
-    assert "Lịch trình hiện tại · phiên bản 2" in text
+    assert "Lịch trình hiện tại · v2" in text
     assert any("11:00–12:30" in item.label for item in app.get("expander"))
     assert app.session_state.current_plan.revision == 2
     assert _imperial_city_start_time(app) == time(11)

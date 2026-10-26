@@ -22,6 +22,7 @@ class IntentAction(str, Enum):
     CHANGE_DAY = "change_day"
     CHANGE_TIME = "change_time"
     EXTEND_TRIP = "extend_trip"
+    SHORTEN_TRIP = "shorten_trip"
 
 
 class IssueSeverity(str, Enum):
@@ -189,7 +190,15 @@ class PlanChangeIntent(BaseModel):
     destination: str | None = Field(default=None, max_length=160)
     start_date: date | None = None
     day_count: int | None = Field(default=None, ge=1, le=7)
-    day_count_delta: int | None = Field(default=None, ge=1, le=6)
+    day_count_delta: int | None = Field(
+        default=None,
+        ge=1,
+        le=6,
+        description=(
+            "Positive number of days to add for extend_trip or remove for "
+            "shorten_trip."
+        ),
+    )
     place_name: str | None = Field(default=None, max_length=160)
     replacement_place_name: str | None = Field(default=None, max_length=160)
     from_index: int | None = Field(default=None, ge=0)

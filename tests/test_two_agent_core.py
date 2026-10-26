@@ -754,6 +754,68 @@ def test_trip_extension_rejects_changed_existing_entry() -> None:
     assert issues[0].code == "requested_change_not_applied"
 
 
+def test_trip_extension_requires_a_stop_on_each_added_day() -> None:
+    current = plan()
+    candidate = current.model_copy(
+        update={
+            "day_count": 4,
+            "entries": [
+                *current.entries,
+                current.entries[0].model_copy(
+                    update={"id": "entry_day_4", "day_index": 4}
+                ),
+            ],
+        }
+    )
+
+    issues = validate_requested_change(
+        PlanChangeIntent(action=IntentAction.EXTEND_TRIP, day_count=4),
+        current,
+        candidate,
+    )
+
+    assert issues[0].code == "requested_change_not_applied"
+
+
+def test_trip_shortening_preserves_retained_stops_and_source_data() -> None:
+    current = plan().model_copy(
+        update={
+            "day_count": 3,
+            "entries": [
+                *plan().entries,
+                plan()
+                .entries[0]
+                .model_copy(update={"id": "entry_day_3", "day_index": 3}),
+            ],
+        }
+    )
+    intent = PlanChangeIntent(action=IntentAction.SHORTEN_TRIP, day_count_delta=1)
+    valid = current.model_copy(update={"day_count": 2, "entries": current.entries[:1]})
+    changed = valid.model_copy(
+        update={
+            "entries": [current.entries[0].model_copy(update={"start_time": time(11)})]
+        }
+    )
+    invented = valid.model_copy(
+        update={
+            "entries": [
+                *valid.entries,
+                current.entries[1].model_copy(
+                    update={"id": "invented", "day_index": 2}
+                ),
+            ]
+        }
+    )
+
+    assert validate_requested_change(intent, current, valid) == []
+    assert validate_requested_change(intent, current, changed)[0].code == (
+        "requested_change_not_applied"
+    )
+    assert validate_requested_change(intent, current, invented)[0].code == (
+        "requested_change_not_applied"
+    )
+
+
 def test_vietnamese_chat_uses_localized_fallback_when_explanation_fails() -> None:
     prompts: list[str] = []
 
@@ -788,9 +850,9 @@ def test_vietnamese_chat_uses_localized_fallback_when_explanation_fails() -> Non
 
     assert response.status is ResponseStatus.UNCHANGED
     assert response.current_plan == current
-    assert "lịch trình trước đó đã được giữ nguyên" in response.message
+    assert "lịch trình trước đó vẫn được giữ nguyên" in response.message
     assert search.calls == []
-    assert "Understand Vietnamese requests" in prompts[0]
+    assert "Understand requests in Vietnamese or English" in prompts[0]
     assert len(prompts) == 1
 
 

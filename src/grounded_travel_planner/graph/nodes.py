@@ -135,33 +135,59 @@ class GraphNodes:
     ) -> tuple[TripRequest | None, list[ValidationIssue]]:
         request = state.get("request")
         current_plan = state.get("current_plan")
-        if getattr(intent, "action", None) is IntentAction.EXTEND_TRIP and current_plan:
+        action = getattr(intent, "action", None)
+        resizing_trip = action in {
+            IntentAction.EXTEND_TRIP,
+            IntentAction.SHORTEN_TRIP,
+        }
+        if resizing_trip and current_plan is None:
+            return request, [
+                ValidationIssue(
+                    code="trip_resize_requires_current_plan",
+                    message="A current itinerary is required to change trip length.",
+                )
+            ]
+        if resizing_trip and current_plan is not None:
             target = getattr(intent, "day_count", None)
             delta = getattr(intent, "day_count_delta", None)
-            target = (
-                target
-                if target is not None
-                else (current_plan.day_count + delta if delta else None)
-            )
+            if target is None and isinstance(delta, int):
+                if action is IntentAction.EXTEND_TRIP:
+                    target = current_plan.day_count + delta
+                else:
+                    target = current_plan.day_count - delta
             if target is None:
                 return None, [
                     ValidationIssue(
-                        code="trip_extension_target_required",
-                        message="Trip extension needs a target day count or increment.",
+                        code=(
+                            "trip_extension_target_required"
+                            if action is IntentAction.EXTEND_TRIP
+                            else "trip_shortening_target_required"
+                        ),
+                        message=(
+                            "Trip length change needs a target day count or "
+                            "increment."
+                        ),
                     )
                 ]
-            if target <= current_plan.day_count:
+            if not 1 <= target <= 7:
+                return None, [
+                    ValidationIssue(
+                        code="day_count_out_of_range",
+                        message="Day count must be between 1 and 7.",
+                    )
+                ]
+            if action is IntentAction.EXTEND_TRIP and target <= current_plan.day_count:
                 return None, [
                     ValidationIssue(
                         code="trip_extension_must_increase",
                         message="Trip extension must increase the current day count.",
                     )
                 ]
-            if target > 7:
+            if action is IntentAction.SHORTEN_TRIP and target >= current_plan.day_count:
                 return None, [
                     ValidationIssue(
-                        code="day_count_out_of_range",
-                        message="Day count must be between 1 and 7.",
+                        code="trip_shortening_must_decrease",
+                        message="Trip shortening must decrease the current day count.",
                     )
                 ]
             request = TripRequest(
@@ -175,6 +201,19 @@ class GraphNodes:
                 start_date=current_plan.start_date,
                 day_count=current_plan.day_count,
             )
+        requested_day = getattr(intent, "day_index", None)
+        if (
+            getattr(intent, "action", None) is IntentAction.CHANGE_DAY
+            and request is not None
+            and isinstance(requested_day, int)
+            and requested_day > request.day_count
+        ):
+            return request, [
+                ValidationIssue(
+                    code="requested_day_out_of_range",
+                    message="The requested day is outside the selected trip days.",
+                )
+            ]
         return request, validate_trip_request(request)
 
     def planner_prepare(self, state: PlannerState) -> dict:

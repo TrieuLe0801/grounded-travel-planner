@@ -67,6 +67,10 @@ def localized_issue_message(code: str, message: str, language: Language) -> str:
             "vi": "Lịch trình đề xuất không khớp điểm đến, ngày bắt đầu hoặc số ngày đã chọn.",
             "en": "The candidate does not preserve the selected destination, start date, and days.",
         },
+        "requested_day_out_of_range": {
+            "vi": "Ngày được yêu cầu nằm ngoài số ngày đã chọn.",
+            "en": "The requested day is outside the selected trip days.",
+        },
         "trip_extension_target_required": {
             "vi": "Cần số ngày mục tiêu hoặc số ngày muốn thêm.",
             "en": "Trip extension needs a target day count or increment.",
@@ -74,6 +78,18 @@ def localized_issue_message(code: str, message: str, language: Language) -> str:
         "trip_extension_must_increase": {
             "vi": "Số ngày mới phải lớn hơn lịch trình hiện tại.",
             "en": "Trip extension must increase the current day count.",
+        },
+        "trip_shortening_target_required": {
+            "vi": "Cần số ngày mục tiêu hoặc số ngày muốn bớt.",
+            "en": "Trip shortening needs a target day count or number of days to remove.",
+        },
+        "trip_shortening_must_decrease": {
+            "vi": "Số ngày mới phải ít hơn lịch trình hiện tại.",
+            "en": "Trip shortening must decrease the current day count.",
+        },
+        "trip_resize_requires_current_plan": {
+            "vi": "Cần có lịch trình hiện tại để thay đổi số ngày chuyến đi.",
+            "en": "A current itinerary is required to change trip length.",
         },
         "invalid_search_request": {
             "vi": "Yêu cầu tìm kiếm bị giới hạn không hợp lệ.",

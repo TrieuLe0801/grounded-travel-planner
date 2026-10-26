@@ -97,6 +97,36 @@ def _retains_current_entries(
     return all(candidate_by_id.get(entry.id) == entry for entry in current_plan.entries)
 
 
+def _shortens_schedule(
+    current_plan: SightseeingPlan,
+    candidate_plan: SightseeingPlan,
+    target_day_count: int,
+) -> bool:
+    """Keep stops on retained days and only reuse existing stops elsewhere."""
+
+    current_by_id = {entry.id: entry for entry in current_plan.entries}
+    candidate_by_id = {entry.id: entry for entry in candidate_plan.entries}
+    if len(candidate_by_id) != len(candidate_plan.entries):
+        return False
+    if current_plan.entries and not candidate_plan.entries:
+        return False
+    for entry in current_plan.entries:
+        if (
+            entry.day_index <= target_day_count
+            and candidate_by_id.get(entry.id) != entry
+        ):
+            return False
+    for entry in candidate_plan.entries:
+        previous = current_by_id.get(entry.id)
+        if (
+            previous is None
+            or previous.place != entry.place
+            or entry.day_index > target_day_count
+        ):
+            return False
+    return True
+
+
 def _issue(message: str) -> list[ValidationIssue]:
     return [ValidationIssue(code="requested_change_not_applied", message=message)]
 
@@ -128,6 +158,33 @@ def validate_requested_change(
             entry.day_index > current_plan.day_count for entry in candidate_plan.entries
         ):
             return _issue("Candidate needs a grounded entry in the added days.")
+        populated_days = {entry.day_index for entry in candidate_plan.entries}
+        missing_added_days = (
+            set(range(current_plan.day_count + 1, target_day_count + 1))
+            - populated_days
+        )
+        if missing_added_days:
+            return _issue("Candidate needs a grounded stop on every added day.")
+        return []
+
+    if intent.action is IntentAction.SHORTEN_TRIP:
+        target_day_count = intent.day_count
+        if target_day_count is None and intent.day_count_delta is not None:
+            target_day_count = current_plan.day_count - intent.day_count_delta
+        if (
+            target_day_count is None
+            or not 1 <= target_day_count < current_plan.day_count
+        ):
+            return _issue(
+                "The shortened trip must have fewer days than the current plan."
+            )
+        if candidate_plan.day_count != target_day_count:
+            return _issue("Candidate did not apply the requested shorter duration.")
+        if not _shortens_schedule(current_plan, candidate_plan, target_day_count):
+            return _issue(
+                "Candidate must keep retained-day stops and remove or reschedule "
+                "stops from removed days."
+            )
         return []
 
     if intent.action is IntentAction.ADD_PLACE:

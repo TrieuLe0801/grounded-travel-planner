@@ -60,7 +60,14 @@ class PlannerAgent:
         retained_sources: list[SourceReference] | None = None,
         language: Language = "vi",
     ) -> PlanCandidate:
-        sources = self._sources_from_plan(current_plan) if current_plan else []
+        # A new-trip request starts a fresh itinerary. Reusing the previous
+        # session plan can leak stops scheduled beyond the newly selected day
+        # count; _ground_candidate then resets day_count and those stale entries
+        # fail schedule validation.
+        planning_context = (
+            None if intent.action is IntentAction.CREATE_TRIP else current_plan
+        )
+        sources = self._sources_from_plan(planning_context) if planning_context else []
         for source in retained_sources or []:
             if all(
                 str(source.url).rstrip("/") != str(item.url).rstrip("/")
@@ -70,7 +77,7 @@ class PlannerAgent:
         prompt = self._proposal_prompt(
             intent=intent,
             request=request,
-            current_plan=current_plan,
+            current_plan=planning_context,
             session_summary=session_summary,
             sources=sources,
             repair_issues=repair_issues or [],
@@ -84,7 +91,7 @@ class PlannerAgent:
         candidate = self._ground_candidate(
             proposed,
             request=request,
-            current_plan=current_plan,
+            current_plan=planning_context,
             sources=sources,
         )
         return candidate
@@ -136,8 +143,11 @@ class PlannerAgent:
             "source explicitly supports hours. All visit and travel minute fields "
             "are estimates. Write user-visible plan summaries, place descriptions "
             f"and schedule notes in {response_language_instruction(language)}; preserve proper names and source "
-            "titles as supplied. Do not overlap schedule entries and keep day_index "
-            "within the requested day count. Apply the requested edit to the prior "
+            "titles as supplied. Do not overlap schedule entries. Use 1-based "
+            "day_index values and keep every entry within "
+            "1 <= day_index <= request.day_count. For create_trip, create a new "
+            "itinerary from scratch; never reuse entries from an earlier plan. "
+            "For other edits, apply the requested change to the prior "
             "plan when present. Preserve existing entry IDs and stops for "
             "add_place. Name an added place exactly as intent.place_name and a "
             "replacement exactly as intent.replacement_place_name; put alternate "
@@ -147,8 +157,11 @@ class PlannerAgent:
             "sorted by day, start time, end time, then entry ID. A reorder must "
             "change that visible chronological order; changing only the entries "
             "list is insufficient.\n"
-            "For extend_trip, preserve all existing entries and add at least one "
-            "grounded entry in the newly added day range.\n"
+            "For extend_trip, preserve all existing entries and add a grounded "
+            "stop on every newly added day. For shorten_trip, keep entries on "
+            "retained days unchanged and remove entries after the new final day. "
+            "You may move an existing stop from a removed day into a retained "
+            "day when it fits; do not invent a place or change its source data.\n"
             f"Request: {request.model_dump_json()}\n"
             f"Intent: {intent.model_dump_json()}\n"
             f"Coordinator handoff summary: {session_summary[:1200]}\n"

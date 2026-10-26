@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-10-20
+Last updated: 2026-10-26
 
 ## Current Milestone
 
@@ -17,7 +17,7 @@ background only.
 | Scope reset | Complete | Charter, implementation plan, current log and ADR 0004/0009/0011/0012 |
 | Runtime package | Complete | Coordinator/Planner/Chat graph, typed providers and validators |
 | Streamlit app | Complete | Session-only itinerary/chat plus read-only graph page |
-| Tests | 90 passed | Core, async UI, graph-image, photo, chat-edit/source eval, bounded chat context/search, AppTest, web API and model-provider coverage |
+| Tests | 92 passed | Core, async UI, graph-image, photo, chat-edit/source eval, bounded chat context/search, AppTest, web API, model-provider and trip-duration coverage |
 | Live integration | Passed | OpenAI/Tavily/LangSmith smoke recorded under `docs/experiments/` |
 | Local container | Passed | Test/runtime images, health, non-root and live provider checks |
 | Chat editing | Passed | Trip extension plus eight prior offline eval cases and live two-turn smoke |
@@ -31,12 +31,20 @@ background only.
 | No-local API defaults | Verified in Compose | Container resolves to OpenAI `gpt-5.5` / `gpt-5.4-mini` / `gpt-4.1`; root and graph image return HTTP 200 |
 | Shared Tavily tool node | Verified offline and with one live request | Planner/Chat route through one graph node; one live Chat call returned five sources and matching `tool.tavily.*` events; rebuilt Compose app healthy |
 | Bilingual webapp | Implemented; build/static checks pass | Session-scoped Vietnamese/English preference; focused existing API/runner/chat-context suite 14 passed (no locale-specific test added); React build and Python static checks passed; browser QA not run |
+| Chat trip duration | Offline and local container verified | Chat extends or shortens a trip, with grounded stops on every added day and validation of the revised schedule; 92 host and Docker tests passed; Compose healthy, root and graph PNG HTTP 200 |
 
 Planning progress is not implementation progress. Only executable artifacts and
 actual checks count as completion evidence.
 
 ## Done
 
+- New trip proposals ignore the previous session itinerary. Chat can extend a
+  trip with grounded stops on every added day, or shorten it while preserving
+  retained-day stops and removing or rescheduling later stops. Requests to move
+  a stop beyond the trip length stop before Planner. Two duration regression
+  tests were added; 92 host and Docker tests passed on 2026-10-26. The rebuilt
+  Compose app is healthy at
+  `127.0.0.1:8503`; `/` and `/api/graph/image` returned HTTP 200.
 - Required a complete Planner plan in structured output after a model response
   with no plan surfaced as `candidate_required`. Omitted or null plans now
   report `planner_model_failure` and preserve the current itinerary; four

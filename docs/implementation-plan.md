@@ -1,7 +1,7 @@
 # Implementation Plan
 
 Status: Active
-Last updated: 2026-10-20
+Last updated: 2026-10-26
 
 ## Phase 1A - Core Runtime — Implemented
 
@@ -454,3 +454,19 @@ Acceptance:
 Evidence: 63 focused tests and all 90 host tests passed. isort, Black, flake8
 and Ruff passed. This cleanup changed no accepted architecture and required no
 new ADR or live-provider run.
+
+## Bidirectional Chat Trip-Length Changes — Implemented, Offline Verified
+
+A new `create_trip` request gives Planner no prior itinerary context, so a new
+trip cannot inherit stops from an earlier plan in the same session. Chat can
+extend a trip by adding a grounded stop to every added day. It can also shorten
+a trip by preserving stops on retained days and removing or rescheduling stops
+from removed days. Duration changes use the existing 1–7 day bound and pass
+through validate-before-commit. A `change_day` request beyond the current trip
+length is rejected before Planner runs.
+
+Two regression tests now cover stops on every added day and retained-stop
+integrity when shortening. The 92-test host and Docker test suites passed on
+2026-10-26. The rebuilt Compose app reached healthy status at
+`127.0.0.1:8503`; the root and graph PNG endpoints returned HTTP 200. Live
+provider behavior remains unverified for this follow-up.
