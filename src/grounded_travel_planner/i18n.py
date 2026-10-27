@@ -23,9 +23,21 @@ _TEXT: dict[str, dict[Language, str]] = {
         "vi": "Khóa API của nhà cung cấp mô hình không hợp lệ hoặc đã bị vô hiệu hóa. Hãy cập nhật khóa trong cấu hình rồi khởi động lại ứng dụng; lịch trình trước đó được giữ nguyên.",
         "en": "The model provider API key is invalid or has been disabled. Update the key in the configuration and restart the app; the previous itinerary was preserved.",
     },
+    "planner_model_failure": {
+        "vi": "Chưa thể tạo lịch trình đề xuất; lịch trình trước đó được giữ nguyên.",
+        "en": "A candidate itinerary could not be created; the previous itinerary was preserved.",
+    },
     "turn_pending": {
         "vi": "Một yêu cầu đang được xử lý.",
         "en": "A request is already being processed.",
+    },
+    "turn_capacity_exhausted": {
+        "vi": "Hệ thống đang xử lý quá nhiều yêu cầu. Vui lòng thử lại sau.",
+        "en": "The service is handling too many requests. Please try again shortly.",
+    },
+    "session_capacity_exhausted": {
+        "vi": "Hệ thống đang có quá nhiều phiên hoạt động. Vui lòng thử lại sau.",
+        "en": "The service has too many active sessions. Please try again shortly.",
     },
 }
 

@@ -10,9 +10,8 @@ three-week POC documents are historical background.
 - Core runtime has three roles: `Coordinator`, `Planner` and `Chat`.
 - `GTP_MODEL_PROVIDER` selects the global `openai` (default) or local `ollama`
   provider. `GTP_COORDINATOR_PROVIDER`, `GTP_PLANNER_PROVIDER` and
-  `GTP_CHAT_PROVIDER` can override it for individual roles. The three
-  `GTP_*_MODEL` settings choose model names; OpenAI defaults are `gpt-5.5`,
-  `gpt-6.1-terra` and `gpt-4.1` for Coordinator, Planner and Chat.
+  `GTP_CHAT_PROVIDER` can override it for individual roles. Model identifiers
+  are read from environment variables; runtime code has no built-in model names.
 - Tavily, OpenAI, Ollama and LangSmith integrations sit behind typed provider
   adapters. Planner and Chat route typed requests through the shared LangGraph
   `tavily_tool`; it is the sole runtime caller of the search provider.
@@ -164,13 +163,19 @@ GTP_MODEL_PROVIDER=openai
 GTP_COORDINATOR_MODEL=gpt-5.5
 GTP_PLANNER_MODEL=gpt-6.1-terra
 GTP_CHAT_MODEL=gpt-4.1
-GTP_OLLAMA_FALLBACK_MODEL=qwen2.5:3b
+GTP_OPENAI_JSON_SCHEMA_MODELS=gpt-6.1-terra
+GTP_OLLAMA_FALLBACK_MODEL=qwen3.5:4b-mlx
 ```
 
-When an OpenAI API call fails, that role retries the same structured request
-once with the local Ollama fallback model. Start Ollama and make sure the model
-has been pulled before relying on this path. If the fallback also fails, the
-turn returns a safe error and keeps the current itinerary. An explicitly
+The three role model variables and `GTP_OLLAMA_FALLBACK_MODEL` are required;
+there are no model-name defaults in runtime code. Add comma-separated model
+identifiers to `GTP_OPENAI_JSON_SCHEMA_MODELS` when they need JSON-schema
+structured output.
+
+When any OpenAI SDK API error occurs, that role retries the same structured
+request once with the local Ollama fallback model. Start Ollama and pull the
+model before relying on this path. If the fallback also fails, the turn returns
+a safe error and keeps the current itinerary. An explicitly
 selected Ollama role never calls OpenAI. Invalid model output does not trigger
 provider failover. The default Ollama endpoint is local for a directly run app;
 the Compose app uses `GTP_COMPOSE_OLLAMA_BASE_URL` as described below.
@@ -192,7 +197,7 @@ remain available as a CPU option, but use `http://ollama:11434` only when that
 CPU path is intended. See the [Ollama GPU FAQ](https://github.com/ollama/ollama/blob/main/docs/faq.mdx).
 
 ```bash
-ollama pull qwen2.5:3b
+ollama pull qwen3.5:4b-mlx
 ```
 
 ```dotenv
@@ -201,8 +206,8 @@ GTP_COORDINATOR_PROVIDER=openai
 GTP_PLANNER_PROVIDER=ollama
 GTP_CHAT_PROVIDER=ollama
 GTP_COORDINATOR_MODEL=gpt-5.5
-GTP_PLANNER_MODEL=qwen2.5:3b
-GTP_CHAT_MODEL=qwen2.5:3b
+GTP_PLANNER_MODEL=qwen3.5:4b-mlx
+GTP_CHAT_MODEL=qwen3.5:4b-mlx
 OLLAMA_BASE_URL=http://127.0.0.1:11434
 ```
 
@@ -216,8 +221,8 @@ silently send that role to OpenAI.
 
 The Compose Ollama profile is opt-in and keeps weights in the named
 `ollama-models` volume. It does not start with ordinary `docker compose up`.
-Initialize its default lightweight model (or the whitespace-separated names in
-`OLLAMA_PULL_MODELS`) before starting the app:
+Set `OLLAMA_PULL_MODELS` to the whitespace-separated model identifiers to pull
+before starting the app. The default is empty:
 
 ```bash
 docker compose --profile ollama up --wait ollama ollama-init
@@ -237,8 +242,8 @@ GTP_COMPOSE_OLLAMA_BASE_URL=http://ollama:11434 \
 
 On 2026-10-18, a native mixed-provider smoke committed a one-day Hue plan with
 OpenAI `gpt-5.5` as Coordinator and local `qwen3:4b` as Planner and Chat. The
-current recommended local configuration uses `qwen2.5:3b`; the Compose profile
-itself still needs a live run.
+current Mac fallback is `qwen3.5:4b-mlx` through native Ollama; the optional
+Linux Compose profile is a separate CPU route.
 
 ## Verification recorded on 2026-10-14
 

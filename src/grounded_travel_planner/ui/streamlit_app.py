@@ -20,7 +20,11 @@ from grounded_travel_planner.contracts import (
 from grounded_travel_planner.conversation import MAX_CONVERSATION_TURNS
 from grounded_travel_planner.i18n import localized_issue_message
 from grounded_travel_planner.service import TravelPlannerService
-from grounded_travel_planner.ui.turn_runner import PendingTurn, TurnRunner
+from grounded_travel_planner.ui.turn_runner import (
+    PendingTurn,
+    TurnCapacityExceeded,
+    TurnRunner,
+)
 from grounded_travel_planner.visuals import (
     MAX_VISUAL_STOPS,
     PlaceVisual,
@@ -38,6 +42,7 @@ _TEXT = {
         "days": "Số ngày",
         "create": "Tạo lịch tham quan",
         "pending": "Đang xử lý yêu cầu. Bạn có thể chuyển trang và quay lại sau.",
+        "busy": "Hệ thống đang xử lý quá nhiều yêu cầu. Vui lòng thử lại sau.",
         "current": "Lịch trình hiện tại",
         "starts": "bắt đầu",
         "photos": "Ảnh được tra cứu cho {count} điểm đầu; các điểm còn lại vẫn có trong lịch trình bên dưới.",
@@ -73,6 +78,7 @@ _TEXT = {
         "days": "Days",
         "create": "Create itinerary",
         "pending": "Your request is being processed. You can navigate away and return later.",
+        "busy": "The service is handling too many requests. Please try again shortly.",
         "current": "Current itinerary",
         "starts": "starts",
         "photos": "Photos are being looked up for the first {count} stops; remaining stops are still listed below.",
@@ -441,6 +447,8 @@ def main(
             st.rerun()
         except ValidationError:
             st.error(labels["invalid"])
+        except TurnCapacityExceeded:
+            st.error(labels["busy"])
 
     response: AgentResponse | None = st.session_state.last_response
     if response is not None:
@@ -460,8 +468,11 @@ def main(
 
     user_message = st.chat_input(labels["chat_input"], disabled=turn_pending)
     if user_message:
-        _submit_turn(turn_runner, runtime_service, message=user_message)
-        st.rerun()
+        try:
+            _submit_turn(turn_runner, runtime_service, message=user_message)
+            st.rerun()
+        except TurnCapacityExceeded:
+            st.error(labels["busy"])
 
     _poll_pending_turn()
 

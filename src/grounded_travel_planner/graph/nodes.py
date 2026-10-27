@@ -442,6 +442,7 @@ class GraphNodes:
             candidate.plan if committed and candidate else state.get("current_plan")
         )
         chat_decision = state.get("chat_decision")
+        planner_failed = any(issue.code == "planner_model_failure" for issue in issues)
         if any(issue.code == "model_authentication_failure" for issue in issues):
             chat_decision = ChatSearchDecision(
                 should_search=False,
@@ -449,7 +450,7 @@ class GraphNodes:
                     "model_authentication_failure", state.get("language", "vi")
                 ),
             )
-        if chat_decision is None:
+        if chat_decision is None and not planner_failed:
             try:
                 chat_decision = self.chat.decide_search(
                     message=state["message"],
@@ -481,7 +482,10 @@ class GraphNodes:
             except Exception:  # noqa: BLE001 - stable user-safe fallback
                 chat_decision = None
         if chat_decision is None:
-            message = localized("background_failure", state.get("language", "vi"))
+            failure_key = (
+                "planner_model_failure" if planner_failed else "background_failure"
+            )
+            message = localized(failure_key, state.get("language", "vi"))
             sources: list[SourceReference] = []
         else:
             try:

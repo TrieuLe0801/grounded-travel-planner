@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
+from threading import BoundedSemaphore
 from uuid import uuid4
 
 from grounded_travel_planner.contracts import (
@@ -32,14 +33,25 @@ class PendingTurn:
     language: Language = "vi"
 
 
+class TurnCapacityExceeded(RuntimeError):
+    """Raised when the shared worker queue has reached its bounded capacity."""
+
+
 class TurnRunner:
     """Run blocking service calls without letting workers touch Streamlit state."""
 
-    def __init__(self, max_workers: int = 4) -> None:
+    def __init__(self, max_workers: int = 4, max_pending_turns: int = 8) -> None:
+        if max_workers < 1:
+            raise ValueError("max_workers must be positive")
+        if max_pending_turns < 1:
+            raise ValueError("max_pending_turns must be positive")
         self._executor = ThreadPoolExecutor(
             max_workers=max_workers,
             thread_name_prefix="travel-planner-turn",
         )
+        # ThreadPoolExecutor bounds workers, but its internal queue is unbounded.
+        # Reserve one slot for every queued or executing turn before submitting.
+        self._pending_slots = BoundedSemaphore(max_pending_turns)
 
     def submit(
         self,
@@ -55,23 +67,31 @@ class TurnRunner:
     ) -> PendingTurn:
         """Capture a turn before scheduling it on the shared bounded executor."""
 
-        captured_plan = current_plan.model_copy(deep=True) if current_plan else None
-        captured_request = request.model_copy(deep=True) if request else None
-        captured_thread_id = str(thread_id)
-        captured_message = str(message)
-        captured_summary = bounded_summary(session_summary)
-        captured_history = bounded_history(conversation_history or [])
-        future = self._executor.submit(
-            self._run_turn,
-            service,
-            captured_thread_id,
-            captured_message,
-            captured_plan,
-            captured_request,
-            captured_summary,
-            captured_history,
-            language,
-        )
+        if not self._pending_slots.acquire(blocking=False):
+            raise TurnCapacityExceeded("The shared turn capacity is exhausted.")
+
+        try:
+            captured_plan = current_plan.model_copy(deep=True) if current_plan else None
+            captured_request = request.model_copy(deep=True) if request else None
+            captured_thread_id = str(thread_id)
+            captured_message = str(message)
+            captured_summary = bounded_summary(session_summary)
+            captured_history = bounded_history(conversation_history or [])
+            future = self._executor.submit(
+                self._run_turn,
+                service,
+                captured_thread_id,
+                captured_message,
+                captured_plan,
+                captured_request,
+                captured_summary,
+                captured_history,
+                language,
+            )
+        except Exception:
+            self._pending_slots.release()
+            raise
+        future.add_done_callback(self._release_pending_slot)
         return PendingTurn(
             token=uuid4().hex,
             thread_id=captured_thread_id,
@@ -81,6 +101,11 @@ class TurnRunner:
             language=language,
             future=future,
         )
+
+    def _release_pending_slot(self, _: Future[AgentResponse]) -> None:
+        """Release capacity once, even when no UI request polls the Future."""
+
+        self._pending_slots.release()
 
     @staticmethod
     def collect(pending: PendingTurn) -> AgentResponse | None:

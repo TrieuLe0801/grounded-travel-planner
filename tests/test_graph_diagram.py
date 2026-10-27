@@ -34,7 +34,7 @@ PAGE_PATH = (
 class NoCallModel:
     """A provider double that proves diagram rendering never invokes a model."""
 
-    model_name = "gpt-5.5"
+    model_name = "coordinator-test-model"
 
     def generate_structured(self, *args: Any, **kwargs: Mapping[str, Any]) -> Any:
         raise AssertionError("The graph inspection page must not invoke a model")

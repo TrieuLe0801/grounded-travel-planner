@@ -1,6 +1,6 @@
 {
-  "version": 55,
-  "updated": "2026-10-27T18:08:48+07:00",
+  "version": 62,
+  "updated": "2026-10-27T23:02:10+07:00",
   "active_scope": "city-place-sightseeing-webapp",
   "current_milestone": "Milestone 1: executable city/place sightseeing vertical slice",
   "completed": {
@@ -54,7 +54,16 @@
     "model_authentication_diagnostic": true,
     "openai_ollama_automatic_fallback": true,
     "apple_m1_ollama_gpu_routing": true,
-    "planner_terra_model_default": true
+    "planner_terra_model_default": true,
+    "terra_planner_schema_compatibility": true,
+    "openai_any_api_error_ollama_fallback": true,
+    "openai_request_timeout_increase": true,
+    "agent_prompt_latency_token_optimization": true,
+    "model_identifiers_environment_only": true,
+    "native_ollama_mlx_fallback": true,
+    "deterministic_trip_shortening": true,
+    "shared_turn_capacity_bound": true,
+    "web_session_capacity_bound": true
   },
   "evidence": {
     "scope_reset_docs": [
@@ -481,7 +490,75 @@
       "running app container reached native Ollama and returned a structured fallback response after invalid OpenAI key",
       "native Ollama.app reported qwen2.5:3b at 100% GPU in ollama ps",
       "Compose app and Ollama container healthy; container retained as idle CPU option; ngrok stopped"
+    ],
+    "terra_planner_schema_compatibility": [
+      "src/grounded_travel_planner/adapters/model.py: remove unsupported uri schema format for Terra and validate returned data with original Pydantic contract",
+      "src/grounded_travel_planner/graph/nodes.py and src/grounded_travel_planner/i18n.py: safe localized failure skips Chat generation after Planner failure",
+      "tests/test_two_agent_core.py: Terra schema and no-hallucinated-plan regression coverage",
+      "111 host pytest tests passed; isort, Black, flake8, Ruff and git diff --check passed",
+      "rebuilt Compose app healthy; root and graph image HTTP 200",
+      "live Huế API turn committed four entries with source references on all four; Terra invalid-schema warning absent from app logs",
+      "recreating the app cleared session-only state; ngrok stopped"
+    ],
+    "openai_any_api_error_ollama_fallback": [
+      "docs/adr/0010-configurable-openai-ollama-model-provider.md: 2026-10-27 amendment",
+      "src/grounded_travel_planner/adapters/model.py: any OpenAIError triggers one Ollama attempt",
+      "tests/test_model_fallback.py: 18 passed, including HTTP 400/404 and base OpenAIError",
+      "full host pytest: 113 passed; isort, Black, flake8, Ruff and diff check passed",
+      "expanded fallback is included in the rebuilt runtime; the successful live full turn used OpenAI, so the expanded fallback path was not invoked"
+    ],
+    "openai_request_timeout_increase": [
+      "src/grounded_travel_planner/adapters/model.py: shared OpenAI per-call timeout raised from 20 to 60 seconds",
+      "tests/test_two_agent_core.py: model adapter verifies 60-second timeout",
+      "113 host pytest tests passed; isort, Black, flake8, Ruff and git diff --check passed",
+      "fresh live gpt-6.1-terra graph turn completed in 41.3 seconds and committed four sourced Huế entries without validation issues",
+      "rebuilt Compose app healthy; root and graph image HTTP 200; restart clears session-only state"
+    ],
+    "agent_prompt_latency_token_optimization": [
+      "src/grounded_travel_planner/agents/planner.py: compact chronological prior-plan context, deduplicated source records and request text",
+      "src/grounded_travel_planner/agents/chat.py and coordinator.py: concise response/summary instructions and no duplicate full-plan context for Chat",
+      "tests/test_agent_prompt_optimization.py: 2 focused prompt regressions passed",
+      "Ruff, Black and git diff --check passed; full pytest collection blocked by unrelated dirty config.py/service.py edits",
+      "No live before/after token usage or latency benchmark run; no numeric gain claimed"
+    ],
+    "model_identifiers_environment_only": [
+      "src/grounded_travel_planner/config.py and service.py: no model identifier constants; all runtime role, fallback and JSON-schema model selections come from environment values",
+      ".env.example and README.md document required model environment variables",
+      "compose.yaml no longer embeds a model identifier in the optional Ollama initializer",
+      "tests use synthetic model identifiers",
+      "isort, Black, flake8, Ruff and git diff --check passed; full test suite not run for this refactor",
+      "rebuilt app resolves model names and JSON-schema selection from .env and is healthy"
+    ],
+    "native_ollama_mlx_fallback": [
+      "Ollama native v0.40.10 installed from official release; published SHA-256 matched and macOS code signature verified",
+      "qwen3.5:4b-mlx returned structured output on host and from app container via host.docker.internal",
+      "invalid OpenAI key triggered one structured MLX fallback response from app container",
+      "ollama ps reported runner mlx and 100% GPU; app container healthy and root HTTP 200",
+      "qwen2.5:3b removed from native and container stores; CPU Ollama container stopped",
+      "app recreation cleared session-only state; earlier Ollama.app retained temporarily as local backup"
+    ],
+    "deterministic_trip_shortening": [
+      "src/grounded_travel_planner/agents/planner.py: deterministic shortening preserves retained entries/source data and advances revision",
+      "tests/test_shorten_trip_regression.py: relative one-day reduction commits with zero model/search/repair work",
+      "tests/test_planner_shorten_source_context.py: model-backed Planner context retains per-entry source provenance without duplicate source payload",
+      "Full uv run pytest: 117 passed; isort, Black, flake8, Ruff and git diff --check passed",
+      "docker compose build app completed with image sha256:c6e955e6394d66ff274ea699beb9f823df803fdf14251de76afe7ea1141f98a9",
+      "Running Compose container remains on previous image and was not recreated; replacement clears session-only plans"
+    ],
+    "shared_turn_capacity_bound": [
+      "src/grounded_travel_planner/ui/turn_runner.py: eight total running or queued turns; Future completion releases capacity",
+      "src/grounded_travel_planner/web/api.py: localized 429 before session mutation on capacity exhaustion",
+      "tests/test_turn_runner.py and tests/test_web_api.py: cross-session capacity and completion regressions",
+      "network-disabled read-only container: 15 focused and 122 full tests passed",
+      "isort, Black, flake8, Ruff and git diff --check passed",
+      "running Compose app retained its previous image and session-only plans"
+    ],
+    "web_session_capacity_bound": [
+      "src/grounded_travel_planner/web/api.py: 1024-session cap, one-hour idle expiry, running-turn protection and atomic reset replacement",
+      "tests/test_web_api.py: capacity, expiry including uncollected completed turns, reset and 503 regressions",
+      "network-disabled read-only container: 15 focused and 122 full tests passed",
+      "running Compose app retained its previous image and session-only plans"
     ]
   },
-  "notes": "Milestone 1 and chat editing have offline and live evidence. OpenAI remains the global default provider with Coordinator gpt-5.5, Planner gpt-6.1-terra and Chat gpt-4.1 defaults; OpenAI API failures try Ollama qwen2.5:3b once, while explicit Ollama roles never call OpenAI. Invalid-key Hue turns committed through fallback on the host, in a one-shot image and through the running app linked to the Compose Ollama container. The Compose Ollama profile is verified with a persistent model volume; its Linux container uses CPU on this Apple M1 Mac. An earlier Apple M1 run used native macOS Ollama through host.docker.internal for Metal acceleration, verified by a structured fallback response and 100% GPU in ollama ps. The current Windows Compose app resolves OpenAI gpt-6.1-terra for Planner and internal Ollama qwen2.5:3b fallback; app and Ollama are healthy, and root/graph return HTTP 200. Source-quality metrics still have a synthetic baseline and live relevance remains unmeasured. The JavaScript/Tailwind UI is the current container frontend; browser QA is pending. Planner structured output requires a full plan. Planner and Chat requests execute through one shared Tavily graph node with a two-call turn cap. Broad answer quality remains unmeasured."
+  "notes": "Milestone 1 and chat editing have offline and live evidence. Model identifiers are read from required environment variables; runtime code contains no model identifiers. Current Mac fallback uses native Ollama with qwen3.5:4b-mlx through host.docker.internal; Ollama v0.40.10 reports runner mlx at 100% GPU. Invalid-key structured fallback succeeded from the app container. qwen2.5:3b was removed from native and container stores, and the CPU Ollama container is stopped. The app is healthy and serves HTTP 200; recreating it cleared session-only state. Historical OpenAI/Tavily/LangSmith and Compose model smokes remain historical. Source-quality live relevance, browser QA and live token/latency comparisons remain unmeasured. Trip shortening now commits a deterministic candidate within the Planner role, preserving retained entries and source references exactly; host suite passes 117. Running Compose app has not been replaced because replacement clears session-only plans. A fresh grounded-travel-planner:local image was built for deterministic trip shortening; the healthy running container remains on the old image pending a restart decision because sessions are memory-only."
 }

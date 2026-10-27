@@ -13,12 +13,7 @@ from grounded_travel_planner.adapters.model import (
 )
 from grounded_travel_planner.adapters.search import TavilyPlaceSearchProvider
 from grounded_travel_planner.agents import ChatAgent, CoordinatorAgent, PlannerAgent
-from grounded_travel_planner.config import (
-    DEFAULT_CHAT_MODEL_NAME,
-    DEFAULT_LIGHTWEIGHT_MODEL_NAME,
-    DEFAULT_MODEL_NAME,
-    RuntimeConfig,
-)
+from grounded_travel_planner.config import RuntimeConfig
 from grounded_travel_planner.contracts import (
     SEARCH_SNIPPET_MAX_LENGTH,
     SOURCE_REFERENCE_SNIPPET_MAX_LENGTH,
@@ -46,13 +41,24 @@ from grounded_travel_planner.providers import ProviderError
 from grounded_travel_planner.service import TravelPlannerService
 
 T = TypeVar("T", bound=BaseModel)
+COORDINATOR_TEST_MODEL = "coordinator-test-model"
+PLANNER_TEST_MODEL = "planner-test-model"
+CHAT_TEST_MODEL = "chat-test-model"
+FALLBACK_TEST_MODEL = "ollama-fallback-test-model"
+
+
+def set_required_model_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("GTP_COORDINATOR_MODEL", COORDINATOR_TEST_MODEL)
+    monkeypatch.setenv("GTP_PLANNER_MODEL", PLANNER_TEST_MODEL)
+    monkeypatch.setenv("GTP_CHAT_MODEL", CHAT_TEST_MODEL)
+    monkeypatch.setenv("GTP_OLLAMA_FALLBACK_MODEL", FALLBACK_TEST_MODEL)
 
 
 class ScriptedModel:
     def __init__(
         self,
         handler: Callable[[str, type[BaseModel]], BaseModel],
-        model_name: str = DEFAULT_MODEL_NAME,
+        model_name: str = COORDINATOR_TEST_MODEL,
     ) -> None:
         self.handler = handler
         self.model_name = model_name
@@ -243,9 +249,9 @@ def service_for(
 ) -> tuple[TravelPlannerService, ScriptedModel, ScriptedModel, FakeSearch]:
     coordinator_llm = coordinator_model(action)
     planner_llm = planner_model(candidate_plan)
-    planner_llm.model_name = DEFAULT_LIGHTWEIGHT_MODEL_NAME
+    planner_llm.model_name = PLANNER_TEST_MODEL
     chat_llm = chat_model()
-    chat_llm.model_name = DEFAULT_CHAT_MODEL_NAME
+    chat_llm.model_name = CHAT_TEST_MODEL
     fake_search = search or FakeSearch([search_result()])
     config = RuntimeConfig()
     service = TravelPlannerService(
@@ -264,41 +270,46 @@ def test_runtime_roles_use_configured_models() -> None:
 
     assert service.coordinator.role == "coordinator"
     assert service.planner.role == "planner"
-    assert service.coordinator.model_name == DEFAULT_MODEL_NAME
-    assert service.planner.model_name == DEFAULT_LIGHTWEIGHT_MODEL_NAME
+    assert service.coordinator.model_name == COORDINATOR_TEST_MODEL
+    assert service.planner.model_name == PLANNER_TEST_MODEL
     assert service.chat.role == "chat"
-    assert service.chat.model_name == DEFAULT_CHAT_MODEL_NAME
+    assert service.chat.model_name == CHAT_TEST_MODEL
     assert not hasattr(service.coordinator, "propose")
     assert not hasattr(service.planner, "commit")
-    assert ChatOpenAIStructuredModel().model_name == "gpt-5.5"
+    assert ChatOpenAIStructuredModel(COORDINATOR_TEST_MODEL).model_name == (
+        COORDINATOR_TEST_MODEL
+    )
 
 
-def test_environment_service_assigns_default_models_to_all_roles() -> None:
-    config = RuntimeConfig()
+def test_environment_service_assigns_models_from_environment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    set_required_model_environment(monkeypatch)
+    config = RuntimeConfig.from_environment()
 
     service = TravelPlannerService.from_environment(config)
 
-    assert config.model_name == DEFAULT_MODEL_NAME
-    assert config.planner_model_name == DEFAULT_LIGHTWEIGHT_MODEL_NAME
-    assert config.chat_model_name == DEFAULT_CHAT_MODEL_NAME
-    assert service.coordinator.model_name == DEFAULT_MODEL_NAME
-    assert service.planner.model_name == DEFAULT_LIGHTWEIGHT_MODEL_NAME
-    assert service.chat.model_name == DEFAULT_CHAT_MODEL_NAME
+    assert config.model_name == COORDINATOR_TEST_MODEL
+    assert config.planner_model_name == PLANNER_TEST_MODEL
+    assert config.chat_model_name == CHAT_TEST_MODEL
+    assert service.coordinator.model_name == COORDINATOR_TEST_MODEL
+    assert service.planner.model_name == PLANNER_TEST_MODEL
+    assert service.chat.model_name == CHAT_TEST_MODEL
 
 
 def test_runtime_config_reads_openai_defaults_from_environment(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    set_required_model_environment(monkeypatch)
     for name in (
         "GTP_MODEL_PROVIDER",
         "GTP_COORDINATOR_PROVIDER",
         "GTP_PLANNER_PROVIDER",
         "GTP_CHAT_PROVIDER",
-        "GTP_COORDINATOR_MODEL",
-        "GTP_PLANNER_MODEL",
-        "GTP_CHAT_MODEL",
     ):
         monkeypatch.delenv(name, raising=False)
+
+    set_required_model_environment(monkeypatch)
 
     config = RuntimeConfig.from_environment()
 
@@ -306,25 +317,26 @@ def test_runtime_config_reads_openai_defaults_from_environment(
     assert config.coordinator_model_provider == "openai"
     assert config.planner_model_provider == "openai"
     assert config.chat_model_provider == "openai"
-    assert config.model_name == DEFAULT_MODEL_NAME
-    assert config.planner_model_name == DEFAULT_LIGHTWEIGHT_MODEL_NAME
-    assert config.chat_model_name == DEFAULT_CHAT_MODEL_NAME
+    assert config.model_name == COORDINATOR_TEST_MODEL
+    assert config.planner_model_name == PLANNER_TEST_MODEL
+    assert config.chat_model_name == CHAT_TEST_MODEL
 
 
 def test_runtime_config_reads_all_role_model_overrides(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    set_required_model_environment(monkeypatch)
     monkeypatch.setenv("GTP_MODEL_PROVIDER", "ollama")
-    monkeypatch.setenv("GTP_COORDINATOR_MODEL", "qwen2.5:7b")
-    monkeypatch.setenv("GTP_PLANNER_MODEL", "qwen2.5:3b")
-    monkeypatch.setenv("GTP_CHAT_MODEL", "llama3.2:3b")
+    monkeypatch.setenv("GTP_COORDINATOR_MODEL", "ollama-coordinator-test-model")
+    monkeypatch.setenv("GTP_PLANNER_MODEL", "ollama-planner-test-model")
+    monkeypatch.setenv("GTP_CHAT_MODEL", "ollama-chat-test-model")
 
     config = RuntimeConfig.from_environment()
 
     assert config.model_provider == "ollama"
-    assert config.model_name == "qwen2.5:7b"
-    assert config.planner_model_name == "qwen2.5:3b"
-    assert config.chat_model_name == "llama3.2:3b"
+    assert config.model_name == "ollama-coordinator-test-model"
+    assert config.planner_model_name == "ollama-planner-test-model"
+    assert config.chat_model_name == "ollama-chat-test-model"
 
 
 @pytest.mark.parametrize(
@@ -334,9 +346,9 @@ def test_runtime_config_reads_all_role_model_overrides(
         ("GTP_COORDINATOR_PROVIDER", "azure", "coordinator_provider"),
         ("GTP_PLANNER_PROVIDER", "azure", "planner_provider"),
         ("GTP_CHAT_PROVIDER", "azure", "chat_provider"),
-        ("GTP_COORDINATOR_MODEL", "   ", "model name must not be blank"),
-        ("GTP_PLANNER_MODEL", "", "model name must not be blank"),
-        ("GTP_CHAT_MODEL", "\t", "model name must not be blank"),
+        ("GTP_COORDINATOR_MODEL", "   ", "GTP_COORDINATOR_MODEL must be configured"),
+        ("GTP_PLANNER_MODEL", "", "GTP_PLANNER_MODEL must be configured"),
+        ("GTP_CHAT_MODEL", "\t", "GTP_CHAT_MODEL must be configured"),
     ],
 )
 def test_runtime_config_rejects_invalid_environment_values(
@@ -345,22 +357,25 @@ def test_runtime_config_rejects_invalid_environment_values(
     value: str,
     match: str,
 ) -> None:
+    set_required_model_environment(monkeypatch)
     monkeypatch.setenv(name, value)
 
-    with pytest.raises(ValidationError, match=match):
+    expected_error = ValueError if name.endswith("_MODEL") else ValidationError
+    with pytest.raises(expected_error, match=match):
         RuntimeConfig.from_environment()
 
 
 def test_legacy_global_ollama_provider_selects_all_runtime_roles(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    set_required_model_environment(monkeypatch)
     monkeypatch.setenv("GTP_MODEL_PROVIDER", "ollama")
     monkeypatch.setenv("GTP_COORDINATOR_PROVIDER", "")
     monkeypatch.setenv("GTP_PLANNER_PROVIDER", "")
     monkeypatch.setenv("GTP_CHAT_PROVIDER", "")
-    monkeypatch.setenv("GTP_COORDINATOR_MODEL", "qwen2.5:7b")
-    monkeypatch.setenv("GTP_PLANNER_MODEL", "qwen2.5:3b")
-    monkeypatch.setenv("GTP_CHAT_MODEL", "llama3.2:3b")
+    monkeypatch.setenv("GTP_COORDINATOR_MODEL", "ollama-coordinator-test-model")
+    monkeypatch.setenv("GTP_PLANNER_MODEL", "ollama-planner-test-model")
+    monkeypatch.setenv("GTP_CHAT_MODEL", "ollama-chat-test-model")
     monkeypatch.setenv("OLLAMA_BASE_URL", "http://ollama.test:11434")
 
     service = TravelPlannerService.from_environment()
@@ -372,13 +387,18 @@ def test_legacy_global_ollama_provider_selects_all_runtime_roles(
         service.coordinator.model_name,
         service.planner.model_name,
         service.chat.model_name,
-    ] == ["qwen2.5:7b", "qwen2.5:3b", "llama3.2:3b"]
+    ] == [
+        "ollama-coordinator-test-model",
+        "ollama-planner-test-model",
+        "ollama-chat-test-model",
+    ]
     assert service.coordinator._model._base_url == "http://ollama.test:11434"
 
 
 def test_role_provider_overrides_take_precedence_over_global_fallback(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    set_required_model_environment(monkeypatch)
     monkeypatch.setenv("GTP_MODEL_PROVIDER", "ollama")
     monkeypatch.setenv("GTP_COORDINATOR_PROVIDER", "openai")
     monkeypatch.setenv("GTP_PLANNER_PROVIDER", "ollama")
@@ -395,6 +415,7 @@ def test_role_provider_overrides_take_precedence_over_global_fallback(
 def test_blank_role_provider_override_uses_global_fallback(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    set_required_model_environment(monkeypatch)
     monkeypatch.setenv("GTP_MODEL_PROVIDER", "ollama")
     monkeypatch.setenv("GTP_COORDINATOR_PROVIDER", "")
     monkeypatch.setenv("GTP_PLANNER_PROVIDER", "   ")
@@ -413,10 +434,14 @@ def test_blank_role_provider_override_uses_global_fallback(
 def test_environment_service_constructs_exact_mixed_role_adapters(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    set_required_model_environment(monkeypatch)
     constructed: list[tuple[str, str, str | None]] = []
 
     class FakeOpenAIModel:
-        def __init__(self, model_name: str) -> None:
+        def __init__(
+            self, model_name: str, *, json_schema_model_names: tuple[str, ...] = ()
+        ) -> None:
+            del json_schema_model_names
             self._model_name = model_name
             constructed.append(("openai", model_name, None))
 
@@ -443,18 +468,18 @@ def test_environment_service_constructs_exact_mixed_role_adapters(
     monkeypatch.setenv("GTP_COORDINATOR_PROVIDER", "openai")
     monkeypatch.setenv("GTP_PLANNER_PROVIDER", "ollama")
     monkeypatch.setenv("GTP_CHAT_PROVIDER", "ollama")
-    monkeypatch.setenv("GTP_COORDINATOR_MODEL", "gpt-5.5")
-    monkeypatch.setenv("GTP_PLANNER_MODEL", "qwen2.5:3b")
-    monkeypatch.setenv("GTP_CHAT_MODEL", "qwen2.5:3b")
+    monkeypatch.setenv("GTP_COORDINATOR_MODEL", "coordinator-test-model")
+    monkeypatch.setenv("GTP_PLANNER_MODEL", "ollama-planner-test-model")
+    monkeypatch.setenv("GTP_CHAT_MODEL", "ollama-planner-test-model")
     monkeypatch.setenv("OLLAMA_BASE_URL", "http://ollama.test:11434")
 
     service = TravelPlannerService.from_environment()
 
     assert constructed == [
-        ("openai", "gpt-5.5", None),
-        ("ollama", "qwen2.5:3b", "http://ollama.test:11434"),
-        ("ollama", "qwen2.5:3b", "http://ollama.test:11434"),
-        ("ollama", "qwen2.5:3b", "http://ollama.test:11434"),
+        ("openai", "coordinator-test-model", None),
+        ("ollama", "ollama-fallback-test-model", "http://ollama.test:11434"),
+        ("ollama", "ollama-planner-test-model", "http://ollama.test:11434"),
+        ("ollama", "ollama-planner-test-model", "http://ollama.test:11434"),
     ]
     assert isinstance(service.coordinator._model._primary, FakeOpenAIModel)
     assert isinstance(service.coordinator._model._fallback, FakeOllamaModel)
@@ -489,7 +514,7 @@ def test_openai_adapter_uses_function_calling_for_pydantic_schema(
             return ChatResponse(message="ok")
 
     monkeypatch.setattr("langchain_openai.ChatOpenAI", FakeChatOpenAI)
-    adapter = ChatOpenAIStructuredModel()
+    adapter = ChatOpenAIStructuredModel(COORDINATOR_TEST_MODEL)
 
     result = adapter.generate_structured(
         "explain",
@@ -499,16 +524,16 @@ def test_openai_adapter_uses_function_calling_for_pydantic_schema(
 
     assert result.message == "ok"
     assert observed == {
-        "model": "gpt-5.5",
+        "model": COORDINATOR_TEST_MODEL,
         "max_retries": 0,
-        "timeout": 20,
+        "timeout": 60,
         "schema": ChatResponse,
         "method": "function_calling",
         "metadata": {"thread_id": "thread-adapter"},
     }
 
 
-def test_terra_adapter_uses_json_schema_without_reasoning(
+def test_configured_json_schema_adapter_uses_schema_without_reasoning(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     observed: dict[str, object] = {}
@@ -517,29 +542,36 @@ def test_terra_adapter_uses_json_schema_without_reasoning(
         def __init__(self, **kwargs: object) -> None:
             observed.update(kwargs)
 
-        def with_structured_output(self, schema, *, method: str):
+        def with_structured_output(self, schema, *, method: str, strict: bool):
             observed["schema"] = schema
             observed["method"] = method
+            observed["strict"] = strict
             return self
 
         def invoke(self, messages, config):
-            return ChatResponse(message="ok")
+            return {
+                "plan": plan().model_dump(mode="json"),
+                "summary": "ok",
+                "issues": [],
+            }
 
     monkeypatch.setattr("langchain_openai.ChatOpenAI", FakeChatOpenAI)
 
-    result = ChatOpenAIStructuredModel("gpt-6.1-terra").generate_structured(
-        "explain", ChatResponse
-    )
+    result = ChatOpenAIStructuredModel(
+        "schema-test-model", json_schema_model_names=("schema-test-model",)
+    ).generate_structured("explain", PlannerProposal)
 
-    assert result.message == "ok"
-    assert observed == {
-        "model": "gpt-6.1-terra",
-        "max_retries": 0,
-        "timeout": 20,
-        "reasoning_effort": "none",
-        "schema": ChatResponse,
-        "method": "json_schema",
-    }
+    assert isinstance(result, PlannerProposal)
+    assert observed["model"] == "schema-test-model"
+    assert observed["max_retries"] == 0
+    assert observed["timeout"] == 60
+    assert observed["reasoning_effort"] == "none"
+    assert observed["method"] == "json_schema"
+    assert observed["strict"] is False
+    assert (
+        "format"
+        not in observed["schema"]["$defs"]["SourceReference"]["properties"]["url"]
+    )
 
 
 def test_ollama_adapter_uses_structured_output_without_network(
@@ -562,7 +594,9 @@ def test_ollama_adapter_uses_structured_output_without_network(
             return ChatResponse(message="ok")
 
     monkeypatch.setattr("langchain_ollama.ChatOllama", FakeChatOllama)
-    adapter = OllamaStructuredChatModel("qwen2.5:3b", "http://localhost:11434")
+    adapter = OllamaStructuredChatModel(
+        "ollama-planner-test-model", "http://localhost:11434"
+    )
 
     result = adapter.generate_structured(
         "explain",
@@ -571,7 +605,7 @@ def test_ollama_adapter_uses_structured_output_without_network(
     )
 
     assert result.message == "ok"
-    assert observed["model"] == "qwen2.5:3b"
+    assert observed["model"] == "ollama-planner-test-model"
     assert observed["base_url"] == "http://localhost:11434"
     assert observed["schema"] is ChatResponse
     assert observed["metadata"] == {"thread_id": "thread-adapter"}
@@ -608,7 +642,7 @@ def test_ordinary_chat_does_not_search_or_mutate_plan() -> None:
     assert response.graph_steps == 2
     assert coordinator_llm.calls == ["CoordinatorDecision"]
     assert response.metadata["chat_role"] == "chat"
-    assert response.metadata["chat_model"] == DEFAULT_CHAT_MODEL_NAME
+    assert response.metadata["chat_model"] == CHAT_TEST_MODEL
     assert "User message: Thanks, that looks good." in service.chat._model.prompts[0]
 
 
@@ -687,7 +721,9 @@ def test_trip_extension_resolves_request_and_commits_new_day() -> None:
     assert any(entry.day_index == 3 for entry in response.current_plan.entries)
     assert response.search_calls == 1
     assert len(search.calls) == 1
-    assert '"day_count":3' in observed_prompts[0]
+    assert "Trip bounds: destination=Hue; start_date=2026-11-01; day_count=3" in (
+        observed_prompts[0]
+    )
     assert "entry_day_out_of_range" not in {
         issue.code for issue in response.validation_issues
     }
@@ -1017,11 +1053,12 @@ def test_missing_planner_plan_is_a_model_failure_without_retry(
     current = plan() if has_current_plan else None
     config = RuntimeConfig()
     planner_llm = ScriptedModel(malformed_planner)
+    chat_llm = chat_model()
     search = FakeSearch([search_result()])
     service = TravelPlannerService(
         CoordinatorAgent(coordinator_model(action)),
         PlannerAgent(planner_llm),
-        ChatAgent(chat_model()),
+        ChatAgent(chat_llm),
         search=search,
         config=config,
     )
@@ -1051,6 +1088,8 @@ def test_missing_planner_plan_is_a_model_failure_without_retry(
         issue.code for issue in response.validation_issues
     }
     assert planner_llm.calls == ["PlannerProposal"]
+    assert chat_llm.calls == []
+    assert "Chưa thể tạo lịch trình" in response.message
     assert response.repair_attempts == 0
     assert response.search_calls == expected_search_calls
     assert len(search.calls) == expected_search_calls

@@ -98,18 +98,13 @@ class ChatAgent:
             search_status = "not performed"
         committed_context = ""
         if committed and candidate is not None and current_plan is not None:
-            committed_context = (
-                f"Planner summary: {candidate.summary}\n"
-                f"Validated committed plan: {current_plan.model_dump_json()}\n"
-            )
+            committed_context = f"Planner summary: {candidate.summary}\n"
         elif not committed and current_plan is not None:
-            committed_context = (
-                f"Retained prior plan: {current_plan.model_dump_json()}\n"
-            )
+            committed_context = "The prior plan remains unchanged.\n"
         prompt = (
             f"Respond entirely in natural {response_language_instruction(language)}. Preserve proper place names, "
-            "times and source titles. Never claim an uncommitted candidate was "
-            "applied. If validation failed, say the previous plan was preserved. "
+            "times and source titles. Answer in at most three concise sentences. "
+            "Never claim an uncommitted candidate was applied. If validation failed, say the previous plan was preserved. "
             "Mention estimates and unverified hours when relevant.\n"
             f"User message: {message[:4000]}\n"
             f"Coordinator handoff summary: {session_summary[:1200]}\n"
@@ -149,6 +144,8 @@ class ChatAgent:
             "query; message may be empty. Never claim an uncommitted candidate was applied. "
             "When a trip-length change committed, state the resulting duration and "
             "describe the schedule update using only the validated plan.\n"
+            "When no search is needed, keep the final response to at most three "
+            "concise sentences.\n"
             f"User message: {message}\n"
             f"Intent: {intent.model_dump_json() if intent else 'unavailable'}\n"
             f"Coordinator handoff summary: {session_summary}\n"

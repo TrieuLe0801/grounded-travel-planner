@@ -36,7 +36,7 @@
   one shared Tavily graph node.</p>
 
   <div class="meta">
-    <div class="card"><strong>Models</strong><p>OpenAI defaults: Coordinator <code>gpt-5.5</code>, Planner <code>gpt-6.1-terra</code>, Chat <code>gpt-4.1</code>; one local Ollama attempt after OpenAI API failure; explicit Ollama by role</p></div>
+    <div class="card"><strong>Models</strong><p>Role, fallback and structured-output model identifiers come from environment variables; one local Ollama attempt after OpenAI API errors; explicit Ollama by role</p></div>
     <div class="card"><strong>State</strong><p>Session-only plan, 12-message transcript and 1,200-character handoff summary</p></div>
     <div class="card"><strong>Bounds</strong><p>8 graph · 2 search · 1 repair</p></div>
   </div>
@@ -53,12 +53,17 @@
         <li>New trips ignore prior itinerary context; out-of-range day changes stop before Planner</li>
         <li>Validate-before-commit plan semantics</li>
         <li>Chat trip-length changes add grounded stops to every new day or update the schedule when shortening</li>
+        <li>Shortening now commits a deterministic Planner proposal with retained stops and sources unchanged; no model or search calls needed</li>
         <li>Validated Planner outcome passed to Chat after commit</li>
         <li>Rejected candidate context excluded from Chat</li>
         <li>Coordinator summarizes bounded chat history before Planner/Chat handoff</li>
         <li>Chat can request one Tavily function-call search and cite returned sources</li>
         <li>Planner and Chat use one shared <code>tavily_tool</code>; it is the only provider caller</li>
         <li>Two search calls per turn; <code>tool.tavily.*</code> traces carry the session thread ID</li>
+        <li>Terra Planner JSON Schema removes unsupported URL format metadata, then validates URLs locally; live Huế plan committed with four sourced entries</li>
+        <li>OpenAI model calls allow up to 60 seconds; a live full graph turn completed in 41.3 seconds and committed a sourced plan</li>
+        <li>Agent prompts remove duplicate Planner plan/source context and ask Coordinator, Planner and Chat for concise outputs; offline prompt regressions pass, live token/latency comparison pending</li>
+        <li>Planner failure skips Chat generation and returns a localized safe result, preserving the existing plan</li>
         <li>Invalid model credentials yield a localized error while preserving the plan</li>
         <li>Unused agent config/result wrappers and dead graph state removed</li>
         <li>94 host and Docker tests passed</li>
@@ -144,6 +149,8 @@
       <h3>1H · Async session turns</h3>
       <ul>
         <li>Bounded background worker pool</li>
+        <li>Eight running or queued turns maximum per process; overload returns HTTP 429 before changing a session</li>
+        <li>HTTP sessions capped at 1,024 with one-hour idle expiry, including completed uncollected turns; full capacity returns HTTP 503</li>
         <li>One pending turn per browser session</li>
         <li>Exact-once result integration after page return</li>
         <li>50/50 host and Docker tests passed</li>
@@ -160,9 +167,11 @@
         <li>Rebuilt app and graph image return HTTP 200</li>
         <li>Typed <code>ChatOllama</code> structured output adapter</li>
         <li>Automatic OpenAI failure fallback to local <code>qwen2.5:3b</code>: 110 host tests and a sourced live Hue turn passed</li>
+        <li>Any OpenAI SDK API error, including HTTP 400/404, now triggers one Ollama attempt: 113 offline tests passed; invalid-key container smoke returned structured output through MLX</li>
         <li>New runtime image committed a live Hue plan through fallback in a one-shot container; Compose app was then recreated and reached healthy status</li>
         <li>Opt-in Compose Ollama profile verified with a persistent model volume and a sourced Hue turn; Apple M1 Docker inference uses CPU</li>
         <li>Active app reaches native macOS Ollama through <code>host.docker.internal</code>; fallback returned structured output and <code>ollama ps</code> showed 100% GPU</li>
+        <li>Native Ollama v0.40.10 runs the configured MLX model with runner <code>mlx</code> at 100% GPU; <code>qwen2.5:3b</code> removed from native and container stores</li>
         <li>Active mixed <code>gpt-5.5</code> / <code>qwen2.5:3b</code> Hue smoke passed</li>
         <li>Compose app to native Ollama HTTP smoke passed</li>
         <li>Planner structured output requires a complete candidate plan; missing-plan regressions passed</li>

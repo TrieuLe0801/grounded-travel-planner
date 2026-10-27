@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Mapping
 
 from grounded_travel_planner.contracts import (
@@ -14,7 +15,7 @@ from grounded_travel_planner.contracts import (
     TavilyToolRequest,
     TripRequest,
     ValidationIssue,
-    visible_schedule_context,
+    visible_schedule_entries,
 )
 from grounded_travel_planner.i18n import Language, response_language_instruction
 from grounded_travel_planner.providers import StructuredChatModel
@@ -60,6 +61,12 @@ class PlannerAgent:
         retained_sources: list[SourceReference] | None = None,
         language: Language = "vi",
     ) -> PlanCandidate:
+        if intent.action is IntentAction.SHORTEN_TRIP:
+            return self._shorten_candidate(
+                request=request,
+                current_plan=current_plan,
+                language=language,
+            )
         # A new-trip request starts a fresh itinerary. Reusing the previous
         # session plan can leak stops scheduled beyond the newly selected day
         # count; _ground_candidate then resets day_count and those stale entries
@@ -96,6 +103,56 @@ class PlannerAgent:
         )
         return candidate
 
+    def _shorten_candidate(
+        self,
+        *,
+        request: TripRequest,
+        current_plan: SightseeingPlan | None,
+        language: Language,
+    ) -> PlanCandidate:
+        """Build the deterministic shortening proposal inside the Planner role.
+
+        Reducing a trip only removes stops on days beyond the validated target.
+        It needs no model-authored content or new research, and copying retained
+        entries directly preserves their exact schedule, place, and source data.
+        """
+
+        if current_plan is None or request.day_count >= current_plan.day_count:
+            raise ValueError("A valid shorter current plan is required.")
+        entries = [
+            entry
+            for entry in current_plan.entries
+            if entry.day_index <= request.day_count
+        ]
+        removed_count = len(current_plan.entries) - len(entries)
+        if language == "vi":
+            summary = (
+                f"Đã rút lịch trình còn {request.day_count} ngày; "
+                f"giữ nguyên các điểm trong ngày còn lại và bỏ {removed_count} điểm "
+                "thuộc ngày đã xóa."
+            )
+        else:
+            summary = (
+                f"Shortened the itinerary to {request.day_count} days, preserving "
+                f"retained-day stops and removing {removed_count} stops from "
+                "dropped days."
+            )
+        plan = current_plan.model_copy(
+            update={
+                "day_count": request.day_count,
+                "entries": entries,
+                "summary": summary,
+                "revision": current_plan.revision + 1,
+            }
+        )
+        sources = self._sources_from_plan(plan)
+        return PlanCandidate(
+            plan=plan,
+            summary=summary,
+            returned_source_urls={str(source.url) for source in sources},
+            returned_sources=sources,
+        )
+
     def search_query(self, intent: PlanChangeIntent, request: TripRequest) -> str:
         place = intent.replacement_place_name or intent.place_name or "attractions"
         return f"{place} {request.destination} sightseeing official visitor information"
@@ -129,16 +186,25 @@ class PlannerAgent:
         repair_issues: list[ValidationIssue],
         language: Language,
     ) -> str:
-        source_payload = [source.model_dump(mode="json") for source in sources]
-        current_payload = (
-            current_plan.model_dump(mode="json") if current_plan is not None else None
-        )
+        current_payload = _planner_plan_context(current_plan)
         issue_payload = [issue.model_dump(mode="json") for issue in repair_issues]
+        plan_source_urls = _plan_source_urls(current_plan)
+        source_payload = [
+            {
+                "source_id": source.source_id,
+                "title": source.title,
+                "url": str(source.url),
+                "snippet": source.snippet,
+                "supports_opening_hours": source.supports_opening_hours,
+            }
+            for source in sources
+            if str(source.url).rstrip("/") not in plan_source_urls
+        ]
         return (
             "Propose one complete candidate city sightseeing plan. For every "
             "plan-changing request, return the full plan object; never omit it "
             "or return null. Use only source URLs "
-            "and source IDs in the supplied search results. Never invent opening "
+            "and source IDs in the supplied sources. Never invent opening "
             "hours. Use opening_hours='unverified' and false unless a supplied "
             "source explicitly supports hours. All visit and travel minute fields "
             "are estimates. Write user-visible plan summaries, place descriptions "
@@ -157,18 +223,19 @@ class PlannerAgent:
             "sorted by day, start time, end time, then entry ID. A reorder must "
             "change that visible chronological order; changing only the entries "
             "list is insufficient.\n"
-            "For extend_trip, preserve all existing entries and add a grounded "
-            "stop on every newly added day. For shorten_trip, keep entries on "
-            "retained days unchanged and remove entries after the new final day. "
-            "You may move an existing stop from a removed day into a retained "
-            "day when it fits; do not invent a place or change its source data.\n"
-            f"Request: {request.model_dump_json()}\n"
-            f"Intent: {intent.model_dump_json()}\n"
+            "Keep summaries to one sentence, place descriptions to two short "
+            "sentences, and schedule notes brief. For extend_trip, preserve all existing entries and add a grounded "
+            "stop on every newly added day. For shorten_trip, copy every entry "
+            "on retained days exactly, including nested source_references and "
+            "all source data; only drop entries beyond the new final day.\n"
+            f"Trip bounds: destination={request.destination}; start_date={request.start_date}; day_count={request.day_count}\n"
+            f"Intent: {intent.model_dump_json(exclude={'user_message'}, exclude_none=True)}\n"
             f"Coordinator handoff summary: {session_summary[:1200]}\n"
-            f"Current plan: {current_payload}\n"
-            f"Current visible itinerary: {visible_schedule_context(current_plan)}\n"
-            f"Returned sources: {source_payload}\n"
-            f"Repair issues: {issue_payload}"
+            f"Current plan (chronological; visible_index is the user-facing stop number): {json.dumps(current_payload, ensure_ascii=False, separators=(',', ':'))}\n"
+            "Returned sources: "
+            f"{json.dumps(source_payload, ensure_ascii=False, separators=(',', ':'))}\n"
+            "Repair issues: "
+            f"{json.dumps(issue_payload, ensure_ascii=False, separators=(',', ':'))}"
         )
 
     def _ground_candidate(
@@ -221,3 +288,30 @@ class PlannerAgent:
             returned_source_urls=set(allowed),
             returned_sources=list(allowed.values()),
         )
+
+
+def _plan_source_urls(plan: SightseeingPlan | None) -> set[str]:
+    """Return normalized URLs already attached to entries in the current plan."""
+
+    if plan is None:
+        return set()
+    return {
+        str(source.url).rstrip("/")
+        for entry in plan.entries
+        for source in entry.place.source_references
+    }
+
+
+def _planner_plan_context(plan: SightseeingPlan | None) -> dict[str, object] | None:
+    """Serialize the prior plan once, in visible order, with exact entry evidence."""
+
+    if plan is None:
+        return None
+    payload = plan.model_dump(mode="json", exclude={"entries"})
+    entries: list[dict[str, object]] = []
+    for index, entry in enumerate(visible_schedule_entries(plan)):
+        item = entry.model_dump(mode="json")
+        item["visible_index"] = index
+        entries.append(item)
+    payload["entries"] = entries
+    return payload

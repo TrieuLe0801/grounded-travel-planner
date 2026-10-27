@@ -6,6 +6,8 @@ from dataclasses import fields
 from datetime import date, time
 from threading import Event
 
+import pytest
+
 from grounded_travel_planner.contracts import (
     AgentResponse,
     ConversationTurn,
@@ -16,7 +18,7 @@ from grounded_travel_planner.contracts import (
     SourceReference,
     TripRequest,
 )
-from grounded_travel_planner.ui.turn_runner import TurnRunner
+from grounded_travel_planner.ui.turn_runner import TurnCapacityExceeded, TurnRunner
 
 
 def _plan() -> SightseeingPlan:
@@ -153,3 +155,37 @@ def test_turn_runner_exception_returns_vietnamese_provider_error_and_prior_plan(
     assert response.current_plan == prior_plan
     assert response.current_plan is not prior_plan
     assert response.validation_issues[0].code == "background_turn_failure"
+
+
+def test_turn_runner_releases_global_capacity_after_completion_without_collecting() -> (
+    None
+):
+    service = _GatedService()
+    runner = TurnRunner(max_workers=1, max_pending_turns=1)
+    completed = Event()
+    pending = runner.submit(
+        service,  # type: ignore[arg-type]
+        thread_id="thread-capacity",
+        message="first",
+        current_plan=None,
+    )
+    pending.future.add_done_callback(lambda _: completed.set())
+
+    assert service.entered.wait(timeout=1)
+    with pytest.raises(TurnCapacityExceeded):
+        runner.submit(
+            service,  # type: ignore[arg-type]
+            thread_id="thread-capacity-other-session",
+            message="rejected while queued",
+            current_plan=None,
+        )
+
+    service.release.set()
+    assert completed.wait(timeout=1)
+    retry = runner.submit(
+        service,  # type: ignore[arg-type]
+        thread_id="thread-capacity-other-session",
+        message="accepted after completion",
+        current_plan=None,
+    )
+    assert retry.message == "accepted after completion"

@@ -9,6 +9,12 @@ assigned behavior across Python, FastAPI, React/Tailwind, configuration or
 documentation as appropriate; do not assume every change needs an application
 test.
 
+For agent behavior evaluation and testing assignments, read
+`.codex/skills/evaluation-and-test/SKILL.md` and its security reference only
+when the assigned behavior crosses a relevant trust boundary. Keep the
+evaluation scoped to the assignment; a full security audit needs an explicit
+audit request.
+
 Focus on user-corrected behavior and charter invariants: session isolation and
 bounded context, one pending async turn, plan preservation on rejection,
 grounded sources, bounded shared Tavily calls, explicit provider routing,
@@ -23,4 +29,20 @@ specific fix, and do not restore rejected policy such as source_place_mismatch.
 Run only assigned/relevant checks. Report exact commands, results, files changed,
 unrun checks, and reproducible failing cases. Distinguish static checks from
 browser, container and live-provider evidence.
+
+For each assigned change, assess whether it affects a trust boundary: session
+ownership, HTTP input/cookies, provider output and prompt handling, source URL
+provenance, secrets/traces, resource limits, frontend rendering, or container
+configuration. Add a focused, mocked security regression when a changed
+boundary has a concrete failure mode. Do not call routine tests a security
+audit or claim that passing tests proves the application secure.
+
+For an explicit security review or audit assignment, read the project-local
+`.codex/skills/security-audit/SKILL.md` and only its relevant companion files.
+Use its guidance mode for focused review; reserve full audit mode for an
+explicit codebase audit assignment. Follow its source-first evidence and
+execution-safety rules, including the required OS-enforced sandbox before
+running target-controlled code. If the sandbox or independent verification
+required for a full audit is unavailable, report the precise coverage and
+validation gap; never upgrade an unverified lead to a confirmed finding.
 """
