@@ -12,7 +12,7 @@ three-week POC documents are historical background.
   provider. `GTP_COORDINATOR_PROVIDER`, `GTP_PLANNER_PROVIDER` and
   `GTP_CHAT_PROVIDER` can override it for individual roles. The three
   `GTP_*_MODEL` settings choose model names; OpenAI defaults are `gpt-5.5`,
-  `gpt-5.4-mini` and `gpt-4.1` for Coordinator, Planner and Chat.
+  `gpt-6.1-terra` and `gpt-4.1` for Coordinator, Planner and Chat.
 - Tavily, OpenAI, Ollama and LangSmith integrations sit behind typed provider
   adapters. Planner and Chat route typed requests through the shared LangGraph
   `tavily_tool`; it is the sole runtime caller of the search provider.
@@ -162,7 +162,7 @@ Copy `.env.example` to `.env`. The provider and every role model are explicit:
 ```dotenv
 GTP_MODEL_PROVIDER=openai
 GTP_COORDINATOR_MODEL=gpt-5.5
-GTP_PLANNER_MODEL=gpt-5.4-mini
+GTP_PLANNER_MODEL=gpt-6.1-terra
 GTP_CHAT_MODEL=gpt-4.1
 GTP_OLLAMA_FALLBACK_MODEL=qwen2.5:3b
 ```

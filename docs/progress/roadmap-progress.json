@@ -1,6 +1,6 @@
 {
-  "version": 54,
-  "updated": "2026-10-26T23:36:44+07:00",
+  "version": 55,
+  "updated": "2026-10-27T18:08:48+07:00",
   "active_scope": "city-place-sightseeing-webapp",
   "current_milestone": "Milestone 1: executable city/place sightseeing vertical slice",
   "completed": {
@@ -53,7 +53,8 @@
     "ngrok_tunnel_running": false,
     "model_authentication_diagnostic": true,
     "openai_ollama_automatic_fallback": true,
-    "apple_m1_ollama_gpu_routing": true
+    "apple_m1_ollama_gpu_routing": true,
+    "planner_terra_model_default": true
   },
   "evidence": {
     "scope_reset_docs": [
@@ -466,6 +467,15 @@
       "restart cleared prior session-only plans and conversations",
       "LangSmith not checked"
     ],
+    "planner_terra_model_default": [
+      "src/grounded_travel_planner/config.py: Planner OpenAI default gpt-6.1-terra",
+      "src/grounded_travel_planner/adapters/model.py: Terra JSON-schema structured output and reasoning_effort none",
+      "tests/test_two_agent_core.py: mocked adapter and default coverage; 70 focused tests passed, 111 full tests passed",
+      "isort, Black, Ruff and diff check passed; full flake8 retains three pre-existing F841 findings",
+      "direct model-only ChatResponse call succeeded in 3.91 seconds; full Planner schema bound offline",
+      "rebuilt Compose app healthy with OpenAI gpt-6.1-terra Planner and Ollama qwen2.5:3b fallback; root/graph HTTP 200; recreation cleared session-only state",
+      "no full Planner turn or end-to-end latency comparison verified"
+    ],
     "apple_m1_ollama_gpu_routing": [
       "ignored .env sets GTP_COMPOSE_OLLAMA_BASE_URL=http://host.docker.internal:11434",
       "running app container reached native Ollama and returned a structured fallback response after invalid OpenAI key",
@@ -473,5 +483,5 @@
       "Compose app and Ollama container healthy; container retained as idle CPU option; ngrok stopped"
     ]
   },
-  "notes": "Milestone 1 and chat editing have offline and live evidence. OpenAI remains the global default provider with Coordinator gpt-5.5, Planner gpt-5.4-mini and Chat gpt-4.1 defaults; OpenAI API failures try Ollama qwen2.5:3b once, while explicit Ollama roles never call OpenAI. Invalid-key Hue turns committed through fallback on the host, in a one-shot image and through the running app linked to the Compose Ollama container. The Compose Ollama profile is verified with a persistent model volume; its Linux container uses CPU on this Apple M1 Mac. The app now calls native macOS Ollama through host.docker.internal for Metal acceleration, verified by a structured fallback response and 100% GPU in ollama ps. The Ollama container remains healthy as an idle CPU option. Source-quality metrics still have a synthetic baseline and live relevance remains unmeasured. The JavaScript/Tailwind UI is the current container frontend; browser QA is pending. Planner structured output requires a full plan. Planner and Chat requests execute through one shared Tavily graph node with a two-call turn cap. Broad answer quality remains unmeasured."
+  "notes": "Milestone 1 and chat editing have offline and live evidence. OpenAI remains the global default provider with Coordinator gpt-5.5, Planner gpt-6.1-terra and Chat gpt-4.1 defaults; OpenAI API failures try Ollama qwen2.5:3b once, while explicit Ollama roles never call OpenAI. Invalid-key Hue turns committed through fallback on the host, in a one-shot image and through the running app linked to the Compose Ollama container. The Compose Ollama profile is verified with a persistent model volume; its Linux container uses CPU on this Apple M1 Mac. An earlier Apple M1 run used native macOS Ollama through host.docker.internal for Metal acceleration, verified by a structured fallback response and 100% GPU in ollama ps. The current Windows Compose app resolves OpenAI gpt-6.1-terra for Planner and internal Ollama qwen2.5:3b fallback; app and Ollama are healthy, and root/graph return HTTP 200. Source-quality metrics still have a synthetic baseline and live relevance remains unmeasured. The JavaScript/Tailwind UI is the current container frontend; browser QA is pending. Planner structured output requires a full plan. Planner and Chat requests execute through one shared Tavily graph node with a two-call turn cap. Broad answer quality remains unmeasured."
 }

@@ -1,7 +1,29 @@
 # Implementation Plan
 
 Status: Active
-Last updated: 2026-10-26
+Last updated: 2026-10-27
+
+## Planner OpenAI Model Change — Model-Only Smoke Verified — 2026-10-27
+
+Planner now defaults to `gpt-6.1-terra` with `reasoning_effort="none"` and
+JSON-schema structured output through Chat Completions. This avoids the
+function-call route, which requires the Responses API for this model. The
+published context window is 1,050,000 tokens versus 400,000 for the prior
+`gpt-5.4-mini`. Coordinator, Chat, provider overrides and one-attempt Ollama
+fallback keep their existing behavior. A small live call verified account
+access; actual Planner latency requires a separate check. The larger context
+window does not increase the app's intentionally bounded session history or
+search limits.
+Focused tests passed 70 and the full suite passed 111. Isort, Black, Ruff and
+diff check passed; repo-wide flake8 retains three pre-existing F841 findings.
+A direct live `ChatResponse` call with Terra returned structured output in
+3.91 seconds. The installed LangChain package bound the full Planner schema
+offline. The rebuilt local app is healthy, resolves OpenAI `gpt-6.1-terra`
+and Ollama `qwen2.5:3b` fallback, and serves root/graph at HTTP 200.
+Recreating the container cleared session-only state. No full Planner turn or
+latency comparison has been verified after this change. Automatic approval
+review rejected a direct API check with the full internal Planner schema
+because it would disclose that schema externally; it was not retried.
 
 ## Model Authentication Failure Diagnosis — 2026-10-26
 
@@ -73,7 +95,7 @@ Acceptance:
   and may request one bounded Tavily search for current facts. Both roles route
   through the shared `tavily_tool` graph node, the only runtime caller of the
   typed search provider.
-- Keep `gpt-5.5` for Coordinator, `gpt-5.4-mini` for Planner and `gpt-4.1` for
+- Keep `gpt-5.5` for Coordinator, `gpt-6.1-terra` for Planner and `gpt-4.1` for
   Chat by default, with role-specific settings behind the model provider
   boundary.
 - Select `openai` or local `ollama` explicitly through `GTP_MODEL_PROVIDER`;
@@ -354,7 +376,7 @@ Acceptance:
   legacy global fallback. Optional role-provider variables override it for
   Coordinator, Planner and Chat; role model variables are validated before
   adapters are built.
-- OpenAI defaults to `gpt-5.5` for Coordinator, `gpt-5.4-mini` for Planner and
+- OpenAI defaults to `gpt-5.5` for Coordinator, `gpt-6.1-terra` for Planner and
   `gpt-4.1` for Chat. Ollama uses `ChatOllama` and its documented LangChain
   structured-output method without an OpenAI fallback.
 - Compose exposes an opt-in Ollama profile with persistent weights and a

@@ -12,6 +12,7 @@ from grounded_travel_planner.providers import StructuredChatModel
 T = TypeVar("T", bound=BaseModel)
 OPENAI_MAX_RETRIES = 0
 OPENAI_TIMEOUT_SECONDS = 20
+OPENAI_JSON_SCHEMA_MODEL_NAMES = frozenset({"gpt-6.1-terra"})
 
 
 class ChatOpenAIStructuredModel(StructuredChatModel):
@@ -34,13 +35,20 @@ class ChatOpenAIStructuredModel(StructuredChatModel):
         from langchain_core.messages import HumanMessage, SystemMessage
         from langchain_openai import ChatOpenAI
 
+        model_options: dict[str, str | int] = {
+            "model": self._model_name,
+            "max_retries": OPENAI_MAX_RETRIES,
+            "timeout": OPENAI_TIMEOUT_SECONDS,
+        }
+        structured_output_method = "function_calling"
+        if self._model_name in OPENAI_JSON_SCHEMA_MODEL_NAMES:
+            model_options["reasoning_effort"] = "none"
+            structured_output_method = "json_schema"
         model = ChatOpenAI(
-            model=self._model_name,
-            max_retries=OPENAI_MAX_RETRIES,
-            timeout=OPENAI_TIMEOUT_SECONDS,
+            **model_options,
         ).with_structured_output(
             schema,
-            method="function_calling",
+            method=structured_output_method,
         )
         result = model.invoke(
             [

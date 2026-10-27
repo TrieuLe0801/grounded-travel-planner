@@ -19,9 +19,10 @@ the same accepted values. Read every role model from the environment:
 `GTP_COORDINATOR_MODEL`, `GTP_PLANNER_MODEL`, and `GTP_CHAT_MODEL`. Empty names
 and unsupported providers fail during configuration parsing.
 
-OpenAI keeps its current `ChatOpenAI` adapter and defaults: `gpt-5.5` for
-Coordinator, `gpt-5.4-mini` for Planner, and `gpt-4.1` for Chat. This is the
-default `.env.example` configuration when no local model is being served.
+At acceptance, OpenAI used the `ChatOpenAI` adapter and defaults of `gpt-5.5`
+for Coordinator, `gpt-5.4-mini` for Planner, and `gpt-4.1` for Chat. That was
+the default `.env.example` configuration when no local model was being served;
+the Planner default is superseded by the amendment below.
 Ollama uses a separate typed `ChatOllama` adapter with LangChain structured
 output, common system/human messages and trace metadata. It never falls back to
 OpenAI.
@@ -68,3 +69,19 @@ The local model must be installed and reachable from the app environment.
 The default Compose path remains OpenAI-first and does not start Ollama by
 itself; its existing host endpoint or opt-in Ollama profile can serve the
 fallback model.
+
+## Planner Default Amendment — 2026-10-27
+
+The Planner OpenAI default is `gpt-6.1-terra`, superseding the earlier
+`gpt-5.4-mini` default in this ADR and ADR 0009. The user requested a model
+with a larger context window and better latency for planning. OpenAI documents
+1,050,000 context tokens for Terra versus 400,000 for GPT-5.4 Mini. Planner
+sets `reasoning_effort="none"` to favor latency and uses JSON-schema
+structured output through Chat Completions, because Terra tool calling
+requires the Responses API. The app's Tavily request remains a typed graph
+request, not a model-native tool call. Coordinator, Chat, role overrides,
+validation and the one-attempt Ollama fallback are unchanged. A small
+model-only live structured call verified account access; no full Planner
+latency improvement is claimed.
+Model specifications: `https://developers.openai.com/api/docs/models/gpt-6.1-terra`
+and `https://developers.openai.com/api/docs/models/gpt-5.4-mini`.

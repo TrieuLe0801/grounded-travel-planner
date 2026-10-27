@@ -1,7 +1,7 @@
 # Project Charter
 
 Status: Active
-Last updated: 2026-10-23
+Last updated: 2026-10-27
 
 ## Product
 
@@ -48,7 +48,7 @@ The runtime has three roles:
 provider. `GTP_COORDINATOR_PROVIDER`, `GTP_PLANNER_PROVIDER` and
 `GTP_CHAT_PROVIDER` optionally override that provider by role. The three model
 variables select their respective role models; OpenAI defaults are `gpt-5.5`
-for Coordinator, `gpt-5.4-mini` for Planner and `gpt-4.1` for Chat. The default
+for Coordinator, `gpt-6.1-terra` for Planner and `gpt-4.1` for Chat. The default
 `.env.example` does not require a local server for normal OpenAI calls. When an
 OpenAI API call fails, the same role tries the configured local Ollama fallback
 model once. This path requires a reachable local server and installed model;

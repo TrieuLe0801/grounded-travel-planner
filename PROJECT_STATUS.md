@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-10-26
+Last updated: 2026-10-27
 
 ## Current Milestone
 
@@ -17,7 +17,7 @@ background only.
 | Scope reset | Complete | Charter, implementation plan, current log and ADR 0004/0009/0011/0012 |
 | Runtime package | Complete | Coordinator/Planner/Chat graph, typed providers and validators |
 | Streamlit app | Complete | Session-only itinerary/chat plus read-only graph page |
-| Tests | 110 passed | Core, async UI, graph-image, photo, chat-edit/source eval, bounded chat context/search, AppTest, web API, model-provider, fallback and trip-duration coverage |
+| Tests | 111 passed | Core, async UI, graph-image, photo, chat-edit/source eval, bounded chat context/search, AppTest, web API, model-provider, fallback and trip-duration coverage |
 | Live integration | Passed | OpenAI/Tavily/LangSmith smoke recorded under `docs/experiments/` |
 | Local container | Passed | Test/runtime images, health, non-root and live provider checks |
 | Chat editing | Passed | Trip extension plus eight prior offline eval cases and live two-turn smoke |
@@ -28,7 +28,8 @@ background only.
 | Async page navigation | Implemented | Background Future, exact-once session integration; browser QA pending |
 | JavaScript/Tailwind UI | Implemented | React itinerary/chat/graph, FastAPI session adapter, optional credited photos; browser QA pending |
 | Configurable model provider | Passed on host and Compose app | Active mixed routing and an HTTP Compose-app Hue plan committed with OpenAI `gpt-5.5` Coordinator and Ollama `qwen2.5:3b` Planner/Chat |
-| No-local API defaults | Verified in Compose | Container resolves to OpenAI `gpt-5.5` / `gpt-5.4-mini` / `gpt-4.1`; root and graph image return HTTP 200 |
+| No-local API defaults | Historical Compose verification | Earlier container resolved to OpenAI `gpt-5.5` / `gpt-5.4-mini` / `gpt-4.1`; root and graph image returned HTTP 200 |
+| Current Planner OpenAI default | Local app deployed | `gpt-6.1-terra` with JSON-schema output and no reasoning; 111 tests passed, simple live structured call succeeded; rebuilt app healthy, root/graph HTTP 200; full Planner turn and latency comparison pending |
 | Shared Tavily tool node | Verified offline and with one live request | Planner/Chat route through one graph node; one live Chat call returned five sources and matching `tool.tavily.*` events; rebuilt Compose app healthy |
 | Bilingual webapp | Implemented; build/static checks pass | Session-scoped Vietnamese/English preference; focused existing API/runner/chat-context suite 14 passed (no locale-specific test added); React build and Python static checks passed; browser QA not run |
 | Chat trip duration | Offline and local container verified | Chat extends or shortens a trip, with grounded stops on every added day and validation of the revised schedule; 92 host and Docker tests passed; Compose healthy, root and graph PNG HTTP 200 |
@@ -42,6 +43,26 @@ actual checks count as completion evidence.
 
 ## Done
 
+- Replaced Planner's OpenAI default with `gpt-6.1-terra`, using JSON-schema
+  structured output and `reasoning_effort="none"`. Coordinator, Chat and
+  Ollama fallback behavior are unchanged. Focused tests passed 70; the full
+  suite passed 111. Isort, Black, Ruff and diff check passed; repo-wide flake8
+  retains three existing F841 findings in
+  `artifacts/presentations/update_deck.py`. A direct live call returned a
+  structured `ChatResponse` in 3.91 seconds, and the installed LangChain
+  package bound the full Planner schema offline. The rebuilt app is healthy,
+  resolves OpenAI `gpt-6.1-terra` with Ollama `qwen2.5:3b` fallback, and serves
+  root/graph at HTTP 200. Recreating it cleared session-only state.
+  End-to-end Planner latency is unmeasured.
+- At the user's request, restored the uncommitted Planner latency, compact
+  output, day/time edit and shared-timeout refactor work to commit `8aea1a9`.
+  The committed OpenAI-first, one-attempt Ollama fallback remains in place.
+  This rollback also removes the uncommitted day/time preservation fix; the
+  known multi-entry day-move data-loss case remains unresolved in this code.
+  The restored 110-test suite, isort, Black, Ruff and diff check passed.
+  Repo-wide flake8 retains three pre-existing F841 errors in
+  `artifacts/presentations/update_deck.py`. The running container has not
+  been rebuilt from this rollback.
 - Started the opt-in Ollama Compose profile and pulled `qwen2.5:3b` into its
   persistent volume. The app reached it at `http://ollama:11434`; a live
   invalid-key Hue turn committed one grounded entry with one Tavily search,
@@ -102,7 +123,7 @@ actual checks count as completion evidence.
 - Preserved ADR 0001 as the development-agent/tooling decision; Codex helper
   roles remain separate from the webapp runtime Coordinator, Planner and Chat.
 - Implemented Coordinator/Planner/Chat with role-specific model defaults:
-  Coordinator uses `gpt-5.5`, Planner uses `gpt-5.4-mini`, and Chat uses
+  Coordinator uses `gpt-5.5`, Planner uses `gpt-6.1-terra`, and Chat uses
   `gpt-4.1`. Typed
   provider boundaries and code-enforced graph/search/repair limits remain in
   place.
@@ -300,7 +321,7 @@ actual checks count as completion evidence.
 
 - Live provider behavior still depends on local credentials and network access.
 - Coordinator's default runtime model is `gpt-5.5`; Planner defaults to
-  `gpt-5.4-mini` and Chat to `gpt-4.1`. OpenAI API failures try local Ollama
+  `gpt-6.1-terra` and Chat to `gpt-4.1`. OpenAI API failures try local Ollama
   once, if reachable. If both providers fail, the previous plan is preserved.
 - Tavily snippets can be incomplete; opening hours stay unverified unless a
   source result explicitly supports them.

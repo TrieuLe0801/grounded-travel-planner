@@ -508,6 +508,40 @@ def test_openai_adapter_uses_function_calling_for_pydantic_schema(
     }
 
 
+def test_terra_adapter_uses_json_schema_without_reasoning(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    observed: dict[str, object] = {}
+
+    class FakeChatOpenAI:
+        def __init__(self, **kwargs: object) -> None:
+            observed.update(kwargs)
+
+        def with_structured_output(self, schema, *, method: str):
+            observed["schema"] = schema
+            observed["method"] = method
+            return self
+
+        def invoke(self, messages, config):
+            return ChatResponse(message="ok")
+
+    monkeypatch.setattr("langchain_openai.ChatOpenAI", FakeChatOpenAI)
+
+    result = ChatOpenAIStructuredModel("gpt-6.1-terra").generate_structured(
+        "explain", ChatResponse
+    )
+
+    assert result.message == "ok"
+    assert observed == {
+        "model": "gpt-6.1-terra",
+        "max_retries": 0,
+        "timeout": 20,
+        "reasoning_effort": "none",
+        "schema": ChatResponse,
+        "method": "json_schema",
+    }
+
+
 def test_ollama_adapter_uses_structured_output_without_network(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

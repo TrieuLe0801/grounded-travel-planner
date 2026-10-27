@@ -1,5 +1,39 @@
 # Learning Log - 2026-10-14 Scope Reset
 
+## User Decision — Replace Slow Planner Model — 2026-10-27
+
+- The user reported that `gpt-5.4-mini` is too slow and its context window
+  is too limited for Planner. The new Planner OpenAI default is
+  `gpt-6.1-terra`; Coordinator, Chat and Ollama fallback remain unchanged.
+- OpenAI Docs lists 1,050,000 context tokens for Terra and 400,000 for the
+  previous Mini model. Terra uses `reasoning_effort="none"` and JSON-schema
+  structured output in this app. Its native tool calling needs the Responses
+  API, while the app's Tavily request is handled by its graph node.
+- This decision changes the model ceiling, not the session summary, transcript
+  or Tavily bounds. Focused tests passed 70, the full suite passed 111, and
+  isort, Black, Ruff and diff check passed. Repo-wide flake8 retains three
+  pre-existing F841 findings. A small direct live structured call succeeded
+  in 3.91 seconds; LangChain bound the full Planner schema offline. The
+  rebuilt app is healthy, resolves Terra with Ollama `qwen2.5:3b` fallback,
+  and serves root/graph at HTTP 200. Recreating it cleared session-only
+  state. Full-turn latency remains unverified.
+
+## User Decision — Restore Committed Code, Keep Ollama Fallback — 2026-10-27
+
+- The user requested a return to the old code while retaining Ollama as a
+  backup when OpenAI fails. Commit `8aea1a9` already contains the accepted
+  OpenAI-to-Ollama fallback from `e1392ed`.
+- Restored the post-commit Planner latency, compact output, day/time edit and
+  timeout-refactor changes to that committed baseline. The OpenAI adapter
+  still uses a 20-second timeout and makes one Ollama fallback attempt after
+  qualifying API failures.
+- The uncommitted day/time preservation fix was part of the rollback. The
+  observed multi-entry day-move data-loss issue is therefore unresolved in
+  the restored code. All 110 tests, isort, Black, Ruff and diff check passed;
+  full flake8 still reports three pre-existing F841 findings in
+  `artifacts/presentations/update_deck.py`. No container rebuild or live
+  provider turn is claimed.
+
 The active repository scope was reset from the older three-week POC to a
 city/place sightseeing webapp.
 

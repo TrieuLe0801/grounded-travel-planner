@@ -6,7 +6,7 @@ from typing import Literal, TypeAlias
 from pydantic import BaseModel, Field, field_validator
 
 DEFAULT_MODEL_NAME = "gpt-5.5"
-DEFAULT_LIGHTWEIGHT_MODEL_NAME = "gpt-5.4-mini"
+DEFAULT_LIGHTWEIGHT_MODEL_NAME = "gpt-6.1-terra"
 DEFAULT_CHAT_MODEL_NAME = "gpt-4.1"
 DEFAULT_OLLAMA_FALLBACK_MODEL_NAME = "qwen2.5:3b"
 DEFAULT_MODEL_PROVIDER = "openai"
