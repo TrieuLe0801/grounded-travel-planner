@@ -62,7 +62,7 @@ See `docs/project-charter.md`, `docs/implementation-plan.md` and ADR
 
 ```text
 .
-├── .codex/                               # Development agents, config and hook
+├── .codex/                               # Shared agents, hooks and skills; local config ignored
 ├── .flake8, .python-version              # Python tool configuration
 ├── AGENTS.md                              # Durable instructions for Codex
 ├── PROJECT_STATUS.md                      # Current state and next actions
@@ -311,8 +311,8 @@ user can visit the graph view while the turn continues. The canonical plan chang
 only after a committed response. This mechanism is session-only and does not
 survive a server process restart.
 
-UI guidance is installed at `.codex/skills/ui-ux-pro-max/` (upstream MIT,
-version `2.15.0`) and adapted in `docs/ui-visual-itinerary.md`. The earlier
+Shared UI guidance is at `.codex/skills/ui-ux-pro-max/` (upstream MIT,
+version `2.15.0`) and is adapted in `docs/ui-visual-itinerary.md`. The earlier
 map experiment and live public-media checks remain recorded in
 `docs/experiments/2026-10-16-visual-itinerary-smoke.md` as historical evidence.
 
@@ -364,8 +364,10 @@ UID/GID 10001, no `/app/.env`, no secret-pattern matches in history/logs and a
 live Hue plan committed with six Tavily-returned citations. See
 `docs/experiments/2026-10-14-local-container-smoke.md`.
 
-The trusted project `.codex/config.toml` sets the primary Codex session to
-`gpt-6-sol`. It receives development requests and coordinates these agents:
+Reviewed project `.codex/agents/`, hooks and skills are shared in Git. Personal
+`.codex/config.toml` and generated local state remain ignored. A local
+`.codex/config.toml` can configure the primary Codex session and coordinate
+these development agents:
 
 | Agent | Model | Work |
 |---|---|---|
@@ -381,7 +383,7 @@ These are development roles and are separate from the webapp runtime
 Coordinator, Planner and Chat. Start a new trusted Codex session to load project
 configuration and agent files.
 
-The `.codex/hooks.json` `PostToolUse` hook runs isort, Black and flake8 on Python
+The shared `.codex/hooks.json` `PostToolUse` hook runs isort, Black and flake8 on Python
 files changed through Codex `apply_patch`. In a new Codex session, use `/hooks`
 to review and trust this project hook. For Python files changed outside
 `apply_patch`, run `uv run isort <files>`, `uv run black <files>` and

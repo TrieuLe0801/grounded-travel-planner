@@ -1,6 +1,6 @@
 {
-  "version": 55,
-  "updated": "2026-10-27T18:08:48+07:00",
+  "version": 56,
+  "updated": "2026-10-28T08:57:53+07:00",
   "active_scope": "city-place-sightseeing-webapp",
   "current_milestone": "Milestone 1: executable city/place sightseeing vertical slice",
   "completed": {
@@ -46,6 +46,8 @@
     "shared_tavily_tool_node": true,
     "runtime_flow_refactor": true,
     "development_agents_and_skills_refined": true,
+    "local_only_codex_tooling": false,
+    "shared_codex_tooling_reviewed": true,
     "bilingual_webapp_language": true,
     "bidirectional_chat_trip_length": true,
     "ngrok_compose_profile_prepared": true,
@@ -395,6 +397,15 @@
       "docs/adr/0001-python-development-tooling.md",
       "static TOML parsing and git diff --check passed",
       "no application, frontend, container, browser or live-provider checks run"
+    ],
+    "local_only_codex_tooling": [
+      "superseded by the user's selective-sharing amendment on 2026-10-28"
+    ],
+    "shared_codex_tooling_reviewed": [
+      "79 reviewed project-wide .codex agent, hook and skill files remain tracked",
+      "personal .codex/config.toml removed from Git index and preserved locally",
+      ".gitignore keeps new .codex local state ignored by default",
+      "docs/adr/0001-python-development-tooling.md records the decision"
     ],
     "bilingual_webapp_language": [
       "docs/adr/0013-bilingual-session-language.md",

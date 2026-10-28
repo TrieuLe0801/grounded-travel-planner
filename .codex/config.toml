@@ -1,7 +1,0 @@
-# The primary Codex session receives requests and coordinates development work.
-model = "gpt-6-sol"
-model_reasoning_effort = "medium"
-
-[agents]
-enabled = true
-max_concurrent_threads_per_session = 4

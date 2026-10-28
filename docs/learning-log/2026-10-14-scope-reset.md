@@ -485,3 +485,28 @@ three-role runtime and role-specific model policy.
   OpenAI-to-Ollama fallback with an intentionally invalid OpenAI key. Ollama.app
   was opened to own the native server. The Ollama container remains healthy as
   an idle CPU option; its model was unloaded. Ngrok was stopped again.
+
+## User Decision — Local-only Codex Tooling — 2026-10-28
+
+- The user requested removal of `.codex/` from repository tracking while keeping
+  its contents on this machine. Git now ignores the directory and its 80 tracked
+  files were removed from the index with `git rm --cached`.
+- The Docker test stage no longer copies the local hook; hook-specific tests skip
+  when it is absent. Repository quality commands no longer require the optional
+  local file. ADR 0001 records the amended tooling scope.
+- Host pytest passed 111 tests; Docker test target passed 109 with one skipped
+  hook module. Isort, Black, Ruff and diff checks passed. Repo-wide flake8 still
+  reports three earlier F841 findings in `artifacts/presentations/update_deck.py`.
+
+## User Amendment — Share Reviewed Codex Tooling — 2026-10-28
+
+- The user clarified that project-wide `.codex` agents, hooks and skills should
+  remain in the repository. Personal configuration and local state must not be
+  pushed, including authentication, sessions, archived data, API keys, OAuth
+  tokens, passwords, logs, caches, worktrees and management data.
+- The prior staged deletion of 79 shared files was reversed. Only
+  `.codex/config.toml` is staged for removal; its local copy remains. The broad
+  `.codex/` ignore rule protects new local files from ordinary `git add`.
+- The original Docker hook copy and hook test were restored because the hook is
+  shared. The previous Docker result of 109 passed and 1 skipped describes the
+  temporary local-only setup and is not evidence for this revised selection.

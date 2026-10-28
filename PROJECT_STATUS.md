@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-10-27
+Last updated: 2026-10-28
 
 ## Current Milestone
 
@@ -42,6 +42,13 @@ Planning progress is not implementation progress. Only executable artifacts and
 actual checks count as completion evidence.
 
 ## Done
+
+- Reviewed project `.codex/` tooling for sharing. The 79 existing agent, hook
+  and skill files remain tracked; personal `.codex/config.toml` is removed from
+  the index and preserved locally. Git ignores new `.codex/` state by default.
+  Authentication, sessions, archived data, keys, tokens, passwords, logs,
+  caches, worktrees and management data remain local. Verification for this
+  revised selection is recorded in the current learning log.
 
 - Replaced Planner's OpenAI default with `gpt-6.1-terra`, using JSON-schema
   structured output and `reasoning_effort="none"`. Coordinator, Chat and

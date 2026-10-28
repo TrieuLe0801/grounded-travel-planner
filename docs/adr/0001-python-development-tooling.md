@@ -77,3 +77,13 @@ must distinguish static, offline, browser, container and live-provider evidence
 and may not make the latter claims without a corresponding executed artifact.
 These development roles remain separate from the runtime Coordinator, Planner,
 Chat and `tavily_tool` graph node.
+
+## Amendment — 2026-10-28
+
+The initial request moved `.codex/` to local-only use. The user then clarified
+that reviewed project-wide agents, hooks and skills should be shared. Git keeps
+those 79 files tracked while `.codex/` remains ignored by default for new local
+state. Personal `.codex/config.toml` is removed from the index and remains on
+the local machine. Authentication, sessions, archived data, API keys, OAuth
+tokens, passwords, logs, caches, worktrees and management data must not be
+added to the repository. New shared files require explicit review and staging.
