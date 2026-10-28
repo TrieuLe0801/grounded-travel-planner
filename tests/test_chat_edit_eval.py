@@ -33,7 +33,7 @@ def _cases() -> list[dict[str, Any]]:
 
 
 class _ScriptedModel:
-    model_name = "gpt-5.5"
+    model_name = "coordinator-test-model"
 
     def __init__(self, case: dict[str, Any]) -> None:
         self.case = case

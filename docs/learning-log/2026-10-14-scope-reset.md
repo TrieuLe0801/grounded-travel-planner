@@ -1,5 +1,109 @@
 # Learning Log - 2026-10-14 Scope Reset
 
+## Deterministic Trip Shortening — 2026-10-27
+
+- The user reported that reducing trip duration returned the safe Planner
+  failure response. Recent prompt optimization had removed source references
+  from each prior-plan entry, while shortening validation requires retained
+  entries and their nested source data to remain unchanged.
+- The Planner now creates a deterministic shortened candidate from the current
+  plan, preserving retained-day entries and full source data while dropping
+  entries after the new final day. This edit requires no model call or search.
+  Other model-backed prompts again keep source references attached to their
+  entries without duplicating them in the separate source list.
+- A graph-level offline regression verifies commit, exact retained entry/source
+  preservation, and zero searches/repairs. Full host tests: 117 passed; isort,
+  Black, flake8, Ruff and diff check passed. The running Compose container has
+  not been recreated because replacement clears session-only plans.
+
+## User Decision — Model Identifiers from Environment — 2026-10-27
+
+- The user directed that model names live in environment variables and runtime
+  code only load them. Removed provider model identifiers and model-name
+  defaults from the Python runtime. Coordinator, Planner, Chat and Ollama
+  fallback identifiers are required environment values; JSON-schema-mode model
+  identifiers use `GTP_OPENAI_JSON_SCHEMA_MODELS`. Missing role/fallback names
+  now fail configuration instead of silently selecting a model.
+- The OpenAI adapter receives its JSON-schema model list from `RuntimeConfig`.
+  `.env.example` and README document the environment settings; the optional
+  Compose model initializer no longer embeds a model identifier. Test fixtures
+  now use synthetic identifiers.
+
+## Native Ollama MLX Fallback — 2026-10-27
+
+- Updated the native macOS Ollama app to v0.40.10 from the official release.
+  Its published SHA-256 matched, and macOS verified the app code signature.
+- Pulled `qwen3.5:4b-mlx`. Structured output succeeded on the host and from the
+  app container at `host.docker.internal`; an intentionally invalid OpenAI key
+  also triggered one structured MLX response from the app container.
+  `ollama ps` reported runner `mlx` and `100% GPU`.
+- The app image was rebuilt and recreated with the MLX fallback model in `.env`.
+  It reached healthy status and the root returned HTTP 200. Removed
+  `qwen2.5:3b` from the native Ollama store and CPU container model volume, then
+  stopped the CPU container. App recreation cleared session-only state; the
+  previous Ollama app remains as a temporary local backup.
+- No test suite was run for the environment-only model-name refactor. Isort,
+  Black, flake8, Ruff and diff checks passed; the rebuilt app resolved all model
+  names and the schema-mode list from `.env` and remained healthy. The
+  preceding fallback change had passed 113 host tests before this refactor.
+
+## Agent Prompt Latency And Token Optimization — 2026-10-27
+
+- Following the OpenAI latency guide, removed repeated Planner prompt data:
+  the prior schedule is serialized once in chronological user-visible order,
+  source references are supplied in a separate trusted list, and the prompt no
+  longer repeats the raw user message embedded in intent or the whole request
+  object. Chat now uses the visible schedule and Planner summary instead of
+  repeating full plan JSON. Coordinator, Planner and Chat are directed to keep
+  generated summaries/responses concise.
+- Two focused offline regressions passed; Ruff, Black and `git diff --check`
+  passed. No live before/after usage or latency benchmark was run. Full pytest
+  collection is blocked by other dirty `config.py` and `service.py` changes in
+  the shared worktree (missing model constants in tests and a recursive model
+  factory); these files were left untouched.
+- OpenAI reference: https://developers.openai.com/api/docs/guides/latency-optimization
+
+## OpenAI Model Call Timeout — 2026-10-27
+
+- The user reported Planner model substitutions timing out. The adapter applied
+  one 20-second timeout to every OpenAI model call, so switching model names did
+  not change the time limit.
+- Increased the per-request timeout to 60 seconds. A fresh live graph run with
+  the current `gpt-6.1-terra` Planner completed in 41.3 seconds total and
+  committed four Huế entries with no validation issues. The 113-test suite,
+  isort, Black, flake8, Ruff and diff check passed. The rebuilt app is healthy;
+  root and graph image return HTTP 200. Recreating the app cleared session-only
+  state.
+
+## User Decision — Fall Back on Any OpenAI API Error — 2026-10-27
+
+- The user asked for immediate Ollama fallback whenever the OpenAI API raises
+  an error. The OpenAI-configured role wrapper now catches any OpenAI SDK
+  `OpenAIError`, including HTTP 400/404, and makes one Ollama structured-output
+  attempt with the same prompt, schema and trace metadata. Local validation and
+  application errors still propagate without switching providers; explicit
+  Ollama roles remain Ollama-only. ADR 0010 records this policy amendment.
+- Focused fallback tests passed 18 and the full host suite passed 113. Isort,
+  Black, flake8, Ruff and `git diff --check` passed. The expanded fallback is
+  included in the rebuilt runtime; a successful live turn used OpenAI, so this
+  new fallback coverage was not invoked in that run.
+
+## Terra Planner Schema Compatibility — 2026-10-27
+
+- The first live full-turn check exposed OpenAI HTTP 400: Pydantic emitted
+  `format: uri` for `SourceReference.url`, which the model's structured-output
+  schema rejected. The Planner therefore had no candidate plan to commit.
+- The Terra adapter now removes only that unsupported schema format before
+  submission. It still validates the returned mapping with the original
+  `PlannerProposal` Pydantic type, including `HttpUrl` checks. If Planner fails,
+  the graph returns a localized code-owned message and skips Chat generation,
+  preventing an unsupported text-only itinerary from appearing as a result.
+- The full 111-test suite, isort, Black, flake8, Ruff and diff check passed. The
+  rebuilt Compose app is healthy and returns HTTP 200 for the root and graph
+  image. A live Huế turn committed a four-entry plan with source references on
+  all entries. The prior Terra-specific schema warning did not appear in the
+  app logs. Recreating the app cleared session-only state.
+
 ## User Decision — Replace Slow Planner Model — 2026-10-27
 
 - The user reported that `gpt-5.4-mini` is too slow and its context window
@@ -486,6 +590,52 @@ three-role runtime and role-specific model policy.
   was opened to own the native server. The Ollama container remains healthy as
   an idle CPU option; its model was unloaded. Ngrok was stopped again.
 
+## User Decision — Testing-Agent Security Skill — 2026-10-27
+
+- The user requested review of Cloudflare's `security-audit-skill` and a
+  security capability for the project testing agent. Installed the upstream
+  `security-audit` skill project-locally from main at
+  `c1c8a8c1471069fb0e188eeaff69b8e8db6564a8`, including its MIT license.
+  The testing agent now checks changed trust boundaries and loads the skill for
+  explicit security review assignments.
+- Cloudflare's full audit workflow requires independent verification and an
+  OS-enforced sandbox for target-controlled execution. This task configured the
+  agent; it did not run a codebase security audit or establish that the app has
+  no vulnerabilities. ADR 0001 records the development-agent change. The
+  skill validator, testing-agent TOML parser, both Node.js syntax checks and
+  `git diff --check` passed. Application tests were not run for this
+  configuration/documentation change.
+
+## Scoped Security Review And Availability Fixes — 2026-10-27
+
+- Before the requested commit/push, two read-only agent passes reviewed the
+  pending code and adjacent HTTP, model, trace and UI trust boundaries. The
+  testing pass found that four worker threads did not bound the shared queue:
+  anyone able to create many browser sessions could submit one turn per
+  session and retain unbounded queued work. The 60-second OpenAI timeout and
+  one Ollama fallback attempt increase the duration of occupied slots.
+- `TurnRunner` now reserves at most eight running/queued turns per process and
+  releases each slot when its Future completes, even without a poll. The HTTP
+  adapter rejects overload with a localized 429 before changing conversation,
+  response or pending state; Streamlit displays a localized busy error.
+- Independent retest found a second path through unlimited session creation.
+  `SessionStore` now caps retained sessions at 1,024, expires idle sessions
+  after one hour, retains only still-running turns during expiry, and replaces
+  the prior session atomically on reset. New sessions receive a localized 503
+  at capacity. A final local review caught completed but uncollected Futures
+  that would otherwise avoid expiry; the regression now covers that case.
+- Focused sandboxed tests passed 15 and the full suite passed 122. The test
+  container had no network, a read-only target, a sanitized dummy environment,
+  bounded CPU/memory/processes/files and a 180-second limit. Isort, Black,
+  flake8, Ruff and `git diff --check` passed. No live model/search/tracing
+  service or deployed endpoint was probed. The running app image was not
+  recreated, so its existing session-only plans remain in memory.
+- The ngrok tunnel was unexpectedly running despite the earlier stop decision.
+  Stopped only its container; the app remained healthy. Public ingress abuse
+  controls, HTTPS cookie transport and automatic LangChain trace retention
+  remain deployment/privacy checks; this scoped review is not a complete
+  codebase security audit.
+
 ## User Decision — Local-only Codex Tooling — 2026-10-28
 
 - The user requested removal of `.codex/` from repository tracking while keeping
@@ -510,3 +660,10 @@ three-role runtime and role-specific model policy.
 - The original Docker hook copy and hook test were restored because the hook is
   shared. The previous Docker result of 109 passed and 1 skipped describes the
   temporary local-only setup and is not evidence for this revised selection.
+- A concurrent remote commit added testing and security guidance under
+  `.codex/`. After merging, 102 shared files are tracked. The full tracked
+  `.codex` set had zero high-confidence secret-pattern and sensitive-name hits;
+  personal `config.toml` still exists locally and is ignored by Git.
+- After merge, host pytest passed 122 tests. Isort, Black, Ruff, focused flake8,
+  JSON parsing and diff checks passed. Full flake8 still reports the same three
+  F841 findings in ignored `artifacts/presentations/update_deck.py`.

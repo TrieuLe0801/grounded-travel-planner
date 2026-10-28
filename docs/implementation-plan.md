@@ -3,6 +3,42 @@
 Status: Active
 Last updated: 2026-10-27
 
+## Deterministic Trip Shortening — Offline Verified — 2026-10-27
+
+Fixed a failure where reducing trip duration returned the safe Planner failure
+message. Prompt compaction had removed each existing stop's nested source data,
+which the exact-retention validation requires for shortening. The Planner now
+builds this candidate deterministically from the validated current plan: it
+changes the day count and revision, preserves all entries on retained days
+unchanged, and removes entries after the new final day. It performs no model
+call or Tavily search for this deterministic edit. The prompt used for other
+model-backed edits also retains source references beside their entries and
+does not duplicate those URLs in the separate source list.
+
+The graph regression confirms a relative one-day reduction commits, retains
+schedule and source fields exactly, and uses zero searches or repairs. The full
+host suite passed 117; isort, Black, flake8, Ruff and `git diff --check` passed.
+The running Compose container has not been recreated; its in-memory sessions
+would be cleared by replacement.
+
+## Agent Prompt Latency And Token Optimization — Offline Verified — 2026-10-27
+
+Applied the OpenAI latency guide's prompt/output guidance to the existing
+Coordinator/Planner/Chat flow without changing model assignments, graph routing,
+search limits or validation. Planner now receives a chronological projection
+of the prior plan once, with trusted source references supplied separately;
+the duplicate request object and raw user message inside intent are omitted.
+Chat receives the visible schedule and Planner summary rather than the full
+plan JSON a second time. All three roles are asked for concise summaries or
+responses.
+
+Two focused prompt regressions passed, and Ruff, Black and `git diff --check`
+passed. A full live before/after token and latency comparison was not run, so no
+numeric performance gain is claimed. Full pytest collection currently fails
+before running because unrelated pending `config.py`/`service.py` edits remove
+model constants still imported by tests and recurse in the OpenAI factory.
+OpenAI guidance: https://developers.openai.com/api/docs/guides/latency-optimization
+
 ## Planner OpenAI Model Change — Model-Only Smoke Verified — 2026-10-27
 
 Planner now defaults to `gpt-6.1-terra` with `reasoning_effort="none"` and

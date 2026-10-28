@@ -33,6 +33,12 @@ from utils.ids import new_id
 from utils.redaction import sanitize_error
 
 
+def _required_model_name(value: str | None, environment_name: str) -> str:
+    if value is None or not value.strip():
+        raise ValueError(f"{environment_name} must be configured")
+    return value.strip()
+
+
 class TravelPlannerService:
     """Invoke one bounded graph turn without owning cross-session application state."""
 
@@ -69,18 +75,30 @@ class TravelPlannerService:
 
         load_dotenv()
         runtime_config = config or RuntimeConfig.from_environment()
+        coordinator_name = _required_model_name(
+            runtime_config.model_name, "GTP_COORDINATOR_MODEL"
+        )
+        planner_name = _required_model_name(
+            runtime_config.planner_model_name, "GTP_PLANNER_MODEL"
+        )
+        chat_name = _required_model_name(
+            runtime_config.chat_model_name, "GTP_CHAT_MODEL"
+        )
         coordinator_model = cls._model_factory(
             runtime_config.coordinator_model_provider,
             ollama_fallback_model_name=runtime_config.coordinator_ollama_fallback_model,
-        )(runtime_config.model_name)
+            json_schema_model_names=runtime_config.openai_json_schema_model_names,
+        )(coordinator_name)
         planner_model = cls._model_factory(
             runtime_config.planner_model_provider,
             ollama_fallback_model_name=runtime_config.planner_ollama_fallback_model,
-        )(runtime_config.planner_model_name)
+            json_schema_model_names=runtime_config.openai_json_schema_model_names,
+        )(planner_name)
         chat_model = cls._model_factory(
             runtime_config.chat_model_provider,
             ollama_fallback_model_name=runtime_config.chat_ollama_fallback_model,
-        )(runtime_config.chat_model_name)
+            json_schema_model_names=runtime_config.openai_json_schema_model_names,
+        )(chat_name)
         search = TavilyPlaceSearchProvider()
         tracing_enabled = os.getenv("LANGSMITH_TRACING", "").casefold() in {
             "1",
@@ -106,25 +124,32 @@ class TravelPlannerService:
         provider: ModelProvider,
         *,
         ollama_fallback_model_name: str | None = None,
+        json_schema_model_names: tuple[str, ...] = (),
     ):
         """Return a selected provider constructor with bounded OpenAI fallback."""
 
         if provider == "openai":
+
+            def create_openai(model_name: str) -> ChatOpenAIStructuredModel:
+                return ChatOpenAIStructuredModel(
+                    model_name, json_schema_model_names=json_schema_model_names
+                )
+
             if not ollama_fallback_model_name:
-                return ChatOpenAIStructuredModel
+                return create_openai
             base_url = os.getenv("OLLAMA_BASE_URL", "").strip() or None
 
-            def create_openai(
+            def create_fallback_openai(
                 model_name: str,
             ) -> OpenAIWithOllamaFallbackStructuredModel:
                 return OpenAIWithOllamaFallbackStructuredModel(
-                    ChatOpenAIStructuredModel(model_name),
+                    create_openai(model_name),
                     OllamaStructuredChatModel(
                         ollama_fallback_model_name, base_url=base_url
                     ),
                 )
 
-            return create_openai
+            return create_fallback_openai
         if provider == "ollama":
             base_url = os.getenv("OLLAMA_BASE_URL", "").strip() or None
 

@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from threading import Lock
+from time import monotonic
 from typing import Literal
 from uuid import uuid4
 
@@ -27,10 +29,16 @@ from grounded_travel_planner.conversation import (
 from grounded_travel_planner.i18n import Language, localized, localized_issue_message
 from grounded_travel_planner.service import TravelPlannerService
 from grounded_travel_planner.ui.graph_diagram import compiled_graph_svg
-from grounded_travel_planner.ui.turn_runner import PendingTurn, TurnRunner
+from grounded_travel_planner.ui.turn_runner import (
+    PendingTurn,
+    TurnCapacityExceeded,
+    TurnRunner,
+)
 from grounded_travel_planner.visuals import VisualEnrichmentService
 
 COOKIE_NAME = "gtp_session"
+DEFAULT_MAX_SESSIONS = 1024
+DEFAULT_SESSION_IDLE_SECONDS = 60 * 60
 FRONTEND_DIST = Path(
     os.getenv("GTP_FRONTEND_DIST", Path.cwd() / "frontend" / "dist")
 ).resolve()
@@ -58,33 +66,104 @@ class WebSession:
     response: AgentResponse | None = None
     conversation: list[ConversationTurn] = field(default_factory=list)
     session_summary: str = ""
+    last_accessed: float = 0.0
     lock: Lock = field(default_factory=Lock)
+
+
+class SessionCapacityExceeded(RuntimeError):
+    """Raised when volatile session capacity is exhausted."""
 
 
 class SessionStore:
     """Small in-memory store; replacing the process intentionally clears it."""
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        *,
+        max_sessions: int = DEFAULT_MAX_SESSIONS,
+        idle_seconds: float = DEFAULT_SESSION_IDLE_SECONDS,
+        clock: Callable[[], float] = monotonic,
+    ) -> None:
+        if max_sessions < 1:
+            raise ValueError("max_sessions must be positive")
+        if idle_seconds <= 0:
+            raise ValueError("idle_seconds must be positive")
+        self._max_sessions = max_sessions
+        self._idle_seconds = idle_seconds
+        self._clock = clock
         self._sessions: dict[str, WebSession] = {}
         self._lock = Lock()
 
     def create(self, service: TravelPlannerService) -> tuple[str, WebSession]:
-        session_id = uuid4().hex
-        session = WebSession(thread_id=service.create_session())
         with self._lock:
+            now = self._clock()
+            self._evict_idle(now)
+            if len(self._sessions) >= self._max_sessions:
+                raise SessionCapacityExceeded("The session capacity is exhausted.")
+            session_id = uuid4().hex
+            session = WebSession(thread_id=service.create_session(), last_accessed=now)
             self._sessions[session_id] = session
         return session_id, session
+
+    def replace(
+        self, session_id: str | None, service: TravelPlannerService
+    ) -> tuple[str, WebSession]:
+        """Create a reset session while removing its predecessor atomically."""
+
+        with self._lock:
+            now = self._clock()
+            self._evict_idle(now)
+            previous = self._sessions.get(session_id) if session_id else None
+            if previous is None and len(self._sessions) >= self._max_sessions:
+                raise SessionCapacityExceeded("The session capacity is exhausted.")
+            language: Language = "vi"
+            if previous is not None:
+                with previous.lock:
+                    language = previous.language
+            replacement = WebSession(
+                thread_id=service.create_session(),
+                language=language,
+                last_accessed=now,
+            )
+            replacement_id = uuid4().hex
+            if session_id:
+                self._sessions.pop(session_id, None)
+            self._sessions[replacement_id] = replacement
+        return replacement_id, replacement
 
     def get(self, session_id: str | None) -> WebSession:
         if not session_id:
             raise HTTPException(status_code=401, detail="Hãy bắt đầu một phiên mới.")
         with self._lock:
+            now = self._clock()
+            self._evict_idle(now)
             session = self._sessions.get(session_id)
+            if session is not None:
+                session.last_accessed = now
         if session is None:
             raise HTTPException(
                 status_code=401, detail="Phiên đã hết hạn. Hãy tạo lại lịch."
             )
         return session
+
+    @property
+    def session_count(self) -> int:
+        """Return retained session count after lazy expiry for diagnostics and tests."""
+
+        with self._lock:
+            self._evict_idle(self._clock())
+            return len(self._sessions)
+
+    def _evict_idle(self, now: float) -> None:
+        expired_ids: list[str] = []
+        for session_id, session in self._sessions.items():
+            if now - session.last_accessed <= self._idle_seconds:
+                continue
+            with session.lock:
+                if session.pending is None or session.pending.future.done():
+                    expired_ids.append(session_id)
+        for session_id in expired_ids:
+            self._sessions.pop(session_id, None)
 
 
 def _response_payload(
@@ -129,13 +208,15 @@ def _session_payload(
 def create_app(
     service: TravelPlannerService | None = None,
     visual_service: VisualEnrichmentService | None = None,
+    turn_runner: TurnRunner | None = None,
+    session_store: SessionStore | None = None,
 ) -> FastAPI:
     """Create an injectable app so endpoint tests need no live provider calls."""
 
     planner_service = service or TravelPlannerService.from_environment()
     visuals = visual_service or VisualEnrichmentService.from_environment()
-    runner = TurnRunner()
-    sessions = SessionStore()
+    runner = turn_runner or TurnRunner()
+    sessions = session_store or SessionStore()
     app = FastAPI(title="Grounded Travel Planner", docs_url=None, redoc_url=None)
 
     def current_session(session_id: str | None) -> WebSession:
@@ -166,7 +247,13 @@ def create_app(
 
     @app.post("/api/session", status_code=201)
     def start_session(response: Response) -> dict[str, object]:
-        session_id, session = sessions.create(planner_service)
+        try:
+            session_id, session = sessions.create(planner_service)
+        except SessionCapacityExceeded as error:
+            raise HTTPException(
+                status_code=503,
+                detail=localized("session_capacity_exhausted", "vi"),
+            ) from error
         response.set_cookie(
             COOKIE_NAME,
             session_id,
@@ -181,16 +268,13 @@ def create_app(
     def reset_session(
         response: Response, gtp_session: str | None = Cookie(default=None)
     ) -> dict[str, object]:
-        language: Language = "vi"
-        if gtp_session:
-            try:
-                previous_session = current_session(gtp_session)
-                with previous_session.lock:
-                    language = previous_session.language
-            except HTTPException:
-                pass
-        session_id, session = sessions.create(planner_service)
-        session.language = language
+        try:
+            session_id, session = sessions.replace(gtp_session, planner_service)
+        except SessionCapacityExceeded as error:
+            raise HTTPException(
+                status_code=503,
+                detail=localized("session_capacity_exhausted", "vi"),
+            ) from error
         response.set_cookie(
             COOKIE_NAME, session_id, httponly=True, samesite="lax", path="/"
         )
@@ -229,20 +313,29 @@ def create_app(
                     status_code=409,
                     detail=localized("turn_pending", session.language),
                 )
+            try:
+                pending = runner.submit(
+                    planner_service,
+                    thread_id=session.thread_id,
+                    message=payload.message,
+                    current_plan=session.current_plan,
+                    request=payload.request,
+                    session_summary=session.session_summary,
+                    conversation_history=session.conversation[
+                        -(MAX_CONVERSATION_TURNS - 1) :
+                    ],
+                    language=session.language,
+                )
+            except TurnCapacityExceeded as error:
+                raise HTTPException(
+                    status_code=429,
+                    detail=localized("turn_capacity_exhausted", session.language),
+                ) from error
             session.response = None
             _append_conversation(
                 session, ConversationTurn(role="user", content=payload.message)
             )
-            session.pending = runner.submit(
-                planner_service,
-                thread_id=session.thread_id,
-                message=payload.message,
-                current_plan=session.current_plan,
-                request=payload.request,
-                session_summary=session.session_summary,
-                conversation_history=session.conversation[:-1],
-                language=session.language,
-            )
+            session.pending = pending
         return {"accepted": True}
 
     @app.get("/api/graph")

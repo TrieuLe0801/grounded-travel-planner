@@ -17,7 +17,7 @@ background only.
 | Scope reset | Complete | Charter, implementation plan, current log and ADR 0004/0009/0011/0012 |
 | Runtime package | Complete | Coordinator/Planner/Chat graph, typed providers and validators |
 | Streamlit app | Complete | Session-only itinerary/chat plus read-only graph page |
-| Tests | 111 passed | Core, async UI, graph-image, photo, chat-edit/source eval, bounded chat context/search, AppTest, web API, model-provider, fallback and trip-duration coverage |
+| Tests | 122 passed | Full offline suite in a network-disabled, read-only container with current runtime dependencies and local test tools |
 | Live integration | Passed | OpenAI/Tavily/LangSmith smoke recorded under `docs/experiments/` |
 | Local container | Passed | Test/runtime images, health, non-root and live provider checks |
 | Chat editing | Passed | Trip extension plus eight prior offline eval cases and live two-turn smoke |
@@ -29,27 +29,107 @@ background only.
 | JavaScript/Tailwind UI | Implemented | React itinerary/chat/graph, FastAPI session adapter, optional credited photos; browser QA pending |
 | Configurable model provider | Passed on host and Compose app | Active mixed routing and an HTTP Compose-app Hue plan committed with OpenAI `gpt-5.5` Coordinator and Ollama `qwen2.5:3b` Planner/Chat |
 | No-local API defaults | Historical Compose verification | Earlier container resolved to OpenAI `gpt-5.5` / `gpt-5.4-mini` / `gpt-4.1`; root and graph image returned HTTP 200 |
-| Current Planner OpenAI default | Local app deployed | `gpt-6.1-terra` with JSON-schema output and no reasoning; 111 tests passed, simple live structured call succeeded; rebuilt app healthy, root/graph HTTP 200; full Planner turn and latency comparison pending |
+| Current Planner OpenAI default | Local app verified | `gpt-6.1-terra` with 60-second per-call timeout and JSON Schema URL validation; live full graph turn committed four sourced Huế entries in 41.3 seconds; 113 tests passed; app healthy, root/graph HTTP 200 |
 | Shared Tavily tool node | Verified offline and with one live request | Planner/Chat route through one graph node; one live Chat call returned five sources and matching `tool.tavily.*` events; rebuilt Compose app healthy |
 | Bilingual webapp | Implemented; build/static checks pass | Session-scoped Vietnamese/English preference; focused existing API/runner/chat-context suite 14 passed (no locale-specific test added); React build and Python static checks passed; browser QA not run |
-| Chat trip duration | Offline and local container verified | Chat extends or shortens a trip, with grounded stops on every added day and validation of the revised schedule; 92 host and Docker tests passed; Compose healthy, root and graph PNG HTTP 200 |
+| Chat trip duration | Offline verified; image built | Shortening now creates a deterministic Planner candidate from the current plan, preserving retained entries and their source data exactly; 117 host tests and Python quality gates pass. New image built; running container not recreated because it owns session-only plans |
 | Temporary ngrok sharing | Verified, now stopped | Public root and graph PNG returned 200; session POST 201 and cookie-backed GET 200; app remains healthy locally |
 | Invalid model key diagnosis | Reproduced; error handling verified offline | Exact Hà Giang request received OpenAI HTTP 401 `token_invalidated` before search; 94 host/Docker tests passed; runtime image rebuilt but running app retained its sessions |
-| OpenAI to Ollama fallback | Deployed to healthy Compose app | 110 offline tests; invalid-key host and one-shot image Hue turns committed through Ollama; current app image healthy, root/graph HTTP 200 and session POST 201 |
-| Apple M1 Ollama deployment | Native GPU active; container CPU available | Docker Ollama profile healthy with `qwen2.5:3b` and one sourced Hue commit on CPU; app then switched to native macOS Ollama through `host.docker.internal`; invalid-key fallback returned structured output and `ollama ps` showed `100% GPU` |
+| OpenAI to Ollama fallback | Deployed with native MLX fallback | Any OpenAI SDK `OpenAIError`, including HTTP 400/404, makes one Ollama attempt. A rebuilt app container returned structured output after an invalid-key OpenAI call through MLX |
+| Apple M1 Ollama deployment | Native MLX GPU active | Ollama v0.40.10 runs the configured MLX model with runner `mlx` at `100% GPU`; the app reaches it through `host.docker.internal` and serves HTTP 200. `qwen2.5:3b` was removed from native and container stores; the CPU Ollama container is stopped |
+| Model-name configuration | Environment-only identifiers | Runtime source contains no model identifiers; Coordinator, Planner, Chat, Ollama fallback and JSON-schema model selection load environment values and reject missing required names |
+| Agent latency/token optimization | Prompt payloads reduced; offline tests passed | Planner now sends one chronological plan projection without duplicated source records/request text; Chat receives visible schedule and summary instead of full plan JSON. End-to-end latency and provider token usage have not been benchmarked |
+| Turn and session capacity | Offline verified; running app image unchanged | At most eight queued/running turns and 1,024 retained sessions per process; idle sessions expire after one hour, including uncollected completed turns. HTTP returns 429/503 without changing the rejected session. 15 focused and 122 full sandboxed tests passed |
 
 Planning progress is not implementation progress. Only executable artifacts and
 actual checks count as completion evidence.
 
 ## Done
 
-- Reviewed project `.codex/` tooling for sharing. The 79 existing agent, hook
+- Reviewed project `.codex/` tooling for sharing. The 102 agent, hook
   and skill files remain tracked; personal `.codex/config.toml` is removed from
   the index and preserved locally. Git ignores new `.codex/` state by default.
   Authentication, sessions, archived data, keys, tokens, passwords, logs,
   caches, worktrees and management data remain local. Verification for this
-  revised selection is recorded in the current learning log.
+  revised selection: 122 host tests passed; isort, Black, Ruff and focused
+  flake8 passed. Full flake8 retains three existing F841 findings in ignored
+  presentation artifacts.
 
+- Bounded the shared background turn queue to eight running/queued turns per
+  process and the HTTP session store to 1,024 entries with one-hour idle
+  expiry. Reset replaces the old session atomically. A completed Future
+  releases its slot even when the browser never polls; overload returns a
+  localized 429 or 503 before changing the rejected session, and Streamlit
+  shows a localized busy message. A network-disabled, read-only container
+  passed 15 focused and 122 full offline tests; isort,
+  Black, flake8, Ruff and diff checks passed. The local app container was not
+  recreated, preserving its current in-memory sessions. ADR 0007 records the
+  queue decision. The security review was scoped to the pending changes and
+  adjacent trust boundaries, not a full codebase audit.
+- Added the project-local Cloudflare `security-audit` skill and connected it to
+  the Codex testing agent for explicit security reviews. Routine testing now
+  assesses changed trust boundaries and adds focused offline regressions when
+  warranted. Full audits still require the skill's OS-enforced sandbox and
+  independent verification; this configuration change is not an application
+  security audit. ADR 0001 records the development workflow decision.
+- Moved runtime model identifiers to environment configuration. Live service
+  construction now requires the three role model variables and Ollama fallback
+  model variable; `GTP_OPENAI_JSON_SCHEMA_MODELS` controls JSON-schema adapter
+  selection without identifying models in source. Synthetic test names replace
+  actual provider identifiers in fixtures. `.env` selects the current MLX
+  fallback, and the Compose Ollama initializer no longer embeds a model name.
+  Isort, Black, flake8, Ruff and diff checks passed; the test suite was not run
+  for this environment refactor.
+- Fixed trip shortening failures. The Planner now computes a shorter candidate
+  from the validated current itinerary, keeping every retained-day entry and
+  source reference byte-for-byte and removing stops only after the new final
+  day. This avoids requiring a model to regenerate an unchanged full itinerary
+  and its nested sources. The graph regression verifies a relative one-day
+  reduction commits with zero search and repair calls. Full host suite: 117
+  passed; isort, Black, flake8, Ruff and diff check passed. The local Compose
+  app still runs the previous image; container recreation is deferred because
+  it clears session-only plans.
+- Switched this Mac's fallback deployment to native Ollama v0.40.10 and
+  `qwen3.5:4b-mlx`. The official app ZIP matched its published SHA-256 and
+  passed macOS code-signature verification. The model returned structured
+  `ChatResponse` output on the host and from the app container; an invalid-key
+  OpenAI attempt in the rebuilt app container also returned through MLX.
+  `ollama ps` showed runner `mlx` at `100% GPU`. The app is healthy and its
+  root returns HTTP 200. Removed `qwen2.5:3b` from native and container model
+  stores, then stopped the idle CPU Ollama container. Recreating the app cleared
+  its session-only state. The earlier Ollama.app is retained temporarily as a
+  local backup.
+- Reduced redundant agent prompt input and requested concise outputs. Planner
+  serializes the existing schedule once in user-visible order, removes source
+  references duplicated in the separate trusted source list, and omits the
+  repeated raw user message/request object. Chat receives the visible itinerary
+  and Planner summary instead of a second full-plan JSON payload. Coordinator,
+  Planner and Chat are asked for concise summaries/responses. Two offline
+  regressions pass; Ruff, Black and diff check pass. No live token or latency
+  comparison was run. The model identifiers now load from environment, and the
+  OpenAI adapter factory uses the configured structured-output model list.
+- Raised the shared OpenAI per-request timeout from 20 to 60 seconds after the
+  user reported model substitutions timing out. Current Planner remains
+  `gpt-6.1-terra`; a live full graph run took 41.3 seconds and committed a
+  four-entry sourced Huế plan without issues. The 113-test suite and all Python
+  quality gates passed. The rebuilt Compose app is healthy; root and graph
+  image return HTTP 200. Container recreation clears session-only state.
+- Expanded OpenAI-to-Ollama fallback to every OpenAI SDK `OpenAIError`,
+  including HTTP 400 and 404. The existing one-attempt wrapper still preserves
+  prompt, schema and trace metadata; local validation and application errors
+  do not switch providers. Focused fallback tests passed 18, full host tests
+  passed 113, and isort, Black, flake8, Ruff and diff check passed. This change
+  is deployed in the running app. An invalid-key call returned structured
+  output through native MLX; HTTP 400/404 remain covered by offline cases.
+- Fixed Terra plan creation: OpenAI rejected Pydantic's `format: uri` in the
+  Planner JSON Schema with HTTP 400, so no candidate reached graph state. The
+  Terra adapter now sends the same generated schema without only that format
+  marker and validates output against the original Pydantic model locally.
+  Planner failures now return a code-owned explanation without asking Chat to
+  invent a text-only itinerary. The 111-test suite and all Python quality gates
+  passed. A fresh Compose image is healthy; a live Huế request committed four
+  entries and every entry has returned source references. Root and graph image
+  returned HTTP 200. Recreating the app cleared session-only state.
 - Replaced Planner's OpenAI default with `gpt-6.1-terra`, using JSON-schema
   structured output and `reasoning_effort="none"`. Coordinator, Chat and
   Ollama fallback behavior are unchanged. Focused tests passed 70; the full

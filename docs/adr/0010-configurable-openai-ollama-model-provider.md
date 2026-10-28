@@ -85,3 +85,34 @@ model-only live structured call verified account access; no full Planner
 latency improvement is claimed.
 Model specifications: `https://developers.openai.com/api/docs/models/gpt-6.1-terra`
 and `https://developers.openai.com/api/docs/models/gpt-5.4-mini`.
+
+## User Amendment — 2026-10-27 — Any OpenAI API Error
+
+For every role configured for OpenAI, any exception from the OpenAI SDK's
+`OpenAIError` family triggers the one Ollama attempt immediately, including
+HTTP 400 and other API status errors. This supersedes the prior fallback's
+availability-only error filter. Keep local schema validation and application
+errors outside that catch. The same prompt, schema and trace metadata are used;
+explicit Ollama roles remain Ollama-only. Both-provider failure and plan
+validation retain the existing safe behavior.
+
+## User Amendment — 2026-10-27 — Native Apple MLX Fallback
+
+For this Mac's local deployment, use native macOS Ollama with
+`qwen3.5:4b-mlx` through `host.docker.internal` as the OpenAI fallback. The
+user also requested removing the previous `qwen2.5:3b` model after the MLX
+path is verified.
+The repository's cross-platform fallback default remains separate from this
+host-specific deployment choice. Do not route the Apple MLX model through the
+Linux Ollama container, which lacks the Mac's GPU passthrough.
+
+## User Amendment — 2026-10-27 — Model Names Only in Environment
+
+Do not embed model identifiers in runtime code. Read Coordinator, Planner,
+Chat, Ollama fallback and JSON-schema-mode model names from environment
+variables. `GTP_COORDINATOR_MODEL`, `GTP_PLANNER_MODEL`, `GTP_CHAT_MODEL` and
+`GTP_OLLAMA_FALLBACK_MODEL` are required by live service construction;
+`GTP_OPENAI_JSON_SCHEMA_MODELS` lists model identifiers that need JSON-schema
+structured output. Unit fixtures use synthetic names and do not define runtime
+defaults. Missing required model variables fail configuration instead of
+silently selecting a model.

@@ -46,3 +46,22 @@ stops an already executing Python thread.
 - Durable accounts, job queues or cross-process deployment are introduced.
 - More than one concurrent plan mutation per session is required.
 - Provider calls need enforceable cancellation or wall-clock deadlines.
+
+## Amendment — 2026-10-27 — Bound the shared turn queue
+
+The four-worker pool now reserves at most eight slots for running and queued
+turns across the HTTP app's sessions. A slot is released when its Future
+finishes, even if the originating browser does not poll again. When capacity
+is full, the HTTP adapter returns a localized 429 before changing that
+session's conversation, response or pending turn. This bounds queued model
+work in the process; one-pending-turn-per-session and exact-once result
+integration remain in force. Public deployments still need their own ingress
+and rate controls.
+
+The HTTP adapter also bounds its in-memory session store to 1,024 sessions.
+Idle sessions expire after one hour; sessions with running turns are retained
+until their Futures complete. A full store rejects new sessions with a
+localized 503 without evicting recently active sessions. Reset replaces the
+old session atomically and preserves the selected language, so repeated resets
+do not accumulate abandoned state. These process-local limits bound retained
+objects; public ingress still needs rate controls to protect availability.

@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+from concurrent.futures import Future
 from datetime import date, time
 from threading import Event
 
+import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from grounded_travel_planner.contracts import (
@@ -17,8 +20,13 @@ from grounded_travel_planner.contracts import (
     TripRequest,
     ValidationIssue,
 )
+from grounded_travel_planner.ui.turn_runner import PendingTurn, TurnRunner
 from grounded_travel_planner.visuals import PlaceVisual
-from grounded_travel_planner.web.api import create_app
+from grounded_travel_planner.web.api import (
+    SessionCapacityExceeded,
+    SessionStore,
+    create_app,
+)
 
 
 def _plan(destination: str, revision: int = 1) -> SightseeingPlan:
@@ -133,6 +141,26 @@ class FakeVisualService:
         }
 
 
+class _SignallingTurnRunner(TurnRunner):
+    """Expose completion only for deterministic API regression synchronization."""
+
+    def __init__(self) -> None:
+        super().__init__(max_workers=1, max_pending_turns=1)
+        self.completed = Event()
+
+    def _release_pending_slot(self, future: Future[AgentResponse]) -> None:
+        super()._release_pending_slot(future)
+        self.completed.set()
+
+
+class _FakeClock:
+    def __init__(self) -> None:
+        self.now = 0.0
+
+    def __call__(self) -> float:
+        return self.now
+
+
 def _start(client: TestClient) -> None:
     response = client.post("/api/session")
     assert response.status_code == 201
@@ -192,6 +220,128 @@ def test_pending_turn_rejects_competing_submission() -> None:
     completed = client.get("/api/session")
     assert completed.status_code == 200
     assert completed.json()["pending"] is False
+
+
+def test_global_turn_capacity_rejects_another_session_without_mutating_it() -> None:
+    service = FakeTravelPlannerService()
+    runner = _SignallingTurnRunner()
+    app = create_app(
+        service,
+        FakeVisualService(),
+        turn_runner=runner,
+    )
+    first = TestClient(app)
+    second = TestClient(app)
+    _start(first)
+    _start(second)
+
+    assert first.post("/api/turns", json={"message": "block"}).status_code == 202
+    assert service.block_started.wait(timeout=1)
+    before = second.get("/api/session").json()
+
+    rejected = second.post("/api/turns", json={"message": "blocked globally"})
+    assert rejected.status_code == 429
+    assert (
+        rejected.json()["detail"]
+        == "Hệ thống đang xử lý quá nhiều yêu cầu. Vui lòng thử lại sau."
+    )
+    assert second.get("/api/session").json() == before
+
+    service.release_block.set()
+    assert runner.completed.wait(timeout=1)
+    assert first.get("/api/session").json()["pending"] is False
+    assert (
+        second.post(
+            "/api/turns", json={"message": "accepted after release"}
+        ).status_code
+        == 202
+    )
+
+
+def test_session_store_caps_idle_sessions_and_reset_replaces_its_predecessor() -> None:
+    service = FakeTravelPlannerService()
+    clock = _FakeClock()
+    store = SessionStore(max_sessions=2, idle_seconds=60, clock=clock)
+    first_id, first = store.create(service)  # type: ignore[arg-type]
+    second_id, _ = store.create(service)  # type: ignore[arg-type]
+
+    with pytest.raises(SessionCapacityExceeded):
+        store.create(service)  # type: ignore[arg-type]
+    assert store.session_count == 2
+
+    with first.lock:
+        first.language = "en"
+    replacement_id, replacement = store.replace(
+        first_id, service  # type: ignore[arg-type]
+    )
+    assert replacement_id != first_id
+    assert replacement.language == "en"
+    assert store.session_count == 2
+    with pytest.raises(HTTPException) as removed:
+        store.get(first_id)
+    assert removed.value.status_code == 401
+
+    next_replacement_id, next_replacement = store.replace(
+        replacement_id, service  # type: ignore[arg-type]
+    )
+    assert next_replacement_id != replacement_id
+    assert next_replacement.language == "en"
+    assert store.session_count == 2
+
+    clock.now = 61
+    with pytest.raises(HTTPException) as expired:
+        store.get(second_id)
+    assert expired.value.status_code == 401
+    assert store.session_count == 0
+    store.create(service)  # type: ignore[arg-type]
+    assert store.session_count == 1
+
+
+def test_session_endpoint_returns_503_when_store_is_at_capacity() -> None:
+    service = FakeTravelPlannerService()
+    store = SessionStore(max_sessions=1)
+    client = TestClient(create_app(service, FakeVisualService(), session_store=store))
+
+    assert client.post("/api/session").status_code == 201
+    exhausted = client.post("/api/session")
+    assert exhausted.status_code == 503
+    assert (
+        exhausted.json()["detail"]
+        == "Hệ thống đang có quá nhiều phiên hoạt động. Vui lòng thử lại sau."
+    )
+    assert store.session_count == 1
+
+
+def test_idle_expiry_keeps_running_turn_but_releases_uncollected_completion() -> None:
+    service = FakeTravelPlannerService()
+    clock = _FakeClock()
+    store = SessionStore(max_sessions=2, idle_seconds=60, clock=clock)
+    _, running_session = store.create(service)  # type: ignore[arg-type]
+    _, completed_session = store.create(service)  # type: ignore[arg-type]
+    running_future: Future[AgentResponse] = Future()
+    completed_future: Future[AgentResponse] = Future()
+    completed_future.set_result(
+        AgentResponse(status=ResponseStatus.REJECTED, message="Done")
+    )
+    for session, future in (
+        (running_session, running_future),
+        (completed_session, completed_future),
+    ):
+        session.pending = PendingTurn(
+            token="test-token",
+            thread_id=session.thread_id,
+            message="test",
+            current_plan=None,
+            request=None,
+            future=future,
+        )
+
+    clock.now = 61
+    assert store.session_count == 1
+    running_future.set_result(
+        AgentResponse(status=ResponseStatus.REJECTED, message="Done")
+    )
+    assert store.session_count == 0
 
 
 def test_api_bounds_conversation_summary_and_reset_session() -> None:

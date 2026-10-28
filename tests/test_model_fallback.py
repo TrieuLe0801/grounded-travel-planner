@@ -86,8 +86,8 @@ def test_successful_openai_response_does_not_call_ollama(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("OPENAI_API_KEY", "configured-key")
-    primary = _RecordingModel("gpt-test", _Result(value="remote answer"))
-    fallback = _RecordingModel("qwen-test", _Result(value="local answer"))
+    primary = _RecordingModel("openai-test-model", _Result(value="remote answer"))
+    fallback = _RecordingModel("ollama-test-model", _Result(value="local answer"))
 
     result = OpenAIWithOllamaFallbackStructuredModel(
         primary, fallback
@@ -114,35 +114,50 @@ def test_successful_openai_response_does_not_call_ollama(
         ),
         APIConnectionError(request=_request()),
         APITimeoutError(request=_request()),
+        _status_error(400),
         _status_error(403),
+        _status_error(404),
         _status_error(408),
         _status_error(503),
+        OpenAIError("sdk error"),
     ],
-    ids=["401", "429", "500", "connection", "timeout", "403", "408", "503"],
+    ids=[
+        "401",
+        "429",
+        "500",
+        "connection",
+        "timeout",
+        "400",
+        "403",
+        "404",
+        "408",
+        "503",
+        "base-sdk-error",
+    ],
 )
-def test_openai_availability_errors_retry_once_on_ollama(
+def test_openai_errors_retry_once_on_ollama(
     monkeypatch: pytest.MonkeyPatch, error: Exception
 ) -> None:
     monkeypatch.setenv("OPENAI_API_KEY", "configured-key")
-    primary = _RecordingModel("gpt-test", error)
-    fallback = _RecordingModel("qwen-test", _Result(value="local answer"))
+    primary = _RecordingModel("openai-test-model", error)
+    fallback = _RecordingModel("ollama-test-model", _Result(value="local answer"))
     model = OpenAIWithOllamaFallbackStructuredModel(primary, fallback)
     metadata = {"thread_id": "thread-fallback", "turn_id": "turn-fallback"}
 
     result = model.generate_structured("same prompt", _Result, metadata=metadata)
 
     assert result == _Result(value="local answer")
-    assert model.model_name == "gpt-test"
+    assert model.model_name == "openai-test-model"
     assert primary.calls == [("same prompt", _Result, metadata)]
     assert fallback.calls == [("same prompt", _Result, metadata)]
 
 
-def test_missing_openai_key_uses_ollama_after_one_primary_attempt(
+def test_base_openai_error_uses_ollama_after_one_primary_attempt(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-    primary = _RecordingModel("gpt-test", OpenAIError("api key missing"))
-    fallback = _RecordingModel("qwen-test", _Result(value="local answer"))
+    primary = _RecordingModel("openai-test-model", OpenAIError("api key missing"))
+    fallback = _RecordingModel("ollama-test-model", _Result(value="local answer"))
 
     result = OpenAIWithOllamaFallbackStructuredModel(
         primary, fallback
@@ -161,16 +176,15 @@ def test_missing_openai_key_uses_ollama_after_one_primary_attempt(
             [{"type": "missing", "loc": ("value",), "input": {}}],
         ),
         RuntimeError("programming error"),
-        _status_error(400),
     ],
-    ids=["schema-validation", "programming", "openai-400"],
+    ids=["schema-validation", "programming"],
 )
-def test_non_availability_failures_do_not_call_ollama(
+def test_non_openai_failures_do_not_call_ollama(
     monkeypatch: pytest.MonkeyPatch, error: Exception
 ) -> None:
     monkeypatch.setenv("OPENAI_API_KEY", "configured-key")
-    primary = _RecordingModel("gpt-test", error)
-    fallback = _RecordingModel("qwen-test", _Result(value="must not be used"))
+    primary = _RecordingModel("openai-test-model", error)
+    fallback = _RecordingModel("ollama-test-model", _Result(value="must not be used"))
     model = OpenAIWithOllamaFallbackStructuredModel(primary, fallback)
 
     with pytest.raises(type(error)):
@@ -182,28 +196,34 @@ def test_non_availability_failures_do_not_call_ollama(
 
 def test_explicit_ollama_selection_does_not_wrap_or_create_openai() -> None:
     factory = TravelPlannerService._model_factory(
-        "ollama", ollama_fallback_model_name="qwen-fallback"
+        "ollama", ollama_fallback_model_name="ollama-fallback-model"
     )
 
-    model = factory("qwen-selected")
+    model = factory("ollama-selected-model")
 
     assert isinstance(model, OllamaStructuredChatModel)
-    assert model.model_name == "qwen-selected"
+    assert model.model_name == "ollama-selected-model"
 
 
 def test_role_fallback_names_override_global_name(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("GTP_OLLAMA_FALLBACK_MODEL", "qwen-global")
-    monkeypatch.setenv("GTP_COORDINATOR_OLLAMA_FALLBACK_MODEL", "qwen-coordinator")
-    monkeypatch.setenv("GTP_PLANNER_OLLAMA_FALLBACK_MODEL", "qwen-planner")
-    monkeypatch.setenv("GTP_CHAT_OLLAMA_FALLBACK_MODEL", "qwen-chat")
+    monkeypatch.setenv("GTP_COORDINATOR_MODEL", "coordinator-test-model")
+    monkeypatch.setenv("GTP_PLANNER_MODEL", "planner-test-model")
+    monkeypatch.setenv("GTP_CHAT_MODEL", "chat-test-model")
+    monkeypatch.setenv("GTP_OLLAMA_FALLBACK_MODEL", "fallback-test-model")
+    monkeypatch.setenv("GTP_OLLAMA_FALLBACK_MODEL", "ollama-global-model")
+    monkeypatch.setenv(
+        "GTP_COORDINATOR_OLLAMA_FALLBACK_MODEL", "ollama-coordinator-model"
+    )
+    monkeypatch.setenv("GTP_PLANNER_OLLAMA_FALLBACK_MODEL", "ollama-planner-model")
+    monkeypatch.setenv("GTP_CHAT_OLLAMA_FALLBACK_MODEL", "ollama-chat-model")
 
     config = RuntimeConfig.from_environment()
 
-    assert config.coordinator_ollama_fallback_model == "qwen-coordinator"
-    assert config.planner_ollama_fallback_model == "qwen-planner"
-    assert config.chat_ollama_fallback_model == "qwen-chat"
+    assert config.coordinator_ollama_fallback_model == "ollama-coordinator-model"
+    assert config.planner_ollama_fallback_model == "ollama-planner-model"
+    assert config.chat_ollama_fallback_model == "ollama-chat-model"
 
 
 def _existing_plan() -> SightseeingPlan:
@@ -246,8 +266,10 @@ def test_both_model_attempts_failing_preserves_the_current_plan(
 ) -> None:
     monkeypatch.setenv("OPENAI_API_KEY", "configured-key")
     current = _existing_plan()
-    primary = _RecordingModel("gpt-test", APIConnectionError(request=_request()))
-    fallback = _RecordingModel("qwen-test", RuntimeError("ollama unavailable"))
+    primary = _RecordingModel(
+        "openai-test-model", APIConnectionError(request=_request())
+    )
+    fallback = _RecordingModel("ollama-test-model", RuntimeError("ollama unavailable"))
     failed_coordinator = OpenAIWithOllamaFallbackStructuredModel(primary, fallback)
     unused = _RecordingModel("unused", AssertionError("must not be called"))
     service = TravelPlannerService(
