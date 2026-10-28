@@ -157,14 +157,16 @@ Chat search smoke is `scripts/live_chat_search_smoke.py`.
 ## Model provider configuration
 
 Copy `.env.example` to `.env`. The provider and every role model are explicit:
+Replace each `<YOUR_MODEL_NAME>` placeholder with a model available from the
+selected provider.
 
 ```dotenv
 GTP_MODEL_PROVIDER=openai
-GTP_COORDINATOR_MODEL=gpt-5.5
-GTP_PLANNER_MODEL=gpt-6.1-terra
-GTP_CHAT_MODEL=gpt-4.1
-GTP_OPENAI_JSON_SCHEMA_MODELS=gpt-6.1-terra
-GTP_OLLAMA_FALLBACK_MODEL=qwen3.5:4b-mlx
+GTP_COORDINATOR_MODEL=<YOUR_MODEL_NAME>
+GTP_PLANNER_MODEL=<YOUR_MODEL_NAME>
+GTP_CHAT_MODEL=<YOUR_MODEL_NAME>
+GTP_OPENAI_JSON_SCHEMA_MODELS=<YOUR_MODEL_NAME>
+GTP_OLLAMA_FALLBACK_MODEL=<YOUR_MODEL_NAME>
 ```
 
 The three role model variables and `GTP_OLLAMA_FALLBACK_MODEL` are required;
@@ -197,7 +199,7 @@ remain available as a CPU option, but use `http://ollama:11434` only when that
 CPU path is intended. See the [Ollama GPU FAQ](https://github.com/ollama/ollama/blob/main/docs/faq.mdx).
 
 ```bash
-ollama pull qwen3.5:4b-mlx
+ollama pull '<YOUR_MODEL_NAME>'
 ```
 
 ```dotenv
@@ -205,9 +207,9 @@ GTP_MODEL_PROVIDER=openai
 GTP_COORDINATOR_PROVIDER=openai
 GTP_PLANNER_PROVIDER=ollama
 GTP_CHAT_PROVIDER=ollama
-GTP_COORDINATOR_MODEL=gpt-5.5
-GTP_PLANNER_MODEL=qwen3.5:4b-mlx
-GTP_CHAT_MODEL=qwen3.5:4b-mlx
+GTP_COORDINATOR_MODEL=<YOUR_MODEL_NAME>
+GTP_PLANNER_MODEL=<YOUR_MODEL_NAME>
+GTP_CHAT_MODEL=<YOUR_MODEL_NAME>
 OLLAMA_BASE_URL=http://127.0.0.1:11434
 ```
 
@@ -241,16 +243,15 @@ GTP_COMPOSE_OLLAMA_BASE_URL=http://ollama:11434 \
 ```
 
 On 2026-10-18, a native mixed-provider smoke committed a one-day Hue plan with
-OpenAI `gpt-5.5` as Coordinator and local `qwen3:4b` as Planner and Chat. The
-current Mac fallback is `qwen3.5:4b-mlx` through native Ollama; the optional
-Linux Compose profile is a separate CPU route.
+an OpenAI Coordinator and local Ollama Planner and Chat. The Mac fallback uses
+native Ollama; the optional Linux Compose profile is a separate CPU route.
 
 ## Verification recorded on 2026-10-14
 
 - `uv run pytest`: 19 passed.
 - isort, Black, flake8, Ruff, `uv lock --check` and `git diff --check`: passed.
 - Streamlit local-only startup: HTTP 200 health response.
-- Live `gpt-5.5` + Tavily flow: committed one Hue plan with five returned
+- Live model + Tavily flow: committed one Hue plan with five returned
   citations, one search and one bounded repair.
 - LangSmith: 14 matching root/child runs; all carried the same `thread_id`.
 
@@ -374,12 +375,12 @@ Reviewed project `.codex/agents/`, hooks and skills are shared in Git. Personal
 `.codex/config.toml` can configure the primary Codex session and coordinate
 these development agents:
 
-| Agent | Model | Work |
-|---|---|---|
-| `manager` | `gpt-6-sol` | Delegate tasks and integrate results when invoked explicitly |
-| `planner` | `gpt-5.6-terra` | Plan code changes from repository evidence |
-| `coding` | `gpt-5.5` | Implement assigned changes |
-| `testing` | `gpt-5.5` | Write and run deterministic tests |
+| Agent | Work |
+|---|---|
+| `manager` | Delegate tasks and integrate results when invoked explicitly |
+| `planner` | Plan code changes from repository evidence |
+| `coding` | Implement assigned changes |
+| `testing` | Write and run deterministic tests |
 
 The primary session acts as manager through `AGENTS.md`; the separate `manager`
 definition supports explicit delegation to a manager subagent. The manager

@@ -667,3 +667,10 @@ three-role runtime and role-specific model policy.
 - After merge, host pytest passed 122 tests. Isort, Black, Ruff, focused flake8,
   JSON parsing and diff checks passed. Full flake8 still reports the same three
   F841 findings in ignored `artifacts/presentations/update_deck.py`.
+
+## User Decision — Generic Model Examples — 2026-10-28
+
+- Remove the development-agent model column from README. Use
+  `<YOUR_MODEL_NAME>` in `.env.example` and README setup commands instead of
+  naming specific models. Detailed historical verification artifacts remain
+  unchanged; README summaries no longer name the models used in those runs.
