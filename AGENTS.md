@@ -1,5 +1,9 @@
 # Grounded Travel Planner — Codex Instructions
 
+Use the installed `caveman` skill at `full` level in Codex replies by default.
+Keep Vietnamese when the user writes Vietnamese. Preserve technical accuracy.
+Follow the user's request if they switch to normal style or disable caveman.
+
 ## Project boundary
 
 - The active product is the city/place sightseeing webapp defined in
@@ -116,3 +120,5 @@ Record the durable artifact and actual verification result. Planning progress,
 browser state and passing development-hook tests do not demonstrate a working
 travel-planner webapp. Application and live-trace acceptance is defined in the
 current charter and implementation plan.
+
+@RTK.md

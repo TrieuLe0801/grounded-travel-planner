@@ -20,8 +20,11 @@ design the user removed or rejected (including route maps/car animation or the
 source_place_mismatch gate), silently broaden architecture or policy, or claim
 browser, container, live-provider or LangSmith evidence without an executed
 artifact. Keep development helpers distinct from the runtime Coordinator,
-Planner and Chat roles. Update durable records only for completed work backed by
-evidence.
+Planner and Chat roles. For saved-tour work, preserve PostgreSQL Compose storage,
+SQLite local fallback, owner isolation and session-only live state. Treat a
+container rebuild as a session-clearing operation and identify the deployed
+image before claiming a source fix is live. Update durable records only for
+completed work backed by evidence.
 
 Detect explicit commit and push authorization from the request. Default to no
 commit and no push; do not ask a yes/no authorization question. When authorized,

@@ -1,6 +1,6 @@
 {
-  "version": 68,
-  "updated": "2026-11-01T16:22:04+07:00",
+  "version": 70,
+  "updated": "2026-11-01T16:58:59+07:00",
   "active_scope": "city-place-sightseeing-webapp",
   "current_milestone": "Milestone 1: executable city/place sightseeing vertical slice",
   "completed": {
@@ -47,6 +47,7 @@
     "shared_tavily_tool_node": true,
     "runtime_flow_refactor": true,
     "development_agents_and_skills_refined": true,
+    "codex_project_token_guidance_configured": true,
     "bilingual_webapp_language": true,
     "bidirectional_chat_trip_length": true,
     "ngrok_compose_profile_prepared": true,
@@ -420,10 +421,20 @@
       ".codex/agents/coding.toml",
       ".codex/agents/testing.toml",
       ".codex/skills/delivery-orchestrator/SKILL.md",
+      ".codex/skills/evaluation-and-test/SKILL.md",
       ".codex/skills/ui-ux-pro-max/references/grounded-travel-planner.md",
       "docs/adr/0001-python-development-tooling.md",
       "static TOML parsing and git diff --check passed",
-      "no application, frontend, container, browser or live-provider checks run"
+      "no application, frontend, container, browser or live-provider checks run",
+      "2026-11-01 refresh: four agents, delivery/evaluation skills and UI overlay aligned with PostgreSQL Compose, session-only state, model fallback, cookie and capacity decisions",
+      "2026-11-01 refresh checks: two skill validators passed, four TOML files parsed with tomli, git diff --check passed"
+    ],
+    "codex_project_token_guidance_configured": [
+      "AGENTS.md: local @RTK.md reference and Vietnamese caveman full default",
+      "RTK.md: local rtk-owned compact output guidance",
+      ".codex/hooks.json: Bash PreToolUse rtk hook codex; existing Python PostToolUse preserved",
+      "direct valid hook payload rewrote git status --short to rtk git status --short; already rewritten command was unchanged",
+      "runtime activation and token savings in a restarted, trusted Codex project session not verified"
     ],
     "bilingual_webapp_language": [
       "docs/adr/0013-bilingual-session-language.md",

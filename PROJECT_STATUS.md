@@ -43,12 +43,27 @@ background only.
 | Saved tours | PostgreSQL Compose app healthy; browser QA pending | SQLite source backed up and one tour copied exactly to PostgreSQL; DB and app survived container recreation; root 200, session creation 201, PostgreSQL integration test passed |
 | Large saved-tour archive | PostgreSQL 2M-row isolated benchmark passed | Owner/time/ID index and keyset pages; 10-sample page 1 p50/p95 0.729/13.898 ms, page 20,000 0.373/21.557 ms; tiny synthetic snapshots, no concurrent traffic |
 | Pre-push security review | Focused source review and regression passed | Session and saved-tour owner cookies default to Secure; Compose forces Secure; local data excluded from Git and Docker context; isolated full suite 132 passed, 1 skipped |
+| Codex token guidance | Project configuration added; runtime activation pending restart/trust | Local RTK `PreToolUse` hook rewrites a sample Bash command; `AGENTS.md` loads `RTK.md` and defaults to `caveman full` |
 
 Planning progress is not implementation progress. Only executable artifacts and
 actual checks count as completion evidence.
 
 ## Done
 
+- Applied project-local RTK setup with `rtk init --codex`. The new `Bash`
+  `PreToolUse` handler leaves the Python formatting hook in place. A direct
+  valid hook payload rewrote `git status --short` to `rtk git status --short`;
+  an already rewritten command produced no second rewrite. `AGENTS.md` now
+  loads local `RTK.md` and requests `caveman full` for Codex replies. JSON,
+  hook-payload and diff checks passed. The hook needs a new Codex session and project
+  hook trust before actual in-session activation can be claimed.
+- Refreshed the four project Codex development agents and the delivery,
+  evaluation and UI skill guidance against the current PostgreSQL Compose
+  archive, session-only live state, environment-selected models, OpenAI-to-Ollama
+  fallback, Secure cookie policy and capacity bounds. Both edited skill entry
+  points passed `quick_validate.py`; four agent TOML files parsed with `tomli`,
+  and `git diff --check` passed. This configuration update did not run the app,
+  frontend, containers or live providers.
 - Reviewed the pending changes and adjacent cookie, database and owner-scope
   boundaries before push. The review found that TLS proxy requests could issue
   non-Secure session and saved-tour owner cookies. Both cookies now default to

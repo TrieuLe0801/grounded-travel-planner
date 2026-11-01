@@ -37,7 +37,7 @@
 
   <div class="meta">
     <div class="card"><strong>Models</strong><p>Role, fallback and structured-output model identifiers come from environment variables; one local Ollama attempt after OpenAI API errors; explicit Ollama by role</p></div>
-    <div class="card"><strong>State</strong><p>Live plan, 12-message transcript and 1,200-character handoff summary in the session; explicitly saved tour snapshots in SQLite</p></div>
+    <div class="card"><strong>State</strong><p>Live plan, 12-message transcript and 1,200-character handoff summary in the session; explicitly saved tour snapshots in PostgreSQL Compose, with SQLite as the local fallback</p></div>
     <div class="card"><strong>Bounds</strong><p>8 graph · 2 search · 1 repair</p></div>
   </div>
 
@@ -223,6 +223,8 @@
   <a href="implementation-plan.md">implementation plan</a> and
   <a href="progress/roadmap-progress.json">progress JSON</a>. The archived POC
   roadmap is retained as <code>roadmap-2026-09-poc.html</code>.</p>
+  <p>Development tooling: project Codex RTK hook and caveman full reply guidance
+  configured; hook activation needs a new trusted Codex session.</p>
 </main>
 </body>
 </html>

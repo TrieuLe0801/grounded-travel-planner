@@ -1,5 +1,32 @@
 # Learning Log - 2026-10-14 Scope Reset
 
+## Project Codex Token Guidance — 2026-11-01
+
+- The user requested RTK and `caveman full` for this project. `rtk init
+  --codex` added local `RTK.md`, its `AGENTS.md` reference and a `Bash`
+  `PreToolUse` handler in `.codex/hooks.json`; the existing Python formatter
+  hook remains. `AGENTS.md` now requests Vietnamese `caveman full` replies by
+  default, while allowing the user to change style.
+- A direct RTK hook test with a valid `permission_mode` rewrote `git status
+  --short` to `rtk git status --short`. Passing an already rewritten command
+  returned no second rewrite. This verifies the handler, not Codex runtime
+  activation. Restart and project-hook trust are still needed; no token-saving
+  measurement from a new project session exists yet.
+
+## Development Agent And Skill Refresh — 2026-11-01
+
+- Updated manager, planner, coding and testing instructions to reflect the
+  PostgreSQL Compose saved-tour archive, SQLite local fallback, session-only
+  live state, explicit save and owner isolation, environment-selected model
+  identifiers, OpenAI-to-Ollama fallback, Secure cookie defaults and bounded
+  turn/session capacity.
+- Updated the delivery and evaluation skills and the project UI overlay for
+  storage, deployment evidence and saved-tour behavior. No runtime agent
+  topology or application code changed.
+- Both edited skill entry points passed `quick_validate.py` under `uv run
+  python`; all four agent TOML files parsed with `tomli`; `git diff --check`
+  passed. No application, browser, container or live-provider check was run.
+
 ## User Decision — Security Gate Before Commit And Push — 2026-11-01
 
 - The user requested security review before commit and push, with no local data

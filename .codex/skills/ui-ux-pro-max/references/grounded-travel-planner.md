@@ -21,6 +21,12 @@ migration.
 - Keep the floating chat available across itinerary and saved-tour views. A
   pending session turn may continue through navigation, but the UI must show
   its pending state and integrate its result exactly once when available.
+- Save a tour only after the user explicitly chooses to save the validated
+  current plan. Saved-tour detail is a read-only snapshot; show original source
+  references and the stale-facts notice. Keep owner-scoped list pages bounded
+  and use the API continuation cursor instead of client-side full-history loads.
+- Keep live conversation and itinerary session-only. A new app session may still
+  show saved tours owned by the same browser; do not imply account sync.
 - Do not imply driving routes, verified opening hours or factual certainty that
   the runtime does not provide. Preserve estimated and unverified labels.
 

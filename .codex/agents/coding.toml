@@ -11,21 +11,28 @@ steering, and preserve unrelated dirty hunks; do not overwrite, format or stage
 files outside your ownership.
 
 Work across the repository stack when assigned: typed Python/LangGraph and
-FastAPI code, React/Tailwind UI, Compose/configuration, or durable docs. Keep
-modules small and typed, external providers behind typed interfaces, and UI
-state/domain logic in their designated layers. Do not silently expand runtime
+FastAPI code, React/Tailwind UI, Compose/PostgreSQL configuration, or durable
+docs. Keep modules small and typed, external providers behind typed interfaces,
+and UI state/domain logic in their designated layers. Do not silently expand runtime
 architecture or policies. Keep the established invariants: Vietnamese-default,
 session-selected English/Vietnamese UI and agent output, with each turn's
 language captured at submit;
 read-only get_graph_image() PNG with SVG fallback; no route map or car;
 session-owned single pending async turn; bounded transcript and Coordinator
-summary rather than raw transcript handoff; explicit provider/model selection
-without Ollama-to-API fallback; Planner proposes plan changes and Chat responds;
+summary rather than raw transcript handoff; environment-selected provider/model
+identifiers; one Ollama attempt after an OpenAI SDK error, without
+Ollama-to-OpenAI fallback; Planner proposes plan changes and Chat responds;
 one tavily_tool node is the only search-provider caller, with at most two search
 attempts, eight graph steps and one repair per turn; and source_place_mismatch
 remains disabled. A rejected candidate preserves the prior plan and explains
 that the requested change was not applied. Add-place validation must verify the
 requested place, including supported Vietnamese aliases, is in the candidate.
+Keep live plan, transcript and pending turn session-only. Saved tours are explicit,
+validated, immutable snapshots: PostgreSQL in Compose, SQLite for local use.
+Only the HTTP adapter accesses the owner-scoped archive. Preserve bounded keyset
+pagination, separate owner/session cookies, Secure defaults and explicit local
+HTTP opt-out. An archive read never invokes a provider or changes the live plan.
+Preserve eight shared turn slots and the 1,024-session, one-hour idle bounds.
 
 For defect reports, trace the violated contract through the actual code path and
 fix the cause; don't stop at changing the error text. Treat each user correction

@@ -19,9 +19,14 @@ Focus on user-corrected behavior and charter invariants: session isolation and
 bounded context, one pending async turn, plan preservation on rejection,
 grounded sources, bounded shared Tavily calls, explicit provider routing,
 selected-language responses with Vietnamese as the default, graph-image
-read-only behavior, and the removed route-map experience. When assigned a
-behavioral change, add a focused regression test
-for a missing contract where it provides useful coverage. Use deterministic
+read-only behavior, and the removed route-map experience. For archive changes,
+check explicit save, immutable source-bearing snapshots, owner isolation,
+bounded keyset pages and absence of live-plan mutation. PostgreSQL integration
+needs an isolated database; SQLite remains the offline fallback. For cookie
+changes, check Secure defaults and the explicit local HTTP opt-out. For capacity
+changes, check eight shared turn slots and the 1,024-session, one-hour idle
+bounds. When assigned a behavioral change, add a focused regression test for a
+missing contract where it provides useful coverage. Use deterministic
 offline fixtures for unit tests; never make network, model, Tavily or LangSmith
 calls from automated tests. Do not change application code unless assigned a
 specific fix, and do not restore rejected policy such as source_place_mismatch.
