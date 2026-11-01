@@ -37,7 +37,7 @@
 
   <div class="meta">
     <div class="card"><strong>Models</strong><p>Role, fallback and structured-output model identifiers come from environment variables; one local Ollama attempt after OpenAI API errors; explicit Ollama by role</p></div>
-    <div class="card"><strong>State</strong><p>Session-only plan, 12-message transcript and 1,200-character handoff summary</p></div>
+    <div class="card"><strong>State</strong><p>Live plan, 12-message transcript and 1,200-character handoff summary in the session; explicitly saved tour snapshots in SQLite</p></div>
     <div class="card"><strong>Bounds</strong><p>8 graph · 2 search · 1 repair</p></div>
   </div>
 
@@ -116,7 +116,7 @@
       <h3>Vietnamese / English UI</h3>
       <ul>
         <li>Vietnamese remains the default; English is selectable</li>
-        <li>React, Streamlit and the graph page follow the session locale</li>
+        <li>React and Streamlit follow the session locale; the graph page is hidden</li>
         <li>Pending turns keep the language captured at submission</li>
         <li>User messages, place names and source data remain unchanged</li>
         <li>14 focused API/runner/chat-context tests passed; no locale-specific test added</li>
@@ -142,6 +142,21 @@
         <li>Route map and car removed at the user's request</li>
         <li>Separate page shows the get_graph_image() PNG</li>
         <li>47/47 host and container tests passed</li>
+      </ul>
+    </section>
+    <section class="card active">
+      <span class="badge">Offline + Compose verified · browser QA pending</span>
+      <h3>1K · Saved tours</h3>
+      <ul>
+        <li>Explicit save of a validated plan snapshot with original sources</li>
+        <li>PostgreSQL 17 database container with named volume, health check and browser owner isolation</li>
+        <li>Read-only Vietnamese/English list, detail and delete with owner-scoped keyset pagination</li>
+        <li>Composite owner/time/ID index and explicit migration for populated legacy databases</li>
+        <li>9 focused and 131 full host/container tests; Python gates and frontend build pass</li>
+        <li>Disposable PostgreSQL 2M-row benchmark passed: first/deep keyset page p50 0.729/0.373 ms; synthetic tiny snapshots, no concurrent traffic</li>
+        <li>Existing tour copied exactly from SQLite; PostgreSQL and app container recreation preserved it</li>
+        <li>PostgreSQL integration test passed in Compose; current containers healthy, browser QA pending</li>
+        <li>Focused pre-push cookie security fix and isolated full suite: 132 passed, 1 optional test skipped</li>
       </ul>
     </section>
     <section class="card active">
@@ -201,7 +216,7 @@
   <div class="grid">
     <section class="card pending"><span class="badge">Next</span><h3>Live quality evaluation</h3><p>Measure Chat answer accuracy and source relevance across more factual questions; label source diversity and extend edit coverage to reorder and replace.</p></section>
     <section class="card done"><span class="badge">Verified, stopped</span><h3>Temporary sharing</h3><p>Ngrok HTTPS tunnel passed app, graph and session checks, then was stopped on request; the local app remains healthy.</p></section>
-    <section class="card pending"><span class="badge">Deferred</span><h3>Production concerns</h3><p>Authentication, durable storage, production deployment, rate limits and operational security.</p></section>
+    <section class="card pending"><span class="badge">Deferred</span><h3>Production concerns</h3><p>Authentication, cross-device archive recovery, production deployment, rate limits and operational security.</p></section>
   </div>
 
   <p>Durable detail: <a href="project-charter.md">charter</a>,

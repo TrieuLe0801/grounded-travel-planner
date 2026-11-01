@@ -1,6 +1,6 @@
 {
-  "version": 62,
-  "updated": "2026-10-27T23:02:10+07:00",
+  "version": 68,
+  "updated": "2026-11-01T16:22:04+07:00",
   "active_scope": "city-place-sightseeing-webapp",
   "current_milestone": "Milestone 1: executable city/place sightseeing vertical slice",
   "completed": {
@@ -20,6 +20,7 @@
     "visual_itinerary_implementation": true,
     "route_map_removed": true,
     "graph_inspection_page": true,
+    "graph_inspection_page_hidden": true,
     "source_place_mismatch_temporarily_disabled": true,
     "async_session_turns": true,
     "async_multipage_browser_qa": false,
@@ -63,7 +64,16 @@
     "native_ollama_mlx_fallback": true,
     "deterministic_trip_shortening": true,
     "shared_turn_capacity_bound": true,
-    "web_session_capacity_bound": true
+    "web_session_capacity_bound": true,
+    "saved_tours_offline": true,
+    "saved_tours_container_volume_smoke": true,
+    "saved_tours_browser_qa": false,
+    "saved_tours_large_archive_offline": true,
+    "saved_tours_large_archive_compose": true,
+    "saved_tours_current_compose_deployment": true,
+    "saved_tours_postgres_compose": true,
+    "saved_tours_postgres_large_benchmark": true,
+    "security_pre_push_review": true
   },
   "evidence": {
     "scope_reset_docs": [
@@ -162,11 +172,21 @@
     ],
     "graph_inspection_page": [
       "src/grounded_travel_planner/ui/graph_diagram.py",
-      "src/grounded_travel_planner/ui/pages/2_Graph_Architecture.py",
+      "src/grounded_travel_planner/ui/graph_architecture.py",
       "src/grounded_travel_planner/service.py#get_graph_image",
       "tests/test_graph_diagram.py",
       "focused UI/photo/graph tests 9 passed",
       "host and container pytest 47 passed"
+    ],
+    "graph_inspection_page_hidden": [
+      "frontend/src/main.tsx",
+      "src/grounded_travel_planner/ui/graph_architecture.py",
+      "docs/adr/0006-photo-only-itinerary-and-graph-inspection.md",
+      "focused graph tests 4 passed",
+      "host pytest 131 passed",
+      "frontend npm run check and npm run build passed",
+      "Python isort, Black, flake8 and Ruff passed",
+      "browser and running-container checks not run"
     ],
     "source_place_mismatch_temporarily_disabled": [
       "src/grounded_travel_planner/policies/source_validation.py",
@@ -415,7 +435,7 @@
       "src/grounded_travel_planner/agents/chat.py",
       "frontend/src/i18n.ts",
       "src/grounded_travel_planner/ui/streamlit_app.py",
-      "src/grounded_travel_planner/ui/pages/2_Graph_Architecture.py",
+      "src/grounded_travel_planner/ui/graph_architecture.py",
       "existing focused API/runner/chat-context suite: 14 passed; no locale-specific test added",
       "frontend npm run check and npm run build passed",
       "Python compileall, flake8, Black, isort, Ruff and git diff --check passed",
@@ -553,6 +573,56 @@
       "isort, Black, flake8, Ruff and git diff --check passed",
       "running Compose app retained its previous image and session-only plans"
     ],
+    "saved_tours_offline": [
+      "docs/adr/0014-explicit-saved-tour-database.md",
+      "src/grounded_travel_planner/saved_tours.py and web/api.py: explicit owner-scoped SQLite snapshots",
+      "frontend/src/main.tsx and i18n.ts: save and read-only saved-tour views",
+      "tests/test_saved_tours.py: 6 focused cases passed; full host pytest: 128 passed",
+      "isort, Black, flake8, Ruff, npm check/build, Compose config and git diff --check passed",
+      "Docker test target: 128 passed after synthetic test-only model names were configured",
+      "isolated Compose app healthy; root 200, session 201; synthetic saved tour survived container force-recreation on named volume with one fixture source",
+      "temporary Compose project and volume removed; original app remains on older image; browser QA not verified"
+    ],
+    "saved_tours_large_archive_offline": [
+      "docs/adr/0014-explicit-saved-tour-database.md: keyset cursor, composite index and explicit migration decision",
+      "saved_tours.py and web/api.py: owner-scoped bounded keyset pages and 422 cursor/offset validation",
+      "scripts/migrate_saved_tours_index.py: idempotent atomic v1-to-v2 index migration",
+      "tests/test_saved_tours.py: 9 focused passed; full host and Docker test-target pytest: 131 passed each",
+      "scripts/benchmark_saved_tours.py: disposable 2,000,000-row synthetic snapshot fixture, 1,313,050,624-byte DB after checkpoint; page 1 p50/p95 0.715/3.985 ms, page 20,000 0.667/1.465 ms, ten samples",
+      "isort, Black, flake8, Ruff, frontend check/build, Compose config and git diff --check passed"
+    ],
+    "saved_tours_large_archive_compose": [
+      "isolated Compose runtime image built and app reached healthy; root 200, empty cursor-list response, offset 422",
+      "fresh SQLite schema user_version=2 with composite index; runtime migration CLI ran on isolated volume",
+      "temporary Compose project and volume removed; original app container was not recreated"
+    ],
+    "saved_tours_current_compose_deployment": [
+      "existing mounted archive: one v1 row; backup at ignored .local/backups/saved_tours_pre_v2_2026-11-01.sqlite passed integrity check",
+      "explicit v2 migration completed; archive retains one row and composite index; integrity ok",
+      "runtime image rebuilt; app container recreated and healthy on 127.0.0.1:8503; root 200 and POST /api/session 201",
+      "Docker test image rebuilt with cached layer from prior 131-test pass; live session-only state cleared by app recreation"
+    ],
+    "saved_tours_postgres_compose": [
+      "docs/adr/0015-postgres-compose-saved-tour-storage.md: PostgreSQL container decision",
+      "compose.yaml: PostgreSQL 17 with named volume, health check, no host port; app waits for db",
+      "postgres_saved_tours.py: owner-scoped immutable snapshots, bounded pool, keyset list and unique save key",
+      "scripts/migrate_saved_tours_to_postgres.py: read-only SQLite source, 1000-row batches, exact row verification and idempotent rerun",
+      "one existing tour backed up and copied exactly; PostgreSQL and app container recreation retained one row; both healthy",
+      "root HTTP 200, session creation 201; PostgreSQL integration test passed inside Compose network",
+      "host and Docker test-target suites: 131 passed, 1 PostgreSQL test skipped by default; isort, Black, flake8, Ruff, lock and Compose config passed",
+      "PostgreSQL custom-format dump created in ignored .local/backups; pg_restore --list succeeded; old SQLite volume kept"
+    ],
+    "saved_tours_postgres_large_benchmark": [
+      "scripts/benchmark_postgres_saved_tours.py: disposable 2,000,000-row PostgreSQL Compose fixture under one owner with tiny snapshots; 10 samples",
+      "first-page p50/p95 0.729/13.898 ms; page 20,000 p50/p95 0.373/21.557 ms; save 0.155/1.194 ms; delete 0.136/0.523 ms",
+      "database 1,415,034,547 bytes; list index 341,360,640 bytes; isolated Compose project and volume removed; no concurrent traffic"
+    ],
+    "security_pre_push_review": [
+      "focused source review found and fixed missing Secure attributes for session and saved-tour owner cookies behind TLS proxy; Compose forces Secure independent of Host",
+      "tests/test_saved_tours.py: default Secure, public-host and loopback-Host HTTP response-header regressions; explicit local HTTP opt-out",
+      "network-disabled read-only container: 132 passed, 1 optional PostgreSQL test skipped; isort, Black, flake8 and Ruff passed",
+      "Git ignores .env, .local/ and graphify-out/; Docker context excludes local data; explicit 36-file staging set passed path and secret-pattern scans"
+    ],
     "web_session_capacity_bound": [
       "src/grounded_travel_planner/web/api.py: 1024-session cap, one-hour idle expiry, running-turn protection and atomic reset replacement",
       "tests/test_web_api.py: capacity, expiry including uncollected completed turns, reset and 503 regressions",
@@ -560,5 +630,5 @@
       "running Compose app retained its previous image and session-only plans"
     ]
   },
-  "notes": "Milestone 1 and chat editing have offline and live evidence. Model identifiers are read from required environment variables; runtime code contains no model identifiers. Current Mac fallback uses native Ollama with qwen3.5:4b-mlx through host.docker.internal; Ollama v0.40.10 reports runner mlx at 100% GPU. Invalid-key structured fallback succeeded from the app container. qwen2.5:3b was removed from native and container stores, and the CPU Ollama container is stopped. The app is healthy and serves HTTP 200; recreating it cleared session-only state. Historical OpenAI/Tavily/LangSmith and Compose model smokes remain historical. Source-quality live relevance, browser QA and live token/latency comparisons remain unmeasured. Trip shortening now commits a deterministic candidate within the Planner role, preserving retained entries and source references exactly; host suite passes 117. Running Compose app has not been replaced because replacement clears session-only plans. A fresh grounded-travel-planner:local image was built for deterministic trip shortening; the healthy running container remains on the old image pending a restart decision because sessions are memory-only."
+  "notes": "Compose runs saved tours in PostgreSQL 17 on a named volume. One SQLite tour was backed up and copied exactly; container recreation kept the row. A disposable 2M-row PostgreSQL benchmark measured keyset page 1/deep p50 0.729/0.373 ms with tiny snapshots and no concurrent traffic; its volume was removed. Focused pre-push review fixed Secure cookie handling behind TLS proxies. Network-disabled read-only container suite: 132 passed, 1 optional PostgreSQL test skipped; Python quality gates passed. Explicit staged-file path and secret-pattern scans found no local data or keys. Browser/live-provider checks were not run; the running app image predates the cookie fix. Old SQLite volume and ignored backups remain for recovery."
 }

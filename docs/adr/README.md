@@ -14,4 +14,7 @@ Current runtime decisions: ADR 0009 defines Coordinator-routed chat and trip
 extension; ADR 0010 defines model-provider configuration; ADR 0011 defines
 bounded session context and optional Chat search; ADR 0012 defines the shared
 Tavily graph tool node; ADR 0013 defines the session-scoped bilingual UI locale.
+ADR 0014 permits only explicitly saved, validated tour snapshots. ADR 0015
+moves that archive from embedded SQLite to a PostgreSQL Compose container;
+live plan and conversation state remain session-only.
 

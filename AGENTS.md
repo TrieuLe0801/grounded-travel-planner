@@ -46,15 +46,18 @@ Read these records in order:
   language; new model-authored content follows the captured locale.
 - Trace all chat turns, agents, tools and validation through LangSmith. Propagate
   the same `thread_id` metadata to root and child runs in a session.
-- App conversation/trip state is session-only and isolated between users.
-  LangSmith traces are observability data and are not used to resume app state.
+- Live app conversation/trip state is session-only and isolated between users.
+  Explicitly saved, validated tour snapshots use an owner-scoped PostgreSQL
+  archive in Compose under ADR 0015; SQLite remains the local fallback under
+  ADR 0014. LangSmith traces are observability data and are not used to resume
+  app state.
 - A bounded background turn may continue across Streamlit page navigation, but
   its Future and result integration remain owned by the originating session.
   Only one turn may be in flight per session; workers never mutate Session State.
 - Typed provider interfaces keep model/search integration separate from UI.
 - The JavaScript/Tailwind frontend and thin Python HTTP adapter are the current
   UI under ADR 0008. Streamlit remains available during migration. Neither UI
-  duplicates domain logic or adds persistence.
+  duplicates domain logic; the HTTP adapter alone accesses saved-tour storage.
 
 ## Product invariants
 
@@ -75,6 +78,9 @@ Read these records in order:
   mutate the plan or trigger unnecessary research.
 - Keep language switching independent from itinerary validation and session
   plan/history state.
+- Persist a tour only after the user explicitly approves saving the current
+  validated plan. Saved snapshots preserve committed source data and remain
+  read-only; archive reads never invoke search or mutate the live plan.
 - Bound search calls, repairs and graph steps for every turn.
 - Keep secrets out of model inputs, traces, logs and tracked files.
 

@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-10-27
+Last updated: 2026-11-01
 
 ## Current Milestone
 
@@ -16,17 +16,17 @@ background only.
 |---|---|---|
 | Scope reset | Complete | Charter, implementation plan, current log and ADR 0004/0009/0011/0012 |
 | Runtime package | Complete | Coordinator/Planner/Chat graph, typed providers and validators |
-| Streamlit app | Complete | Session-only itinerary/chat plus read-only graph page |
-| Tests | 122 passed | Full offline suite in a network-disabled, read-only container with current runtime dependencies and local test tools |
+| Streamlit app | Complete | Session-only itinerary/chat; graph page hidden from navigation |
+| Tests | 132 passed, 1 skipped in isolated container; prior host and Docker test target 131 passed, 1 skipped | PostgreSQL integration test passed separately inside Compose network |
 | Live integration | Passed | OpenAI/Tavily/LangSmith smoke recorded under `docs/experiments/` |
 | Local container | Passed | Test/runtime images, health, non-root and live provider checks |
 | Chat editing | Passed | Trip extension plus eight prior offline eval cases and live two-turn smoke |
 | Source quality evaluation | Offline baseline | 16 labelled synthetic citations; live relevance not measured |
 | Vietnamese chat | Passed | Vietnamese AppTest/fallback and live add-place response |
 | Visual itinerary | Complete | Source-backed photos; route map removed by user request |
-| Graph inspection | Complete | PNG from `get_graph_image()` fits the Streamlit and JavaScript graph views; SVG fallback; offline coverage |
+| Graph inspection | Hidden from UI | Rendering and diagnostic API retained; earlier PNG/SVG offline coverage |
 | Async page navigation | Implemented | Background Future, exact-once session integration; browser QA pending |
-| JavaScript/Tailwind UI | Implemented | React itinerary/chat/graph, FastAPI session adapter, optional credited photos; browser QA pending |
+| JavaScript/Tailwind UI | Implemented | React itinerary/chat/saved tours, FastAPI session adapter, optional credited photos; graph view hidden; browser QA pending |
 | Configurable model provider | Passed on host and Compose app | Active mixed routing and an HTTP Compose-app Hue plan committed with OpenAI `gpt-5.5` Coordinator and Ollama `qwen2.5:3b` Planner/Chat |
 | No-local API defaults | Historical Compose verification | Earlier container resolved to OpenAI `gpt-5.5` / `gpt-5.4-mini` / `gpt-4.1`; root and graph image returned HTTP 200 |
 | Current Planner OpenAI default | Local app verified | `gpt-6.1-terra` with 60-second per-call timeout and JSON Schema URL validation; live full graph turn committed four sourced Huế entries in 41.3 seconds; 113 tests passed; app healthy, root/graph HTTP 200 |
@@ -40,12 +40,78 @@ background only.
 | Model-name configuration | Environment-only identifiers | Runtime source contains no model identifiers; Coordinator, Planner, Chat, Ollama fallback and JSON-schema model selection load environment values and reject missing required names |
 | Agent latency/token optimization | Prompt payloads reduced; offline tests passed | Planner now sends one chronological plan projection without duplicated source records/request text; Chat receives visible schedule and summary instead of full plan JSON. End-to-end latency and provider token usage have not been benchmarked |
 | Turn and session capacity | Offline verified; running app image unchanged | At most eight queued/running turns and 1,024 retained sessions per process; idle sessions expire after one hour, including uncollected completed turns. HTTP returns 429/503 without changing the rejected session. 15 focused and 122 full sandboxed tests passed |
+| Saved tours | PostgreSQL Compose app healthy; browser QA pending | SQLite source backed up and one tour copied exactly to PostgreSQL; DB and app survived container recreation; root 200, session creation 201, PostgreSQL integration test passed |
+| Large saved-tour archive | PostgreSQL 2M-row isolated benchmark passed | Owner/time/ID index and keyset pages; 10-sample page 1 p50/p95 0.729/13.898 ms, page 20,000 0.373/21.557 ms; tiny synthetic snapshots, no concurrent traffic |
+| Pre-push security review | Focused source review and regression passed | Session and saved-tour owner cookies default to Secure; Compose forces Secure; local data excluded from Git and Docker context; isolated full suite 132 passed, 1 skipped |
 
 Planning progress is not implementation progress. Only executable artifacts and
 actual checks count as completion evidence.
 
 ## Done
 
+- Reviewed the pending changes and adjacent cookie, database and owner-scope
+  boundaries before push. The review found that TLS proxy requests could issue
+  non-Secure session and saved-tour owner cookies. Both cookies now default to
+  Secure, and Compose forces Secure independently of client Host headers.
+  Explicit opt-out permits direct local HTTP development. A focused
+  response-header regression passed. The full suite in a network-disabled,
+  read-only container passed 132 cases with one optional PostgreSQL test
+  skipped; isort, Black, flake8 and Ruff passed there. `.local/`, `.env` and
+  generated `graphify-out/` are excluded from Git, and local data is excluded
+  from Docker build context. This was a focused review, not a full codebase
+  audit. The explicit 36-file staging set passed path and secret-pattern scans;
+  no local database, dump, environment file or key is staged. The currently
+  running app image predates the cookie fix.
+- Ran a disposable PostgreSQL Compose benchmark with 2,000,000 synthetic saved
+  tours under one owner. The indexed first and 20,000th pages had p50/p95
+  0.729/13.898 ms and 0.373/21.557 ms over ten reads; save and delete had
+  p50/p95 0.155/1.194 ms and 0.136/0.523 ms. The database occupied
+  1,415,034,547 bytes, including a 341,360,640-byte list index. Tiny snapshots,
+  no concurrent traffic and the disposable environment limit extrapolation.
+  The isolated Compose project and volume were removed.
+- Added a PostgreSQL 17 database container under Compose for explicitly saved
+  tours. The service uses a named volume, a health check and no host port; the
+  app waits for it. A read-only SQLite migration preserved the existing tour
+  and exact snapshot text. Migration rerun was idempotent. Database and app
+  container recreation retained the row; both are healthy and HTTP root 200,
+  session creation 201. An isolated PostgreSQL integration test and migration
+  smoke passed. The full host and Docker test-target suites passed 131 cases
+  with the PostgreSQL test skipped by default. A PostgreSQL dump was created
+  and validated; the old SQLite volume and pre-cutover backup remain. ADR 0015
+  records the engine change. Browser/live-provider checks were not run.
+- Rebuilt the runtime image and recreated the app container on 2026-11-01.
+  Startup first failed because the existing SQLite volume contained a populated
+  v1 archive. A SQLite backup at `.local/backups/saved_tours_pre_v2_2026-11-01.sqlite`
+  passed integrity check with one row. The explicit migration installed schema
+  v2; the app reached healthy status, root returned HTTP 200, session creation
+  returned 201, and the database retained one row with integrity `ok`. The
+  Compose test image also rebuilt; its 131-test layer was cached from the prior
+  passing run. Recreating the app cleared session-only plans and conversations.
+- Hid Show Graph from React navigation and moved the Streamlit graph page
+  outside its auto-discovered `pages` directory. Read-only graph rendering and
+  HTTP diagnostic endpoints remain available. The focused graph tests passed
+  4/4; the 131-test host suite, frontend typecheck/build and Python quality
+  gates passed. Browser QA and running-container checks were not run.
+
+- Scaled the saved-tour list for multi-million-row archives with a composite
+  owner/time/ID index and bounded keyset pages. Existing populated databases
+  require an explicit, atomic index migration after backup; the command ships
+  in the runtime image. Nine focused and 131 full host/container tests passed,
+  as did frontend and Python gates. A temporary 2M-row database measured
+  sub-millisecond p50 for the first and 20,000th list pages, with synthetic
+  small snapshots and no concurrent traffic. An isolated Compose smoke passed
+  and its project and volume were removed. ADR 0014 and the implementation
+  plan record the design and limits; browser QA remains pending.
+- Added a SQLite archive for tours the user explicitly saves. It stores an
+  immutable validated-plan snapshot with source references and identifies the
+  browser owner through a separate long-lived HttpOnly cookie; live plan and
+  chat remain session-only. React can save, list, inspect and delete snapshots.
+  Six focused and 128 full offline host tests passed, along with frontend
+  typecheck/build, Python quality gates, Compose config and diff checks. The
+  Docker test stage passed 128 tests after receiving synthetic test-only model
+  names. An isolated Compose app retained a sourced fixture tour through a
+  container recreation on its named volume. ADR 0014 records the decision;
+  browser QA remains pending and the original app retains its older image.
 - Bounded the shared background turn queue to eight running/queued turns per
   process and the HTTP session store to 1,024 entries with one-hour idle
   expiry. Reset replaces the old session atomically. A completed Future
@@ -381,14 +447,15 @@ actual checks count as completion evidence.
 
 ## Now
 
-1. Manually verify the JavaScript UI at phone and desktop widths, including
+1. Check the saved-tour save/list/delete flow in a browser on the new image.
+2. Manually verify the JavaScript UI at phone and desktop widths, including
    chat → graph → chat during a pending turn. A browser was unavailable for this
    implementation check.
-2. Label sources from representative live plans and measure relevance, place
+3. Label sources from representative live plans and measure relevance, place
    coverage and host diversity before a broad demo.
-3. Exercise additional live edit intents, especially reorder and replace, with
+4. Exercise additional live edit intents, especially reorder and replace, with
    separate evidence from the offline gate.
-4. Evaluate Chat answer accuracy and live source relevance across more than
+5. Evaluate Chat answer accuracy and live source relevance across more than
    one factual question; the current live smoke verifies plumbing only.
 
 ## Next

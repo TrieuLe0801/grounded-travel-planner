@@ -1,7 +1,7 @@
 # Project Charter
 
 Status: Active
-Last updated: 2026-10-27
+Last updated: 2026-11-01
 
 ## Product
 
@@ -20,12 +20,19 @@ data retain their original text; internal intent codes, source evidence and
 validation rules remain language-independent.
 
 The itinerary also presents source-attributed place photos when available;
-missing imagery leaves the text itinerary usable. A separate read-only page
-shows an image of the compiled LangGraph architecture.
+missing imagery leaves the text itinerary usable. The compiled LangGraph
+diagram remains available to developers through the graph API, but its
+inspection page is hidden from the user interface.
 
 The current interface uses JavaScript and Tailwind on the same origin as a thin
 Python HTTP adapter. The earlier Streamlit interface remains available during
 migration; the Coordinator/Planner/Chat runtime and validation rules are shared.
+
+The user can explicitly save a validated current tour and later review that
+snapshot from the same browser. Saved tours use a separate database and owner
+credential; they are read-only records of the plan and sources at save time.
+An application commit alone does not save a tour. The live itinerary and chat
+still belong to the current session.
 
 ## Runtime Scope
 
@@ -53,8 +60,9 @@ for Coordinator, `gpt-6.1-terra` for Planner and `gpt-4.1` for Chat. The default
 OpenAI API call fails, the same role tries the configured local Ollama fallback
 model once. This path requires a reachable local server and installed model;
 failure leaves the prior plan intact. A role explicitly assigned to Ollama
-never falls back to OpenAI. The webapp keeps only
-session-local state. It does not use LangSmith traces as state storage.
+never falls back to OpenAI. The webapp keeps the live itinerary and
+conversation in session-local state. Only user-approved saved tour snapshots
+use durable storage. It does not use LangSmith traces as state storage.
 
 The webapp keeps the canonical plan, at most 12 conversation messages and a
 rolling summary of at most 1,200 characters in session-only state. Coordinator
@@ -96,10 +104,15 @@ integrates its result exactly once when the chat page polls or is reopened.
 - Keep provider secrets out of model prompts, traces, logs and tracked files.
 - Visual enrichment never changes or blocks the validated current plan. Do not
   invent photos; show image creator, license and source-page credit.
+- Only an explicit save action on a validated canonical plan creates a saved
+  tour. Archive reads do not run agents/search or mutate the live plan. Every
+  archive operation is scoped to the browser owner credential.
 
 ## Non-Goals
 
-- Persistent user accounts or database storage.
+- Persistent user accounts, cross-device saved tours, search-history storage,
+  and restoration of archived tours into an editable session. PostgreSQL
+  storage for explicitly saved tour snapshots is in scope under ADR 0015.
 - More runtime travel-specialist agents before this three-role vertical slice is
   executable and verified.
 - Offline fixture claims represented as live sourced recommendations.

@@ -26,8 +26,7 @@ PAGE_PATH = (
     / "src"
     / "grounded_travel_planner"
     / "ui"
-    / "pages"
-    / "2_Graph_Architecture.py"
+    / "graph_architecture.py"
 )
 
 

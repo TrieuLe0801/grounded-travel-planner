@@ -6,7 +6,7 @@ three-week POC documents are historical background.
 
 ## Current progress
 
-- Scope-reset charter, implementation plan and ADR 0004/0009/0011/0012/0013 exist.
+- Scope-reset charter, implementation plan and ADR 0004/0009/0011/0012/0013/0014 exist.
 - Core runtime has three roles: `Coordinator`, `Planner` and `Chat`.
 - `GTP_MODEL_PROVIDER` selects the global `openai` (default) or local `ollama`
   provider. `GTP_COORDINATOR_PROVIDER`, `GTP_PLANNER_PROVIDER` and
@@ -19,6 +19,11 @@ three-week POC documents are historical background.
   The server keeps the canonical plan, up to 12 conversation messages and a
   rolling summary in an opaque in-memory browser session. The Streamlit
   implementation remains available during migration.
+- The React interface can save a validated tour only when the user chooses
+  **Save tour**. PostgreSQL stores an immutable snapshot with its source
+  references on a persistent Compose volume. Saved tours can be viewed and
+  deleted from the same browser after the live session ends; the live plan and
+  chat are not restored from the database.
 - Deterministic tests use fakes and never call live services.
 - Coordinator receives a bounded recent-history slice and summarizes context;
   Planner and Chat receive the summary instead of the raw transcript.
@@ -28,13 +33,49 @@ three-week POC documents are historical background.
   Planner. Search attempts appear as `tool.tavily.*` LangSmith events.
 - Chat edits are covered by nine versioned offline cases, a successful/rejected
   Streamlit AppTest sequence and a separate live create-then-remove smoke.
-- Planning turns run in a bounded background pool, remain owned by the browser
-  session and continue while the user opens the read-only graph view.
+- Planning turns run in a bounded background pool and remain owned by the
+  browser session while the user views the itinerary or saved tours.
 - The React app and Streamlit fallback support Vietnamese (default) and English.
   The locale stays in the session, and a pending turn keeps the language chosen
   when it was submitted.
 
 See `PROJECT_STATUS.md` for the current Done / Now / Next / Blockers view.
+
+## Saved tours
+
+After a plan is validated, choose **Lưu tour / Save tour**. The saved-tour view
+shows the snapshot and its sources as they were when saved. Reopening it does
+not recheck opening hours or other current facts. The list is paginated and
+each saved record can be deleted.
+
+The archive list uses a bounded 50-record page and a continuation cursor.
+Compose runs PostgreSQL 17 in a separate `db` container. Its named
+`postgres-data` volume retains saved tours when the app or database container
+is recreated. The database port is available only inside the Compose network.
+Set `GTP_SAVED_TOURS_POSTGRES_PASSWORD` in the ignored `.env` before starting
+Compose. Back up PostgreSQL regularly; a named volume does not protect against
+host loss.
+
+To move an existing SQLite Compose archive, stop the app, back up the SQLite
+volume, start `db`, and run
+`docker compose --profile migrate-saved-tours run --rm migrate-saved-tours`.
+The migration reads the old `saved-tours-data` volume without modifying it,
+copies records in batches, and checks exact metadata and snapshot text. It is
+safe to rerun. Build and start the app after migration succeeds. Keep the old
+volume for rollback; do not use `docker compose down -v` during this process.
+For a PostgreSQL backup, run
+`mkdir -p .local/backups` and then
+`docker compose exec -T db pg_dump -U travel_planner -d travel_planner --format=custom > .local/backups/saved_tours.dump`
+and store the dump securely outside the host.
+
+The archive uses a separate 365-day HttpOnly browser owner cookie. It has no
+account or cross-device recovery: clearing that cookie loses access to the
+archive. Losing a live session does not delete its saved tours. For local runs
+outside Compose, `GTP_SAVED_TOURS_DB_PATH` still defaults to the ignored
+`.local/saved_tours.sqlite`. Session and owner cookies default to `Secure`;
+Compose forces this setting for HTTPS proxies. For direct local HTTP only,
+set `GTP_SAVED_TOURS_COOKIE_SECURE=false` outside Compose. Keep it enabled
+when sharing the app.
 
 ## Active product
 
@@ -301,18 +342,16 @@ leaves the text itinerary intact. The first 12 stops are enriched to bound
 public-API calls. The route map and car interaction were removed at the user's
 request; ADR 0006 records the change.
 
-Use **Xem graph** in the JavaScript UI to inspect the compiled workflow as the
-PNG returned by `TravelPlannerService.get_graph_image()`. The image scales to
-the graph panel without horizontal overflow; an SVG fallback is shown if PNG
-rendering is unavailable. The retained Streamlit graph page has the same
-PNG-first behavior.
+The graph inspection page is hidden from the user interface. Developers can
+still inspect the compiled workflow through the read-only `/api/graph/image`
+and `/api/graph` endpoints. The rendering code remains available for diagnostics.
 
 ## Background chat turns
 
 Creating or editing a plan submits one background turn for the current session.
 The JavaScript interface opens chat from the floating button in the lower-right
 corner; the panel shows a waiting state and disables competing mutations. The
-user can visit the graph view while the turn continues. The canonical plan changes
+user can continue viewing the itinerary while the turn runs. The canonical plan changes
 only after a committed response. This mechanism is session-only and does not
 survive a server process restart.
 

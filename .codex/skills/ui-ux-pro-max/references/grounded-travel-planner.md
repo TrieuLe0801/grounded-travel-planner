@@ -16,12 +16,11 @@ migration.
 - The itinerary shows source-backed place photos with attribution when available.
   Do not add a route map, vehicle animation or map-based click interaction: the
   user removed that experience.
-- The graph page is read-only. Render the PNG returned by `get_graph_image()`;
-  use the existing SVG endpoint only as a presentation fallback. Loading this
-  page must not start a planning turn.
-- Keep the floating chat available across itinerary and graph views. A pending
-  session turn may continue through navigation, but the UI must show its pending
-  state and integrate its result exactly once when available.
+- The graph inspection page is hidden from product navigation. Keep its
+  rendering and diagnostic endpoints read-only.
+- Keep the floating chat available across itinerary and saved-tour views. A
+  pending session turn may continue through navigation, but the UI must show
+  its pending state and integrate its result exactly once when available.
 - Do not imply driving routes, verified opening hours or factual certainty that
   the runtime does not provide. Preserve estimated and unverified labels.
 

@@ -1,5 +1,135 @@
 # Learning Log - 2026-10-14 Scope Reset
 
+## User Decision — Security Gate Before Commit And Push — 2026-11-01
+
+- The user requested security review before commit and push, with no local data
+  or keys in the repository. The focused source review found that HTTP requests
+  forwarded by a TLS proxy could issue non-Secure session and saved-tour owner
+  cookies. Both cookies now default to Secure, and Compose forces Secure
+  independently of client Host headers. Direct local HTTP needs explicit
+  opt-out.
+- A new response-header regression and the full suite passed in a
+  network-disabled, read-only container: 132 passed, one optional PostgreSQL
+  integration test skipped. isort, Black, flake8 and Ruff passed in the same
+  environment. `.env`, `.local/` and generated `graphify-out/` are excluded
+  from Git; local data is excluded from Docker build context. The explicit
+  36-file staging set passed path and secret-pattern scans, with no local
+  database, dump, environment file or key staged. This focused review is not
+  a full codebase audit. The running app image predates the cookie fix.
+
+## User Decision — Database Container In Compose — 2026-11-01
+
+- The user requested a database container in Docker Compose. ADR 0015 moves
+  explicitly saved tours from embedded SQLite to a PostgreSQL 17 `db` service
+  with a named volume, health check and no published host port. The live plan,
+  transcript and pending turns remain session-only.
+- The app was stopped before copying the old SQLite volume. Its one saved row
+  was backed up to ignored
+  `.local/backups/saved_tours_pre_postgres_2026-11-01.sqlite`; the backup passed
+  SQLite integrity check. The read-only migration copied and verified all row
+  fields, including the exact snapshot text. A second run confirmed
+  idempotency. The old SQLite volume remains for rollback.
+- Both PostgreSQL and app containers are healthy. Root returned HTTP 200 and
+  session creation 201. PostgreSQL retained one row after both containers were
+  recreated. A custom-format PostgreSQL dump was created in ignored `.local`
+  backups and `pg_restore --list` accepted it. A PostgreSQL integration test
+  passed inside the Compose network; an isolated Compose smoke passed
+  migration, snapshot preservation, CRUD and owner isolation.
+- The full host and Docker test-target suites passed 131 cases with one
+  PostgreSQL test skipped by default. Python quality gates, lock and Compose
+  config passed. Browser and live-provider behavior were not checked. The
+  earlier two-million-row performance result belongs to SQLite. A new isolated
+  PostgreSQL Compose benchmark populated 2,000,000 tiny synthetic snapshots
+  under one owner. Ten samples gave first-page p50/p95 0.729/13.898 ms, page
+  20,000 0.373/21.557 ms, save 0.155/1.194 ms and delete 0.136/0.523 ms.
+  Database size was 1,415,034,547 bytes, with a 341,360,640-byte list index.
+  The temporary project and volume were removed; real snapshots and concurrent
+  traffic were not measured.
+
+## Compose Image And Container Restart — 2026-11-01
+
+- The user requested a fresh image and container run. The app container had
+  already exited because the mounted SQLite archive held one saved tour under
+  schema v1; startup correctly required explicit migration.
+- Backed up the archive with SQLite's backup API to ignored
+  `.local/backups/saved_tours_pre_v2_2026-11-01.sqlite`. The backup had one row
+  and passed `PRAGMA integrity_check`. Ran the v2 migration against the mounted
+  volume without deleting it. The archive still has one row, the composite
+  index, schema version 2 and integrity `ok`.
+- Rebuilt the runtime image and recreated the app. Compose reports healthy;
+  root returned HTTP 200 and session creation 201 on `127.0.0.1:8503`. The
+  Docker test image rebuilt with a cached 131-test layer from its earlier pass.
+  Recreating the app cleared live session-only state. Browser and live-provider
+  checks were not run.
+
+## User Decision — Hide Show Graph Page — 2026-11-01
+
+- Remove the graph entry from React navigation and Streamlit's discovered
+  pages. Retain graph rendering code and read-only API endpoints for developer
+  diagnostics; no itinerary or runtime graph behavior changes.
+- The graph tests passed 4/4, the full host suite passed 131/131, frontend
+  TypeScript check and production build passed, and all Python quality gates
+  passed. Browser and running container behavior were not checked.
+
+## User Decision — Scale Saved-Tour History Beyond Two Million Rows — 2026-11-01
+
+- The user requested optimized storage structure, retrieval and updates for a
+  history table that may exceed 2,000,000 rows. The current durable history is
+  `saved_tours`; search-history records are still a separate product proposal.
+  ADR 0014 now defines the saved-tour archive's large-table path.
+- Owner-scoped keyset pagination replaces `OFFSET`; a composite
+  `(owner_hash, saved_at DESC, id DESC)` index serves the list order. Metadata
+  list reads exclude the immutable snapshot, while detail loads one snapshot.
+  New databases create v2 directly; populated v1 databases require an explicit
+  atomic index migration after backup and a pause in writes. The app does not
+  rebuild a populated index at startup.
+- Nine saved-tour regressions and 131 full host tests passed. The Docker test
+  target passed 131 tests; Python quality gates, frontend typecheck/build and
+  Compose config passed. A temporary Compose app became healthy, returned root
+  200 and the empty cursor-list payload, rejected offset with 422, created v2
+  schema and ran the migration CLI. Its project and volume were removed.
+- A disposable 2,000,000-row benchmark used a tiny synthetic snapshot under
+  one owner: 1,313,050,624-byte database after checkpoint; list page 1
+  p50/p95 0.715/3.985 ms and page 20,000 0.667/1.465 ms over ten samples;
+  save 1.281/3.061 ms and delete 2.051/2.851 ms. These measurements do not
+  predict storage size or latency for real itinerary snapshots or concurrent
+  traffic. No browser QA or live-provider turn was run for this change.
+
+## User Decision — Database For Approved Tour Suggestions — 2026-10-31
+
+- The user chose a database for tour suggestions they explicitly approve to
+  save. ADR 0014 narrows durable storage to saved plan snapshots. Current plan,
+  transcript and pending work remain session-only; automatic commit does not
+  count as user approval.
+- The initial design uses SQLite with a persistent Compose volume and a
+  browser-bound owner credential. It enables review after live-session expiry
+  on that browser; account recovery, cross-device access, search-history
+  storage and restore-to-edit are not included in this decision.
+- Implementation adds owner-scoped, idempotent SQLite snapshots and read-only
+  React review with deletion and pagination. Six focused and 128 full offline
+  tests passed; isort, Black, flake8, Ruff, frontend typecheck/build, Compose
+  config and diff checks passed. The Docker test image initially lacked model
+  names for import-time runtime construction; adding synthetic test-only names
+  made all 128 container tests pass. An isolated Compose app passed health,
+  root/session HTTP and saved-tour list/detail checks. A synthetic sourced
+  snapshot remained available after force-recreating its container with the
+  same volume; the temporary project and volume were removed. Browser QA and
+  live-provider behavior for this feature remain unverified. The original app
+  retained its older running image and its in-memory sessions.
+
+## Search History And Saved Tours Research — 2026-10-31
+
+- The user requested research into retaining trip-search history and
+  user-accepted tour suggestions so they can revisit saved tours. This is a
+  research request, not yet a decision to add accounts or change the accepted
+  session-only runtime boundary.
+- `docs/proposals/2026-10-31-search-history-and-saved-tours.md` compares
+  browser, anonymous server and authenticated server storage. It recommends
+  separate structured search records and explicitly saved snapshots of
+  validated plans, with owner-scoped access and read-only review.
+- Identity scope, retention and restoration semantics remain product decisions.
+  No application persistence, UI or live-provider verification was performed.
+
 ## Deterministic Trip Shortening — 2026-10-27
 
 - The user reported that reducing trip duration returned the safe Planner
