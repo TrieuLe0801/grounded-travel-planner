@@ -13,8 +13,9 @@ source-backed itinerary and supports bounded chat edits.
   search for current facts without mutating the plan.
 - Deterministic validation for input, schedule, overlaps, opening hours and
   source provenance. Failed candidates preserve the current plan.
-- Session-only state, bounded background turns, Vietnamese by default and an
-  English option. Secrets are kept in ignored environment files.
+- Session-only live plan and chat, bounded background turns, Vietnamese by
+  default and an English option. Explicitly saved tours persist separately.
+  Secrets are kept in ignored environment files.
 - Optional source-attributed place photos and a read-only compiled graph view.
 
 See [PROJECT_STATUS.md](PROJECT_STATUS.md) for current progress and known
@@ -33,6 +34,7 @@ cp .env.example .env
 ```
 
 Fill the required provider credentials and model placeholders in `.env`, then
+set `GTP_SAVED_TOURS_COOKIE_SECURE=false` for this direct local HTTP setup and
 start the API:
 
 ```bash
@@ -81,6 +83,37 @@ docker compose --profile ollama up -d app
 ```
 
 Never commit `.env`, API keys, model credentials or provider responses.
+
+## Saved tours
+
+After a plan passes validation, choose **Lưu tour / Save tour** to store an
+immutable snapshot with its source references. The saved-tour view can list,
+inspect and delete snapshots without restoring or changing the live plan.
+Opening a snapshot does not recheck current facts.
+
+Compose stores saved tours in PostgreSQL 17 on the `postgres-data` volume.
+Set a unique `GTP_SAVED_TOURS_POSTGRES_PASSWORD` in the ignored `.env` before
+starting Compose. The database has no host port. Back up its volume separately;
+the volume alone does not protect against host loss. Local runs outside Compose
+use the SQLite path `GTP_SAVED_TOURS_DB_PATH` by default.
+
+The archive belongs to a browser through a separate 365-day HttpOnly owner
+cookie. Clearing that cookie loses access; there is no account or cross-device
+recovery. Both owner and session cookies default to `Secure`, and Compose forces
+that setting. For direct local HTTP only, set
+`GTP_SAVED_TOURS_COOKIE_SECURE=false` outside Compose.
+
+To move an existing SQLite Compose archive to PostgreSQL, stop the app, back up
+the SQLite volume, start `db`, then run:
+
+```bash
+docker compose --profile migrate-saved-tours run --rm migrate-saved-tours
+```
+
+The migration reads the SQLite volume without modifying it and can be rerun.
+Start the app after it succeeds. Keep the old volume for rollback; avoid
+`docker compose down -v` during migration. See [ADR 0015](docs/adr/0015-postgres-compose-saved-tour-storage.md)
+for the storage decision.
 
 ## Verification
 

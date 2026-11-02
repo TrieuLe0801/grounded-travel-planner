@@ -15,9 +15,13 @@ scope (Python/LangGraph, FastAPI, React/Tailwind, Compose or docs) without
 assuming every layer must change. Preserve the current decisions: Vietnamese
 default with session-selected English; turn-captured response language;
 read-only graph image via get_graph_image() with SVG fallback; no route map/car;
-session-owned one-pending-turn async flow; bounded session summary; explicit
-model providers; Planner-only plan proposals; and the shared bounded
-tavily_tool node.
+session-owned one-pending-turn async flow; bounded session summary; model
+identifiers selected from environment; one OpenAI-to-Ollama API-error fallback;
+Planner-only plan proposals; and the shared bounded tavily_tool node. Keep the
+live plan/session separate from explicitly saved, owner-scoped snapshots:
+PostgreSQL in Compose and SQLite for local fallback. Include migration and
+recovery effects when a storage change is in scope. Do not assume a currently
+running container includes undeployed source edits.
 
 Do not edit files, write tests or invent runtime roles. Do not recommend
 restoring source_place_mismatch or a discarded approach without a new user

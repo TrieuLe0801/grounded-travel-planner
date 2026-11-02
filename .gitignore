@@ -25,6 +25,8 @@ htmlcov/
 *.log
 .langgraph_api/
 .codex-log/
+.local/
+graphify-out/
 
 # Build artifacts
 build/

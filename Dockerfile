@@ -36,9 +36,16 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 FROM base AS test
 
+ENV GTP_COORDINATOR_MODEL=offline-coordinator \
+    GTP_PLANNER_MODEL=offline-planner \
+    GTP_CHAT_MODEL=offline-chat \
+    GTP_OLLAMA_FALLBACK_MODEL=offline-fallback
+
 COPY tests ./tests
 COPY data/eval ./data/eval
 COPY scripts/live_smoke.py ./scripts/live_smoke.py
+COPY scripts/migrate_saved_tours_index.py ./scripts/migrate_saved_tours_index.py
+COPY scripts/migrate_saved_tours_to_postgres.py ./scripts/migrate_saved_tours_to_postgres.py
 COPY .codex/hooks/format_python.py ./.codex/hooks/format_python.py
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-editable
@@ -48,6 +55,8 @@ RUN uv run --no-sync pytest
 FROM base AS runtime
 
 COPY --from=frontend /frontend/dist /app/frontend/dist
+COPY scripts/migrate_saved_tours_index.py /app/scripts/migrate_saved_tours_index.py
+COPY scripts/migrate_saved_tours_to_postgres.py /app/scripts/migrate_saved_tours_to_postgres.py
 
 RUN groupadd --gid 10001 app \
     && useradd --create-home --uid 10001 --gid app app

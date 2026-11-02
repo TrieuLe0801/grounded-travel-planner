@@ -12,6 +12,7 @@ Use this skill for a bounded assignment to the project `testing` development age
 1. Turn the assigned behavior and user corrections into observable pass/fail criteria. Record the source revision or dirty state, affected paths, fixture inputs, and relevant trust boundaries.
 2. Make a small coverage list of behavior × boundary × test surface. Include ordinary success, rejection/failure, and a cross-boundary case only when the changed behavior reaches that boundary. Mark each item `tested`, `blocked`, `deferred`, or `out_of_scope`, with its evidence or exact gap. Prior passing tests are context, not current coverage when the relevant source changed.
 3. Choose the narrowest useful check first. Add a regression test when it proves a missing behavioral contract. Keep automated tests deterministic and offline: mock model, Tavily, LangSmith, and other external providers. Run broader project gates only when relevant to the assignment.
+   For saved tours, use SQLite for offline tests and an isolated PostgreSQL service for integration. Verify explicit save, immutable snapshots, owner-scoped keyset reads and no live-plan mutation. For cookie changes, cover Secure defaults and explicit local HTTP opt-out. For capacity changes, exercise shared turn and session limits.
 4. Compare the observed output and state with the acceptance criteria. Inspect the actual command exit status and failure details; do not infer a pass from a test name, a green static check, or an earlier run.
 
 ## Security-sensitive agent behavior
@@ -23,5 +24,6 @@ Adapted from Cloudflare's [security-audit skill](https://github.com/cloudflare/s
 ## Evidence and handoff
 
 Report the exact commands and outcomes, tests added or changed, coverage and unrun checks, reproducible failures, and the relevant source/fixture paths. Distinguish static, offline, browser, container, and live-provider evidence. A security candidate is `confirmed` only when current source and a bounded local result establish the boundary failure; otherwise record the exact unresolved fact as `needs_validation` or the contrary evidence as `rejected`. Assign severity only to a confirmed security finding with demonstrated impact. Do not turn a blocked check into a pass.
+Check the running image before reporting a source change as deployed; app recreation clears in-memory sessions.
 
 Do not invoke live providers, deployed endpoints, paid APIs, or shared infrastructure as part of automated tests. Any separately authorized live check must use the agreed environment and be reported separately from offline results. Do not change application code unless the assignment includes a specific fix.

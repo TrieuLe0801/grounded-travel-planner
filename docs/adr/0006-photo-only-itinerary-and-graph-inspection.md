@@ -4,6 +4,11 @@ Status: Accepted
 Date: 2026-10-16
 Supersedes: ADR 0005
 
+User amendment, 2026-11-01: Hide the graph inspection page from the product UI.
+The React navigation no longer exposes it, and the Streamlit page source lives
+outside Streamlit's auto-discovered `pages` directory. Keep the compiled-graph
+rendering and HTTP diagnostic endpoints for developer inspection.
+
 ## Context
 
 The itinerary map and car marker introduced under ADR 0005 produced an

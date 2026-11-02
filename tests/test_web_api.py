@@ -187,8 +187,8 @@ def _create(client: TestClient, destination: str) -> dict[str, object]:
 def test_sessions_are_isolated_and_rejected_turn_keeps_prior_plan() -> None:
     service = FakeTravelPlannerService()
     app = create_app(service, FakeVisualService())
-    first = TestClient(app)
-    second = TestClient(app)
+    first = TestClient(app, base_url="https://localhost")
+    second = TestClient(app, base_url="https://localhost")
     _start(first)
     _start(second)
 
@@ -207,7 +207,9 @@ def test_sessions_are_isolated_and_rejected_turn_keeps_prior_plan() -> None:
 
 def test_pending_turn_rejects_competing_submission() -> None:
     service = FakeTravelPlannerService()
-    client = TestClient(create_app(service, FakeVisualService()))
+    client = TestClient(
+        create_app(service, FakeVisualService()), base_url="https://localhost"
+    )
     _start(client)
 
     assert client.post("/api/turns", json={"message": "block"}).status_code == 202
@@ -230,8 +232,8 @@ def test_global_turn_capacity_rejects_another_session_without_mutating_it() -> N
         FakeVisualService(),
         turn_runner=runner,
     )
-    first = TestClient(app)
-    second = TestClient(app)
+    first = TestClient(app, base_url="https://localhost")
+    second = TestClient(app, base_url="https://localhost")
     _start(first)
     _start(second)
 
@@ -300,7 +302,10 @@ def test_session_store_caps_idle_sessions_and_reset_replaces_its_predecessor() -
 def test_session_endpoint_returns_503_when_store_is_at_capacity() -> None:
     service = FakeTravelPlannerService()
     store = SessionStore(max_sessions=1)
-    client = TestClient(create_app(service, FakeVisualService(), session_store=store))
+    client = TestClient(
+        create_app(service, FakeVisualService(), session_store=store),
+        base_url="https://localhost",
+    )
 
     assert client.post("/api/session").status_code == 201
     exhausted = client.post("/api/session")
@@ -346,7 +351,9 @@ def test_idle_expiry_keeps_running_turn_but_releases_uncollected_completion() ->
 
 def test_api_bounds_conversation_summary_and_reset_session() -> None:
     service = FakeTravelPlannerService()
-    client = TestClient(create_app(service, FakeVisualService()))
+    client = TestClient(
+        create_app(service, FakeVisualService()), base_url="https://localhost"
+    )
     _start(client)
 
     for index in range(7):
@@ -373,7 +380,7 @@ def test_api_bounds_conversation_summary_and_reset_session() -> None:
 def test_visuals_require_current_revision_and_expose_attribution() -> None:
     service = FakeTravelPlannerService()
     visuals = FakeVisualService()
-    client = TestClient(create_app(service, visuals))
+    client = TestClient(create_app(service, visuals), base_url="https://localhost")
     _start(client)
     state = _create(client, "Hue")
     revision = state["plan"]["revision"]
@@ -407,7 +414,9 @@ def test_graph_endpoint_is_read_only(monkeypatch) -> None:
         "grounded_travel_planner.web.api.compiled_graph_svg",
         lambda graph: "<svg aria-label='offline graph'/>",
     )
-    client = TestClient(create_app(service, FakeVisualService()))
+    client = TestClient(
+        create_app(service, FakeVisualService()), base_url="https://localhost"
+    )
 
     response = client.get("/api/graph")
     assert response.status_code == 200
@@ -417,7 +426,9 @@ def test_graph_endpoint_is_read_only(monkeypatch) -> None:
 
 def test_graph_image_endpoint_returns_compiled_png_without_a_turn() -> None:
     service = FakeTravelPlannerService()
-    client = TestClient(create_app(service, FakeVisualService()))
+    client = TestClient(
+        create_app(service, FakeVisualService()), base_url="https://localhost"
+    )
 
     response = client.get("/api/graph/image")
 

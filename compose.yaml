@@ -1,6 +1,22 @@
 name: grounded-travel-planner
 
 services:
+  db:
+    image: postgres:17-bookworm
+    environment:
+      POSTGRES_DB: travel_planner
+      POSTGRES_USER: travel_planner
+      POSTGRES_PASSWORD: ${GTP_SAVED_TOURS_POSTGRES_PASSWORD:?Set GTP_SAVED_TOURS_POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    restart: "no"
+
   app:
     image: grounded-travel-planner:local
     build:
@@ -10,11 +26,38 @@ services:
       - .env
     environment:
       OLLAMA_BASE_URL: ${GTP_COMPOSE_OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      GTP_SAVED_TOURS_BACKEND: postgres
+      GTP_SAVED_TOURS_POSTGRES_HOST: db
+      GTP_SAVED_TOURS_POSTGRES_DATABASE: travel_planner
+      GTP_SAVED_TOURS_POSTGRES_USER: travel_planner
+      GTP_SAVED_TOURS_POSTGRES_PASSWORD: ${GTP_SAVED_TOURS_POSTGRES_PASSWORD:?Set GTP_SAVED_TOURS_POSTGRES_PASSWORD in .env}
+      GTP_SAVED_TOURS_COOKIE_SECURE: "true"
+    depends_on:
+      db:
+        condition: service_healthy
     init: true
     restart: "no"
     ports:
       - "127.0.0.1:${GTP_PORT:-8503}:8000"
     stop_grace_period: 10s
+
+  migrate-saved-tours:
+    image: grounded-travel-planner:local
+    profiles: ["migrate-saved-tours"]
+    environment:
+      GTP_SAVED_TOURS_BACKEND: postgres
+      GTP_SAVED_TOURS_POSTGRES_HOST: db
+      GTP_SAVED_TOURS_POSTGRES_DATABASE: travel_planner
+      GTP_SAVED_TOURS_POSTGRES_USER: travel_planner
+      GTP_SAVED_TOURS_POSTGRES_PASSWORD: ${GTP_SAVED_TOURS_POSTGRES_PASSWORD:?Set GTP_SAVED_TOURS_POSTGRES_PASSWORD in .env}
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - saved-tours-data:/legacy:ro
+    command:
+      ["python", "/app/scripts/migrate_saved_tours_to_postgres.py", "--sqlite", "/legacy/saved_tours.sqlite"]
+    restart: "no"
 
   ngrok:
     image: ngrok/ngrok:latest
@@ -56,3 +99,5 @@ services:
 
 volumes:
   ollama-models:
+  saved-tours-data:
+  postgres-data:

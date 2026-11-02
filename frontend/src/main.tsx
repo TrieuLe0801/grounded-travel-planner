@@ -22,9 +22,11 @@ import {
   Network,
   Plus,
   RotateCcw,
+  Save,
   Send,
   ShieldCheck,
   Sparkles,
+  Trash2,
   UserRound,
   X,
 } from "lucide-react";
@@ -88,7 +90,23 @@ type ApiState = {
     source_references?: Source[];
   }[];
 };
-type View = "itinerary" | "graph";
+type SavedTourSummary = {
+  id: string;
+  title: string;
+  destination: string;
+  start_date: string;
+  day_count: number;
+  revision: number;
+  saved_at: string;
+};
+type SavedTour = SavedTourSummary & { plan: Plan };
+type SavedTourPage = {
+  items: SavedTourSummary[];
+  has_more: boolean;
+  next_cursor: string | null;
+};
+type View = "itinerary" | "graph" | "saved";
+const savedToursPageSize = 50;
 const today = (() => {
   const date = new Date();
   const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
@@ -107,6 +125,7 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
     } | null;
     throw new Error(body?.detail || response.statusText);
   }
+  if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;
 }
 function FieldError({ message }: { message?: string }) {
@@ -190,22 +209,26 @@ function PlanView({
   visuals,
   loading,
   language,
+  statusLabel,
+  titleId = "itinerary-title",
 }: {
   plan: Plan;
   visuals: Record<string, Visual>;
   loading: boolean;
   language: Language;
+  statusLabel?: string;
+  titleId?: string;
 }) {
   const labels = text(language);
   const days = Array.from({ length: plan.day_count }, (_, index) => index + 1);
   return (
-    <section aria-labelledby="itinerary-title" className="rise mt-8">
+    <section aria-labelledby={titleId} className="rise mt-8">
       <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
         <div>
           <p className="text-sm font-semibold uppercase tracking-wider text-primary">
-            {labels.verified}
+            {statusLabel ?? labels.verified}
           </p>
-          <h2 id="itinerary-title" className="font-heading text-2xl font-bold">
+          <h2 id={titleId} className="font-heading text-2xl font-bold">
             {plan.destination}{" "}
             <span className="text-slate-500">· v{plan.revision}</span>
           </h2>
@@ -695,6 +718,153 @@ function ChatWidget({
   );
 }
 
+function SavedToursView({
+  tours,
+  selectedTour,
+  loading,
+  hasMore,
+  error,
+  loadingId,
+  deletingId,
+  onBack,
+  onSelect,
+  onDelete,
+  onLoadMore,
+  language,
+}: {
+  tours: SavedTourSummary[];
+  selectedTour: SavedTour | null;
+  loading: boolean;
+  hasMore: boolean;
+  error: string;
+  loadingId: string | null;
+  deletingId: string | null;
+  onBack: () => void;
+  onSelect: (id: string) => void;
+  onDelete: (tour: SavedTourSummary) => void;
+  onLoadMore: () => void;
+  language: Language;
+}) {
+  const labels = text(language);
+  const savedAt = (value: string) =>
+    new Intl.DateTimeFormat(language === "vi" ? "vi-VN" : "en", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    }).format(new Date(value));
+  return (
+    <section aria-labelledby="saved-tours-title" className="rise mt-8">
+      <button
+        type="button"
+        onClick={onBack}
+        className="inline-flex min-h-11 items-center gap-2 rounded-xl px-3 font-semibold text-slate-700 hover:bg-blue-100"
+      >
+        <ArrowLeft size={18} aria-hidden="true" />
+        {labels.back}
+      </button>
+      <div className="mt-4 grid gap-6 lg:grid-cols-[minmax(17rem,.7fr)_minmax(0,1.3fr)]">
+        <aside className="rounded-3xl border border-blue-100 bg-white p-5 shadow-sm sm:p-6">
+          <h1 id="saved-tours-title" className="font-heading text-2xl font-bold">
+            {labels.savedTours}
+          </h1>
+          <p className="mt-2 text-sm leading-6 text-slate-600">{labels.savedToursDescription}</p>
+          {loading && (
+            <p className="mt-5 inline-flex items-center gap-2 text-sm text-slate-600" role="status">
+              <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
+              {labels.savedToursLoading}
+            </p>
+          )}
+          {error && (
+            <p className="mt-5 rounded-xl bg-red-50 p-3 text-sm text-red-800" role="alert">
+              {error}
+            </p>
+          )}
+          {!loading && !error && tours.length === 0 && (
+            <p className="mt-5 rounded-xl bg-blue-50 p-4 text-sm leading-6 text-slate-700">
+              {labels.savedToursEmpty}
+            </p>
+          )}
+          <ul className="mt-5 space-y-3" aria-label={labels.savedTours}>
+            {tours.map((tour) => {
+              const selected = selectedTour?.id === tour.id;
+              return (
+                <li className="flex gap-2" key={tour.id}>
+                  <button
+                    type="button"
+                    onClick={() => onSelect(tour.id)}
+                    aria-current={selected ? "page" : undefined}
+                    aria-busy={loadingId === tour.id}
+                    className={`min-h-11 min-w-0 flex-1 rounded-xl border p-3 text-left transition ${selected ? "border-primary bg-blue-50" : "border-slate-200 hover:border-blue-300 hover:bg-blue-50/50"}`}
+                  >
+                    <span className="flex items-center gap-2 font-semibold text-slate-900">
+                      {tour.title}
+                      {loadingId === tour.id && (
+                        <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
+                      )}
+                    </span>
+                    <span className="mt-1 block text-sm text-slate-600">
+                      {tour.start_date} · {tour.day_count} {labels.dayUnit} · v{tour.revision}
+                    </span>
+                    <span className="mt-1 block text-xs text-slate-500">
+                      {labels.savedOn} {savedAt(tour.saved_at)}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onDelete(tour)}
+                    disabled={deletingId === tour.id}
+                    className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-xl text-slate-600 hover:bg-red-50 hover:text-red-800 disabled:cursor-not-allowed disabled:opacity-50"
+                    aria-label={`${labels.deleteSavedTour}: ${tour.title}`}
+                    title={labels.deleteSavedTour}
+                  >
+                    {deletingId === tour.id ? (
+                      <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
+                    ) : (
+                      <Trash2 className="size-4" aria-hidden="true" />
+                    )}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+          {hasMore && (
+            <button
+              type="button"
+              onClick={onLoadMore}
+              disabled={loading}
+              className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-blue-200 px-4 font-semibold text-primary transition hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {loading && <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />}
+              {loading ? labels.savedToursLoadingMore : labels.savedToursLoadMore}
+            </button>
+          )}
+        </aside>
+        <div className="min-w-0">
+          {selectedTour ? (
+            <>
+              <p className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950" role="note">
+                {labels.savedTourStale}
+              </p>
+              <PlanView
+                plan={selectedTour.plan}
+                visuals={{}}
+                loading={false}
+                language={language}
+                statusLabel={labels.savedTourSnapshot}
+                titleId="saved-tour-title"
+              />
+            </>
+          ) : (
+            <div className="rounded-3xl border border-dashed border-blue-200 bg-white/80 p-8 text-center text-slate-600">
+              <Save className="mx-auto mb-3 text-primary" aria-hidden="true" />
+              <p>{labels.savedToursSelect}</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function App() {
   const [state, setState] = useState<ApiState>({
     language: "vi",
@@ -719,6 +889,17 @@ function App() {
   const [graphImageUnavailable, setGraphImageUnavailable] = useState(false);
   const [graphFallbackLoading, setGraphFallbackLoading] = useState(false);
   const [graphError, setGraphError] = useState("");
+  const [savedTours, setSavedTours] = useState<SavedTourSummary[]>([]);
+  const [savedToursLoading, setSavedToursLoading] = useState(false);
+  const [savedToursHasMore, setSavedToursHasMore] = useState(false);
+  const [savedToursCursor, setSavedToursCursor] = useState<string | null>(null);
+  const savedToursRequest = useRef(0);
+  const [savedToursError, setSavedToursError] = useState("");
+  const [selectedSavedTour, setSelectedSavedTour] = useState<SavedTour | null>(null);
+  const [savedTourLoadingId, setSavedTourLoadingId] = useState<string | null>(null);
+  const [savedTourDeletingId, setSavedTourDeletingId] = useState<string | null>(null);
+  const [saveStatus, setSaveStatus] = useState("");
+  const [savingTour, setSavingTour] = useState(false);
   const labels = text(state.language);
   useEffect(() => {
     document.documentElement.lang = state.language;
@@ -807,6 +988,83 @@ function App() {
       setSubmitting(false);
     }
   };
+  const loadSavedTours = async (append = false) => {
+    if (append && (!savedToursCursor || savedToursLoading)) return;
+    const request = ++savedToursRequest.current;
+    const cursor = append ? `&cursor=${encodeURIComponent(savedToursCursor!)}` : "";
+    if (!append) {
+      setSavedToursCursor(null);
+      setSavedToursHasMore(false);
+    }
+    setSavedToursLoading(true);
+    setSavedToursError("");
+    try {
+      const result = await api<SavedTourPage>(
+        `/api/saved-tours?limit=${savedToursPageSize}${cursor}`,
+      );
+      if (request !== savedToursRequest.current) return;
+      setSavedTours((current) => append
+        ? [...current, ...result.items.filter((tour) => !current.some((item) => item.id === tour.id))]
+        : result.items);
+      if (!append) {
+        setSelectedSavedTour((selected) =>
+          selected && result.items.some((tour) => tour.id === selected.id) ? selected : null,
+        );
+      }
+      setSavedToursCursor(result.next_cursor);
+      setSavedToursHasMore(result.has_more && result.next_cursor !== null);
+    } catch {
+      if (request === savedToursRequest.current) setSavedToursError(labels.errorSavedTours);
+    } finally {
+      if (request === savedToursRequest.current) setSavedToursLoading(false);
+    }
+  };
+  const openSavedTours = () => {
+    setView("saved");
+    void loadSavedTours(false);
+  };
+  const selectSavedTour = async (id: string) => {
+    setSavedTourLoadingId(id);
+    setSavedToursError("");
+    try {
+      setSelectedSavedTour(await api<SavedTour>(`/api/saved-tours/${id}`));
+    } catch {
+      setSavedToursError(labels.errorSavedTours);
+    } finally {
+      setSavedTourLoadingId(null);
+    }
+  };
+  const saveTour = async () => {
+    if (!state.plan || state.pending || savingTour) return;
+    setSavingTour(true);
+    setSaveStatus("");
+    try {
+      const saved = await api<SavedTour>("/api/saved-tours", {
+        method: "POST",
+        body: JSON.stringify({}),
+      });
+      setSavedTours((tours) => [saved, ...tours.filter((tour) => tour.id !== saved.id)]);
+      setSaveStatus(labels.saveTourSuccess);
+    } catch {
+      setSaveStatus(labels.errorSaveTour);
+    } finally {
+      setSavingTour(false);
+    }
+  };
+  const deleteSavedTour = async (tour: SavedTourSummary) => {
+    if (!window.confirm(labels.confirmDeleteSavedTour)) return;
+    setSavedTourDeletingId(tour.id);
+    setSavedToursError("");
+    try {
+      await api<void>(`/api/saved-tours/${tour.id}`, { method: "DELETE" });
+      setSavedTours((tours) => tours.filter((item) => item.id !== tour.id));
+      if (selectedSavedTour?.id === tour.id) setSelectedSavedTour(null);
+    } catch {
+      setSavedToursError(labels.errorDeleteSavedTour);
+    } finally {
+      setSavedTourDeletingId(null);
+    }
+  };
   const makePlan = (event: FormEvent) => {
     event.preventDefault();
     const next: Record<string, string> = {};
@@ -826,7 +1084,6 @@ function App() {
       },
     });
   };
-  const openGraph = () => setView("graph");
   const graphImageFailed = () => {
     setGraphImageLoading(false);
     setGraphImageUnavailable(true);
@@ -908,12 +1165,12 @@ function App() {
             </div>
             <button
               type="button"
-              onClick={openGraph}
-              aria-label={labels.graph}
+              onClick={openSavedTours}
+              aria-label={labels.savedTours}
               className="inline-flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-slate-700 hover:bg-blue-50"
             >
-              <Network size={17} />
-              <span className="hidden sm:inline">{labels.graph}</span>
+              <Save size={17} aria-hidden="true" />
+              <span className="hidden sm:inline">{labels.savedTours}</span>
             </button>
             <button
               type="button"
@@ -939,6 +1196,21 @@ function App() {
             onImageLoad={() => setGraphImageLoading(false)}
             onImageError={graphImageFailed}
             onBack={() => setView("itinerary")}
+            language={state.language}
+          />
+        ) : view === "saved" ? (
+          <SavedToursView
+            tours={savedTours}
+            selectedTour={selectedSavedTour}
+            loading={savedToursLoading}
+            hasMore={savedToursHasMore}
+            error={savedToursError}
+            loadingId={savedTourLoadingId}
+            deletingId={savedTourDeletingId}
+            onBack={() => setView("itinerary")}
+            onSelect={(id) => void selectSavedTour(id)}
+            onDelete={(tour) => void deleteSavedTour(tour)}
+            onLoadMore={() => void loadSavedTours(true)}
             language={state.language}
           />
         ) : (
@@ -1052,12 +1324,38 @@ function App() {
             )}
             <TurnStatus response={state.response} />
             {state.plan ? (
-              <PlanView
-                plan={state.plan}
-                visuals={visuals}
-                loading={visualsLoading}
-                language={state.language}
-              />
+              <>
+                <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-blue-100 bg-white p-4 shadow-sm">
+                  <div>
+                    <p className="font-semibold text-slate-900">{labels.saveTour}</p>
+                    <p className="mt-1 text-sm text-slate-600">{labels.saveTourDescription}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void saveTour()}
+                    disabled={state.pending || savingTour}
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-primary px-4 font-bold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {savingTour ? (
+                      <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
+                    ) : (
+                      <Save className="size-4" aria-hidden="true" />
+                    )}
+                    {labels.saveTour}
+                  </button>
+                  {saveStatus && (
+                    <p className="w-full text-sm text-slate-700" role="status" aria-live="polite">
+                      {saveStatus}
+                    </p>
+                  )}
+                </div>
+                <PlanView
+                  plan={state.plan}
+                  visuals={visuals}
+                  loading={visualsLoading}
+                  language={state.language}
+                />
+              </>
             ) : (
               <section className="mt-8 rounded-3xl border border-dashed border-blue-200 bg-white/80 p-8 text-center text-slate-600">
                 <Compass className="mx-auto mb-3 text-primary" />
@@ -1088,7 +1386,7 @@ function App() {
       <footer className="mx-auto flex max-w-7xl flex-wrap gap-4 px-4 py-8 text-sm text-slate-500 sm:px-6">
         <span className="inline-flex items-center gap-1">
           <MapPin size={15} />
-          {labels.sessionOnly}
+          {labels.currentTripSessionOnly}
         </span>
         <span className="inline-flex items-center gap-1">
           <CalendarDays size={15} />

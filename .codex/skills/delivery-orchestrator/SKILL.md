@@ -34,15 +34,19 @@ question.
    travel-research specialist agents.
 4. The primary session integrates results, reviews changed files, preserves the
    charter's product invariants and explicit user corrections, and keeps
-   external providers behind typed interfaces. Do not revive rejected behavior
-   or silently broaden architecture/policy.
+   external providers behind typed interfaces. For storage work, distinguish
+   PostgreSQL Compose snapshots from session-only live state and local SQLite.
+   Check owner scope, explicit save, migration and recovery before claiming a
+   storage change complete. Do not revive rejected behavior or silently broaden
+   architecture/policy.
 5. Update durable docs only when a checklist item is actually complete and the
    required evidence exists.
 6. Run the narrowest relevant check first, then the full available checks from
    `AGENTS.md` when applicable. Do not run application, frontend, container,
    browser or live-provider checks for documentation/configuration-only work
-   unless the acceptance criteria require them. If checks are unavailable,
-   report `N/A`.
+   unless the acceptance criteria require them. For deployed behavior, check the
+   running image before citing source edits as live. Recreating the app clears
+   session-only state. If checks are unavailable, report `N/A`.
 7. If testing reports a specific failure, allow at most two
    coding-fix/testing-retest cycles. Stop after the second failed retest and
    report the remaining blocker.

@@ -1,5 +1,9 @@
 # Grounded Travel Planner — Codex Instructions
 
+Use the installed `caveman` skill at `full` level in Codex replies by default.
+Keep Vietnamese when the user writes Vietnamese. Preserve technical accuracy.
+Follow the user's request if they switch to normal style or disable caveman.
+
 ## Project boundary
 
 - The active product is the city/place sightseeing webapp defined in
@@ -31,7 +35,7 @@ Read these records in order:
   Planner and Chat request Tavily search through the shared `tavily_tool` graph
   node when needed. That node is the only runtime caller of the search provider.
   Coordinator defaults to `gpt-5.5`,
-  Planner defaults to `gpt-5.4-mini`, and Chat defaults to `gpt-4.1`.
+  Planner defaults to `gpt-6.1-terra`, and Chat defaults to `gpt-4.1`.
 - Implement schedule, input and source-reference checks in code.
 - Keep one canonical current plan, bounded transcript and rolling summary in
   session state. Coordinator receives at most eight recent messages (600
@@ -46,15 +50,18 @@ Read these records in order:
   language; new model-authored content follows the captured locale.
 - Trace all chat turns, agents, tools and validation through LangSmith. Propagate
   the same `thread_id` metadata to root and child runs in a session.
-- App conversation/trip state is session-only and isolated between users.
-  LangSmith traces are observability data and are not used to resume app state.
+- Live app conversation/trip state is session-only and isolated between users.
+  Explicitly saved, validated tour snapshots use an owner-scoped PostgreSQL
+  archive in Compose under ADR 0015; SQLite remains the local fallback under
+  ADR 0014. LangSmith traces are observability data and are not used to resume
+  app state.
 - A bounded background turn may continue across Streamlit page navigation, but
   its Future and result integration remain owned by the originating session.
   Only one turn may be in flight per session; workers never mutate Session State.
 - Typed provider interfaces keep model/search integration separate from UI.
 - The JavaScript/Tailwind frontend and thin Python HTTP adapter are the current
   UI under ADR 0008. Streamlit remains available during migration. Neither UI
-  duplicates domain logic or adds persistence.
+  duplicates domain logic; the HTTP adapter alone accesses saved-tour storage.
 
 ## Product invariants
 
@@ -75,6 +82,9 @@ Read these records in order:
   mutate the plan or trigger unnecessary research.
 - Keep language switching independent from itinerary validation and session
   plan/history state.
+- Persist a tour only after the user explicitly approves saving the current
+  validated plan. Saved snapshots preserve committed source data and remain
+  read-only; archive reads never invoke search or mutate the live plan.
 - Bound search calls, repairs and graph steps for every turn.
 - Keep secrets out of model inputs, traces, logs and tracked files.
 
@@ -110,3 +120,5 @@ Record the durable artifact and actual verification result. Planning progress,
 browser state and passing development-hook tests do not demonstrate a working
 travel-planner webapp. Application and live-trace acceptance is defined in the
 current charter and implementation plan.
+
+@RTK.md

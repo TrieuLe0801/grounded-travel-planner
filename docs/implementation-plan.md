@@ -1,7 +1,140 @@
 # Implementation Plan
 
 Status: Active
-Last updated: 2026-10-27
+Last updated: 2026-11-01
+
+## PostgreSQL Compose Storage — Deployed — 2026-11-01
+
+The user directed the database to run in its own Docker Compose container.
+ADR 0015 changes the saved-tour storage engine to PostgreSQL 17. The app waits
+for a healthy `db` service, uses a bounded connection pool and keeps the same
+owner-scoped, immutable save/list/detail/delete API. The PostgreSQL database
+has a named volume and no published host port. The local non-Compose SQLite
+backend remains available for deterministic offline tests.
+
+Before cutover, the app was stopped and the one-row SQLite archive was backed
+up to ignored `.local/backups/saved_tours_pre_postgres_2026-11-01.sqlite`.
+`scripts/migrate_saved_tours_to_postgres.py` read the old volume without
+writing it, copied the row and checked all fields including snapshot text.
+Rerunning the migration verified the same row without duplication. The app
+then started on PostgreSQL: both containers reached healthy status, root
+returned HTTP 200 and session creation returned 201. Recreating the database
+and app containers retained the row. A PostgreSQL custom-format dump was
+written to ignored `.local/backups/saved_tours_postgres_initial_2026-11-01.dump`
+and `pg_restore --list` accepted it.
+
+The full host and Docker test-target suites passed 131 cases with one
+PostgreSQL integration test skipped by default. The PostgreSQL test passed
+inside the Compose network. Isolated Compose smoke tested migration, exact
+snapshot retention, idempotent save, owner isolation, list/detail and delete.
+isort, Black, flake8, Ruff, lock, Compose config and diff checks passed. No
+live model/search or browser check was run. A separate disposable PostgreSQL
+Compose project populated 2,000,000 rows with tiny synthetic snapshots under
+one owner. Ten samples yielded first-page p50/p95 0.729/13.898 ms, page 20,000
+0.373/21.557 ms, save 0.155/1.194 ms and delete 0.136/0.523 ms. The database
+occupied 1,415,034,547 bytes, including a 341,360,640-byte list index. These
+figures do not predict real snapshot size or concurrent production latency.
+The benchmark project and volume were removed.
+
+## Current Compose Deployment — 2026-11-01
+
+At the user's request, rebuilt `grounded-travel-planner:local` and recreated
+the app container. The first start failed because the existing saved-tour
+volume had one row under schema v1. Before migration, a SQLite backup was
+written to the ignored `.local/backups/saved_tours_pre_v2_2026-11-01.sqlite`;
+its integrity check passed and it retained the one row. The explicit migration
+completed. The current app container is healthy on `127.0.0.1:8503`; root
+returned HTTP 200 and session creation returned 201. The mounted database is
+schema v2, has the composite index, retains one row and passes integrity check.
+The test image also rebuilt; its 131-test build layer was cached from the
+prior passing run. Recreating the app cleared live session-only state. Browser
+and live-provider checks were not run.
+
+## Hide Graph Inspection Page — 2026-11-01
+
+The graph inspection page is no longer presented in React navigation or
+Streamlit's auto-discovered pages. Compiled-graph rendering and the read-only
+HTTP image/SVG endpoints remain available for diagnostics. ADR 0006 records
+the user's updated UI decision.
+
+Verification: graph view tests passed 4/4; the full host suite passed 131/131.
+Frontend TypeScript check and production build passed, as did isort, Black,
+flake8, Ruff, JSON validation and `git diff --check`. Browser and running
+container behavior were not checked in this change.
+
+## Large Saved-Tour Archive — Offline And Compose Verified — 2026-11-01
+
+Acceptance:
+
+- Support more than two million explicitly saved tour records on the current
+  single-host SQLite deployment without scanning earlier pages for list reads.
+  Keep list responses owner-scoped, bounded to 50 metadata rows and ordered by
+  save time plus ID. Use an opaque continuation cursor and reject invalid or
+  obsolete offset parameters.
+- Match the owner filter and stable order with a composite index. Preserve the
+  unique save key, immutable plan snapshots, source references and owner-scoped
+  detail/delete behavior. Avoid a table scan during normal startup.
+- Migrate existing populated databases explicitly and atomically, preserving
+  all saved rows. Include the migration command in the runtime image and
+  document backup/write-pause requirements.
+- Test migration, query plan, pagination with tied timestamps and insertions,
+  malformed cursors and owner isolation. Measure a disposable two-million-row
+  archive and run host/container suites and an isolated Compose smoke.
+
+Evidence: `saved_tours.py` now uses `(saved_at, id)` keyset reads with
+`saved_tours_by_owner_saved_at_id`; `web/api.py` returns `next_cursor` and
+rejects offset requests. `scripts/migrate_saved_tours_index.py` upgrades a
+populated v1 archive explicitly. Nine focused and 131 full host tests passed;
+the Docker test target also passed all 131. isort, Black, flake8, Ruff,
+frontend typecheck/build, Compose config and diff checks passed. A disposable
+2,000,000-row benchmark took 15.22 seconds to populate and occupied
+1,313,050,624 bytes after checkpoint. Ten measured reads at page 1 yielded
+p50/p95 0.715/3.985 ms; page 20,000 yielded 0.667/1.465 ms. Ten saves yielded
+1.281/3.061 ms and deletes 2.051/2.851 ms. The fixture uses a tiny synthetic
+snapshot and all rows under one owner, so its bytes and timings are not
+production estimates. An isolated Compose project built the runtime image,
+became healthy, served root 200 and an empty cursor-list response, rejected
+offset with 422, created schema v2 and ran the migration CLI; that project and
+volume were removed. Browser QA and a full live-provider turn were not run.
+
+## Explicit Saved Tours — Offline And Compose Verified — 2026-10-31
+
+Acceptance:
+
+- Store a snapshot of a canonical validated plan in SQLite only when the user
+  explicitly chooses Save tour. Duplicate saves of one owner/plan/revision
+  return the existing record. A rejected candidate, ordinary chat or missing
+  plan must never create a saved tour.
+- Keep the live plan/transcript/summary/pending turn in the existing session.
+  Use a separate durable browser owner credential for saved tours. List,
+  inspect and delete only that owner's records, even after a new app session
+  or process restart with the same database and owner cookie.
+- Show saved records read-only with original citations, estimates, opening-hour
+  verification flags, save time and a stale-facts notice. Keep VI/EN UI labels.
+- Keep runtime graph and provider boundaries unchanged. No archive endpoint
+  calls a model, Tavily or LangSmith.
+- Verify offline with isolated SQLite test databases, full Python gates and
+  frontend typecheck/build. Verify the named volume across a Compose container
+  recreation before claiming storage persists across restarts.
+
+ADR 0014 changes the former database non-goal only for explicitly saved tour
+snapshots. Search-history persistence remains a research proposal rather than
+part of this implementation.
+
+Evidence: `src/grounded_travel_planner/saved_tours.py` and the FastAPI saved-tour
+endpoints implement SQLite snapshots, owner-scoped list/detail/delete and
+bounded pagination. React implements explicit save and read-only review.
+`tests/test_saved_tours.py` passed 6 cases; all 128 host tests, isort, Black,
+flake8, Ruff, `npm run check`, `npm run build`, Compose configuration and
+`git diff --check` passed. The Compose runtime image built. The Docker test
+stage initially failed collection because it lacked required model-name
+environment variables; synthetic test-only names fixed that and all 128
+container tests passed. An isolated Compose app was healthy, returned HTTP 200
+at `/` and 201 for session creation, and listed a synthetic saved tour after
+its container was force-recreated with the same named volume. Its detail still
+contained the fixture source. The isolated project and volume were removed;
+the original app was left running on its older image. No browser QA or live
+provider turn was run for this feature.
 
 ## Deterministic Trip Shortening — Offline Verified — 2026-10-27
 

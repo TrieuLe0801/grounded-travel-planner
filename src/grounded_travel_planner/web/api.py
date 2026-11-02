@@ -3,15 +3,16 @@
 from __future__ import annotations
 
 import os
+import secrets
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from threading import Lock
 from time import monotonic
-from typing import Literal
+from typing import Literal, Protocol
 from uuid import uuid4
 
-from fastapi import Cookie, FastAPI, HTTPException, Query, Response
+from fastapi import Cookie, FastAPI, HTTPException, Query, Request, Response
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -27,6 +28,14 @@ from grounded_travel_planner.conversation import (
     MAX_SESSION_SUMMARY,
 )
 from grounded_travel_planner.i18n import Language, localized, localized_issue_message
+from grounded_travel_planner.saved_tours import (
+    LIST_LIMIT,
+    InvalidSavedTourCursor,
+    SavedTour,
+    SavedTourError,
+    SavedTourPage,
+    SavedTourRepository,
+)
 from grounded_travel_planner.service import TravelPlannerService
 from grounded_travel_planner.ui.graph_diagram import compiled_graph_svg
 from grounded_travel_planner.ui.turn_runner import (
@@ -37,6 +46,11 @@ from grounded_travel_planner.ui.turn_runner import (
 from grounded_travel_planner.visuals import VisualEnrichmentService
 
 COOKIE_NAME = "gtp_session"
+SAVED_TOURS_OWNER_COOKIE_NAME = "gtp_saved_tours_owner"
+SAVED_TOURS_OWNER_MAX_AGE = 365 * 24 * 60 * 60
+DEFAULT_SAVED_TOURS_DATABASE_PATH = Path(
+    os.getenv("GTP_SAVED_TOURS_DB_PATH", Path.cwd() / ".local" / "saved_tours.sqlite")
+)
 DEFAULT_MAX_SESSIONS = 1024
 DEFAULT_SESSION_IDLE_SECONDS = 60 * 60
 FRONTEND_DIST = Path(
@@ -205,11 +219,60 @@ def _session_payload(
     }
 
 
+def _secure_cookie(request: Request) -> bool:
+    """Use Secure by default; allow explicit plain-HTTP local development."""
+
+    configured = os.getenv("GTP_SAVED_TOURS_COOKIE_SECURE", "true").casefold()
+    return (
+        request.url.scheme == "https"
+        or request.headers.get("x-forwarded-proto", "").casefold() == "https"
+        or configured not in {"0", "false", "no", "off"}
+    )
+
+
+class SavedTourStore(Protocol):
+    """Storage contract used by the HTTP adapter, regardless of database engine."""
+
+    def save(self, owner_token: str, plan: SightseeingPlan) -> SavedTour: ...
+
+    def list(
+        self, owner_token: str, *, cursor: str | None = None, limit: int = LIST_LIMIT
+    ) -> SavedTourPage: ...
+
+    def get(self, owner_token: str, tour_id: str) -> SavedTour | None: ...
+
+    def delete(self, owner_token: str, tour_id: str) -> bool: ...
+
+
+def _saved_tour_store_from_environment() -> SavedTourStore:
+    backend = os.getenv("GTP_SAVED_TOURS_BACKEND", "sqlite").casefold()
+    if backend == "sqlite":
+        return SavedTourRepository(DEFAULT_SAVED_TOURS_DATABASE_PATH)
+    if backend == "postgres":
+        from grounded_travel_planner.postgres_saved_tours import (
+            PostgresSavedTourRepository,
+        )
+
+        try:
+            port = int(os.getenv("GTP_SAVED_TOURS_POSTGRES_PORT", "5432"))
+        except ValueError as error:
+            raise SavedTourError("Invalid PostgreSQL saved-tour port.") from error
+        return PostgresSavedTourRepository(
+            host=os.getenv("GTP_SAVED_TOURS_POSTGRES_HOST", ""),
+            database=os.getenv("GTP_SAVED_TOURS_POSTGRES_DATABASE", ""),
+            user=os.getenv("GTP_SAVED_TOURS_POSTGRES_USER", ""),
+            password=os.getenv("GTP_SAVED_TOURS_POSTGRES_PASSWORD", ""),
+            port=port,
+        )
+    raise SavedTourError("Unsupported saved-tour backend.")
+
+
 def create_app(
     service: TravelPlannerService | None = None,
     visual_service: VisualEnrichmentService | None = None,
     turn_runner: TurnRunner | None = None,
     session_store: SessionStore | None = None,
+    saved_tour_repository: SavedTourStore | None = None,
 ) -> FastAPI:
     """Create an injectable app so endpoint tests need no live provider calls."""
 
@@ -217,6 +280,7 @@ def create_app(
     visuals = visual_service or VisualEnrichmentService.from_environment()
     runner = turn_runner or TurnRunner()
     sessions = session_store or SessionStore()
+    saved_tours = saved_tour_repository or _saved_tour_store_from_environment()
     app = FastAPI(title="Grounded Travel Planner", docs_url=None, redoc_url=None)
 
     def current_session(session_id: str | None) -> WebSession:
@@ -246,7 +310,7 @@ def create_app(
         return completed
 
     @app.post("/api/session", status_code=201)
-    def start_session(response: Response) -> dict[str, object]:
+    def start_session(response: Response, request: Request) -> dict[str, object]:
         try:
             session_id, session = sessions.create(planner_service)
         except SessionCapacityExceeded as error:
@@ -259,14 +323,16 @@ def create_app(
             session_id,
             httponly=True,
             samesite="lax",
-            secure=False,
+            secure=_secure_cookie(request),
             path="/",
         )
         return {**_session_payload(session, None), "thread_id": session.thread_id}
 
     @app.post("/api/session/reset")
     def reset_session(
-        response: Response, gtp_session: str | None = Cookie(default=None)
+        response: Response,
+        request: Request,
+        gtp_session: str | None = Cookie(default=None),
     ) -> dict[str, object]:
         try:
             session_id, session = sessions.replace(gtp_session, planner_service)
@@ -276,7 +342,12 @@ def create_app(
                 detail=localized("session_capacity_exhausted", "vi"),
             ) from error
         response.set_cookie(
-            COOKIE_NAME, session_id, httponly=True, samesite="lax", path="/"
+            COOKIE_NAME,
+            session_id,
+            httponly=True,
+            samesite="lax",
+            secure=_secure_cookie(request),
+            path="/",
         )
         return {**_session_payload(session, None), "thread_id": session.thread_id}
 
@@ -387,6 +458,111 @@ def create_app(
                 for entry_id, visual in resolved.items()
             },
         }
+
+    @app.get("/api/saved-tours")
+    def list_saved_tours(
+        request: Request,
+        cursor: str | None = Query(default=None, max_length=512),
+        limit: int = Query(default=LIST_LIMIT, ge=1, le=LIST_LIMIT),
+        gtp_saved_tours_owner: str | None = Cookie(default=None),
+    ) -> dict[str, object]:
+        """List only snapshots belonging to the durable browser owner cookie."""
+
+        try:
+            if "offset" in request.query_params:
+                raise InvalidSavedTourCursor("Offset pagination is not supported.")
+            if cursor is not None:
+                SavedTourRepository.decode_cursor(cursor)
+            if not gtp_saved_tours_owner:
+                return {"items": [], "has_more": False, "next_cursor": None}
+            page = saved_tours.list(gtp_saved_tours_owner, cursor=cursor, limit=limit)
+        except InvalidSavedTourCursor as error:
+            raise HTTPException(
+                status_code=422, detail="Cursor không hợp lệ."
+            ) from error
+        except SavedTourError as error:
+            raise HTTPException(
+                status_code=503, detail="Không thể tải tour đã lưu lúc này."
+            ) from error
+        return {
+            "items": [item.payload() for item in page.items],
+            "has_more": page.has_more,
+            "next_cursor": page.next_cursor,
+        }
+
+    @app.post("/api/saved-tours")
+    def save_current_tour(
+        response: Response,
+        request: Request,
+        gtp_session: str | None = Cookie(default=None),
+        gtp_saved_tours_owner: str | None = Cookie(default=None),
+    ) -> dict[str, object]:
+        """Persist the current accepted plan only after an explicit user action."""
+
+        session = current_session(gtp_session)
+        with session.lock:
+            if session.pending is not None:
+                raise HTTPException(
+                    status_code=409,
+                    detail=localized("turn_pending", session.language),
+                )
+            if session.current_plan is None:
+                raise HTTPException(
+                    status_code=409, detail="Chưa có lịch trình hợp lệ để lưu."
+                )
+            plan = session.current_plan.model_copy(deep=True)
+        owner_token = gtp_saved_tours_owner or secrets.token_urlsafe(32)
+        try:
+            saved_tour = saved_tours.save(owner_token, plan)
+        except SavedTourError as error:
+            raise HTTPException(
+                status_code=503, detail="Không thể lưu tour lúc này."
+            ) from error
+        if not gtp_saved_tours_owner:
+            response.set_cookie(
+                SAVED_TOURS_OWNER_COOKIE_NAME,
+                owner_token,
+                max_age=SAVED_TOURS_OWNER_MAX_AGE,
+                httponly=True,
+                samesite="lax",
+                secure=_secure_cookie(request),
+                path="/",
+            )
+        return saved_tour.payload()
+
+    @app.get("/api/saved-tours/{tour_id}")
+    def read_saved_tour(
+        tour_id: str,
+        gtp_saved_tours_owner: str | None = Cookie(default=None),
+    ) -> dict[str, object]:
+        if not gtp_saved_tours_owner:
+            raise HTTPException(status_code=404, detail="Không tìm thấy tour đã lưu.")
+        try:
+            saved_tour = saved_tours.get(gtp_saved_tours_owner, tour_id)
+        except SavedTourError as error:
+            raise HTTPException(
+                status_code=503, detail="Không thể đọc tour đã lưu lúc này."
+            ) from error
+        if saved_tour is None:
+            raise HTTPException(status_code=404, detail="Không tìm thấy tour đã lưu.")
+        return saved_tour.payload()
+
+    @app.delete("/api/saved-tours/{tour_id}", status_code=204)
+    def delete_saved_tour(
+        tour_id: str,
+        gtp_saved_tours_owner: str | None = Cookie(default=None),
+    ) -> Response:
+        if not gtp_saved_tours_owner:
+            raise HTTPException(status_code=404, detail="Không tìm thấy tour đã lưu.")
+        try:
+            deleted = saved_tours.delete(gtp_saved_tours_owner, tour_id)
+        except SavedTourError as error:
+            raise HTTPException(
+                status_code=503, detail="Không thể xóa tour đã lưu lúc này."
+            ) from error
+        if not deleted:
+            raise HTTPException(status_code=404, detail="Không tìm thấy tour đã lưu.")
+        return Response(status_code=204)
 
     if FRONTEND_DIST.is_dir():
         app.mount(
