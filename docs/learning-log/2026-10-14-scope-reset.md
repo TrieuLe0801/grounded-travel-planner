@@ -1,5 +1,18 @@
 # Learning Log - 2026-10-14 Scope Reset
 
+## User Decision — Auth0 For Account-Owned Saved Tours — 2026-11-02
+
+- The user selected Auth0 as the future OIDC identity service. Email OTP through
+  Auth0 Universal Login should let a verified first-time user enter without a
+  separate registration page. The existing PostgreSQL Compose archive remains
+  the tour store; account ownership will replace browser-cookie ownership after
+  a controlled migration. A Mac implementation plan is recorded in
+  `docs/proposals/2026-11-02-auth0-account-owned-saved-tours-plan.md`.
+- This is a planning decision only. No Auth0 tenant, application integration,
+  schema migration, cross-browser behavior, or live verification exists yet.
+  The currently accepted same-browser storage behavior remains deployed until
+  implementation updates the charter and ADRs.
+
 ## Branch Integration — 2026-11-02
 
 - Merged the 2026-11-01 Codex-tooling branch into the active feature branch.
