@@ -4,6 +4,8 @@ Status: Accepted
 Date: 2026-10-31
 Amended: 2026-11-01 for large saved-tour archives
 Storage engine superseded by ADR 0015 on 2026-11-01
+Browser-only ownership superseded for the next rollout by ADR 0016 on 2026-11-03.
+The current running app still uses the browser owner cookie.
 
 ## Context
 

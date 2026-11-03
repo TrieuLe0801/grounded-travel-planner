@@ -1,7 +1,34 @@
 # Implementation Plan
 
 Status: Active
-Last updated: 2026-11-01
+Last updated: 2026-11-03
+
+## Auth0 Account Ownership — Offline Verified; Rollout Pending — 2026-11-03
+
+ADR 0016 selects Auth0 Universal Login email OTP for account-owned saved
+tours. FastAPI now has a typed OIDC boundary, persistent SQLite/PostgreSQL
+account sessions, CSRF, and account-scoped archive routes. React offers
+sign-in, sign-out and legacy-tour claim actions. The explicit migration adds
+account ownership and auth tables without rewriting tour snapshots.
+
+The host suite, Python gates, frontend build and Compose config passed.
+The PostgreSQL migration ran twice against an isolated restore: all five
+snapshot IDs, timestamps and exact text retained their checksum. A separate
+repository process read and revoked a persisted test auth session. See
+`docs/experiments/2026-11-03-auth0-account-offline.md`.
+
+The running app and live database remain unchanged. Before rollout: configure
+the Auth0 development application and ignored `.env`, verify callback/logout
+URL and email OTP, decide the old-cookie claim window and account
+deletion/export policy, pause writes, migrate the backed-up live database,
+then perform A/B cross-browser and failure-path QA. Do not infer live Auth0
+behavior from mocked tests.
+
+Follow-up verification on 2026-11-04 added existing-session revocation on
+sign-in and serialized concurrent first-account creation. Host and container
+pytest now pass 146 tests with one optional PostgreSQL test skipped. An
+isolated PostgreSQL check mapped 16 concurrent logins to one account and
+verified session persistence, CSRF and revocation.
 
 ## PostgreSQL Host Data Directory — Deployed — 2026-11-01
 

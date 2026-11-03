@@ -46,6 +46,7 @@ COPY data/eval ./data/eval
 COPY scripts/live_smoke.py ./scripts/live_smoke.py
 COPY scripts/migrate_saved_tours_index.py ./scripts/migrate_saved_tours_index.py
 COPY scripts/migrate_saved_tours_to_postgres.py ./scripts/migrate_saved_tours_to_postgres.py
+COPY scripts/migrate_saved_tours_account_ownership.py ./scripts/migrate_saved_tours_account_ownership.py
 COPY .codex/hooks/format_python.py ./.codex/hooks/format_python.py
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-editable
@@ -57,6 +58,7 @@ FROM base AS runtime
 COPY --from=frontend /frontend/dist /app/frontend/dist
 COPY scripts/migrate_saved_tours_index.py /app/scripts/migrate_saved_tours_index.py
 COPY scripts/migrate_saved_tours_to_postgres.py /app/scripts/migrate_saved_tours_to_postgres.py
+COPY scripts/migrate_saved_tours_account_ownership.py /app/scripts/migrate_saved_tours_account_ownership.py
 
 RUN groupadd --gid 10001 app \
     && useradd --create-home --uid 10001 --gid app app

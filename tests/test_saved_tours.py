@@ -12,6 +12,11 @@ from threading import Event
 import pytest
 from fastapi.testclient import TestClient
 
+from grounded_travel_planner.auth import (
+    AUTH_COOKIE_NAME,
+    AuthRepository,
+    VerifiedIdentity,
+)
 from grounded_travel_planner.contracts import (
     AgentResponse,
     PlaceRecommendation,
@@ -24,7 +29,6 @@ from grounded_travel_planner.contracts import (
 from grounded_travel_planner.saved_tours import SavedTourRepository
 from grounded_travel_planner.web.api import (
     COOKIE_NAME,
-    SAVED_TOURS_OWNER_COOKIE_NAME,
     create_app,
 )
 
@@ -38,6 +42,7 @@ def _plan(destination: str) -> SightseeingPlan:
         retrieval_query=destination,
         supports_opening_hours=True,
     )
+
     return SightseeingPlan(
         plan_id=f"saved-plan-{destination.casefold()}",
         destination=destination,
@@ -61,6 +66,11 @@ def _plan(destination: str) -> SightseeingPlan:
         ],
         summary=f"Offline {destination} itinerary.",
     )
+
+
+@pytest.fixture(autouse=True)
+def _auth_secret(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("GTP_AUTH_SESSION_SECRET", "s" * 32)
 
 
 class FakeTravelPlannerService:
@@ -98,20 +108,57 @@ class FakeVisualService:
         return {}
 
 
+class FakeOidcProvider:
+    def __init__(self, subject: str) -> None:
+        self.identity = VerifiedIdentity(
+            issuer="https://tenant.example.test/",
+            subject=subject,
+            email=f"{subject}@example.test",
+        )
+        self.state = ""
+
+    def authorization_url(
+        self, *, state: str, nonce: str, code_verifier: str, redirect_uri: str
+    ) -> str:
+        self.state = state
+        return f"https://auth0.example.test/authorize?state={state}"
+
+    def verify_callback(
+        self, *, code: str, nonce: str, code_verifier: str, redirect_uri: str
+    ) -> VerifiedIdentity:
+        return self.identity
+
+
 def _client(
     database_path: Path,
     service: FakeTravelPlannerService,
     *,
     base_url: str = "https://localhost",
+    subject: str = "auth0|owner",
 ) -> TestClient:
-    return TestClient(
+    auth = AuthRepository(database_path.with_name(database_path.name + ".auth.sqlite"))
+    auth.migrate()
+    provider = FakeOidcProvider(subject)
+    client = TestClient(
         create_app(
             service,
             FakeVisualService(),
             saved_tour_repository=SavedTourRepository(database_path),
+            auth_provider=provider,
+            auth_repository=auth,
         ),
         base_url=base_url,
     )
+    started = client.get("/api/auth/login", follow_redirects=False)
+    assert started.status_code == 307
+    completed = client.get(
+        "/api/auth/callback",
+        params={"code": "offline-code", "state": provider.state},
+        follow_redirects=False,
+    )
+    assert completed.status_code == 303
+    client.headers["X-CSRF-Token"] = client.get("/api/auth/me").json()["csrf_token"]
+    return client
 
 
 def _start(client: TestClient) -> None:
@@ -147,10 +194,25 @@ def _migration_function():
     return module.migrate
 
 
+def _account_migration_function():
+    script = (
+        Path(__file__).parents[1]
+        / "scripts"
+        / "migrate_saved_tours_account_ownership.py"
+    )
+    specification = importlib.util.spec_from_file_location(
+        "saved_tours_account_migration", script
+    )
+    assert specification and specification.loader
+    module = importlib.util.module_from_spec(specification)
+    specification.loader.exec_module(module)
+    return module.migrate_sqlite
+
+
 def _insert_summaries(
     database_path: Path,
     repository: SavedTourRepository,
-    owner_token: str,
+    user_id: str,
     rows: list[tuple[str, str]],
 ) -> None:
     """Insert list-only fixtures with caller-selected ordering keys."""
@@ -159,14 +221,15 @@ def _insert_summaries(
         connection.executemany(
             """
             INSERT INTO saved_tours (
-                id, owner_hash, plan_id, revision, title, destination,
+                id, owner_hash, owner_user_id, plan_id, revision, title, destination,
                 start_date, day_count, saved_at, plan_snapshot
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             [
                 (
                     tour_id,
-                    repository.owner_hash(owner_token),
+                    repository.owner_hash(user_id),
+                    user_id,
                     f"fixture-plan-{tour_id}",
                     1,
                     "Fixture",
@@ -197,7 +260,7 @@ def test_explicit_save_snapshots_sources_is_idempotent_and_can_be_deleted(
         snapshot["plan"]["entries"][0]["place"]["source_references"]
         == plan["entries"][0]["place"]["source_references"]
     )
-    assert client.cookies.get(SAVED_TOURS_OWNER_COOKIE_NAME)
+    assert client.cookies.get(AUTH_COOKIE_NAME)
 
     repeated = client.post("/api/saved-tours")
     assert repeated.status_code == 200
@@ -254,10 +317,7 @@ def test_saved_tours_are_owner_scoped_and_survive_a_new_app_session(
     _start(owner)
     _commit_plan(owner, "Hue")
     saved = owner.post("/api/saved-tours").json()
-    owner_token = owner.cookies.get(SAVED_TOURS_OWNER_COOKIE_NAME)
-    assert owner_token
-
-    other = _client(database_path, FakeTravelPlannerService())
+    other = _client(database_path, FakeTravelPlannerService(), subject="auth0|other")
     _start(other)
     assert other.get("/api/saved-tours").json() == {
         "items": [],
@@ -267,9 +327,10 @@ def test_saved_tours_are_owner_scoped_and_survive_a_new_app_session(
     assert other.get(f"/api/saved-tours/{saved['id']}").status_code == 404
     assert other.delete(f"/api/saved-tours/{saved['id']}").status_code == 404
 
-    restarted = _client(database_path, FakeTravelPlannerService())
+    restarted = _client(
+        database_path, FakeTravelPlannerService(), subject="auth0|owner"
+    )
     _start(restarted)
-    restarted.cookies.set(SAVED_TOURS_OWNER_COOKIE_NAME, owner_token)
     assert restarted.get("/api/saved-tours").json()["items"][0]["id"] == saved["id"]
     assert restarted.get(f"/api/saved-tours/{saved['id']}").json() == saved
 
@@ -279,72 +340,42 @@ def test_saved_tours_use_stable_keyset_pages_across_duplicate_timestamps(
 ) -> None:
     database_path = tmp_path / "saved-tours.sqlite"
     repository = SavedTourRepository(database_path)
-    owner_token = "first-owner-token"
-    other_owner_token = "second-owner-token"
+    owner_user_id = "73c23464-bdea-4c45-a65e-966d948d0fd7"
     timestamp = "2026-11-01T12:00:00+00:00"
     saved_ids = [f"{index:032x}" for index in range(105)]
     _insert_summaries(
         database_path,
         repository,
-        owner_token,
+        owner_user_id,
         [(tour_id, timestamp) for tour_id in saved_ids],
     )
-    _insert_summaries(
-        database_path,
-        repository,
-        other_owner_token,
-        [("f" * 32, "2027-01-01T00:00:00+00:00")],
-    )
-
-    service = FakeTravelPlannerService()
-    client = TestClient(
-        create_app(
-            service,
-            FakeVisualService(),
-            saved_tour_repository=SavedTourRepository(database_path),
-        ),
-        base_url="https://localhost",
-    )
-    client.cookies.set(SAVED_TOURS_OWNER_COOKIE_NAME, owner_token)
-    first_page = client.get("/api/saved-tours?limit=50")
-
-    assert first_page.status_code == 200
-    first_payload = first_page.json()
-    assert first_payload["has_more"] is True
-    assert first_payload["next_cursor"]
+    first_page = repository.list_for_user(owner_user_id, limit=50)
+    assert first_page.has_more is True
+    assert first_page.next_cursor
 
     # A record inserted above the cursor must not move or duplicate older pages.
     _insert_summaries(
         database_path,
         repository,
-        owner_token,
+        owner_user_id,
         [("e" * 32, "2027-01-01T00:00:00+00:00")],
     )
-    second_page = client.get(
-        "/api/saved-tours",
-        params={"limit": 50, "cursor": first_payload["next_cursor"]},
+    second_page = repository.list_for_user(
+        owner_user_id, limit=50, cursor=first_page.next_cursor
     )
-    assert second_page.status_code == 200
-    second_payload = second_page.json()
-    assert len(first_payload["items"]) == 50
-    assert len(second_payload["items"]) == 50
-    assert second_payload["has_more"] is True
-    third_page = client.get(
-        "/api/saved-tours",
-        params={"cursor": second_payload["next_cursor"]},
+    assert len(first_page.items) == 50
+    assert len(second_page.items) == 50
+    assert second_page.has_more is True
+    third_page = repository.list_for_user(owner_user_id, cursor=second_page.next_cursor)
+    assert len(third_page.items) == 5
+    assert third_page.has_more is False
+    assert third_page.next_cursor is None
+    assert {item.id for item in first_page.items}.isdisjoint(
+        {item.id for item in second_page.items}
     )
-    assert third_page.status_code == 200
-    third_payload = third_page.json()
-    assert len(third_payload["items"]) == 5
-    assert third_payload["has_more"] is False
-    assert third_payload["next_cursor"] is None
-    assert {item["id"] for item in first_payload["items"]}.isdisjoint(
-        {item["id"] for item in second_payload["items"]}
-    )
-    assert {item["id"] for item in first_payload["items"]} | {
-        item["id"] for item in second_payload["items"]
-    } | {item["id"] for item in third_payload["items"]} == set(saved_ids)
-    assert service.turns == []
+    assert {item.id for item in first_page.items} | {
+        item.id for item in second_page.items
+    } | {item.id for item in third_page.items} == set(saved_ids)
 
 
 def test_saved_tour_cursor_rejects_malformed_and_offset_inputs(tmp_path: Path) -> None:
@@ -398,11 +429,13 @@ def test_migration_upgrades_legacy_index_without_changing_snapshot_rows(
         SavedTourRepository(database_path)
     _migration_function()(database_path)
     _migration_function()(database_path)
+    _account_migration_function()(database_path)
+    _account_migration_function()(database_path)
 
     repository = SavedTourRepository(database_path)
     assert repository.get("legacy-owner", "a" * 32).plan == plan
     with sqlite3.connect(database_path) as connection:
-        assert connection.execute("PRAGMA user_version").fetchone()[0] == 2
+        assert connection.execute("PRAGMA user_version").fetchone()[0] == 3
         index_names = {
             row[0]
             for row in connection.execute(
@@ -411,31 +444,32 @@ def test_migration_upgrades_legacy_index_without_changing_snapshot_rows(
         }
     assert "saved_tours_by_owner" not in index_names
     assert "saved_tours_by_owner_saved_at_id" in index_names
+    assert "saved_tours_by_user_saved_at_id" in index_names
 
 
 def test_keyset_query_uses_composite_index_without_temp_sort(tmp_path: Path) -> None:
     database_path = tmp_path / "saved-tours.sqlite"
-    repository = SavedTourRepository(database_path)
-    owner_hash = repository.owner_hash("plan-owner")
+    SavedTourRepository(database_path)
+    owner_user_id = "73c23464-bdea-4c45-a65e-966d948d0fd7"
     with sqlite3.connect(database_path) as connection:
         plan = connection.execute(
             """
             EXPLAIN QUERY PLAN
             SELECT id, title, destination, start_date, day_count, revision, saved_at
             FROM saved_tours
-            WHERE owner_hash = ?
+            WHERE owner_user_id = ?
               AND (saved_at, id) < (?, ?)
             ORDER BY saved_at DESC, id DESC LIMIT ?
             """,
             (
-                owner_hash,
+                owner_user_id,
                 "2026-11-01T12:00:00+00:00",
                 "f" * 32,
                 51,
             ),
         ).fetchall()
     details = "\n".join(str(row[3]).upper() for row in plan)
-    assert "SAVED_TOURS_BY_OWNER_SAVED_AT_ID" in details
+    assert "SAVED_TOURS_BY_USER_SAVED_AT_ID" in details
     assert "TEMP B-TREE" not in details
 
 
@@ -450,9 +484,8 @@ def test_saved_tour_owner_cookie_secure_attribute_follows_environment_override(
     )
     _start(local_client)
     _commit_plan(local_client)
-    local_save = local_client.post("/api/saved-tours")
-    assert local_save.status_code == 200
-    assert "; secure" not in local_save.headers["set-cookie"].casefold()
+    login = local_client.get("/api/auth/login", follow_redirects=False)
+    assert "; secure" not in login.headers["set-cookie"].casefold()
     forwarded = local_client.post(
         "/api/session", headers={"x-forwarded-proto": "https"}
     )
@@ -466,12 +499,11 @@ def test_saved_tour_owner_cookie_secure_attribute_follows_environment_override(
     )
     _start(secure_client)
     _commit_plan(secure_client)
-    secure_save = secure_client.post("/api/saved-tours")
-    assert secure_save.status_code == 200
-    assert "; secure" in secure_save.headers["set-cookie"].casefold()
+    login = secure_client.get("/api/auth/login", follow_redirects=False)
+    assert "; secure" in login.headers["set-cookie"].casefold()
 
 
-def test_public_http_proxy_marks_session_and_owner_cookies_secure(
+def test_public_http_proxy_marks_session_cookies_secure(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.delenv("GTP_SAVED_TOURS_COOKIE_SECURE", raising=False)
@@ -485,9 +517,12 @@ def test_public_http_proxy_marks_session_and_owner_cookies_secure(
     )
     started = client.post("/api/session")
     assert "; secure" in started.headers["set-cookie"].casefold()
-    loopback_host = _client(
-        tmp_path / "spoofed-host.sqlite",
-        FakeTravelPlannerService(),
+    loopback_host = TestClient(
+        create_app(
+            FakeTravelPlannerService(),
+            FakeVisualService(),
+            saved_tour_repository=SavedTourRepository(tmp_path / "spoofed-host.sqlite"),
+        ),
         base_url="http://localhost",
     )
     assert (
@@ -498,11 +533,6 @@ def test_public_http_proxy_marks_session_and_owner_cookies_secure(
     assert session_id is not None
     client.cookies.clear()
     client.cookies.set(COOKIE_NAME, session_id)
-    _commit_plan(client)
-    saved = client.post("/api/saved-tours")
-    assert saved.status_code == 200
-    assert "; secure" in saved.headers["set-cookie"].casefold()
-
     reset = client.post("/api/session/reset")
     assert reset.status_code == 200
     assert "; secure" in reset.headers["set-cookie"].casefold()

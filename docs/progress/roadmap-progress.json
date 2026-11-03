@@ -1,6 +1,6 @@
 {
-  "version": 71,
-  "updated": "2026-11-01T22:20:44+07:00",
+  "version": 72,
+  "updated": "2026-11-04T06:39:51+07:00",
   "active_scope": "city-place-sightseeing-webapp",
   "current_milestone": "Milestone 1: executable city/place sightseeing vertical slice",
   "completed": {
@@ -77,7 +77,10 @@
     "saved_tours_postgres_compose": true,
     "saved_tours_postgres_host_directory": true,
     "saved_tours_postgres_large_benchmark": true,
-    "security_pre_push_review": true
+    "security_pre_push_review": true,
+    "auth0_account_offline": true,
+    "auth0_account_live": false,
+    "auth0_account_deployed": false
   },
   "evidence": {
     "scope_reset_docs": [
@@ -660,7 +663,31 @@
       "tests/test_web_api.py: capacity, expiry including uncollected completed turns, reset and 503 regressions",
       "network-disabled read-only container: 15 focused and 122 full tests passed",
       "running Compose app retained its previous image and session-only plans"
+    ],
+    "auth0_account_offline": [
+      "docs/adr/0016-auth0-account-owned-saved-tours.md",
+      "src/grounded_travel_planner/auth.py",
+      "src/grounded_travel_planner/web/api.py",
+      "src/grounded_travel_planner/saved_tours.py",
+      "src/grounded_travel_planner/postgres_saved_tours.py",
+      "scripts/migrate_saved_tours_account_ownership.py",
+      "tests/test_auth_integration.py",
+      "tests/test_account_storage.py",
+      "docs/experiments/2026-11-03-auth0-account-offline.md",
+      "host pytest 145 passed, 1 optional PostgreSQL integration test skipped; Python gates and frontend build passed",
+      "isolated PostgreSQL migration twice; 5 snapshot rows retained exact ordered checksum",
+      "Docker test target: 145 passed, 1 optional PostgreSQL test skipped",
+      "2026-11-04: previous app session revoked on login; concurrent first-account creation serialized",
+      "Disposable PostgreSQL: 16 concurrent OIDC identity lookups mapped to one account; session reconnect, CSRF and revocation passed",
+      "first PG concurrency smoke found NUL separator error; length-prefixed lock key fixed and 16-login rerun passed",
+      "live PostgreSQL still 5 rows with original snapshot checksum; root HTTP 200; runtime image built but running container remains previous digest"
+    ],
+    "auth0_account_live": [
+      "pending Auth0 tenant, email OTP and cross-browser A/B QA"
+    ],
+    "auth0_account_deployed": [
+      "pending controlled migration of live PostgreSQL and app rollout"
     ]
   },
-  "notes": "Compose now runs saved tours in PostgreSQL 17 on a sibling host directory outside Git. Three saved rows and indexes survived the move from the old named volume, which remains for recovery. One earlier SQLite tour was backed up and copied exactly to PostgreSQL. A disposable 2M-row PostgreSQL benchmark measured keyset page 1/deep p50 0.729/0.373 ms with tiny snapshots and no concurrent traffic; its volume was removed. Focused pre-push review fixed Secure cookie handling behind TLS proxies. Network-disabled read-only container suite: 132 passed, 1 optional PostgreSQL test skipped; Python quality gates passed. Browser/live-provider checks were not run; the running app image predates the cookie fix. Old SQLite volume and ignored backups remain for recovery."
+  "notes": "Compose now runs saved tours in PostgreSQL 17 on a sibling host directory outside Git. Three saved rows and indexes survived the move from the old named volume, which remains for recovery. One earlier SQLite tour was backed up and copied exactly to PostgreSQL. A disposable 2M-row PostgreSQL benchmark measured keyset page 1/deep p50 0.729/0.373 ms with tiny snapshots and no concurrent traffic; its volume was removed. Focused pre-push review fixed Secure cookie handling behind TLS proxies. Network-disabled read-only container suite: 132 passed, 1 optional PostgreSQL test skipped; Python quality gates passed. Browser/live-provider checks were not run; the running app image predates the cookie fix. Old SQLite volume and ignored backups remain for recovery. Auth0 account ownership is implemented and verified offline (145 passed, 1 skipped); an isolated five-row PostgreSQL restore survived two migration runs unchanged. Live database/app remain on browser-cookie ownership pending tenant setup, migration and browser QA. A disposable PostgreSQL smoke mapped 16 concurrent logins to one account and verified persisted session, CSRF and revocation. Follow-up: a disposable PG smoke caught and fixed an invalid NUL advisory-lock key; 16 concurrent identity lookups now map to one account. Live DB checksum and running app stayed unchanged; rebuilt image was not deployed."
 }

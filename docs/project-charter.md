@@ -1,7 +1,7 @@
 # Project Charter
 
 Status: Active
-Last updated: 2026-11-01
+Last updated: 2026-11-03
 
 ## Product
 
@@ -33,6 +33,11 @@ snapshot from the same browser. Saved tours use a separate database and owner
 credential; they are read-only records of the plan and sources at save time.
 An application commit alone does not save a tour. The live itinerary and chat
 still belong to the current session.
+
+ADR 0016 selects account-owned saved tours through Auth0 email OTP. Its code
+and isolated migration are verified offline, but the running application still
+uses the browser owner cookie until the controlled database migration and
+rollout. The account change does not persist live itinerary or chat state.
 
 ## Runtime Scope
 
@@ -106,13 +111,15 @@ integrates its result exactly once when the chat page polls or is reopened.
   invent photos; show image creator, license and source-page credit.
 - Only an explicit save action on a validated canonical plan creates a saved
   tour. Archive reads do not run agents/search or mutate the live plan. Every
-  archive operation is scoped to the browser owner credential.
+  archive operation is scoped to a verified owner. The deployed app still uses
+  its browser owner credential; ADR 0016 changes ownership to an authenticated
+  account after the controlled rollout.
 
 ## Non-Goals
 
-- Persistent user accounts, cross-device saved tours, search-history storage,
-  and restoration of archived tours into an editable session. PostgreSQL
-  storage for explicitly saved tour snapshots is in scope under ADR 0015.
+- Search-history storage and restoration of archived tours into an editable
+  session. Account-owned saved tours are in scope under ADR 0016; their live
+  rollout is pending. PostgreSQL snapshot storage remains under ADR 0015.
 - More runtime travel-specialist agents before this three-role vertical slice is
   executable and verified.
 - Offline fixture claims represented as live sourced recommendations.

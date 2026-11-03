@@ -1,6 +1,7 @@
 # Plan: account-owned saved tours with Auth0
 
-Status: Auth0 selected by user for later implementation on Mac; no code deployed.
+Status: Auth0 code and isolated migration verified offline on Mac as of
+2026-11-03; live database migration, tenant setup and browser QA pending.
 Date: 2026-11-02
 
 ## Goal and selected provider
@@ -16,11 +17,9 @@ Auth0 identity. No separate registration screen or password database is
 needed. Check the Auth0 tenant's current feature limits and email delivery
 before deployment. [Auth0 OIDC][auth0-oidc] [Auth0 passwordless][auth0-otp]
 
-This proposal **would change** the same-browser-only decision in ADR 0014 and
-the cross-device non-goal in the charter. The provider choice is recorded in
-the current learning log; update those records and add an auth ADR as part of
-the later implementation. No current product behavior changes through this
-document.
+ADR 0016 records the selected account boundary and amends the earlier
+same-browser decision for the next rollout. The current running application
+still uses browser-cookie ownership; this proposal alone does not change it.
 
 ## Current boundary and intended boundary
 

@@ -1,5 +1,21 @@
 # Learning Log - 2026-10-14 Scope Reset
 
+## Auth0 Account Implementation — Offline Verification — 2026-11-03
+
+- The Auth0 account-owned archive implementation, React sign-in/out/claim
+  controls, explicit migration and ADR 0016 are now in the worktree. Offline
+  tests and an isolated PostgreSQL restore/migration passed; details are in
+  `docs/experiments/2026-11-03-auth0-account-offline.md`.
+- No Auth0 tenant settings were present in `.env`. The live database and
+  running app were not migrated or recreated. Their browser-cookie behavior
+  remains deployed. The old-cookie claim window and account deletion/export
+  policy still need decisions before public rollout.
+- Follow-up on 2026-11-04: sign-in revokes any prior app session; same-identity
+  account creation is serialized. Host and container suites pass 146 tests,
+  with one optional PostgreSQL integration test skipped. A disposable
+  PostgreSQL smoke mapped 16 concurrent logins to one account and verified
+  session persistence, CSRF and revocation.
+
 ## User Decision — Auth0 For Account-Owned Saved Tours — 2026-11-02
 
 - The user selected Auth0 as the future OIDC identity service. Email OTP through

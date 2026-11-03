@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+import hmac
+import json
 import os
-import secrets
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -12,11 +13,24 @@ from time import monotonic
 from typing import Literal, Protocol
 from uuid import uuid4
 
-from fastapi import Cookie, FastAPI, HTTPException, Query, Request, Response
-from fastapi.responses import FileResponse
+from fastapi import Cookie, FastAPI, Header, HTTPException, Query, Request, Response
+from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from grounded_travel_planner.auth import (
+    AUTH_ABSOLUTE_SECONDS,
+    AUTH_COOKIE_NAME,
+    AUTH_PENDING_COOKIE_NAME,
+    Auth0OidcProvider,
+    AuthenticatedUser,
+    AuthError,
+    AuthRepository,
+    OidcProvider,
+    PendingLoginCodec,
+    PostgresAuthRepository,
+    safe_return_to,
+)
 from grounded_travel_planner.contracts import (
     AgentResponse,
     ConversationTurn,
@@ -48,6 +62,9 @@ from grounded_travel_planner.visuals import VisualEnrichmentService
 COOKIE_NAME = "gtp_session"
 SAVED_TOURS_OWNER_COOKIE_NAME = "gtp_saved_tours_owner"
 SAVED_TOURS_OWNER_MAX_AGE = 365 * 24 * 60 * 60
+AUTH_DATABASE_PATH = Path(
+    os.getenv("GTP_AUTH_DB_PATH", Path.cwd() / ".local" / "auth.sqlite")
+)
 DEFAULT_SAVED_TOURS_DATABASE_PATH = Path(
     os.getenv("GTP_SAVED_TOURS_DB_PATH", Path.cwd() / ".local" / "saved_tours.sqlite")
 )
@@ -233,15 +250,17 @@ def _secure_cookie(request: Request) -> bool:
 class SavedTourStore(Protocol):
     """Storage contract used by the HTTP adapter, regardless of database engine."""
 
-    def save(self, owner_token: str, plan: SightseeingPlan) -> SavedTour: ...
+    def save_for_user(self, user_id: str, plan: SightseeingPlan) -> SavedTour: ...
 
-    def list(
-        self, owner_token: str, *, cursor: str | None = None, limit: int = LIST_LIMIT
+    def list_for_user(
+        self, user_id: str, *, cursor: str | None = None, limit: int = LIST_LIMIT
     ) -> SavedTourPage: ...
 
-    def get(self, owner_token: str, tour_id: str) -> SavedTour | None: ...
+    def get_for_user(self, user_id: str, tour_id: str) -> SavedTour | None: ...
 
-    def delete(self, owner_token: str, tour_id: str) -> bool: ...
+    def delete_for_user(self, user_id: str, tour_id: str) -> bool: ...
+
+    def claim_for_user(self, user_id: str, legacy_owner_token: str) -> object: ...
 
 
 def _saved_tour_store_from_environment() -> SavedTourStore:
@@ -267,12 +286,33 @@ def _saved_tour_store_from_environment() -> SavedTourStore:
     raise SavedTourError("Unsupported saved-tour backend.")
 
 
+def _auth_repository_from_environment() -> AuthRepository | PostgresAuthRepository:
+    backend = os.getenv("GTP_SAVED_TOURS_BACKEND", "sqlite").casefold()
+    if backend == "sqlite":
+        return AuthRepository(AUTH_DATABASE_PATH)
+    if backend == "postgres":
+        try:
+            port = int(os.getenv("GTP_SAVED_TOURS_POSTGRES_PORT", "5432"))
+        except ValueError as error:
+            raise AuthError("Invalid PostgreSQL auth port.") from error
+        return PostgresAuthRepository(
+            host=os.getenv("GTP_SAVED_TOURS_POSTGRES_HOST", ""),
+            database=os.getenv("GTP_SAVED_TOURS_POSTGRES_DATABASE", ""),
+            user=os.getenv("GTP_SAVED_TOURS_POSTGRES_USER", ""),
+            password=os.getenv("GTP_SAVED_TOURS_POSTGRES_PASSWORD", ""),
+            port=port,
+        )
+    raise AuthError("Unsupported auth storage backend.")
+
+
 def create_app(
     service: TravelPlannerService | None = None,
     visual_service: VisualEnrichmentService | None = None,
     turn_runner: TurnRunner | None = None,
     session_store: SessionStore | None = None,
     saved_tour_repository: SavedTourStore | None = None,
+    auth_provider: OidcProvider | None = None,
+    auth_repository: AuthRepository | PostgresAuthRepository | None = None,
 ) -> FastAPI:
     """Create an injectable app so endpoint tests need no live provider calls."""
 
@@ -281,10 +321,54 @@ def create_app(
     runner = turn_runner or TurnRunner()
     sessions = session_store or SessionStore()
     saved_tours = saved_tour_repository or _saved_tour_store_from_environment()
+    auth = auth_repository or _auth_repository_from_environment()
+    provider = auth_provider
     app = FastAPI(title="Grounded Travel Planner", docs_url=None, redoc_url=None)
 
     def current_session(session_id: str | None) -> WebSession:
         return sessions.get(session_id)
+
+    def current_user(auth_token: str | None) -> AuthenticatedUser:
+        try:
+            user = auth.authenticated(auth_token)
+        except AuthError as error:
+            raise HTTPException(
+                status_code=503, detail="Không thể xác thực lúc này."
+            ) from error
+        if user is None:
+            raise HTTPException(status_code=401, detail="Bạn cần đăng nhập.")
+        return user
+
+    def csrf_user(auth_token: str | None, csrf_token: str | None) -> AuthenticatedUser:
+        try:
+            user = auth.verify_csrf(auth_token, csrf_token)
+        except AuthError as error:
+            raise HTTPException(
+                status_code=503, detail="Không thể xác thực lúc này."
+            ) from error
+        if user is None:
+            if not auth_token:
+                raise HTTPException(status_code=401, detail="Bạn cần đăng nhập.")
+            raise HTTPException(status_code=403, detail="Yêu cầu bảo mật không hợp lệ.")
+        return user
+
+    def callback_uri(request: Request) -> str:
+        origin = os.getenv("GTP_AUTH_PUBLIC_ORIGIN", "").rstrip("/")
+        if not origin:
+            if isinstance(provider, Auth0OidcProvider):
+                raise AuthError("The public auth origin is not configured.")
+            origin = str(request.base_url).rstrip("/")
+        return f"{origin}/api/auth/callback"
+
+    def logout_return_to() -> str:
+        origin = os.getenv("GTP_AUTH_PUBLIC_ORIGIN", "").rstrip("/")
+        if not origin:
+            raise AuthError("The public auth origin is not configured.")
+        return f"{origin}/"
+
+    def pending_codec() -> PendingLoginCodec:
+        secret = os.getenv("GTP_AUTH_SESSION_SECRET", "")
+        return PendingLoginCodec(secret)
 
     def collect(session: WebSession) -> AgentResponse | None:
         if session.pending is None:
@@ -459,12 +543,139 @@ def create_app(
             },
         }
 
+    @app.get("/api/auth/me")
+    def auth_me(gtp_auth: str | None = Cookie(default=None)) -> dict[str, object]:
+        try:
+            user = auth.authenticated(gtp_auth)
+        except AuthError as error:
+            raise HTTPException(
+                status_code=503, detail="Không thể xác thực lúc này."
+            ) from error
+        if user is None:
+            return {"authenticated": False}
+        return {
+            "authenticated": True,
+            "email": user.email,
+            "csrf_token": user.csrf_token,
+        }
+
+    @app.get("/api/auth/login")
+    def auth_login(
+        request: Request, return_to: str | None = Query(default=None)
+    ) -> Response:
+        nonlocal provider
+        if provider is None:
+            try:
+                provider = Auth0OidcProvider.from_environment()
+            except AuthError as error:
+                raise HTTPException(
+                    status_code=503, detail="Đăng nhập chưa được cấu hình."
+                ) from error
+        try:
+            codec = pending_codec()
+            pending, fields = codec.issue(return_to=safe_return_to(return_to))
+            redirect = provider.authorization_url(
+                state=fields["state"],
+                nonce=fields["nonce"],
+                code_verifier=fields["verifier"],
+                redirect_uri=callback_uri(request),
+            )
+        except AuthError as error:
+            raise HTTPException(
+                status_code=503, detail="Không thể bắt đầu đăng nhập."
+            ) from error
+        response = RedirectResponse(redirect, status_code=307)
+        response.set_cookie(
+            AUTH_PENDING_COOKIE_NAME,
+            pending,
+            max_age=10 * 60,
+            httponly=True,
+            samesite="lax",
+            secure=_secure_cookie(request),
+            path="/api/auth",
+        )
+        return response
+
+    @app.get("/api/auth/callback")
+    def auth_callback(
+        request: Request,
+        code: str | None = Query(default=None),
+        state: str | None = Query(default=None),
+        gtp_auth_pending: str | None = Cookie(default=None),
+        gtp_auth: str | None = Cookie(default=None),
+    ) -> Response:
+        nonlocal provider
+        if not code or not state or not gtp_auth_pending:
+            raise HTTPException(
+                status_code=400, detail="Phản hồi đăng nhập không hợp lệ."
+            )
+        try:
+            codec = pending_codec()
+            pending = codec.read(gtp_auth_pending)
+            if not hmac.compare_digest(pending["state"], state):
+                raise HTTPException(
+                    status_code=400, detail="Trạng thái đăng nhập không hợp lệ."
+                )
+            if provider is None:
+                provider = Auth0OidcProvider.from_environment()
+            identity = provider.verify_callback(
+                code=code,
+                nonce=pending["nonce"],
+                code_verifier=pending["verifier"],
+                redirect_uri=callback_uri(request),
+            )
+            user_id, email = auth.find_or_create_user(identity)
+            auth.revoke(gtp_auth)
+            auth_token, _ = auth.issue_session(user_id, email)
+        except AuthError:
+            failed = RedirectResponse("/?auth_error=login_failed", status_code=303)
+            failed.delete_cookie(AUTH_PENDING_COOKIE_NAME, path="/api/auth")
+            return failed
+        completed = RedirectResponse(
+            safe_return_to(pending["return_to"]), status_code=303
+        )
+        completed.delete_cookie(AUTH_PENDING_COOKIE_NAME, path="/api/auth")
+        completed.set_cookie(
+            AUTH_COOKIE_NAME,
+            auth_token,
+            max_age=AUTH_ABSOLUTE_SECONDS,
+            httponly=True,
+            samesite="lax",
+            secure=_secure_cookie(request),
+            path="/",
+        )
+        return completed
+
+    @app.post("/api/auth/logout")
+    def auth_logout(
+        gtp_auth: str | None = Cookie(default=None),
+        x_csrf_token: str | None = Header(default=None),
+    ) -> Response:
+        nonlocal provider
+        csrf_user(gtp_auth, x_csrf_token)
+        # Revoke first so a provider outage cannot leave an app session usable.
+        auth.revoke(gtp_auth)
+        try:
+            if provider is None:
+                provider = Auth0OidcProvider.from_environment()
+            logout_url = provider.logout_url(return_to=logout_return_to())
+        except AuthError as error:
+            raise HTTPException(
+                status_code=503, detail="Không thể đăng xuất lúc này."
+            ) from error
+        completed = Response(
+            content=json.dumps({"logout_url": logout_url}),
+            media_type="application/json",
+        )
+        completed.delete_cookie(AUTH_COOKIE_NAME, path="/")
+        return completed
+
     @app.get("/api/saved-tours")
     def list_saved_tours(
         request: Request,
         cursor: str | None = Query(default=None, max_length=512),
         limit: int = Query(default=LIST_LIMIT, ge=1, le=LIST_LIMIT),
-        gtp_saved_tours_owner: str | None = Cookie(default=None),
+        gtp_auth: str | None = Cookie(default=None),
     ) -> dict[str, object]:
         """List only snapshots belonging to the durable browser owner cookie."""
 
@@ -473,9 +684,8 @@ def create_app(
                 raise InvalidSavedTourCursor("Offset pagination is not supported.")
             if cursor is not None:
                 SavedTourRepository.decode_cursor(cursor)
-            if not gtp_saved_tours_owner:
-                return {"items": [], "has_more": False, "next_cursor": None}
-            page = saved_tours.list(gtp_saved_tours_owner, cursor=cursor, limit=limit)
+            user = current_user(gtp_auth)
+            page = saved_tours.list_for_user(user.user_id, cursor=cursor, limit=limit)
         except InvalidSavedTourCursor as error:
             raise HTTPException(
                 status_code=422, detail="Cursor không hợp lệ."
@@ -492,13 +702,13 @@ def create_app(
 
     @app.post("/api/saved-tours")
     def save_current_tour(
-        response: Response,
-        request: Request,
         gtp_session: str | None = Cookie(default=None),
-        gtp_saved_tours_owner: str | None = Cookie(default=None),
+        gtp_auth: str | None = Cookie(default=None),
+        x_csrf_token: str | None = Header(default=None),
     ) -> dict[str, object]:
         """Persist the current accepted plan only after an explicit user action."""
 
+        user = csrf_user(gtp_auth, x_csrf_token)
         session = current_session(gtp_session)
         with session.lock:
             if session.pending is not None:
@@ -511,34 +721,22 @@ def create_app(
                     status_code=409, detail="Chưa có lịch trình hợp lệ để lưu."
                 )
             plan = session.current_plan.model_copy(deep=True)
-        owner_token = gtp_saved_tours_owner or secrets.token_urlsafe(32)
         try:
-            saved_tour = saved_tours.save(owner_token, plan)
+            saved_tour = saved_tours.save_for_user(user.user_id, plan)
         except SavedTourError as error:
             raise HTTPException(
                 status_code=503, detail="Không thể lưu tour lúc này."
             ) from error
-        if not gtp_saved_tours_owner:
-            response.set_cookie(
-                SAVED_TOURS_OWNER_COOKIE_NAME,
-                owner_token,
-                max_age=SAVED_TOURS_OWNER_MAX_AGE,
-                httponly=True,
-                samesite="lax",
-                secure=_secure_cookie(request),
-                path="/",
-            )
         return saved_tour.payload()
 
     @app.get("/api/saved-tours/{tour_id}")
     def read_saved_tour(
         tour_id: str,
-        gtp_saved_tours_owner: str | None = Cookie(default=None),
+        gtp_auth: str | None = Cookie(default=None),
     ) -> dict[str, object]:
-        if not gtp_saved_tours_owner:
-            raise HTTPException(status_code=404, detail="Không tìm thấy tour đã lưu.")
+        user = current_user(gtp_auth)
         try:
-            saved_tour = saved_tours.get(gtp_saved_tours_owner, tour_id)
+            saved_tour = saved_tours.get_for_user(user.user_id, tour_id)
         except SavedTourError as error:
             raise HTTPException(
                 status_code=503, detail="Không thể đọc tour đã lưu lúc này."
@@ -550,12 +748,12 @@ def create_app(
     @app.delete("/api/saved-tours/{tour_id}", status_code=204)
     def delete_saved_tour(
         tour_id: str,
-        gtp_saved_tours_owner: str | None = Cookie(default=None),
+        gtp_auth: str | None = Cookie(default=None),
+        x_csrf_token: str | None = Header(default=None),
     ) -> Response:
-        if not gtp_saved_tours_owner:
-            raise HTTPException(status_code=404, detail="Không tìm thấy tour đã lưu.")
+        user = csrf_user(gtp_auth, x_csrf_token)
         try:
-            deleted = saved_tours.delete(gtp_saved_tours_owner, tour_id)
+            deleted = saved_tours.delete_for_user(user.user_id, tour_id)
         except SavedTourError as error:
             raise HTTPException(
                 status_code=503, detail="Không thể xóa tour đã lưu lúc này."
@@ -563,6 +761,22 @@ def create_app(
         if not deleted:
             raise HTTPException(status_code=404, detail="Không tìm thấy tour đã lưu.")
         return Response(status_code=204)
+
+    @app.post("/api/saved-tours/claim")
+    def claim_saved_tours(
+        gtp_auth: str | None = Cookie(default=None),
+        x_csrf_token: str | None = Header(default=None),
+        gtp_saved_tours_owner: str | None = Cookie(default=None),
+    ) -> object:
+        user = csrf_user(gtp_auth, x_csrf_token)
+        if not gtp_saved_tours_owner:
+            raise HTTPException(status_code=409, detail="Không có tour cũ để nhận.")
+        try:
+            return saved_tours.claim_for_user(user.user_id, gtp_saved_tours_owner)
+        except SavedTourError as error:
+            raise HTTPException(
+                status_code=503, detail="Không thể nhận tour cũ lúc này."
+            ) from error
 
     if FRONTEND_DIST.is_dir():
         app.mount(

@@ -3,6 +3,9 @@
 Status: Accepted
 Date: 2026-11-01
 
+Account ownership and persistent auth sessions are added by ADR 0016 for the
+next rollout. The current running PostgreSQL schema has not been migrated.
+
 Amendment, 2026-11-01: The user directed PostgreSQL data into a separate host
 directory outside the Git repository. The Compose database now bind-mounts
 `${GTP_DATA_DIR:-../grounded-travel-planner-data}/postgres` instead of using the

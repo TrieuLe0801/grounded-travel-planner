@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-11-02
+Last updated: 2026-11-04
 
 ## Current Milestone
 
@@ -41,6 +41,7 @@ background only.
 | Agent latency/token optimization | Prompt payloads reduced; offline tests passed | Planner now sends one chronological plan projection without duplicated source records/request text; Chat receives visible schedule and summary instead of full plan JSON. End-to-end latency and provider token usage have not been benchmarked |
 | Turn and session capacity | Offline verified; running app image unchanged | At most eight queued/running turns and 1,024 retained sessions per process; idle sessions expire after one hour, including uncollected completed turns. HTTP returns 429/503 without changing the rejected session. 15 focused and 122 full sandboxed tests passed |
 | Saved tours | PostgreSQL Compose app healthy; browser QA pending | Database now uses a sibling host directory outside Git; three saved rows and checksum survived the move; former named volume retained; root 200, session creation 201 |
+| Auth0 account ownership | Implemented and verified offline; rollout pending | OIDC BFF, account-scoped archive, claim migration, React sign-in; 146 host and container tests passed, 1 skipped; isolated PostgreSQL migration reran without changing five snapshot checksums. Sixteen concurrent logins mapped to one account. Live archive checksum unchanged; new runtime image built but not deployed. No tenant credentials or live OTP QA. |
 | Large saved-tour archive | PostgreSQL 2M-row isolated benchmark passed | Owner/time/ID index and keyset pages; 10-sample page 1 p50/p95 0.729/13.898 ms, page 20,000 0.373/21.557 ms; tiny synthetic snapshots, no concurrent traffic |
 | Pre-push security review | Focused source review and regression passed | Session and saved-tour owner cookies default to Secure; Compose forces Secure; local data excluded from Git and Docker context; isolated full suite 132 passed, 1 skipped |
 | Codex token guidance | Project configuration added; runtime activation pending restart/trust | Local RTK `PreToolUse` hook rewrites a sample Bash command; `AGENTS.md` loads `RTK.md` and defaults to `caveman full` |

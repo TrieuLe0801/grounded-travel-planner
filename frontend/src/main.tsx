@@ -105,6 +105,16 @@ type SavedTourPage = {
   has_more: boolean;
   next_cursor: string | null;
 };
+type AuthState = {
+  authenticated: boolean;
+  email?: string;
+  csrf_token?: string;
+};
+type ClaimResult = {
+  claimed_count: number;
+  already_claimed_count: number;
+  conflicts: unknown[];
+};
 type View = "itinerary" | "graph" | "saved";
 const savedToursPageSize = 50;
 const today = (() => {
@@ -730,6 +740,9 @@ function SavedToursView({
   onSelect,
   onDelete,
   onLoadMore,
+  onClaim,
+  claiming,
+  claimStatus,
   language,
 }: {
   tours: SavedTourSummary[];
@@ -743,6 +756,9 @@ function SavedToursView({
   onSelect: (id: string) => void;
   onDelete: (tour: SavedTourSummary) => void;
   onLoadMore: () => void;
+  onClaim: () => void;
+  claiming: boolean;
+  claimStatus: string;
   language: Language;
 }) {
   const labels = text(language);
@@ -767,6 +783,15 @@ function SavedToursView({
             {labels.savedTours}
           </h1>
           <p className="mt-2 text-sm leading-6 text-slate-600">{labels.savedToursDescription}</p>
+          <button
+            type="button"
+            onClick={onClaim}
+            disabled={claiming}
+            className="mt-4 inline-flex min-h-11 items-center rounded-xl border border-blue-200 px-4 text-sm font-semibold text-primary hover:bg-blue-50 disabled:opacity-50"
+          >
+            {claiming ? labels.claimingOldTours : labels.claimOldTours}
+          </button>
+          {claimStatus && <p className="mt-2 text-sm text-slate-700" role="status">{claimStatus}</p>}
           {loading && (
             <p className="mt-5 inline-flex items-center gap-2 text-sm text-slate-600" role="status">
               <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
@@ -883,6 +908,9 @@ function App() {
   const [visuals, setVisuals] = useState<Record<string, Visual>>({});
   const [visualsLoading, setVisualsLoading] = useState(false);
   const [view, setView] = useState<View>("itinerary");
+  const [auth, setAuth] = useState<AuthState | null>(null);
+  const [authError, setAuthError] = useState("");
+  const [signingOut, setSigningOut] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [graphSvg, setGraphSvg] = useState("");
   const [graphImageLoading, setGraphImageLoading] = useState(true);
@@ -900,6 +928,8 @@ function App() {
   const [savedTourDeletingId, setSavedTourDeletingId] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState("");
   const [savingTour, setSavingTour] = useState(false);
+  const [claimingTours, setClaimingTours] = useState(false);
+  const [claimStatus, setClaimStatus] = useState("");
   const labels = text(state.language);
   useEffect(() => {
     document.documentElement.lang = state.language;
@@ -917,11 +947,27 @@ function App() {
     }
   };
   useEffect(() => {
+    if (new URLSearchParams(window.location.search).has("auth_error")) {
+      setAuthError(text("vi").authError);
+      window.history.replaceState(null, "", "/");
+    }
     void load().catch((error: unknown) =>
       setRequestError(
         error instanceof Error ? error.message : labels.errorStart,
       ),
     );
+    void api<AuthState>("/api/auth/me")
+      .then((current) => {
+        setAuth(current);
+        if (current.authenticated && new URLSearchParams(window.location.search).get("view") === "saved") {
+          setView("saved");
+          window.history.replaceState(null, "", "/");
+        }
+      })
+      .catch(() => {
+        setAuth({ authenticated: false });
+        setAuthError(text("vi").authError);
+      });
   }, []);
   useEffect(() => {
     if (!state.pending) return;
@@ -989,6 +1035,7 @@ function App() {
     }
   };
   const loadSavedTours = async (append = false) => {
+    if (!auth?.authenticated) return;
     if (append && (!savedToursCursor || savedToursLoading)) return;
     const request = ++savedToursRequest.current;
     const cursor = append ? `&cursor=${encodeURIComponent(savedToursCursor!)}` : "";
@@ -1014,6 +1061,8 @@ function App() {
       setSavedToursCursor(result.next_cursor);
       setSavedToursHasMore(result.has_more && result.next_cursor !== null);
     } catch {
+      const current = await api<AuthState>("/api/auth/me").catch(() => null);
+      if (current) setAuth(current);
       if (request === savedToursRequest.current) setSavedToursError(labels.errorSavedTours);
     } finally {
       if (request === savedToursRequest.current) setSavedToursLoading(false);
@@ -1021,7 +1070,34 @@ function App() {
   };
   const openSavedTours = () => {
     setView("saved");
-    void loadSavedTours(false);
+  };
+  useEffect(() => {
+    if (view === "saved" && auth?.authenticated) void loadSavedTours(false);
+  }, [view, auth?.authenticated]);
+  const signIn = (returnTo = "/") => {
+    window.location.assign(`/api/auth/login?return_to=${encodeURIComponent(returnTo)}`);
+  };
+  const signOut = async () => {
+    if (!auth?.csrf_token || signingOut) return;
+    setSigningOut(true);
+    setAuthError("");
+    try {
+      const result = await api<{ logout_url: string }>("/api/auth/logout", {
+        method: "POST",
+        headers: { "X-CSRF-Token": auth.csrf_token },
+      });
+      setAuth({ authenticated: false });
+      setSavedTours([]);
+      setSelectedSavedTour(null);
+      setSavedToursCursor(null);
+      setSavedToursHasMore(false);
+      savedToursRequest.current += 1;
+      window.location.assign(result.logout_url);
+    } catch {
+      setAuthError(labels.signOutError);
+    } finally {
+      setSigningOut(false);
+    }
   };
   const selectSavedTour = async (id: string) => {
     setSavedTourLoadingId(id);
@@ -1036,16 +1112,23 @@ function App() {
   };
   const saveTour = async () => {
     if (!state.plan || state.pending || savingTour) return;
+    if (!auth?.authenticated) {
+      signIn("/");
+      return;
+    }
     setSavingTour(true);
     setSaveStatus("");
     try {
       const saved = await api<SavedTour>("/api/saved-tours", {
         method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": auth.csrf_token || "" },
         body: JSON.stringify({}),
       });
       setSavedTours((tours) => [saved, ...tours.filter((tour) => tour.id !== saved.id)]);
       setSaveStatus(labels.saveTourSuccess);
     } catch {
+      const current = await api<AuthState>("/api/auth/me").catch(() => null);
+      if (current) setAuth(current);
       setSaveStatus(labels.errorSaveTour);
     } finally {
       setSavingTour(false);
@@ -1056,13 +1139,37 @@ function App() {
     setSavedTourDeletingId(tour.id);
     setSavedToursError("");
     try {
-      await api<void>(`/api/saved-tours/${tour.id}`, { method: "DELETE" });
+      await api<void>(`/api/saved-tours/${tour.id}`, {
+        method: "DELETE",
+        headers: { "X-CSRF-Token": auth?.csrf_token || "" },
+      });
       setSavedTours((tours) => tours.filter((item) => item.id !== tour.id));
       if (selectedSavedTour?.id === tour.id) setSelectedSavedTour(null);
     } catch {
       setSavedToursError(labels.errorDeleteSavedTour);
     } finally {
       setSavedTourDeletingId(null);
+    }
+  };
+  const claimOldTours = async () => {
+    if (!auth?.csrf_token || claimingTours) return;
+    setClaimingTours(true);
+    setClaimStatus("");
+    try {
+      const result = await api<ClaimResult>("/api/saved-tours/claim", {
+        method: "POST",
+        headers: { "X-CSRF-Token": auth.csrf_token },
+      });
+      setClaimStatus(result.conflicts.length > 0
+        ? labels.claimOldToursConflict
+        : result.claimed_count > 0
+          ? labels.claimOldToursDone
+          : labels.claimOldToursNone);
+      if (result.claimed_count > 0) await loadSavedTours(false);
+    } catch {
+      setClaimStatus(labels.claimOldToursError);
+    } finally {
+      setClaimingTours(false);
     }
   };
   const makePlan = (event: FormEvent) => {
@@ -1172,6 +1279,29 @@ function App() {
               <Save size={17} aria-hidden="true" />
               <span className="hidden sm:inline">{labels.savedTours}</span>
             </button>
+            {auth?.authenticated ? (
+              <button
+                type="button"
+                onClick={() => void signOut()}
+                disabled={signingOut}
+                aria-label={labels.signOut}
+                title={auth.email || labels.signOut}
+                className="inline-flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-slate-700 hover:bg-blue-50 disabled:opacity-50"
+              >
+                <UserRound size={17} aria-hidden="true" />
+                <span className="hidden sm:inline">{signingOut ? labels.signingOut : labels.signOut}</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => signIn("/")}
+                aria-label={labels.signIn}
+                className="inline-flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-slate-700 hover:bg-blue-50"
+              >
+                <UserRound size={17} aria-hidden="true" />
+                <span className="hidden sm:inline">{labels.signIn}</span>
+              </button>
+            )}
             <button
               type="button"
               onClick={() => void reset()}
@@ -1186,6 +1316,7 @@ function App() {
         </div>
       </header>
       <main id="main" className="mx-auto max-w-7xl px-4 pb-32 pt-8 sm:px-6 lg:pb-36 lg:pt-12">
+        {authError && <p className="mb-5 rounded-xl bg-red-50 p-4 text-red-800" role="alert">{authError}</p>}
         {view === "graph" ? (
           <GraphView
             svg={graphSvg}
@@ -1198,6 +1329,15 @@ function App() {
             onBack={() => setView("itinerary")}
             language={state.language}
           />
+        ) : view === "saved" && !auth?.authenticated ? (
+          <section className="rise mx-auto mt-8 max-w-xl rounded-3xl border border-blue-100 bg-white p-6 shadow-sm sm:p-8" aria-labelledby="saved-auth-title">
+            <button type="button" onClick={() => setView("itinerary")} className="inline-flex min-h-11 items-center gap-2 rounded-xl px-3 font-semibold text-slate-700 hover:bg-blue-100">
+              <ArrowLeft size={18} aria-hidden="true" />{labels.back}
+            </button>
+            <h1 id="saved-auth-title" className="mt-5 font-heading text-2xl font-bold">{labels.savedTours}</h1>
+            <p className="mt-3 leading-7 text-slate-700">{auth === null ? labels.authChecking : labels.authRequired}</p>
+            {auth !== null && <button type="button" onClick={() => signIn("/?view=saved")} className="mt-5 inline-flex min-h-12 items-center rounded-xl bg-primary px-5 font-bold text-white hover:bg-blue-500">{labels.signIn}</button>}
+          </section>
         ) : view === "saved" ? (
           <SavedToursView
             tours={savedTours}
@@ -1211,6 +1351,9 @@ function App() {
             onSelect={(id) => void selectSavedTour(id)}
             onDelete={(tour) => void deleteSavedTour(tour)}
             onLoadMore={() => void loadSavedTours(true)}
+            onClaim={() => void claimOldTours()}
+            claiming={claimingTours}
+            claimStatus={claimStatus}
             language={state.language}
           />
         ) : (

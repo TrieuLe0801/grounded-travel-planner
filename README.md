@@ -106,6 +106,14 @@ recovery. Both owner and session cookies default to `Secure`, and Compose forces
 that setting. For direct local HTTP only, set
 `GTP_SAVED_TOURS_COOKIE_SECURE=false` outside Compose.
 
+Account-owned saved tours with Auth0 are implemented in the worktree but have
+not been rolled out to the running app. See
+[`docs/proposals/2026-11-02-auth0-account-owned-saved-tours-plan.md`](docs/proposals/2026-11-02-auth0-account-owned-saved-tours-plan.md)
+and [ADR 0016](docs/adr/0016-auth0-account-owned-saved-tours.md) before
+migrating. The new app requires an explicit account migration, Auth0 tenant
+configuration in the ignored `.env`, and browser QA. The live tour and chat
+remain session-only.
+
 To move an existing SQLite Compose archive to PostgreSQL, stop the app, back up
 the SQLite volume, start `db`, then run:
 
