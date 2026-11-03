@@ -1,6 +1,6 @@
 {
-  "version": 70,
-  "updated": "2026-11-01T16:58:59+07:00",
+  "version": 71,
+  "updated": "2026-11-01T22:20:44+07:00",
   "active_scope": "city-place-sightseeing-webapp",
   "current_milestone": "Milestone 1: executable city/place sightseeing vertical slice",
   "completed": {
@@ -75,6 +75,7 @@
     "saved_tours_large_archive_compose": true,
     "saved_tours_current_compose_deployment": true,
     "saved_tours_postgres_compose": true,
+    "saved_tours_postgres_host_directory": true,
     "saved_tours_postgres_large_benchmark": true,
     "security_pre_push_review": true
   },
@@ -636,6 +637,13 @@
       "host and Docker test-target suites: 131 passed, 1 PostgreSQL test skipped by default; isort, Black, flake8, Ruff, lock and Compose config passed",
       "PostgreSQL custom-format dump created in ignored .local/backups; pg_restore --list succeeded; old SQLite volume kept"
     ],
+    "saved_tours_postgres_host_directory": [
+      "compose.yaml: PostgreSQL bind mount defaults to ../grounded-travel-planner-data/postgres outside Git; GTP_DATA_DIR can override",
+      "fresh owner-only custom-format dump in sibling backups directory passed pg_restore --list",
+      "three saved rows retained ordered-row checksum b2106fd26f97d08098fd137e10f97f74; three indexes present after restore",
+      "app and database healthy; root HTTP 200 and session creation HTTP 201; former postgres-data named volume retained",
+      "app restart cleared session-only state; browser and live-provider checks not run"
+    ],
     "saved_tours_postgres_large_benchmark": [
       "scripts/benchmark_postgres_saved_tours.py: disposable 2,000,000-row PostgreSQL Compose fixture under one owner with tiny snapshots; 10 samples",
       "first-page p50/p95 0.729/13.898 ms; page 20,000 p50/p95 0.373/21.557 ms; save 0.155/1.194 ms; delete 0.136/0.523 ms",
@@ -654,5 +662,5 @@
       "running Compose app retained its previous image and session-only plans"
     ]
   },
-  "notes": "Compose runs saved tours in PostgreSQL 17 on a named volume. One SQLite tour was backed up and copied exactly; container recreation kept the row. A disposable 2M-row PostgreSQL benchmark measured keyset page 1/deep p50 0.729/0.373 ms with tiny snapshots and no concurrent traffic; its volume was removed. Focused pre-push review fixed Secure cookie handling behind TLS proxies. Network-disabled read-only container suite: 132 passed, 1 optional PostgreSQL test skipped; Python quality gates passed. Explicit staged-file path and secret-pattern scans found no local data or keys. Browser/live-provider checks were not run; the running app image predates the cookie fix. Old SQLite volume and ignored backups remain for recovery."
+  "notes": "Compose now runs saved tours in PostgreSQL 17 on a sibling host directory outside Git. Three saved rows and indexes survived the move from the old named volume, which remains for recovery. One earlier SQLite tour was backed up and copied exactly to PostgreSQL. A disposable 2M-row PostgreSQL benchmark measured keyset page 1/deep p50 0.729/0.373 ms with tiny snapshots and no concurrent traffic; its volume was removed. Focused pre-push review fixed Secure cookie handling behind TLS proxies. Network-disabled read-only container suite: 132 passed, 1 optional PostgreSQL test skipped; Python quality gates passed. Browser/live-provider checks were not run; the running app image predates the cookie fix. Old SQLite volume and ignored backups remain for recovery."
 }

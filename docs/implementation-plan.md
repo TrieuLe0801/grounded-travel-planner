@@ -3,6 +3,24 @@
 Status: Active
 Last updated: 2026-11-01
 
+## PostgreSQL Host Data Directory — Deployed — 2026-11-01
+
+The user moved persistent PostgreSQL data outside the Git repository. Compose
+bind-mounts `${GTP_DATA_DIR:-../grounded-travel-planner-data}/postgres`; the
+default sibling directory is not part of the repository or Docker build
+context. The former `postgres-data` named volume remains intact for recovery.
+ADR 0015 records the amendment.
+
+The app was stopped before migration. A PostgreSQL custom-format dump was
+created in the sibling directory with owner-only permissions and accepted by
+`pg_restore --list`. The new database started from the empty host directory;
+the dump restored without errors. Before and after, `saved_tours` contained
+three rows with the same ordered row checksum
+`b2106fd26f97d08098fd137e10f97f74`; its three indexes remained present.
+Both app and database are healthy, root returned HTTP 200 and session creation
+returned 201. Recreating the app cleared session-only conversations and plans.
+No browser or live-provider turn was run.
+
 ## PostgreSQL Compose Storage — Deployed — 2026-11-01
 
 The user directed the database to run in its own Docker Compose container.

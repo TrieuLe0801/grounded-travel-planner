@@ -3,6 +3,11 @@
 Status: Accepted
 Date: 2026-11-01
 
+Amendment, 2026-11-01: The user directed PostgreSQL data into a separate host
+directory outside the Git repository. The Compose database now bind-mounts
+`${GTP_DATA_DIR:-../grounded-travel-planner-data}/postgres` instead of using the
+`postgres-data` named volume. The former volume remains intact for recovery.
+
 ## Context
 
 The user directed the project to run its database as a container in Docker
@@ -13,7 +18,7 @@ accessible after the switch.
 
 ## Decision
 
-- Run PostgreSQL 17 as a separate Compose service with a named data volume and
+- Run PostgreSQL 17 as a separate Compose service with a host data directory and
   health check. The app waits for database readiness. Do not publish the
   database port to the host.
 - Store explicitly saved tour snapshots in PostgreSQL for the Compose app.
@@ -29,9 +34,9 @@ accessible after the switch.
   app. Retain the old SQLite volume through the recovery period. Do not
   silently import or overwrite data during ordinary app startup.
 - Store the PostgreSQL password only in an ignored local environment file.
-  Compose supplies it to the database and app containers. The database volume
-  needs regular backups; a named volume alone does not protect against host
-  loss.
+  Compose supplies it to the database and app containers. Keep the host data
+  directory outside the repository. Back it up regularly; a bind mount alone
+  does not protect against host loss.
 
 ## Consequences
 
@@ -42,6 +47,8 @@ accessible after the switch.
   back to a second writable archive. This prevents divergent saved-tour data.
 - The old SQLite volume remains available for rollback until a separate,
   explicit cleanup decision.
+- The former PostgreSQL named volume remains available for rollback. Do not
+  mount it and the host directory into two writable database containers at once.
 - Search-history persistence, accounts, and cross-device identity remain
   outside this decision.
 

@@ -28,6 +28,21 @@
   UTF-8 mode; the default Windows code page produced parsing warnings.
   Compose, live-provider and browser checks were not run on this checkout.
 
+## User Decision — Separate PostgreSQL Data Directory — 2026-11-01
+
+- The user requested a separate persistent data directory that is not pushed
+  to Git. Compose now bind-mounts PostgreSQL from the sibling
+  `../grounded-travel-planner-data/postgres` directory by default; `GTP_DATA_DIR`
+  may select another host directory. The former named volume remains intact.
+- Stopped the app before a fresh custom-format dump. The dump in the sibling
+  `backups` directory has owner-only permissions and passed `pg_restore --list`.
+  Initialized PostgreSQL on the empty bind mount and restored the dump.
+- The three saved rows had identical ordered-row checksum
+  `b2106fd26f97d08098fd137e10f97f74` before and after. All three indexes
+  remained. App and database are healthy; root returned 200 and session
+  creation 201. The restart cleared session-only plans and conversations.
+  Browser and live-provider behavior were not checked.
+
 ## Project Codex Token Guidance — 2026-11-01
 
 - The user requested RTK and `caveman full` for this project. `rtk init

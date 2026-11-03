@@ -40,7 +40,7 @@ background only.
 | Model-name configuration | Environment-only identifiers | Runtime source contains no model identifiers; Coordinator, Planner, Chat, Ollama fallback and JSON-schema model selection load environment values and reject missing required names |
 | Agent latency/token optimization | Prompt payloads reduced; offline tests passed | Planner now sends one chronological plan projection without duplicated source records/request text; Chat receives visible schedule and summary instead of full plan JSON. End-to-end latency and provider token usage have not been benchmarked |
 | Turn and session capacity | Offline verified; running app image unchanged | At most eight queued/running turns and 1,024 retained sessions per process; idle sessions expire after one hour, including uncollected completed turns. HTTP returns 429/503 without changing the rejected session. 15 focused and 122 full sandboxed tests passed |
-| Saved tours | PostgreSQL Compose app healthy; browser QA pending | SQLite source backed up and one tour copied exactly to PostgreSQL; DB and app survived container recreation; root 200, session creation 201, PostgreSQL integration test passed |
+| Saved tours | PostgreSQL Compose app healthy; browser QA pending | Database now uses a sibling host directory outside Git; three saved rows and checksum survived the move; former named volume retained; root 200, session creation 201 |
 | Large saved-tour archive | PostgreSQL 2M-row isolated benchmark passed | Owner/time/ID index and keyset pages; 10-sample page 1 p50/p95 0.729/13.898 ms, page 20,000 0.373/21.557 ms; tiny synthetic snapshots, no concurrent traffic |
 | Pre-push security review | Focused source review and regression passed | Session and saved-tour owner cookies default to Secure; Compose forces Secure; local data excluded from Git and Docker context; isolated full suite 132 passed, 1 skipped |
 | Codex token guidance | Project configuration added; runtime activation pending restart/trust | Local RTK `PreToolUse` hook rewrites a sample Bash command; `AGENTS.md` loads `RTK.md` and defaults to `caveman full` |
@@ -68,6 +68,14 @@ actual checks count as completion evidence.
   flake8 passed. Full flake8 retains three existing F841 findings in ignored
   presentation artifacts.
 
+- Moved the PostgreSQL Compose database from its named volume to the sibling
+  `../grounded-travel-planner-data/postgres` directory, outside the Git tree.
+  Stopped the app, created an owner-only custom-format dump, validated its
+  archive, initialized the new bind mount and restored it. All three saved rows
+  kept the same ordered checksum; indexes remained. App and DB are healthy;
+  root returned 200 and session creation 201. The old named volume remains for
+  recovery. Restart cleared in-memory sessions. Browser and live-provider checks
+  were not run.
 - Applied project-local RTK setup with `rtk init --codex`. The new `Bash`
   `PreToolUse` handler leaves the Python formatting hook in place. A direct
   valid hook payload rewrote `git status --short` to `rtk git status --short`;

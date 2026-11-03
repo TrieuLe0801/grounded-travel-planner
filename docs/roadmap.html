@@ -149,13 +149,14 @@
       <h3>1K · Saved tours</h3>
       <ul>
         <li>Explicit save of a validated plan snapshot with original sources</li>
-        <li>PostgreSQL 17 database container with named volume, health check and browser owner isolation</li>
+        <li>PostgreSQL 17 database container with an external host data directory, health check and browser owner isolation</li>
         <li>Read-only Vietnamese/English list, detail and delete with owner-scoped keyset pagination</li>
         <li>Composite owner/time/ID index and explicit migration for populated legacy databases</li>
         <li>9 focused and 131 full host/container tests; Python gates and frontend build pass</li>
         <li>Disposable PostgreSQL 2M-row benchmark passed: first/deep keyset page p50 0.729/0.373 ms; synthetic tiny snapshots, no concurrent traffic</li>
         <li>Existing tour copied exactly from SQLite; PostgreSQL and app container recreation preserved it</li>
         <li>PostgreSQL integration test passed in Compose; current containers healthy, browser QA pending</li>
+        <li>Three saved rows and indexes survived the move from named volume to a sibling directory outside Git; former volume retained for recovery</li>
         <li>Focused pre-push cookie security fix and isolated full suite: 132 passed, 1 optional test skipped</li>
       </ul>
     </section>

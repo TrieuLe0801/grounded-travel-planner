@@ -91,11 +91,14 @@ immutable snapshot with its source references. The saved-tour view can list,
 inspect and delete snapshots without restoring or changing the live plan.
 Opening a snapshot does not recheck current facts.
 
-Compose stores saved tours in PostgreSQL 17 on the `postgres-data` volume.
-Set a unique `GTP_SAVED_TOURS_POSTGRES_PASSWORD` in the ignored `.env` before
-starting Compose. The database has no host port. Back up its volume separately;
-the volume alone does not protect against host loss. Local runs outside Compose
-use the SQLite path `GTP_SAVED_TOURS_DB_PATH` by default.
+Compose stores saved tours in PostgreSQL 17. Its data directory defaults to
+`../grounded-travel-planner-data/postgres`, outside the Git repository. Set
+`GTP_DATA_DIR` in the ignored `.env` to choose another host directory. Create
+its `postgres` subdirectory before starting Compose. Set a unique
+`GTP_SAVED_TOURS_POSTGRES_PASSWORD` in `.env`. The database has no host port.
+Back up the host directory separately; a bind mount does not protect against
+host loss. Local runs outside Compose use the SQLite path
+`GTP_SAVED_TOURS_DB_PATH` by default.
 
 The archive belongs to a browser through a separate 365-day HttpOnly owner
 cookie. Clearing that cookie loses access; there is no account or cross-device
@@ -114,6 +117,15 @@ The migration reads the SQLite volume without modifying it and can be rerun.
 Start the app after it succeeds. Keep the old volume for rollback; avoid
 `docker compose down -v` during migration. See [ADR 0015](docs/adr/0015-postgres-compose-saved-tour-storage.md)
 for the storage decision.
+
+For a PostgreSQL backup, run `pg_dump` into a directory outside the repository
+and store the dump securely outside the host:
+
+```bash
+mkdir -p ../grounded-travel-planner-data/backups
+docker compose exec -T db pg_dump -U travel_planner -d travel_planner \
+  --format=custom > ../grounded-travel-planner-data/backups/saved_tours.dump
+```
 
 ## Verification
 
