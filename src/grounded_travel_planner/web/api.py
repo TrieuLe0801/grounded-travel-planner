@@ -250,7 +250,12 @@ def _secure_cookie(request: Request) -> bool:
 class SavedTourStore(Protocol):
     """Storage contract used by the HTTP adapter, regardless of database engine."""
 
-    def save_for_user(self, user_id: str, plan: SightseeingPlan) -> SavedTour: ...
+    def save_for_user(
+        self,
+        user_id: str,
+        plan: SightseeingPlan,
+        visuals_by_entry: dict[str, dict[str, str]] | None = None,
+    ) -> SavedTour: ...
 
     def list_for_user(
         self, user_id: str, *, cursor: str | None = None, limit: int = LIST_LIMIT
@@ -722,7 +727,30 @@ def create_app(
                 )
             plan = session.current_plan.model_copy(deep=True)
         try:
-            saved_tour = saved_tours.save_for_user(user.user_id, plan)
+            resolved_visuals = visuals.resolve_saved(plan)
+        except Exception:  # noqa: BLE001 - optional images cannot block a save
+            resolved_visuals = {}
+        visuals_by_entry = {
+            entry_id: {
+                key: value
+                for key, value in {
+                    "image_url": visual.image_url,
+                    "image_page_url": visual.image_page_url,
+                    "image_alt": visual.image_alt,
+                    "image_credit": visual.image_credit,
+                    "image_license": visual.image_license,
+                    "image_data_base64": visual.image_data_base64,
+                    "image_media_type": visual.image_media_type,
+                }.items()
+                if isinstance(value, str)
+            }
+            for entry_id, visual in resolved_visuals.items()
+            if visual.image_data_base64 and visual.image_media_type
+        }
+        try:
+            saved_tour = saved_tours.save_for_user(
+                user.user_id, plan, visuals_by_entry=visuals_by_entry
+            )
         except SavedTourError as error:
             raise HTTPException(
                 status_code=503, detail="Không thể lưu tour lúc này."

@@ -27,6 +27,7 @@ from grounded_travel_planner.contracts import (
     TripRequest,
 )
 from grounded_travel_planner.saved_tours import SavedTourRepository
+from grounded_travel_planner.visuals import PlaceVisual
 from grounded_travel_planner.web.api import (
     COOKIE_NAME,
     create_app,
@@ -107,6 +108,29 @@ class FakeVisualService:
     def resolve(self, plan: SightseeingPlan) -> dict[str, object]:
         return {}
 
+    def resolve_saved(self, plan: SightseeingPlan) -> dict[str, PlaceVisual]:
+        return {}
+
+
+class SavedVisualService(FakeVisualService):
+    def __init__(self) -> None:
+        self.saved_calls = 0
+
+    def resolve_saved(self, plan: SightseeingPlan) -> dict[str, PlaceVisual]:
+        self.saved_calls += 1
+        return {
+            "saved-entry": PlaceVisual(
+                place_name=plan.entries[0].place.name,
+                image_url="https://thumb.wikimedia.org/offline.jpg",
+                image_page_url="https://commons.wikimedia.org/wiki/File:Offline.jpg",
+                image_alt="Offline landmark",
+                image_credit="Offline photographer",
+                image_license="CC BY-SA 4.0",
+                image_data_base64="b2ZmbGluZS1pbWFnZQ==",
+                image_media_type="image/jpeg",
+            )
+        }
+
 
 class FakeOidcProvider:
     def __init__(self, subject: str) -> None:
@@ -135,6 +159,7 @@ def _client(
     *,
     base_url: str = "https://localhost",
     subject: str = "auth0|owner",
+    visual_service: FakeVisualService | None = None,
 ) -> TestClient:
     auth = AuthRepository(database_path.with_name(database_path.name + ".auth.sqlite"))
     auth.migrate()
@@ -142,7 +167,7 @@ def _client(
     client = TestClient(
         create_app(
             service,
-            FakeVisualService(),
+            visual_service or FakeVisualService(),
             saved_tour_repository=SavedTourRepository(database_path),
             auth_provider=provider,
             auth_repository=auth,
@@ -270,7 +295,13 @@ def test_explicit_save_snapshots_sources_is_idempotent_and_can_be_deleted(
     listed = client.get("/api/saved-tours")
     assert listed.status_code == 200
     assert listed.json() == {
-        "items": [{key: value for key, value in snapshot.items() if key != "plan"}],
+        "items": [
+            {
+                key: value
+                for key, value in snapshot.items()
+                if key not in {"plan", "visuals_by_entry"}
+            }
+        ],
         "has_more": False,
         "next_cursor": None,
     }
@@ -287,6 +318,64 @@ def test_explicit_save_snapshots_sources_is_idempotent_and_can_be_deleted(
         "has_more": False,
         "next_cursor": None,
     }
+
+
+def test_explicit_save_persists_base64_visual_without_relooking_it_up(
+    tmp_path: Path,
+) -> None:
+    service = FakeTravelPlannerService()
+    visuals = SavedVisualService()
+    client = _client(tmp_path / "saved-tours.sqlite", service, visual_service=visuals)
+    _start(client)
+    _commit_plan(client)
+
+    saved = client.post("/api/saved-tours")
+    assert saved.status_code == 200
+    snapshot = saved.json()
+    expected_visual = {
+        "image_url": "https://thumb.wikimedia.org/offline.jpg",
+        "image_page_url": "https://commons.wikimedia.org/wiki/File:Offline.jpg",
+        "image_alt": "Offline landmark",
+        "image_credit": "Offline photographer",
+        "image_license": "CC BY-SA 4.0",
+        "image_data_base64": "b2ZmbGluZS1pbWFnZQ==",
+        "image_media_type": "image/jpeg",
+    }
+    assert snapshot["visuals_by_entry"] == {"saved-entry": expected_visual}
+    assert visuals.saved_calls == 1
+
+    repeated = client.post("/api/saved-tours")
+    assert repeated.status_code == 200
+    assert repeated.json() == snapshot
+    assert visuals.saved_calls == 2
+
+    detail = client.get(f"/api/saved-tours/{snapshot['id']}")
+    assert detail.status_code == 200
+    assert detail.json()["visuals_by_entry"] == {"saved-entry": expected_visual}
+    assert visuals.saved_calls == 2
+
+
+def test_legacy_snapshot_without_visuals_remains_readable(tmp_path: Path) -> None:
+    database_path = tmp_path / "saved-tours.sqlite"
+    repository = SavedTourRepository(database_path)
+    saved = repository.save_for_user("offline-user", _plan("Hue"))
+
+    with sqlite3.connect(database_path) as connection:
+        row = connection.execute(
+            "SELECT plan_snapshot FROM saved_tours WHERE id = ?", (saved.id,)
+        ).fetchone()
+        assert row is not None
+        legacy_snapshot = json.loads(row[0])
+        legacy_snapshot.pop("visuals_by_entry", None)
+        connection.execute(
+            "UPDATE saved_tours SET plan_snapshot = ? WHERE id = ?",
+            (json.dumps(legacy_snapshot), saved.id),
+        )
+
+    restored = repository.get_for_user("offline-user", saved.id)
+    assert restored is not None
+    assert restored.plan == _plan("Hue")
+    assert restored.visuals_by_entry == {}
 
 
 def test_save_requires_an_accepted_non_pending_session_plan(tmp_path: Path) -> None:

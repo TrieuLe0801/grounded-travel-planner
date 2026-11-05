@@ -10,7 +10,7 @@ from base64 import b64decode, urlsafe_b64encode
 from binascii import Error as BinasciiError
 from collections.abc import Iterator
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
@@ -65,9 +65,14 @@ class SavedTour(SavedTourSummary):
     """A durable snapshot of one accepted plan revision."""
 
     plan: SightseeingPlan
+    visuals_by_entry: dict[str, dict[str, str]] = field(default_factory=dict)
 
     def payload(self) -> dict[str, object]:
-        return {**super().payload(), "plan": self.plan.model_dump(mode="json")}
+        return {
+            **super().payload(),
+            "plan": self.plan.model_dump(mode="json"),
+            "visuals_by_entry": self.visuals_by_entry,
+        }
 
 
 @dataclass(frozen=True)
@@ -112,7 +117,12 @@ class SavedTourRepository:
 
         return hashlib.sha256(owner_token.encode("utf-8")).hexdigest()
 
-    def save(self, owner_token: str, plan: SightseeingPlan) -> SavedTour:
+    def save(
+        self,
+        owner_token: str,
+        plan: SightseeingPlan,
+        visuals_by_entry: dict[str, dict[str, str]] | None = None,
+    ) -> SavedTour:
         """Save a snapshot once per owner/plan/revision and return that snapshot."""
 
         owner_hash = self.owner_hash(owner_token)
@@ -120,6 +130,7 @@ class SavedTourRepository:
             {
                 "schema_version": SNAPSHOT_SCHEMA_VERSION,
                 "plan": plan.model_dump(mode="json"),
+                "visuals_by_entry": visuals_by_entry or {},
             },
             ensure_ascii=False,
             separators=(",", ":"),
@@ -178,14 +189,20 @@ class SavedTourRepository:
                 revision=plan.revision,
                 saved_at=saved_at,
                 plan=plan.model_copy(deep=True),
+                visuals_by_entry=visuals_by_entry or {},
             )
         )
 
-    def save_for_user(self, user_id: str, plan: SightseeingPlan) -> SavedTour:
+    def save_for_user(
+        self,
+        user_id: str,
+        plan: SightseeingPlan,
+        visuals_by_entry: dict[str, dict[str, str]] | None = None,
+    ) -> SavedTour:
         """Save a snapshot once for an authenticated account and plan revision."""
 
         self._validate_user_id(user_id)
-        snapshot = self._snapshot(plan)
+        snapshot = self._snapshot(plan, visuals_by_entry)
         saved_at = datetime.now(timezone.utc).isoformat()
         title = self._title(plan)
         tour_id = uuid4().hex
@@ -237,6 +254,7 @@ class SavedTourRepository:
                 revision=plan.revision,
                 saved_at=saved_at,
                 plan=plan.model_copy(deep=True),
+                visuals_by_entry=visuals_by_entry or {},
             )
         )
 
@@ -601,11 +619,14 @@ class SavedTourRepository:
         return hashlib.sha256(secrets.token_urlsafe(32).encode("utf-8")).hexdigest()
 
     @staticmethod
-    def _snapshot(plan: SightseeingPlan) -> str:
+    def _snapshot(
+        plan: SightseeingPlan, visuals_by_entry: dict[str, dict[str, str]] | None = None
+    ) -> str:
         return json.dumps(
             {
                 "schema_version": SNAPSHOT_SCHEMA_VERSION,
                 "plan": plan.model_dump(mode="json"),
+                "visuals_by_entry": visuals_by_entry or {},
             },
             ensure_ascii=False,
             separators=(",", ":"),
@@ -645,6 +666,21 @@ class SavedTourRepository:
             if snapshot.get("schema_version") != SNAPSHOT_SCHEMA_VERSION:
                 raise ValueError("Unsupported saved-tour snapshot schema.")
             plan = SightseeingPlan.model_validate(snapshot["plan"])
+            visuals = snapshot.get("visuals_by_entry", {})
+            if not isinstance(visuals, dict) or not all(
+                isinstance(entry_id, str)
+                and isinstance(visual, dict)
+                and all(
+                    isinstance(key, str) and isinstance(value, str)
+                    for key, value in visual.items()
+                )
+                for entry_id, visual in visuals.items()
+            ):
+                raise ValueError("Saved-tour visuals are invalid.")
         except (AttributeError, KeyError, TypeError, ValueError) as error:
             raise SavedTourError("The saved tour snapshot is invalid.") from error
-        return SavedTour(plan=plan, **cls._summary_from_row(row).__dict__)
+        return SavedTour(
+            plan=plan,
+            visuals_by_entry=visuals,
+            **cls._summary_from_row(row).__dict__,
+        )

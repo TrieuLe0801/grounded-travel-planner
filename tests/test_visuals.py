@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+from base64 import b64decode
 from datetime import date, time
+from urllib.error import HTTPError
 
 import pytest
+from typing_extensions import Self
 
 from grounded_travel_planner.contracts import (
     PlaceRecommendation,
@@ -130,3 +133,116 @@ def test_photo_lookups_are_bounded_to_twelve_stops() -> None:
 
     assert len(visuals) == 12
     assert len(service.calls) == 12
+
+
+def test_saved_visual_encodes_downloaded_image_and_keeps_attribution(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Explicit archive saves retain local image bytes without another lookup."""
+
+    service = VisualEnrichmentService(user_agent="visual-test")
+    visual = PlaceVisual(
+        place_name="Imperial City",
+        image_url="https://thumb.wikimedia.org/city.jpg",
+        image_page_url="https://commons.wikimedia.org/wiki/File:City.jpg",
+        image_alt="Gate in Imperial City, Huế",
+        image_credit="Example photographer",
+        image_license="CC BY-SA 4.0",
+    )
+    monkeypatch.setattr(service, "resolve", lambda plan: {"entry_0": visual})
+    monkeypatch.setattr(
+        service,
+        "_download_saved_image",
+        lambda image_url: (b"offline-image", "image/jpeg"),
+    )
+
+    saved = service.resolve_saved(_plan(["Imperial City"]))["entry_0"]
+
+    assert b64decode(saved.image_data_base64 or "") == b"offline-image"
+    assert saved.image_media_type == "image/jpeg"
+    assert saved.image_page_url == visual.image_page_url
+    assert saved.image_credit == visual.image_credit
+    assert saved.image_license == visual.image_license
+
+
+def test_saved_visual_rejects_untrusted_image_host() -> None:
+    service = VisualEnrichmentService(user_agent="visual-test")
+
+    with pytest.raises(ValueError, match="trusted"):
+        service._download_saved_image("https://example.test/image.jpg")
+
+
+class _FakeHeaders:
+    def __init__(self, media_type: str, content_length: str | None = None) -> None:
+        self._media_type = media_type
+        self._content_length = content_length
+
+    def get_content_type(self) -> str:
+        return self._media_type
+
+    def get(self, name: str) -> str | None:
+        return self._content_length if name == "Content-Length" else None
+
+
+class _FakeImageResponse:
+    def __init__(
+        self, media_type: str, body: bytes, content_length: str | None = None
+    ) -> None:
+        self.headers = _FakeHeaders(media_type, content_length)
+        self._body = body
+
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(self, *args: object) -> None:
+        return None
+
+    def read(self, size: int) -> bytes:
+        return self._body[:size]
+
+
+class _FakeOpener:
+    def __init__(self, response: _FakeImageResponse | Exception) -> None:
+        self._response = response
+
+    def open(self, request: object, timeout: float) -> _FakeImageResponse:
+        if isinstance(self._response, Exception):
+            raise self._response
+        return self._response
+
+
+def test_saved_visual_rejects_bad_content_before_base64_encoding(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    service = VisualEnrichmentService(user_agent="visual-test")
+    trusted_url = "https://thumb.wikimedia.org/offline.jpg"
+
+    monkeypatch.setattr(
+        "grounded_travel_planner.visuals.service.build_opener",
+        lambda handler: _FakeOpener(_FakeImageResponse("text/html", b"not an image")),
+    )
+    with pytest.raises(ValueError, match="media type"):
+        service._download_saved_image(trusted_url)
+
+    monkeypatch.setattr(
+        "grounded_travel_planner.visuals.service.build_opener",
+        lambda handler: _FakeOpener(_FakeImageResponse("image/jpeg", b"x" * 1_000_001)),
+    )
+    with pytest.raises(ValueError, match="too large"):
+        service._download_saved_image(trusted_url)
+
+
+def test_saved_visual_rejects_redirects(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    service = VisualEnrichmentService(user_agent="visual-test")
+    redirect = HTTPError(
+        "https://thumb.wikimedia.org/offline.jpg", 302, "Found", {}, None
+    )
+    monkeypatch.setattr(
+        "grounded_travel_planner.visuals.service.build_opener",
+        lambda handler: _FakeOpener(redirect),
+    )
+
+    with pytest.raises(HTTPError):
+        service._download_saved_image("https://thumb.wikimedia.org/offline.jpg")

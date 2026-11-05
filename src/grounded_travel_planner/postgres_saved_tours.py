@@ -104,12 +104,18 @@ class PostgresSavedTourRepository:
     def close(self) -> None:
         self._pool.close()
 
-    def save(self, owner_token: str, plan: SightseeingPlan) -> SavedTour:
+    def save(
+        self,
+        owner_token: str,
+        plan: SightseeingPlan,
+        visuals_by_entry: dict[str, dict[str, str]] | None = None,
+    ) -> SavedTour:
         owner_hash = SavedTourRepository.owner_hash(owner_token)
         snapshot = json.dumps(
             {
                 "schema_version": SNAPSHOT_SCHEMA_VERSION,
                 "plan": plan.model_dump(mode="json"),
+                "visuals_by_entry": visuals_by_entry or {},
             },
             ensure_ascii=False,
             separators=(",", ":"),
@@ -163,9 +169,14 @@ class PostgresSavedTourRepository:
             raise SavedTourError("Could not save the tour snapshot.") from error
         return SavedTourRepository._tour_from_row(row)
 
-    def save_for_user(self, user_id: str, plan: SightseeingPlan) -> SavedTour:
+    def save_for_user(
+        self,
+        user_id: str,
+        plan: SightseeingPlan,
+        visuals_by_entry: dict[str, dict[str, str]] | None = None,
+    ) -> SavedTour:
         SavedTourRepository._validate_user_id(user_id)
-        snapshot = SavedTourRepository._snapshot(plan)
+        snapshot = SavedTourRepository._snapshot(plan, visuals_by_entry)
         saved_at = datetime.now(timezone.utc).isoformat()
         title = SavedTourRepository._title(plan)
         tour_id = uuid4().hex

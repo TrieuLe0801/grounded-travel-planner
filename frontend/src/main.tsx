@@ -40,6 +40,8 @@ type Visual = {
   image_alt: string;
   image_credit: string;
   image_license: string;
+  image_data_base64?: string;
+  image_media_type?: string;
 };
 type Entry = {
   id: string;
@@ -99,7 +101,10 @@ type SavedTourSummary = {
   revision: number;
   saved_at: string;
 };
-type SavedTour = SavedTourSummary & { plan: Plan };
+type SavedTour = SavedTourSummary & {
+  plan: Plan;
+  visuals_by_entry?: Record<string, Visual>;
+};
 type SavedTourPage = {
   items: SavedTourSummary[];
   has_more: boolean;
@@ -161,7 +166,11 @@ function Photo({ visual, placeName, language }: { visual?: Visual; placeName: st
         className="block overflow-hidden rounded-2xl focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300"
       >
         <img
-          src={visual.image_url}
+          src={
+            visual.image_data_base64 && visual.image_media_type
+              ? `data:${visual.image_media_type};base64,${visual.image_data_base64}`
+              : visual.image_url
+          }
           alt={visual.image_alt}
           className="aspect-[16/9] w-full object-cover"
           loading="lazy"
@@ -871,7 +880,7 @@ function SavedToursView({
               </p>
               <PlanView
                 plan={selectedTour.plan}
-                visuals={{}}
+                visuals={selectedTour.visuals_by_entry || {}}
                 loading={false}
                 language={language}
                 statusLabel={labels.savedTourSnapshot}
