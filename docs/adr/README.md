@@ -17,4 +17,6 @@ Tavily graph tool node; ADR 0013 defines the session-scoped bilingual UI locale.
 ADR 0014 permits only explicitly saved, validated tour snapshots. ADR 0015
 moves that archive from embedded SQLite to a PostgreSQL Compose container;
 live plan and conversation state remain session-only.
+ADR 0019 defines GitHub Actions CI and gated app deployment through a local
+Apple Silicon macOS launchd poller. Database migrations remain explicit.
 

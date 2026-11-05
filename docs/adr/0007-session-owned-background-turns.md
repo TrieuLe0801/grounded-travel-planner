@@ -65,3 +65,15 @@ localized 503 without evicting recently active sessions. Reset replaces the
 old session atomically and preserves the selected language, so repeated resets
 do not accumulate abandoned state. These process-local limits bound retained
 objects; public ingress still needs rate controls to protect availability.
+
+## Amendment — 2026-11-05 — ngrok session-allocation rate limit
+
+The optional Compose ngrok profile loads `deploy/ngrok-traffic-policy.json`.
+It limits `POST /api/session` and `POST /api/session/reset` to 20 requests per
+client IP in a sliding one-hour window and allows 20 `POST /api/turns` requests
+per client IP per hour to bound public provider use. The app does not trust
+forwarded client IP headers; ngrok applies the limit using its connection
+client IP before forwarding. This protects the configured ngrok path only.
+Other public ingress deployments still need equivalent limits. Uvicorn access
+logging is disabled for the runtime so the Auth0 callback query is not written
+to its request log.

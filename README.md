@@ -39,7 +39,7 @@ start the API:
 
 ```bash
 uv run --env-file .env uvicorn grounded_travel_planner.web.api:app \
-  --host 127.0.0.1 --port 8000
+  --host 127.0.0.1 --port 8000 --no-access-log
 ```
 
 Install and start the frontend in a second terminal:
@@ -166,6 +166,62 @@ docker compose up -d --wait
 The Compose app is served at `http://127.0.0.1:8503` by default. Live
 OpenAI/Tavily/LangSmith verification is separate from the offline suite and is
 recorded under `docs/experiments/` when run.
+
+## CI/CD to the Mac
+
+GitHub Actions runs Python tests, Python quality checks, frontend checks/build
+and Compose validation on pushes and pull requests to
+`feature/travel-ground-planner`. A Mac `launchd` agent checks the public Actions
+status every five minutes. It deploys the latest branch commit only after its
+push workflow passes. Pull requests run only on GitHub-hosted runners. The Mac
+deploy script rebuilds and health-checks only the app service; it leaves
+PostgreSQL and its external data directory running. An app restart clears live
+session plans and chat history.
+
+The Mac keeps `.env` and deployment paths outside Git. Its local file
+`~/.config/grounded-travel-planner/deploy.env` contains absolute paths and a
+deployment gate:
+
+```dotenv
+GTP_DEPLOY_ENV_FILE=/absolute/path/to/grounded-travel-planner/.env
+GTP_DATA_DIR=/absolute/path/to/grounded-travel-planner-data
+GTP_DEPLOY_ENABLED=false
+GTP_DEPLOY_BRANCH=feature/travel-ground-planner
+GTP_DEPLOY_SOURCE=/absolute/path/to/development/checkout
+GTP_DEPLOY_CHECKOUT=/absolute/path/to/private/deployment/checkout
+```
+
+Keep that file mode `600`; keep `.env` mode `600`. The `GTP_DATA_DIR` value must
+point to the existing data root whose `postgres` directory holds the current
+database. `scripts/install_macos_deploy_agent.sh` installs the five-minute
+LaunchAgent. Run `scripts/poll_and_deploy_macos.sh --check` to validate local
+paths, Compose configuration and database health without restarting the app.
+The LaunchAgent runs in the logged-in Mac session; keep the Mac awake and
+Docker Desktop available. After changing the deployment gate, run:
+
+```bash
+launchctl kickstart -k "gui/$(id -u)/com.groundedtravelplanner.deploy"
+```
+
+Rerun `scripts/install_macos_deploy_agent.sh` after changing the poller script.
+
+Set local `GTP_DEPLOY_ENABLED=true` to enable automatic deployment after CI
+passes. Keep it `false` until the explicit Auth0 account schema migration and
+rollout are complete under [ADR 0016](docs/adr/0016-auth0-account-owned-saved-tours.md).
+The migration is not part of automatic deployment. The poller uses the public
+GitHub API and needs no GitHub token or inbound network access.
+
+For temporary public sharing, set `NGROK_AUTHTOKEN` in the ignored `.env` and
+start the optional tunnel:
+
+```bash
+docker compose --profile ngrok up -d --wait ngrok
+```
+
+The tunnel applies `deploy/ngrok-traffic-policy.json`, limiting session
+creation/reset to 20 requests per client IP per hour and planning turns to 20
+per client IP per hour. Uvicorn access logs are disabled so Auth0 callback
+query parameters are not written to app logs.
 
 ## Repository map
 

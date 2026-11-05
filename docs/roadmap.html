@@ -172,12 +172,23 @@
       </ul>
     </section>
     <section class="card active">
+      <span class="badge">CI configured · automatic deploy gated</span>
+      <h3>Mac CI/CD</h3>
+      <ul>
+        <li>GitHub Actions runs Python, frontend and Compose checks on the active branch and pull requests</li>
+        <li>A Mac launchd poller fetches a branch update only after push CI passes</li>
+        <li>Deployment updates and health-checks only the app service; PostgreSQL data remains in its external host directory</li>
+        <li>Automatic deployment remains gated until the explicit Auth0 account migration and rollout complete</li>
+      </ul>
+    </section>
+    <section class="card active">
       <span class="badge">Browser QA pending</span>
       <h3>1H · Async session turns</h3>
       <ul>
         <li>Bounded background worker pool</li>
         <li>Eight running or queued turns maximum per process; overload returns HTTP 429 before changing a session</li>
         <li>HTTP sessions capped at 1,024 with one-hour idle expiry, including completed uncollected turns; full capacity returns HTTP 503</li>
+        <li>Ngrok policy active: 20 session create/reset requests and 20 planning turns per client IP per hour; Uvicorn callback access-log change awaits app recreation</li>
         <li>One pending turn per browser session</li>
         <li>Exact-once result integration after page return</li>
         <li>50/50 host and Docker tests passed</li>
@@ -228,7 +239,7 @@
   <div class="grid">
     <section class="card pending"><span class="badge">Next</span><h3>Live quality evaluation</h3><p>Measure Chat answer accuracy and source relevance across more factual questions; label source diversity and extend edit coverage to reorder and replace.</p></section>
     <section class="card done"><span class="badge">Verified, stopped</span><h3>Temporary sharing</h3><p>Ngrok HTTPS tunnel passed app, graph and session checks, then was stopped on request; the local app remains healthy.</p></section>
-    <section class="card pending"><span class="badge">Deferred</span><h3>Production concerns</h3><p>Authentication, cross-device archive recovery, production deployment, rate limits and operational security.</p></section>
+    <section class="card pending"><span class="badge">Deferred</span><h3>Production concerns</h3><p>Auth0 production rollout, cross-device archive recovery, non-ngrok ingress limits, log retention and operational security.</p></section>
   </div>
 
   <p>Durable detail: <a href="project-charter.md">charter</a>,

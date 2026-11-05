@@ -1,6 +1,6 @@
 {
-  "version": 72,
-  "updated": "2026-11-04T06:39:51+07:00",
+  "version": 76,
+  "updated": "2026-11-06T06:55:09+07:00",
   "active_scope": "city-place-sightseeing-webapp",
   "current_milestone": "Milestone 1: executable city/place sightseeing vertical slice",
   "completed": {
@@ -54,7 +54,7 @@
     "bidirectional_chat_trip_length": true,
     "ngrok_compose_profile_prepared": true,
     "ngrok_public_tunnel_verified": true,
-    "ngrok_tunnel_running": false,
+    "ngrok_tunnel_running": true,
     "model_authentication_diagnostic": true,
     "openai_ollama_automatic_fallback": true,
     "apple_m1_ollama_gpu_routing": true,
@@ -80,7 +80,10 @@
     "security_pre_push_review": true,
     "auth0_account_offline": true,
     "auth0_account_live": false,
-    "auth0_account_deployed": false
+    "auth0_account_deployed": false,
+    "macos_ci_cd_configured": true,
+    "ngrok_session_rate_limit": true,
+    "auth_callback_access_logging_disabled": true
   },
   "evidence": {
     "scope_reset_docs": [
@@ -499,8 +502,10 @@
       "Compose app healthy after recreation from .env change; prior sessions lost"
     ],
     "ngrok_tunnel_running": [
-      "stopped at user request with docker compose --profile ngrok stop ngrok",
-      "local app remained healthy and root returned HTTP 200"
+      "2026-11-06: recreated ngrok after NGROK_AUTHTOKEN was saved in ignored .env",
+      "docker inspect: running, restart count 0, --traffic-policy-file configured, policy mounted read-only",
+      "ngrok inspector: tunnel targets app:8000; active public URL matches running app GTP_AUTH_PUBLIC_ORIGIN; public root returned HTTP 200",
+      "app container stayed running to preserve session plans"
     ],
     "model_authentication_diagnostic": [
       "exact Ha Giang request returned OpenAI HTTP 401 token_invalidated before Planner or Tavily",
@@ -687,7 +692,33 @@
     ],
     "auth0_account_deployed": [
       "pending controlled migration of live PostgreSQL and app rollout"
+    ],
+    "macos_ci_cd_configured": [
+      ".github/workflows/ci-cd.yml: GitHub-hosted verification on active-branch pushes and pull requests",
+      "scripts/poll_and_deploy_macos.sh: waits for successful push CI, filters app changes and gates deployment locally",
+      "scripts/deploy_macos.sh: Compose/database preflight, app-only update, health check and previous-image rollback",
+      "scripts/install_macos_deploy_agent.sh: installed five-minute macOS launchd poller",
+      "local Mac config stores paths only; app .env and PostgreSQL data remain outside Git",
+      "GTP_DEPLOY_ENABLED=false pending the explicit Auth0 database migration and rollout",
+      "deployment preflight, shell syntax, YAML parsing, plist validation and diff checks passed; app not restarted"
+    ],
+    "ngrok_session_rate_limit": [
+      "deploy/ngrok-traffic-policy.json: per-client-IP sliding-hour limits for POST /api/session, POST /api/session/reset and POST /api/turns",
+      "compose.yaml: optional ngrok service mounts and loads the policy read-only",
+      "tests/test_deployment_security.py: policy and Compose wiring regressions",
+      "docker compose --profile ngrok config --quiet passed",
+      "full host pytest 155 passed, 1 optional PostgreSQL test skipped",
+      "Docker test target: 155 passed, 1 optional PostgreSQL test skipped",
+      "2026-11-06: ngrok recreated after NGROK_AUTHTOKEN was saved in ignored .env; process running with read-only policy mount, restart count 0; live 429 enforcement not tested"
+    ],
+    "auth_callback_access_logging_disabled": [
+      "Dockerfile: runtime Uvicorn starts with --no-access-log",
+      "README.md: local Uvicorn command also disables access logs",
+      "tests/test_deployment_security.py: runtime logging configuration regression",
+      "full host pytest 155 passed, 1 optional PostgreSQL test skipped",
+      "Docker test target: 155 passed, 1 optional PostgreSQL test skipped",
+      "app remains on prior image to preserve session plans; --no-access-log takes effect after app rebuild/recreation"
     ]
   },
-  "notes": "Compose now runs saved tours in PostgreSQL 17 on a sibling host directory outside Git. Three saved rows and indexes survived the move from the old named volume, which remains for recovery. One earlier SQLite tour was backed up and copied exactly to PostgreSQL. A disposable 2M-row PostgreSQL benchmark measured keyset page 1/deep p50 0.729/0.373 ms with tiny snapshots and no concurrent traffic; its volume was removed. Focused pre-push review fixed Secure cookie handling behind TLS proxies. Network-disabled read-only container suite: 132 passed, 1 optional PostgreSQL test skipped; Python quality gates passed. Browser/live-provider checks were not run; the running app image predates the cookie fix. Old SQLite volume and ignored backups remain for recovery. Auth0 account ownership is implemented and verified offline (145 passed, 1 skipped); an isolated five-row PostgreSQL restore survived two migration runs unchanged. Live database/app remain on browser-cookie ownership pending tenant setup, migration and browser QA. A disposable PostgreSQL smoke mapped 16 concurrent logins to one account and verified persisted session, CSRF and revocation. Follow-up: a disposable PG smoke caught and fixed an invalid NUL advisory-lock key; 16 concurrent identity lookups now map to one account. Live DB checksum and running app stayed unchanged; rebuilt image was not deployed."
+  "notes": "Compose now runs saved tours in PostgreSQL 17 on a sibling host directory outside Git. Three saved rows and indexes survived the move from the old named volume, which remains for recovery. One earlier SQLite tour was backed up and copied exactly to PostgreSQL. A disposable 2M-row PostgreSQL benchmark measured keyset page 1/deep p50 0.729/0.373 ms with tiny snapshots and no concurrent traffic; its volume was removed. Focused pre-push review fixed Secure cookie handling behind TLS proxies. Network-disabled read-only container suite: 132 passed, 1 optional PostgreSQL test skipped; Python quality gates passed. Browser/live-provider checks were not run; the running app image predates the cookie fix. Old SQLite volume and ignored backups remain for recovery. Auth0 account ownership is implemented and verified offline (145 passed, 1 skipped); an isolated five-row PostgreSQL restore survived two migration runs unchanged. Live database/app remain on browser-cookie ownership pending tenant setup, migration and browser QA. A disposable PostgreSQL smoke mapped 16 concurrent logins to one account and verified persisted session, CSRF and revocation. Follow-up: a disposable PG smoke caught and fixed an invalid NUL advisory-lock key; 16 concurrent identity lookups now map to one account. Live DB checksum and running app stayed unchanged; rebuilt image was not deployed. GitHub Actions CI and a local five-minute macOS launchd poller are configured. The poller waits for a successful push CI run and uses no GitHub token. Automatic Mac deployment stays disabled until the explicit Auth0 database migration and rollout; no app restart or migration ran for CI/CD setup. 2026-11-05 security follow-up: optional ngrok ingress limits session create/reset and planning turns to 20 requests per client IP per sliding hour; Uvicorn access logs are disabled. Host suite 155 passed, 1 optional test skipped. Ngrok was recreated after NGROK_AUTHTOKEN was saved in ignored .env; Docker inspection confirmed the running process and read-only policy mount. The app remains on its prior image, so Uvicorn access-log suppression awaits app recreation. Docker test target also passed 155 tests with one optional PostgreSQL test skipped for the security follow-up."
 }

@@ -42,6 +42,8 @@ ENV GTP_COORDINATOR_MODEL=offline-coordinator \
     GTP_OLLAMA_FALLBACK_MODEL=offline-fallback
 
 COPY tests ./tests
+COPY Dockerfile compose.yaml ./
+COPY deploy/ngrok-traffic-policy.json ./deploy/ngrok-traffic-policy.json
 COPY data/eval ./data/eval
 COPY scripts/live_smoke.py ./scripts/live_smoke.py
 COPY scripts/migrate_saved_tours_index.py ./scripts/migrate_saved_tours_index.py
@@ -73,4 +75,4 @@ EXPOSE 8000
 HEALTHCHECK --interval=10s --timeout=3s --start-period=20s --retries=5 \
     CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/', timeout=2).read()"]
 
-CMD ["uvicorn", "grounded_travel_planner.web.api:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "grounded_travel_planner.web.api:app", "--host", "0.0.0.0", "--port", "8000", "--no-access-log"]

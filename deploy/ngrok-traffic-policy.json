@@ -1,0 +1,42 @@
+{
+  "on_http_request": [
+    {
+      "name": "Limit anonymous session allocation by client IP",
+      "expressions": [
+        "req.method == 'POST'",
+        "req.url.path in ['/api/session', '/api/session/reset']"
+      ],
+      "actions": [
+        {
+          "type": "rate-limit",
+          "config": {
+            "name": "Allow 20 session allocations per IP per hour",
+            "algorithm": "sliding_window",
+            "capacity": 20,
+            "rate": "60m",
+            "bucket_key": ["conn.client_ip"]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Limit planning turns by client IP",
+      "expressions": [
+        "req.method == 'POST'",
+        "req.url.path == '/api/turns'"
+      ],
+      "actions": [
+        {
+          "type": "rate-limit",
+          "config": {
+            "name": "Allow 20 planning turns per IP per hour",
+            "algorithm": "sliding_window",
+            "capacity": 20,
+            "rate": "60m",
+            "bucket_key": ["conn.client_ip"]
+          }
+        }
+      ]
+    }
+  ]
+}

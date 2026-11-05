@@ -64,7 +64,18 @@ services:
     profiles: ["ngrok"]
     environment:
       NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN:-}
-    command: ["http", "app:8000", "--log", "stdout", "--inspect=false"]
+    command:
+      [
+        "http",
+        "app:8000",
+        "--log",
+        "stdout",
+        "--inspect=false",
+        "--traffic-policy-file",
+        "/etc/ngrok/traffic-policy.json",
+      ]
+    volumes:
+      - ./deploy/ngrok-traffic-policy.json:/etc/ngrok/traffic-policy.json:ro
     depends_on:
       app:
         condition: service_started

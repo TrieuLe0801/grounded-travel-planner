@@ -890,3 +890,50 @@ three-role runtime and role-specific model policy.
   `<YOUR_MODEL_NAME>` in `.env.example` and README setup commands instead of
   naming specific models. Detailed historical verification artifacts remain
   unchanged; README summaries no longer name the models used in those runs.
+
+## Mac CI/CD Setup — 2026-11-05
+
+- Added GitHub Actions verification for the active branch and pull requests:
+  Python tests and quality checks, frontend typecheck/build, and Compose config.
+  Action dependencies use immutable commit pins.
+- Installed a Mac `launchd` poller that checks the public GitHub Actions API
+  every five minutes. It fetches the active branch only after its push CI run
+  succeeds. Pull request workflows use GitHub-hosted runners only; no
+  self-hosted GitHub runner remains registered for this public repository.
+- Local deploy configuration contains only the existing `.env` path,
+  PostgreSQL data directory, source checkout and separate deployment checkout.
+  `.env` and database files remain outside Git. The deploy script rebuilds and
+  health-checks only the app service, checks its HTTP endpoint, leaves
+  PostgreSQL running, and attempts app-image rollback after failure.
+- `GTP_DEPLOY_ENABLED=false` remains in local Mac configuration. ADR 0016 still
+  requires a controlled backup, write pause and live account-schema migration
+  before Auth0 rollout.
+  The workflow and poller are prepared, but this change does not deploy or
+  restart the app.
+- `scripts/deploy_macos.sh --check`, `bash -n`, `git diff --check`, workflow
+  YAML parsing and local deployment-config checks passed. No application tests,
+  image build, migration or live provider call ran for this config-only change.
+
+## Auth Callback And Public Session Ingress Hardening — 2026-11-05
+
+- Uvicorn now runs with access logging disabled, preventing Auth0 callback
+  `code` and `state` query parameters from appearing in application access
+  logs. The local README command follows the same policy.
+- Added a per-client-IP ngrok Traffic Policy for `POST /api/session`,
+  `POST /api/session/reset`, and `POST /api/turns`: at most 20 requests per
+  route in a sliding hour. Covering reset prevents requests without a valid
+  session cookie from bypassing the creation limit; the turn limit also
+  reduces repeated provider quota use. Other public ingress deployments still
+  need their own trusted client-IP rate limit.
+- Three focused deployment-security tests passed. `docker compose --profile
+  ngrok config --quiet` and `git diff --check` passed. Host pytest and the
+  Docker test target each passed 155 tests with one optional PostgreSQL
+  integration test skipped. Isort, Black, flake8 and Ruff passed. On 2026-11-06,
+  after the user saved `NGROK_AUTHTOKEN` in ignored `.env`, only ngrok was
+  recreated. Docker inspection confirmed its process is running with the policy
+  mounted read-only and restart count zero. The ngrok inspector confirmed the
+  tunnel targets `app:8000`; its current public URL matches the running app's
+  `GTP_AUTH_PUBLIC_ORIGIN`, and public root returned HTTP 200. The app was left
+  running to preserve session plans; its prior image still has access logging
+  enabled until it is rebuilt and recreated. Live 429 enforcement and Auth0
+  callback behavior were not tested.

@@ -1,7 +1,40 @@
 # Implementation Plan
 
 Status: Active
-Last updated: 2026-11-03
+Last updated: 2026-11-05
+
+## Mac CI/CD — Configured; Deployment Gated — 2026-11-05
+
+GitHub Actions now defines Python tests and quality checks, frontend checks and
+build, and Compose configuration validation. A Mac `launchd` poller checks for
+a successful push workflow every five minutes. The Mac keeps `.env` and the
+existing PostgreSQL data directory outside Git. Its deployment script validates
+the database, rebuilds only `app`, waits for health, checks HTTP, and attempts
+to restore the previous app image after a failed health check.
+
+The workflow and LaunchAgent are configured. Automatic deployment remains
+disabled until the controlled Auth0 database migration and rollout in ADR 0016
+are complete. CI/CD configuration verification passed; no application image
+was deployed or restarted for this change.
+
+## Auth Callback And Session Ingress Hardening — Configured; Rollout Pending — 2026-11-05
+
+The runtime Uvicorn command disables access logs so the Auth0 callback's
+short-lived `code` and `state` query parameters are not recorded in app access
+logs. The local README run command uses the same setting. The optional Compose
+ngrok profile loads a Traffic Policy that rate-limits anonymous session
+creation/reset to 20 requests per client IP per sliding hour and planning
+turns to 20 per client IP per sliding hour. Reset is included because a missing
+or invalid session cookie can allocate a new session there too. Turn limits
+also reduce repeated public requests that could consume model and search quota.
+
+Three deployment-security regression tests, `docker compose --profile ngrok
+config --quiet`, and `git diff --check` passed. The host suite and Docker test
+target each passed 155 tests with one optional PostgreSQL test skipped; isort,
+Black, flake8 and Ruff passed. The live app and ngrok tunnel were not restarted,
+preserving their current state. Rebuild the app and recreate the ngrok service
+to apply these settings. Other public ingress paths still need equivalent rate
+controls.
 
 ## Auth0 Account Ownership — Offline Verified; Rollout Pending — 2026-11-03
 

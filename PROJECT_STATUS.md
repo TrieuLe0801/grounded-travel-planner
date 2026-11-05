@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-11-04
+Last updated: 2026-11-05
 
 ## Current Milestone
 
@@ -42,14 +42,36 @@ background only.
 | Turn and session capacity | Offline verified; running app image unchanged | At most eight queued/running turns and 1,024 retained sessions per process; idle sessions expire after one hour, including uncollected completed turns. HTTP returns 429/503 without changing the rejected session. 15 focused and 122 full sandboxed tests passed |
 | Saved tours | PostgreSQL Compose app healthy; browser QA pending | Database now uses a sibling host directory outside Git; three saved rows and checksum survived the move; former named volume retained; root 200, session creation 201 |
 | Auth0 account ownership | Implemented and verified offline; rollout pending | OIDC BFF, account-scoped archive, claim migration, React sign-in; 146 host and container tests passed, 1 skipped; isolated PostgreSQL migration reran without changing five snapshot checksums. Sixteen concurrent logins mapped to one account. Live archive checksum unchanged; new runtime image built but not deployed. No tenant credentials or live OTP QA. |
+| Mac CI/CD | Configured; deployment gated | GitHub Actions CI and Mac `launchd` poller are ready. Local `GTP_DEPLOY_ENABLED=false` stays in place until the Auth0 database migration and rollout. No app image was deployed for this setup. |
 | Large saved-tour archive | PostgreSQL 2M-row isolated benchmark passed | Owner/time/ID index and keyset pages; 10-sample page 1 p50/p95 0.729/13.898 ms, page 20,000 0.373/21.557 ms; tiny synthetic snapshots, no concurrent traffic |
 | Pre-push security review | Focused source review and regression passed | Session and saved-tour owner cookies default to Secure; Compose forces Secure; local data excluded from Git and Docker context; isolated full suite 132 passed, 1 skipped |
+| Auth callback and public ingress hardening | Ngrok policy active; app rollout pending | Ngrok was recreated with the read-only policy and `NGROK_AUTHTOKEN` from ignored `.env`; its public URL matches runtime `GTP_AUTH_PUBLIC_ORIGIN`. App still runs its prior image, so Uvicorn access-log suppression awaits app recreation. Host and Docker suites: 155 passed, 1 skipped |
 | Codex token guidance | Project configuration added; runtime activation pending restart/trust | Local RTK `PreToolUse` hook rewrites a sample Bash command; `AGENTS.md` loads `RTK.md` and defaults to `caveman full` |
 
 Planning progress is not implementation progress. Only executable artifacts and
 actual checks count as completion evidence.
 
 ## Done
+
+- Added GitHub Actions verification and a gated Mac `launchd` pull deployer.
+  The poller checks push CI status before fetching source. Local path config and
+  existing ignored `.env` stay on the Mac; GitHub receives no provider or
+  database credentials. Deployment validates PostgreSQL, updates only the app
+  container, checks health and HTTP, and can restore the prior image after
+  failure. Static workflow/script/Compose checks passed. No app restart,
+  migration, model call or live deployment ran.
+- Added an ngrok Traffic Policy that caps session creation/reset at 20 requests
+  and planning turns at 20 requests per client IP per hour. Both session
+  endpoints are covered so a missing/invalid session cookie cannot bypass the
+  allocation limit; the turn limit also bounds repeated model/search quota use.
+  Three deployment-security regressions, Compose config validation, the host
+  suite and Docker test target (155 passed, one optional PostgreSQL skip each),
+  all Python quality gates and `git diff --check` passed. After the user saved
+  `NGROK_AUTHTOKEN` in ignored `.env`, only ngrok was recreated. Its process is
+  running with the policy mounted read-only; its inspector URL matches the
+  running app's `GTP_AUTH_PUBLIC_ORIGIN`. The app remains on its prior image to
+  preserve session plans, so `--no-access-log` awaits app rebuild/recreation.
+  Other public ingress paths still need their own client-IP rate limit.
 
 - Merged `feature/travel-ground-planner-codex-tooling-20261101` into
   `feature/travel-ground-planner`, retaining the branch's concise README,
