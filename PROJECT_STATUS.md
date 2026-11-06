@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-11-05
+Last updated: 2026-11-06
 
 ## Current Milestone
 
@@ -45,7 +45,7 @@ background only.
 | Mac CI/CD | Configured; deployment gated | GitHub Actions CI and Mac `launchd` poller are ready. Local `GTP_DEPLOY_ENABLED=false` stays in place until the Auth0 database migration and rollout. No app image was deployed for this setup. |
 | Large saved-tour archive | PostgreSQL 2M-row isolated benchmark passed | Owner/time/ID index and keyset pages; 10-sample page 1 p50/p95 0.729/13.898 ms, page 20,000 0.373/21.557 ms; tiny synthetic snapshots, no concurrent traffic |
 | Pre-push security review | Focused source review and regression passed | Session and saved-tour owner cookies default to Secure; Compose forces Secure; local data excluded from Git and Docker context; isolated full suite 132 passed, 1 skipped |
-| Auth callback and public ingress hardening | Ngrok policy active; app rollout pending | Ngrok was recreated with the read-only policy and `NGROK_AUTHTOKEN` from ignored `.env`; its public URL matches runtime `GTP_AUTH_PUBLIC_ORIGIN`. App still runs its prior image, so Uvicorn access-log suppression awaits app recreation. Host and Docker suites: 155 passed, 1 skipped |
+| Auth callback and public ingress hardening | Deployed; smoke checked | Rebuilt app runs Uvicorn with `--no-access-log`; ngrok runs the read-only per-IP policy using `NGROK_AUTHTOKEN` from ignored `.env`. App, DB and ngrok are up; local/public root returned HTTP 200. Host and Docker suites previously passed 155, 1 skipped |
 | Codex token guidance | Project configuration added; runtime activation pending restart/trust | Local RTK `PreToolUse` hook rewrites a sample Bash command; `AGENTS.md` loads `RTK.md` and defaults to `caveman full` |
 
 Planning progress is not implementation progress. Only executable artifacts and
@@ -67,11 +67,14 @@ actual checks count as completion evidence.
   Three deployment-security regressions, Compose config validation, the host
   suite and Docker test target (155 passed, one optional PostgreSQL skip each),
   all Python quality gates and `git diff --check` passed. After the user saved
-  `NGROK_AUTHTOKEN` in ignored `.env`, only ngrok was recreated. Its process is
-  running with the policy mounted read-only; its inspector URL matches the
-  running app's `GTP_AUTH_PUBLIC_ORIGIN`. The app remains on its prior image to
-  preserve session plans, so `--no-access-log` awaits app rebuild/recreation.
-  Other public ingress paths still need their own client-IP rate limit.
+  `NGROK_AUTHTOKEN` in ignored `.env`, the runtime image was rebuilt and app,
+  DB and ngrok were recreated with the ngrok profile. App command includes
+  `--no-access-log`; ngrok has the policy mounted read-only. All services are
+  running, app and DB are healthy, local/public root returned HTTP 200, and the
+  tunnel URL matches `GTP_AUTH_PUBLIC_ORIGIN`. App recreation cleared
+  session-only plans; Compose did not remove database volumes. Live 429
+  enforcement and Auth0 callback exchange were not tested. Other public ingress
+  paths still need their own client-IP rate limit.
 
 - Merged `feature/travel-ground-planner-codex-tooling-20261101` into
   `feature/travel-ground-planner`, retaining the branch's concise README,

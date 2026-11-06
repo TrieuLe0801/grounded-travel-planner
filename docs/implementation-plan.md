@@ -17,7 +17,7 @@ disabled until the controlled Auth0 database migration and rollout in ADR 0016
 are complete. CI/CD configuration verification passed; no application image
 was deployed or restarted for this change.
 
-## Auth Callback And Session Ingress Hardening — Configured; Rollout Pending — 2026-11-05
+## Auth Callback And Session Ingress Hardening — Deployed; Smoke Checked — 2026-11-06
 
 The runtime Uvicorn command disables access logs so the Auth0 callback's
 short-lived `code` and `state` query parameters are not recorded in app access
@@ -31,10 +31,14 @@ also reduce repeated public requests that could consume model and search quota.
 Three deployment-security regression tests, `docker compose --profile ngrok
 config --quiet`, and `git diff --check` passed. The host suite and Docker test
 target each passed 155 tests with one optional PostgreSQL test skipped; isort,
-Black, flake8 and Ruff passed. The live app and ngrok tunnel were not restarted,
-preserving their current state. Rebuild the app and recreate the ngrok service
-to apply these settings. Other public ingress paths still need equivalent rate
-controls.
+Black, flake8 and Ruff passed. On 2026-11-06 the runtime image was rebuilt and
+Compose recreated app, PostgreSQL and ngrok with the `ngrok` profile. All
+services are running; app and database are healthy. The runtime command includes
+`--no-access-log`; ngrok loads the policy from a read-only mount. Local and
+public root returned HTTP 200, and the tunnel URL matches
+`GTP_AUTH_PUBLIC_ORIGIN`. App recreation cleared session-only plans. Live 429
+enforcement and Auth0 callback exchange were not tested. Other public ingress
+paths still need equivalent rate controls.
 
 ## Auth0 Account Ownership — Offline Verified; Rollout Pending — 2026-11-03
 

@@ -933,7 +933,14 @@ three-role runtime and role-specific model policy.
   recreated. Docker inspection confirmed its process is running with the policy
   mounted read-only and restart count zero. The ngrok inspector confirmed the
   tunnel targets `app:8000`; its current public URL matches the running app's
-  `GTP_AUTH_PUBLIC_ORIGIN`, and public root returned HTTP 200. The app was left
-  running to preserve session plans; its prior image still has access logging
-  enabled until it is rebuilt and recreated. Live 429 enforcement and Auth0
+  `GTP_AUTH_PUBLIC_ORIGIN`, and public root returned HTTP 200. At this point,
+  the app was still running its prior image; live 429 enforcement and Auth0
   callback behavior were not tested.
+- On 2026-11-06, rebuilt `grounded-travel-planner:local` and ran
+  `docker compose --profile ngrok up -d --build --force-recreate --wait
+  --wait-timeout 180`. App, PostgreSQL and ngrok came up; app and DB became
+  healthy. The runtime command includes `--no-access-log`; ngrok loads the
+  policy read-only. Tunnel targets `app:8000`; its URL matches
+  `GTP_AUTH_PUBLIC_ORIGIN`. Local and public root returned HTTP 200. App
+  recreation cleared session-only plans; database volumes were not removed.
+  Live 429 enforcement and Auth0 callback exchange remain untested.

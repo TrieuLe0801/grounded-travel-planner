@@ -188,7 +188,7 @@
         <li>Bounded background worker pool</li>
         <li>Eight running or queued turns maximum per process; overload returns HTTP 429 before changing a session</li>
         <li>HTTP sessions capped at 1,024 with one-hour idle expiry, including completed uncollected turns; full capacity returns HTTP 503</li>
-        <li>Ngrok policy active: 20 session create/reset requests and 20 planning turns per client IP per hour; Uvicorn callback access-log change awaits app recreation</li>
+        <li>Deployed: ngrok policy limits session create/reset and planning turns by client IP; runtime Uvicorn disables callback access logs</li>
         <li>One pending turn per browser session</li>
         <li>Exact-once result integration after page return</li>
         <li>50/50 host and Docker tests passed</li>
