@@ -1,5 +1,21 @@
 # Learning Log - 2026-10-14 Scope Reset
 
+## Current Worktree Redeploy — 2026-11-06
+
+- The branch advanced from `c47426e` to `051c5fc` during this work. Final fetch
+  and pull confirm local and upstream at `051c5fc`. Rebuilt that source content
+  without cache as image
+  `sha256:0746fd6f5a1d3c9e442464ab16ae1ed43cc295ac66eadd14816f82dacbcfd7a0`.
+- Recreated only the app and ngrok containers. PostgreSQL stayed healthy with
+  six saved tours, the account-owner column, owner indexes and auth tables.
+  No database migration ran during this deployment.
+- Local and public roots returned HTTP 200 and served Home/Account labels.
+  Ngrok mounted the Traffic Policy read-only. Auth0/session configuration is
+  present in the container; browser interactions and callback/OTP remain
+  unverified.
+- The deployment itself created no commit or push. This deployment evidence
+  remains in the local worktree; the Home and Account source is in `051c5fc`.
+
 ## User Decision — Account Actions Dropdown — 2026-11-06
 
 - Group saved tours and the sign-in/sign-out action under one user-icon dropdown
@@ -8,8 +24,8 @@
 - Keep Saved tours available in both auth states. Anonymous users see sign-in;
   authenticated users see sign-out. Keyboard Escape and outside pointer input
   close the dropdown.
-- The React typecheck and build passed. Browser, running-container and live
-  Auth0 checks were not run; deployment state did not change.
+- The React typecheck and build passed. Follow-up deployment evidence is above.
+  Browser dropdown interaction and live Auth0 checks remain pending.
 
 ## User Decision — Home Starts a New Trip — 2026-11-06
 
@@ -19,7 +35,8 @@
   preserving language, account and explicitly saved tours.
 - The React implementation and session-reset behavior pass frontend
   typecheck/build and the full offline Python suite (155 passed, 1 skipped).
-  Browser click verification remains pending.
+  The new image serves Home labels locally and publicly. Browser click
+  verification remains pending.
 
 ## Auth0 Account Implementation — Offline Verification — 2026-11-03
 

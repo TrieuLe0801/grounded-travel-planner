@@ -3,18 +3,35 @@
 Status: Active
 Last updated: 2026-11-06
 
-## Account Actions Dropdown — Offline Verified — 2026-11-06
+## Home And Account UI Redeploy — Local Compose And Ngrok Verified — 2026-11-06
+
+Final `git fetch origin` and `git pull --ff-only` confirm branch and upstream
+at `051c5fc`. The image was rebuilt without cache from that source content,
+including the Home and Account UI changes. Image ID:
+`sha256:0746fd6f5a1d3c9e442464ab16ae1ed43cc295ac66eadd14816f82dacbcfd7a0`.
+
+Compose recreated only `app` and `ngrok`; PostgreSQL remained running. The app
+is healthy, local and ngrok public roots return HTTP 200, and both served the
+bundle with Home and Account labels. Ngrok mounts its Traffic Policy read-only.
+The live database still has six saved tours, the account-owner column, both
+owner indexes and all three auth tables. Auth0/session configuration is present
+in the app container. No database migration ran during this deployment.
+
+Frontend check/build passed. Browser interaction and live Auth0 callback/OTP
+were not tested.
+
+## Account Actions Dropdown — Implemented — 2026-11-06
 
 The React header groups Saved tours and sign-in/sign-out under one user-icon
 dropdown. For an authenticated user, the display name comes from the email
 local-part; email remains display data, not an archive owner key. The saved-tour
 view retains its legacy-cookie claim action.
 
-Verification: `cd frontend && npm run check`, `npm run build` and
-`git diff --check` passed. Browser, container and live Auth0 checks were not
-run; the running app and live database remain unchanged.
+The initial frontend check and build passed. Follow-up Compose and ngrok
+deployment evidence is recorded above; browser dropdown interaction and live
+Auth0 checks remain pending.
 
-## Home Starts a New Trip — Offline Verified — 2026-11-06
+## Home Starts a New Trip — Implemented — 2026-11-06
 
 The header Home control now uses the existing session-reset endpoint and returns
 the user to the itinerary start. It asks for confirmation before discarding a
@@ -22,10 +39,10 @@ current plan, clears the trip form and chat draft, and keeps the selected
 language, account and saved-tour archive. The existing New Trip control uses
 the same reset behavior.
 
-Verification: `cd frontend && npm run check`, `npm run build`, the full
-`uv run pytest` suite (155 passed, 1 skipped), and `git diff --check` passed.
-The targeted API reset test also passed as part of the full suite. Browser QA
-was not run, so click behavior has no browser-level evidence.
+Frontend check/build and the full `uv run pytest` suite (155 passed, 1 skipped)
+passed during implementation. The targeted API reset regression passed in that
+suite. Follow-up deployment evidence is recorded above. Browser click behavior
+remains unverified.
 
 ## Mac CI/CD — Configured; Deployment Gated — 2026-11-05
 

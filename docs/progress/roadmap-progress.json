@@ -1,6 +1,6 @@
 {
-  "version": 79,
-  "updated": "2026-11-06T09:34:30+07:00",
+  "version": 81,
+  "updated": "2026-11-06T10:01:33+07:00",
   "active_scope": "city-place-sightseeing-webapp",
   "current_milestone": "Milestone 1: executable city/place sightseeing vertical slice",
   "completed": {
@@ -52,6 +52,7 @@
     "codex_project_token_guidance_configured": true,
     "bilingual_webapp_language": true,
     "home_starts_new_trip": true,
+    "account_actions_dropdown": true,
     "bidirectional_chat_trip_length": true,
     "ngrok_compose_profile_prepared": true,
     "ngrok_public_tunnel_verified": true,
@@ -482,8 +483,22 @@
       "PROJECT_STATUS.md",
       "frontend npm run check and npm run build passed",
       "uv run pytest: 155 passed, 1 skipped",
+      "source commit 051c5fc; final local/upstream branch match",
+      "no-cache Compose image sha256:0746fd6f5a1d3c9e442464ab16ae1ed43cc295ac66eadd14816f82dacbcfd7a0; app/ngrok healthy",
+      "local and ngrok public roots HTTP 200; served Home labels",
       "git diff --check passed",
       "browser click verification pending"
+    ],
+    "account_actions_dropdown": [
+      "frontend/src/main.tsx",
+      "frontend/src/i18n.ts",
+      "frontend npm run check and npm run build passed",
+      "source commit 051c5fc; final local/upstream branch match",
+      "no-cache Compose image sha256:0746fd6f5a1d3c9e442464ab16ae1ed43cc295ac66eadd14816f82dacbcfd7a0",
+      "local and ngrok public roots HTTP 200; served Home and Account labels",
+      "ngrok Traffic Policy mounted read-only",
+      "six saved tours and account schema/indexes verified; database not recreated",
+      "browser dropdown and Auth0 callback/OTP verification pending"
     ],
     "bidirectional_chat_trip_length": [
       "docs/adr/0009-coordinator-routed-chat-agent-and-trip-extension.md",

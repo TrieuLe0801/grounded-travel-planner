@@ -26,13 +26,13 @@ background only.
 | Visual itinerary | Complete | Source-backed photos; route map removed by user request |
 | Graph inspection | Hidden from UI | Rendering and diagnostic API retained; earlier PNG/SVG offline coverage |
 | Async page navigation | Implemented | Background Future, exact-once session integration; browser QA pending |
-| JavaScript/Tailwind UI | Implemented | React itinerary/chat/saved tours, FastAPI session adapter, optional credited photos; graph view hidden; browser QA pending |
+| JavaScript/Tailwind UI | Implemented; `051c5fc` deployed | React itinerary/chat/saved tours, Home reset, Account dropdown, FastAPI session adapter, optional credited photos; local/public roots HTTP 200; browser interaction QA pending |
 | Configurable model provider | Passed on host and Compose app | Active mixed routing and an HTTP Compose-app Hue plan committed with OpenAI `gpt-5.5` Coordinator and Ollama `qwen2.5:3b` Planner/Chat |
 | No-local API defaults | Historical Compose verification | Earlier container resolved to OpenAI `gpt-5.5` / `gpt-5.4-mini` / `gpt-4.1`; root and graph image returned HTTP 200 |
 | Current Planner OpenAI default | Local app verified | `gpt-6.1-terra` with 60-second per-call timeout and JSON Schema URL validation; live full graph turn committed four sourced Huế entries in 41.3 seconds; 113 tests passed; app healthy, root/graph HTTP 200 |
 | Shared Tavily tool node | Verified offline and with one live request | Planner/Chat route through one graph node; one live Chat call returned five sources and matching `tool.tavily.*` events; rebuilt Compose app healthy |
 | Bilingual webapp | Implemented; build/static checks pass | Session-scoped Vietnamese/English preference; focused existing API/runner/chat-context suite 14 passed (no locale-specific test added); React build and Python static checks passed; browser QA not run |
-| Home starts a new trip | Implemented; offline verified | Home uses session reset, returns to itinerary start, clears live trip/chat drafts and preserves language, account and saved tours; frontend check/build and full Python suite pass; browser QA pending |
+| Home starts a new trip | Compose/ngrok smoke verified | Home uses session reset, returns to itinerary start, clears live trip/chat drafts and preserves language, account and saved tours; current image serves Home labels locally and publicly; click QA pending |
 | Chat trip duration | Offline verified; image built | Shortening now creates a deterministic Planner candidate from the current plan, preserving retained entries and their source data exactly; 117 host tests and Python quality gates pass. New image built; running container not recreated because it owns session-only plans |
 | Temporary ngrok sharing | Verified, now stopped | Public root and graph PNG returned 200; session POST 201 and cookie-backed GET 200; app remains healthy locally |
 | Invalid model key diagnosis | Reproduced; error handling verified offline | Exact Hà Giang request received OpenAI HTTP 401 `token_invalidated` before search; 94 host/Docker tests passed; runtime image rebuilt but running app retained its sessions |
@@ -42,8 +42,8 @@ background only.
 | Agent latency/token optimization | Prompt payloads reduced; offline tests passed | Planner now sends one chronological plan projection without duplicated source records/request text; Chat receives visible schedule and summary instead of full plan JSON. End-to-end latency and provider token usage have not been benchmarked |
 | Turn and session capacity | Offline verified; running app image unchanged | At most eight queued/running turns and 1,024 retained sessions per process; idle sessions expire after one hour, including uncollected completed turns. HTTP returns 429/503 without changing the rejected session. 15 focused and 122 full sandboxed tests passed |
 | Saved tours | PostgreSQL Compose app healthy; browser QA pending | Database now uses a sibling host directory outside Git; three saved rows and checksum survived the move; former named volume retained; root 200, session creation 201 |
-| Auth0 account ownership | Implemented and verified offline; rollout pending | OIDC BFF, account-scoped archive, claim migration, React account dropdown with email-local-part display; 146 host and container tests passed, 1 skipped; frontend typecheck/build passed. Isolated PostgreSQL migration reran without changing five snapshot checksums. Sixteen concurrent logins mapped to one account. Live archive checksum unchanged; new runtime image built but not deployed. No tenant credentials or live OTP QA. |
-| Mac CI/CD | Configured; deployment gated | GitHub Actions CI and Mac `launchd` poller are ready. Local `GTP_DEPLOY_ENABLED=false` stays in place until the Auth0 database migration and rollout. No app image was deployed for this setup. |
+| Auth0 account ownership | Runtime deployed; live auth flow unverified | PostgreSQL has account-owner column, both owner indexes and auth tables; six saved tours. Auth0/session config is present in app container. No live callback/OTP or browser account-flow QA. |
+| Mac CI/CD | Configured; automatic deployment gated | GitHub Actions CI and Mac `launchd` poller are ready. `GTP_DEPLOY_ENABLED=false` remains; the latest app/ngrok rollout was a separate manual Compose action, not CI/CD. |
 | Large saved-tour archive | PostgreSQL 2M-row isolated benchmark passed | Owner/time/ID index and keyset pages; 10-sample page 1 p50/p95 0.729/13.898 ms, page 20,000 0.373/21.557 ms; tiny synthetic snapshots, no concurrent traffic |
 | Pre-push security review | Focused source review and regression passed | Session and saved-tour owner cookies default to Secure; Compose forces Secure; local data excluded from Git and Docker context; isolated full suite 132 passed, 1 skipped |
 | Auth callback and public ingress hardening | Deployed; smoke checked | Rebuilt app runs Uvicorn with `--no-access-log`; ngrok runs the read-only per-IP policy using `NGROK_AUTHTOKEN` from ignored `.env`. App, DB and ngrok are up; local/public root returned HTTP 200. Host and Docker suites previously passed 155, 1 skipped |
@@ -53,6 +53,14 @@ Planning progress is not implementation progress. Only executable artifacts and
 actual checks count as completion evidence.
 
 ## Done
+
+- Final fetch/pull confirms active branch and upstream at `051c5fc`. Rebuilt
+  that source content without cache as image
+  `sha256:0746fd6f5a1d3c9e442464ab16ae1ed43cc295ac66eadd14816f82dacbcfd7a0`.
+  Recreated app and ngrok only; PostgreSQL stayed healthy and retained six saved
+  tours. Local and public roots returned HTTP 200; both served Home/Account
+  labels. Ngrok policy mount is read-only. Browser interaction and Auth0 OTP
+  remain unverified.
 
 - Connected the header Home control to session reset so it returns to the
   itinerary start as a new trip. It shares New Trip confirmation and reset
@@ -523,8 +531,8 @@ actual checks count as completion evidence.
 
 1. Check the saved-tour save/list/delete flow in a browser on the new image.
 2. Manually verify the JavaScript UI at phone and desktop widths, including
-   Home reset/confirmation and chat → graph → chat during a pending turn. A
-   browser was unavailable for this implementation check.
+   Home reset/confirmation, Account dropdown/Auth0 flow and chat → graph → chat
+   during a pending turn. Browser interaction QA remains pending.
 3. Label sources from representative live plans and measure relevance, place
    coverage and host diversity before a broad demo.
 4. Exercise additional live edit intents, especially reorder and replace, with
