@@ -1,5 +1,26 @@
 # Learning Log - 2026-10-14 Scope Reset
 
+## User Decision — Account Actions Dropdown — 2026-11-06
+
+- Group saved tours and the sign-in/sign-out action under one user-icon dropdown
+  in the React header. Show the authenticated user's email local-part as the
+  display name; keep email as display data, never as the archive owner key.
+- Keep Saved tours available in both auth states. Anonymous users see sign-in;
+  authenticated users see sign-out. Keyboard Escape and outside pointer input
+  close the dropdown.
+- The React typecheck and build passed. Browser, running-container and live
+  Auth0 checks were not run; deployment state did not change.
+
+## User Decision — Home Starts a New Trip — 2026-11-06
+
+- The user requested that the header Home control return to the trip start and
+  behave like creating a new trip. It uses the existing session reset, confirms
+  before discarding a current plan, and clears live trip/chat drafts while
+  preserving language, account and explicitly saved tours.
+- The React implementation and session-reset behavior pass frontend
+  typecheck/build and the full offline Python suite (155 passed, 1 skipped).
+  Browser click verification remains pending.
+
 ## Auth0 Account Implementation — Offline Verification — 2026-11-03
 
 - The Auth0 account-owned archive implementation, React sign-in/out/claim

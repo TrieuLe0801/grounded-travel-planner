@@ -1,7 +1,31 @@
 # Implementation Plan
 
 Status: Active
-Last updated: 2026-11-05
+Last updated: 2026-11-06
+
+## Account Actions Dropdown — Offline Verified — 2026-11-06
+
+The React header groups Saved tours and sign-in/sign-out under one user-icon
+dropdown. For an authenticated user, the display name comes from the email
+local-part; email remains display data, not an archive owner key. The saved-tour
+view retains its legacy-cookie claim action.
+
+Verification: `cd frontend && npm run check`, `npm run build` and
+`git diff --check` passed. Browser, container and live Auth0 checks were not
+run; the running app and live database remain unchanged.
+
+## Home Starts a New Trip — Offline Verified — 2026-11-06
+
+The header Home control now uses the existing session-reset endpoint and returns
+the user to the itinerary start. It asks for confirmation before discarding a
+current plan, clears the trip form and chat draft, and keeps the selected
+language, account and saved-tour archive. The existing New Trip control uses
+the same reset behavior.
+
+Verification: `cd frontend && npm run check`, `npm run build`, the full
+`uv run pytest` suite (155 passed, 1 skipped), and `git diff --check` passed.
+The targeted API reset test also passed as part of the full suite. Browser QA
+was not run, so click behavior has no browser-level evidence.
 
 ## Mac CI/CD — Configured; Deployment Gated — 2026-11-05
 
@@ -44,9 +68,11 @@ paths still need equivalent rate controls.
 
 ADR 0016 selects Auth0 Universal Login email OTP for account-owned saved
 tours. FastAPI now has a typed OIDC boundary, persistent SQLite/PostgreSQL
-account sessions, CSRF, and account-scoped archive routes. React offers
-sign-in, sign-out and legacy-tour claim actions. The explicit migration adds
-account ownership and auth tables without rewriting tour snapshots.
+account sessions, CSRF, and account-scoped archive routes. The React header
+groups Saved tours and sign-in/sign-out in one user-icon dropdown. Its
+authenticated display name uses the email local-part; the saved-tour view
+retains the legacy-cookie claim action. The explicit migration adds account
+ownership and auth tables without rewriting tour snapshots.
 
 The host suite, Python gates, frontend build and Compose config passed.
 The PostgreSQL migration ran twice against an isolated restore: all five

@@ -1,7 +1,7 @@
 # Project Charter
 
 Status: Active
-Last updated: 2026-11-03
+Last updated: 2026-11-06
 
 ## Product
 
@@ -33,6 +33,10 @@ snapshot from the same browser. Saved tours use a separate database and owner
 credential; they are read-only records of the plan and sources at save time.
 An application commit alone does not save a tour. The live itinerary and chat
 still belong to the current session.
+
+Clicking Home starts a fresh trip session and returns to the itinerary start.
+It clears the live plan, conversation and trip-form draft while preserving the
+selected language, account and saved-tour archive.
 
 ADR 0016 selects account-owned saved tours through Auth0 email OTP. Its code
 and isolated migration are verified offline, but the running application still

@@ -11,11 +11,14 @@ import {
   ArrowLeft,
   Bot,
   CalendarDays,
+  ChevronDown,
   CheckCircle2,
   Clock3,
   Compass,
   ExternalLink,
   ImageOff,
+  LogIn,
+  LogOut,
   LoaderCircle,
   MapPin,
   MessageCircle,
@@ -920,6 +923,7 @@ function App() {
   const [auth, setAuth] = useState<AuthState | null>(null);
   const [authError, setAuthError] = useState("");
   const [signingOut, setSigningOut] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [graphSvg, setGraphSvg] = useState("");
   const [graphImageLoading, setGraphImageLoading] = useState(true);
@@ -939,7 +943,12 @@ function App() {
   const [savingTour, setSavingTour] = useState(false);
   const [claimingTours, setClaimingTours] = useState(false);
   const [claimStatus, setClaimStatus] = useState("");
+  const accountMenuRef = useRef<HTMLDivElement>(null);
+  const accountTriggerRef = useRef<HTMLButtonElement>(null);
   const labels = text(state.language);
+  const accountName = auth?.authenticated
+    ? auth.email?.split("@")[0]?.trim() || labels.account
+    : labels.account;
   useEffect(() => {
     document.documentElement.lang = state.language;
     document.title = labels.pageTitle;
@@ -983,6 +992,27 @@ function App() {
     const timer = window.setInterval(() => void load(), 1200);
     return () => window.clearInterval(timer);
   }, [state.pending]);
+  useEffect(() => {
+    if (!accountOpen) return;
+    const closeOnOutsideClick = (event: PointerEvent) => {
+      if (!accountMenuRef.current?.contains(event.target as Node)) {
+        setAccountOpen(false);
+      }
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      event.stopPropagation();
+      setAccountOpen(false);
+      accountTriggerRef.current?.focus();
+    };
+    document.addEventListener("pointerdown", closeOnOutsideClick);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutsideClick);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [accountOpen]);
   useEffect(() => {
     const plan = state.plan;
     if (!plan) {
@@ -1078,12 +1108,14 @@ function App() {
     }
   };
   const openSavedTours = () => {
+    setAccountOpen(false);
     setView("saved");
   };
   useEffect(() => {
     if (view === "saved" && auth?.authenticated) void loadSavedTours(false);
   }, [view, auth?.authenticated]);
   const signIn = (returnTo = "/") => {
+    setAccountOpen(false);
     window.location.assign(`/api/auth/login?return_to=${encodeURIComponent(returnTo)}`);
   };
   const signOut = async () => {
@@ -1205,13 +1237,24 @@ function App() {
     setGraphImageUnavailable(true);
   };
   const reset = async () => {
+    if (state.pending || submitting) return;
     if (state.plan && !window.confirm(labels.confirmReset)) return;
     setRequestError("");
     try {
-      await api<ApiState>("/api/session/reset", { method: "POST" });
+      const replacement = await api<ApiState>("/api/session/reset", { method: "POST" });
+      setState(replacement);
+      setDestination("");
+      setStartDate(today);
+      setDays(2);
       setMessage("");
+      setErrors({});
       setVisuals({});
-      await load();
+      setVisualsLoading(false);
+      setChatOpen(false);
+      setSaveStatus("");
+      setSelectedSavedTour(null);
+      setView("itinerary");
+      window.history.replaceState(null, "", "/");
     } catch (error) {
       setRequestError(
         error instanceof Error ? error.message : labels.errorReset,
@@ -1241,15 +1284,18 @@ function App() {
       </a>
       <header className="border-b border-blue-100 bg-white/90 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6">
-          <a
-            className="flex items-center gap-3 font-heading font-bold"
-            href="/"
+          <button
+            type="button"
+            onClick={() => void reset()}
+            disabled={state.pending || submitting}
+            aria-label={labels.home}
+            className="flex items-center gap-3 rounded-xl font-heading font-bold disabled:cursor-not-allowed disabled:opacity-50"
           >
             <span className="grid size-10 place-items-center rounded-2xl bg-primary text-white">
               <Compass />
             </span>
             <span>{labels.brand}</span>
-          </a>
+          </button>
           <div className="flex items-center gap-1">
             <div
               className="inline-flex items-center rounded-xl border border-blue-100 bg-blue-50/70 p-1"
@@ -1279,38 +1325,84 @@ function App() {
                 <span className="hidden sm:inline">English</span>
               </button>
             </div>
-            <button
-              type="button"
-              onClick={openSavedTours}
-              aria-label={labels.savedTours}
-              className="inline-flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-slate-700 hover:bg-blue-50"
-            >
-              <Save size={17} aria-hidden="true" />
-              <span className="hidden sm:inline">{labels.savedTours}</span>
-            </button>
-            {auth?.authenticated ? (
+            <div className="relative" ref={accountMenuRef}>
               <button
+                ref={accountTriggerRef}
                 type="button"
-                onClick={() => void signOut()}
-                disabled={signingOut}
-                aria-label={labels.signOut}
-                title={auth.email || labels.signOut}
-                className="inline-flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-slate-700 hover:bg-blue-50 disabled:opacity-50"
+                aria-label={
+                  auth?.authenticated
+                    ? `${labels.account}: ${accountName}`
+                    : labels.account
+                }
+                aria-expanded={accountOpen}
+                aria-controls="account-panel"
+                onClick={() => setAccountOpen((open) => !open)}
+                className="inline-flex min-h-11 max-w-40 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-slate-700 hover:bg-blue-50 focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300 sm:max-w-56"
               >
-                <UserRound size={17} aria-hidden="true" />
-                <span className="hidden sm:inline">{signingOut ? labels.signingOut : labels.signOut}</span>
+                <UserRound size={17} className="shrink-0" aria-hidden="true" />
+                <span className="hidden truncate sm:inline">{accountName}</span>
+                <ChevronDown
+                  size={15}
+                  className={`shrink-0 transition-transform ${accountOpen ? "rotate-180" : ""}`}
+                  aria-hidden="true"
+                />
               </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => signIn("/")}
-                aria-label={labels.signIn}
-                className="inline-flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-slate-700 hover:bg-blue-50"
+              <div
+                id="account-panel"
+                hidden={!accountOpen}
+                aria-busy={signingOut}
+                className="absolute right-0 z-30 mt-2 w-64 rounded-2xl border border-blue-100 bg-white p-2 shadow-lg shadow-blue-900/15"
               >
-                <UserRound size={17} aria-hidden="true" />
-                <span className="hidden sm:inline">{labels.signIn}</span>
-              </button>
-            )}
+                {auth?.authenticated && (
+                  <div className="border-b border-blue-100 px-3 py-2">
+                    <p className="text-sm font-semibold text-slate-900">
+                      {accountName}
+                    </p>
+                    <p
+                      className="truncate text-sm text-slate-600"
+                      title={auth.email}
+                    >
+                      {auth.email}
+                    </p>
+                  </div>
+                )}
+                <div className="pt-1">
+                    <button
+                      type="button"
+                      onClick={openSavedTours}
+                      disabled={signingOut}
+                      className="flex min-h-11 w-full items-center gap-2 rounded-xl px-3 text-left text-sm font-semibold text-slate-700 hover:bg-blue-50 focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <Save size={17} aria-hidden="true" />
+                      {labels.savedTours}
+                    </button>
+                    {auth?.authenticated ? (
+                      <button
+                        type="button"
+                        onClick={() => void signOut()}
+                        disabled={signingOut}
+                        className="flex min-h-11 w-full items-center gap-2 rounded-xl px-3 text-left text-sm font-semibold text-slate-700 hover:bg-blue-50 focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300 disabled:opacity-50"
+                      >
+                        {signingOut ? (
+                          <LoaderCircle size={17} className="animate-spin" aria-hidden="true" />
+                        ) : (
+                          <LogOut size={17} aria-hidden="true" />
+                        )}
+                        {signingOut ? labels.signingOut : labels.signOut}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => signIn("/")}
+                        className="flex min-h-11 w-full items-center gap-2 rounded-xl px-3 text-left text-sm font-semibold text-slate-700 hover:bg-blue-50 focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300"
+                      >
+                        <LogIn size={17} aria-hidden="true" />
+                        {labels.signIn}
+                      </button>
+                    )}
+                </div>
+              </div>
+            </div>
             <button
               type="button"
               onClick={() => void reset()}
