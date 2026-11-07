@@ -58,6 +58,11 @@ from grounded_travel_planner.ui.turn_runner import (
     TurnRunner,
 )
 from grounded_travel_planner.visuals import VisualEnrichmentService
+from grounded_travel_planner.web.turn_rate_limit import (
+    TurnQuotaReservation,
+    TurnRateLimiter,
+    TurnRateLimitExceeded,
+)
 
 COOKIE_NAME = "gtp_session"
 SAVED_TOURS_OWNER_COOKIE_NAME = "gtp_saved_tours_owner"
@@ -318,6 +323,7 @@ def create_app(
     saved_tour_repository: SavedTourStore | None = None,
     auth_provider: OidcProvider | None = None,
     auth_repository: AuthRepository | PostgresAuthRepository | None = None,
+    turn_rate_limiter: TurnRateLimiter | None = None,
 ) -> FastAPI:
     """Create an injectable app so endpoint tests need no live provider calls."""
 
@@ -327,6 +333,7 @@ def create_app(
     sessions = session_store or SessionStore()
     saved_tours = saved_tour_repository or _saved_tour_store_from_environment()
     auth = auth_repository or _auth_repository_from_environment()
+    rate_limiter = turn_rate_limiter or TurnRateLimiter.from_environment()
     provider = auth_provider
     app = FastAPI(title="Grounded Travel Planner", docs_url=None, redoc_url=None)
 
@@ -343,6 +350,19 @@ def create_app(
         if user is None:
             raise HTTPException(status_code=401, detail="Bạn cần đăng nhập.")
         return user
+
+    def turn_principal(session: WebSession, auth_token: str | None) -> str:
+        """Use only server-verified account identity or an opaque session ID."""
+
+        try:
+            user = auth.authenticated(auth_token)
+        except AuthError as error:
+            raise HTTPException(
+                status_code=503, detail="Không thể xác thực lúc này."
+            ) from error
+        if user is not None:
+            return f"account:{user.user_id}"
+        return f"session:{session.thread_id}"
 
     def csrf_user(auth_token: str | None, csrf_token: str | None) -> AuthenticatedUser:
         try:
@@ -463,7 +483,9 @@ def create_app(
 
     @app.post("/api/turns", status_code=202)
     def submit_turn(
-        payload: TurnInput, gtp_session: str | None = Cookie(default=None)
+        payload: TurnInput,
+        gtp_session: str | None = Cookie(default=None),
+        gtp_auth: str | None = Cookie(default=None, alias=AUTH_COOKIE_NAME),
     ) -> dict[str, bool]:
         session = current_session(gtp_session)
         with session.lock:
@@ -473,6 +495,19 @@ def create_app(
                     status_code=409,
                     detail=localized("turn_pending", session.language),
                 )
+            quota = rate_limiter.reserve(turn_principal(session, gtp_auth))
+            if isinstance(quota, TurnRateLimitExceeded):
+                key = (
+                    "turn_global_limit_exhausted"
+                    if quota.scope in {"global", "principal_capacity"}
+                    else "turn_rate_limit_exhausted"
+                )
+                raise HTTPException(
+                    status_code=429,
+                    detail=localized(key, session.language),
+                    headers={"Retry-After": str(quota.retry_after_seconds)},
+                )
+            assert isinstance(quota, TurnQuotaReservation)
             try:
                 pending = runner.submit(
                     planner_service,
@@ -487,6 +522,7 @@ def create_app(
                     language=session.language,
                 )
             except TurnCapacityExceeded as error:
+                rate_limiter.refund(quota)
                 raise HTTPException(
                     status_code=429,
                     detail=localized("turn_capacity_exhausted", session.language),

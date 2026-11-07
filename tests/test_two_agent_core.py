@@ -209,6 +209,20 @@ def two_place_plan() -> SightseeingPlan:
     return first.model_copy(update={"entries": [first.entries[0], second]})
 
 
+def test_sightseeing_plan_rejects_more_than_total_entry_limit() -> None:
+    existing = plan()
+
+    with pytest.raises(ValidationError, match="at most 28 items"):
+        SightseeingPlan(
+            plan_id=existing.plan_id,
+            destination=existing.destination,
+            start_date=existing.start_date,
+            day_count=7,
+            entries=[existing.entries[0]] * 29,
+            summary=existing.summary,
+        )
+
+
 def coordinator_model(action: IntentAction) -> ScriptedModel:
     def handler(prompt: str, schema: type[BaseModel]) -> BaseModel:
         if schema is CoordinatorDecision:
@@ -292,9 +306,27 @@ def test_environment_service_assigns_models_from_environment(
     assert config.model_name == COORDINATOR_TEST_MODEL
     assert config.planner_model_name == PLANNER_TEST_MODEL
     assert config.chat_model_name == CHAT_TEST_MODEL
+    assert config.coordinator_max_output_tokens == 2048
+    assert config.planner_max_output_tokens == 8192
+    assert config.chat_max_output_tokens == 2048
     assert service.coordinator.model_name == COORDINATOR_TEST_MODEL
     assert service.planner.model_name == PLANNER_TEST_MODEL
     assert service.chat.model_name == CHAT_TEST_MODEL
+
+
+def test_runtime_config_reads_role_output_token_overrides(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    set_required_model_environment(monkeypatch)
+    monkeypatch.setenv("GTP_COORDINATOR_MAX_OUTPUT_TOKENS", "512")
+    monkeypatch.setenv("GTP_PLANNER_MAX_OUTPUT_TOKENS", "6000")
+    monkeypatch.setenv("GTP_CHAT_MAX_OUTPUT_TOKENS", "768")
+
+    config = RuntimeConfig.from_environment()
+
+    assert config.coordinator_max_output_tokens == 512
+    assert config.planner_max_output_tokens == 6000
+    assert config.chat_max_output_tokens == 768
 
 
 def test_runtime_config_reads_openai_defaults_from_environment(
@@ -349,6 +381,7 @@ def test_runtime_config_reads_all_role_model_overrides(
         ("GTP_COORDINATOR_MODEL", "   ", "GTP_COORDINATOR_MODEL must be configured"),
         ("GTP_PLANNER_MODEL", "", "GTP_PLANNER_MODEL must be configured"),
         ("GTP_CHAT_MODEL", "\t", "GTP_CHAT_MODEL must be configured"),
+        ("GTP_COORDINATOR_MAX_OUTPUT_TOKENS", "many", "must be an integer"),
     ],
 )
 def test_runtime_config_rejects_invalid_environment_values(
@@ -360,8 +393,20 @@ def test_runtime_config_rejects_invalid_environment_values(
     set_required_model_environment(monkeypatch)
     monkeypatch.setenv(name, value)
 
-    expected_error = ValueError if name.endswith("_MODEL") else ValidationError
+    expected_error = (
+        ValueError if name.endswith(("_MODEL", "_TOKENS")) else ValidationError
+    )
     with pytest.raises(expected_error, match=match):
+        RuntimeConfig.from_environment()
+
+
+def test_runtime_config_rejects_output_cap_outside_bounded_range(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    set_required_model_environment(monkeypatch)
+    monkeypatch.setenv("GTP_CHAT_MAX_OUTPUT_TOKENS", "128")
+
+    with pytest.raises(ValidationError, match="greater than or equal to 256"):
         RuntimeConfig.from_environment()
 
 
@@ -435,24 +480,36 @@ def test_environment_service_constructs_exact_mixed_role_adapters(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     set_required_model_environment(monkeypatch)
-    constructed: list[tuple[str, str, str | None]] = []
+    constructed: list[tuple[str, str, str | None, int]] = []
 
     class FakeOpenAIModel:
         def __init__(
-            self, model_name: str, *, json_schema_model_names: tuple[str, ...] = ()
+            self,
+            model_name: str,
+            *,
+            json_schema_model_names: tuple[str, ...] = (),
+            max_completion_tokens: int = 2048,
+            trace_sink=None,
+            role: str = "unknown",
         ) -> None:
-            del json_schema_model_names
+            del json_schema_model_names, trace_sink, role
             self._model_name = model_name
-            constructed.append(("openai", model_name, None))
+            constructed.append(("openai", model_name, None, max_completion_tokens))
 
         @property
         def model_name(self) -> str:
             return self._model_name
 
     class FakeOllamaModel:
-        def __init__(self, model_name: str, base_url: str | None = None) -> None:
+        def __init__(
+            self,
+            model_name: str,
+            base_url: str | None = None,
+            *,
+            max_completion_tokens: int = 2048,
+        ) -> None:
             self._model_name = model_name
-            constructed.append(("ollama", model_name, base_url))
+            constructed.append(("ollama", model_name, base_url, max_completion_tokens))
 
         @property
         def model_name(self) -> str:
@@ -476,10 +533,10 @@ def test_environment_service_constructs_exact_mixed_role_adapters(
     service = TravelPlannerService.from_environment()
 
     assert constructed == [
-        ("openai", "coordinator-test-model", None),
-        ("ollama", "ollama-fallback-test-model", "http://ollama.test:11434"),
-        ("ollama", "ollama-planner-test-model", "http://ollama.test:11434"),
-        ("ollama", "ollama-planner-test-model", "http://ollama.test:11434"),
+        ("openai", "coordinator-test-model", None, 2048),
+        ("ollama", "ollama-fallback-test-model", "http://ollama.test:11434", 2048),
+        ("ollama", "ollama-planner-test-model", "http://ollama.test:11434", 8192),
+        ("ollama", "ollama-planner-test-model", "http://ollama.test:11434", 2048),
     ]
     assert isinstance(service.coordinator._model._primary, FakeOpenAIModel)
     assert isinstance(service.coordinator._model._fallback, FakeOllamaModel)
@@ -499,14 +556,17 @@ def test_openai_adapter_uses_function_calling_for_pydantic_schema(
             model: str,
             max_retries: int,
             timeout: int,
+            max_completion_tokens: int,
         ) -> None:
             observed["model"] = model
             observed["max_retries"] = max_retries
             observed["timeout"] = timeout
+            observed["max_completion_tokens"] = max_completion_tokens
 
-        def with_structured_output(self, schema, *, method: str):
+        def with_structured_output(self, schema, *, method: str, include_raw: bool):
             observed["schema"] = schema
             observed["method"] = method
+            observed["include_raw"] = include_raw
             return self
 
         def invoke(self, messages, config):
@@ -527,10 +587,99 @@ def test_openai_adapter_uses_function_calling_for_pydantic_schema(
         "model": COORDINATOR_TEST_MODEL,
         "max_retries": 0,
         "timeout": 60,
+        "max_completion_tokens": 2048,
         "schema": ChatResponse,
         "method": "function_calling",
+        "include_raw": True,
         "metadata": {"thread_id": "thread-adapter"},
     }
+
+
+def test_openai_adapter_records_raw_usage_without_prompt_or_response(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    trace = RecordingTrace()
+
+    class RawMessage:
+        def __init__(self) -> None:
+            self.usage_metadata = {"input_tokens": 31, "output_tokens": 17}
+
+    class FakeChatOpenAI:
+        def __init__(self, **kwargs: object) -> None:
+            del kwargs
+
+        def with_structured_output(self, *args: object, **kwargs: object):
+            assert kwargs["include_raw"] is True
+            return self
+
+        def invoke(self, messages, config):
+            del messages, config
+            return {
+                "raw": RawMessage(),
+                "parsed": ChatResponse(message="ok"),
+                "parsing_error": None,
+            }
+
+    monkeypatch.setattr("langchain_openai.ChatOpenAI", FakeChatOpenAI)
+    result = ChatOpenAIStructuredModel(
+        COORDINATOR_TEST_MODEL, trace_sink=trace, role="coordinator"
+    ).generate_structured(
+        "secret prompt must not be traced",
+        ChatResponse,
+        metadata={"thread_id": "thread-usage", "turn_id": "turn-usage"},
+    )
+
+    assert result.message == "ok"
+    assert trace.events == [
+        (
+            "model.usage",
+            {
+                "model": COORDINATOR_TEST_MODEL,
+                "role": "coordinator",
+                "input_tokens": 31,
+                "output_tokens": 17,
+                "turn_id": "turn-usage",
+            },
+            "thread-usage",
+        )
+    ]
+
+
+def test_openai_adapter_ignores_missing_raw_usage(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    trace = RecordingTrace()
+
+    class RawMessage:
+        pass
+
+    class FakeChatOpenAI:
+        def __init__(self, **kwargs: object) -> None:
+            del kwargs
+
+        def with_structured_output(self, *args: object, **kwargs: object):
+            return self
+
+        def invoke(self, messages, config):
+            del messages, config
+            return {
+                "raw": RawMessage(),
+                "parsed": ChatResponse(message="ok"),
+                "parsing_error": None,
+            }
+
+    monkeypatch.setattr("langchain_openai.ChatOpenAI", FakeChatOpenAI)
+
+    result = ChatOpenAIStructuredModel(
+        COORDINATOR_TEST_MODEL, trace_sink=trace, role="coordinator"
+    ).generate_structured(
+        "request",
+        ChatResponse,
+        metadata={"thread_id": "thread-usage", "turn_id": "turn-usage"},
+    )
+
+    assert result.message == "ok"
+    assert trace.events == []
 
 
 def test_configured_json_schema_adapter_uses_schema_without_reasoning(
@@ -542,10 +691,13 @@ def test_configured_json_schema_adapter_uses_schema_without_reasoning(
         def __init__(self, **kwargs: object) -> None:
             observed.update(kwargs)
 
-        def with_structured_output(self, schema, *, method: str, strict: bool):
+        def with_structured_output(
+            self, schema, *, method: str, strict: bool, include_raw: bool
+        ):
             observed["schema"] = schema
             observed["method"] = method
             observed["strict"] = strict
+            observed["include_raw"] = include_raw
             return self
 
         def invoke(self, messages, config):
@@ -565,9 +717,11 @@ def test_configured_json_schema_adapter_uses_schema_without_reasoning(
     assert observed["model"] == "schema-test-model"
     assert observed["max_retries"] == 0
     assert observed["timeout"] == 60
+    assert observed["max_completion_tokens"] == 2048
     assert observed["reasoning_effort"] == "none"
     assert observed["method"] == "json_schema"
     assert observed["strict"] is False
+    assert observed["include_raw"] is True
     assert (
         "format"
         not in observed["schema"]["$defs"]["SourceReference"]["properties"]["url"]
@@ -580,9 +734,10 @@ def test_ollama_adapter_uses_structured_output_without_network(
     observed: dict[str, object] = {}
 
     class FakeChatOllama:
-        def __init__(self, *, model: str, base_url: str) -> None:
+        def __init__(self, *, model: str, base_url: str, num_predict: int) -> None:
             observed["model"] = model
             observed["base_url"] = base_url
+            observed["num_predict"] = num_predict
 
         def with_structured_output(self, schema):
             observed["schema"] = schema
@@ -607,6 +762,7 @@ def test_ollama_adapter_uses_structured_output_without_network(
     assert result.message == "ok"
     assert observed["model"] == "ollama-planner-test-model"
     assert observed["base_url"] == "http://localhost:11434"
+    assert observed["num_predict"] == 2048
     assert observed["schema"] is ChatResponse
     assert observed["metadata"] == {"thread_id": "thread-adapter"}
     assert [message.content for message in observed["messages"]] == [
@@ -983,9 +1139,21 @@ def test_invalid_model_key_preserves_plan_without_retrying_chat(language: str) -
 
 def test_valid_create_searches_once_and_commits_grounded_plan() -> None:
     trace = RecordingTrace()
+    candidate_plan = plan()
+    day_two_entry = candidate_plan.entries[0].model_copy(
+        update={
+            "id": "entry_day_2",
+            "day_index": 2,
+            "place": candidate_plan.entries[0].place.model_copy(
+                update={"place_id": "place_day_2", "name": "Hue Museum"}
+            ),
+        }
+    )
     service, _, _, search = service_for(
         IntentAction.CREATE_TRIP,
-        plan(),
+        candidate_plan.model_copy(
+            update={"entries": [*candidate_plan.entries, day_two_entry]}
+        ),
         trace=trace,
     )
     request = TripRequest(
@@ -1247,6 +1415,18 @@ def test_unverified_opening_hours_are_normalized_and_do_not_block_commit() -> No
     candidate_plan = plan(
         opening_hours="08:00-17:00",
         opening_hours_verified=False,
+    )
+    day_two_entry = candidate_plan.entries[0].model_copy(
+        update={
+            "id": "entry_day_2",
+            "day_index": 2,
+            "place": candidate_plan.entries[0].place.model_copy(
+                update={"place_id": "place_day_2", "name": "Hue Museum"}
+            ),
+        }
+    )
+    candidate_plan = candidate_plan.model_copy(
+        update={"entries": [*candidate_plan.entries, day_two_entry]}
     )
 
     def planner_handler(prompt: str, schema: type[BaseModel]) -> BaseModel:

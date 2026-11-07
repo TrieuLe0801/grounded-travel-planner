@@ -1,5 +1,29 @@
 # Learning Log - 2026-10-14 Scope Reset
 
+## Empty Days In New Itineraries — 2026-11-06
+
+- The user reported seven-day suggestions with an empty middle day. The
+  confirmed gap was in candidate validation: schedule checks validated day
+  ranges, overlaps and hours, but did not require each requested day to contain
+  a stop. The Planner prompt also lacked that requirement.
+- The running Compose app uses the default Planner output ceiling of 8,192
+  tokens, with no runtime override. No request usage trace showed that the cap
+  was reached. Output truncated before schema completion would fail
+  parsing/validation; a sparse but valid candidate was the path that could
+  commit.
+- New-trip prompts now require a grounded stop on every selected day. Candidate
+  validation reports each missing day and allows the existing single repair;
+  if repair still fails, the previous plan is preserved. Other edit semantics
+  remain unchanged.
+- The focused regression passed 2 tests; the full offline suite passed 170
+  tests with one optional PostgreSQL test skipped. isort, Black, flake8, Ruff
+  and `git diff --check` passed. Live providers and browser were not tested.
+- The user then requested an image/container restart. Built image
+  `sha256:133f4f2471e7c81c74ce0fffdb9f39c9e14fb8ebd06c60ad73d520027b55da22`
+  and recreated only `app`. It is healthy and serves root with HTTP 200;
+  runtime source inspection confirms the guard and prompt are present.
+  PostgreSQL remained healthy and ngrok stayed running. App recreation cleared
+  session-only plans. No live-provider turn or browser interaction was run.
 ## Current Worktree Redeploy — 2026-11-06
 
 - The branch advanced from `c47426e` to `051c5fc` during this work. Final fetch
@@ -982,3 +1006,71 @@ three-role runtime and role-specific model policy.
   `GTP_AUTH_PUBLIC_ORIGIN`. Local and public root returned HTTP 200. App
   recreation cleared session-only plans; database volumes were not removed.
   Live 429 enforcement and Auth0 callback exchange remain untested.
+
+## Runtime Request And Token Guards — 2026-11-06
+
+- The user asked to keep budget thresholds in runtime environment variables and
+  out of tracked files. `.env` contents were not displayed or modified;
+  Compose injects configured values into the app at runtime. `.env.example`
+  contains blank placeholders only; actual values are not recorded.
+- Added role-specific generation ceilings: Coordinator 2,048, Planner 8,192,
+  Chat 2,048. They can be overridden with `GTP_*_MAX_OUTPUT_TOKENS`. OpenAI
+  receives `max_completion_tokens`; Ollama receives `num_predict`. The itinerary
+  schema allows up to 28 entries (four per day across seven days).
+- Added a sliding-hour HTTP turn quota keyed by verified Auth0 internal user ID
+  or anonymous session thread ID. Default is 20 turns per principal per hour;
+  `GTP_TURN_LIMIT_PER_HOUR` overrides it. An optional process-wide hourly turn
+  cap uses `GTP_TURN_GLOBAL_LIMIT_PER_HOUR`. Rejections return localized 429 and
+  `Retry-After` before scheduling or appending the rejected turn. The limiter
+  prunes expired principals, retains at most 4,096 active principal keys, and
+  returns a slot when the worker queue is full.
+- OpenAI usage metadata now emits a redacted `model.usage` LangSmith event with
+  model, role, input/output token counts and turn ID. It carries thread ID in
+  run metadata, never prompt, response, account ID, cookie or secret. Missing
+  usage metadata or trace errors do not fail planning. Events require LangSmith
+  tracing to be enabled.
+- Verification used `PYTHON_DOTENV_DISABLED=1` and dummy model names; no provider
+  credentials were used. Focused tests: 95 passed. Full suite: 168 passed, one
+  optional PostgreSQL test skipped. Isort, Black, flake8, Ruff and `git diff
+  --check` passed.
+- The limiter is process-local and resets on restart; a multi-replica service
+  needs shared quota storage. The global cap counts turns, not USD.
+- After the user provided the global limit through runtime environment, the
+  Compose image was rebuilt and app container recreated. The container is
+  healthy, local root returns HTTP 200, and the limit parsed as configured. No
+  429 request was sent. App recreation cleared session-only plans; PostgreSQL
+  and saved tours remained intact. The actual environment value was not
+  displayed or recorded.
+- No provider-project spend cap or managed DDoS/WAF edge was configured.
+
+## Bilingual Response Prompt Guard — 2026-11-06
+
+- The user reported English and Vietnamese content mixing after changing the
+  session language. The selected language already reaches each submitted turn;
+  role prompts did not clearly separate new prose from multilingual history,
+  itinerary fields, validation evidence and source data.
+- Added one shared prompt policy. Coordinator applies it to both the rolling
+  summary and response hint; Planner applies it to new plan prose; Chat applies
+  it to both search-decision replies and final responses. The policy requires
+  new prose to use the captured locale, paraphrase reference content in that
+  locale, and preserve proper names, source titles, URLs and provider data.
+- Added Vietnamese-to-English and English-to-Vietnamese prompt regressions.
+  Focused backend checks passed 88 tests. Full host suite passed 172 tests with
+  one optional PostgreSQL test skipped. Isort, Black, flake8, Ruff and
+  `git diff --check` passed.
+- Existing conversation, user text, place names and provider source data remain
+  unchanged under ADR 0013. No live model locale QA, browser QA, image rebuild or
+  container restart was performed; deployed behavior is not verified.
+
+## Locale-aware UI Feedback — 2026-11-07
+
+- The user clarified that interface feedback also stayed in its old language
+  after switching locales. The React UI stored translated error and status
+  strings directly in state, so later renders reused text from the prior locale.
+- UI feedback now stores catalog keys and resolves them against the active
+  locale during render. This covers form validation, chat input validation,
+  session/auth errors, graph and saved-tour errors, save/claim statuses, and
+  request failures. Language names in the selector now use the active locale.
+- `npm run build` passed, including TypeScript project checks and Vite
+  production build. Browser interaction QA was not run. The running Compose app
+  was not recreated, so deployed UI behavior is not verified.

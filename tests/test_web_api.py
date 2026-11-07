@@ -10,6 +10,11 @@ import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
+from grounded_travel_planner.auth import (
+    AUTH_COOKIE_NAME,
+    AuthRepository,
+    VerifiedIdentity,
+)
 from grounded_travel_planner.contracts import (
     AgentResponse,
     PlaceRecommendation,
@@ -26,6 +31,10 @@ from grounded_travel_planner.web.api import (
     SessionCapacityExceeded,
     SessionStore,
     create_app,
+)
+from grounded_travel_planner.web.turn_rate_limit import (
+    TurnRateLimiter,
+    TurnRateLimitExceeded,
 )
 
 
@@ -258,6 +267,162 @@ def test_global_turn_capacity_rejects_another_session_without_mutating_it() -> N
         ).status_code
         == 202
     )
+
+
+def test_turn_rate_limiter_expires_principal_window() -> None:
+    clock = _FakeClock()
+    limiter = TurnRateLimiter(per_principal_limit=1, clock=clock)
+
+    accepted = limiter.reserve("session:one")
+    assert not isinstance(accepted, TurnRateLimitExceeded)
+    rejected = limiter.reserve("session:one")
+    assert isinstance(rejected, TurnRateLimitExceeded)
+    assert rejected.scope == "principal"
+    assert rejected.retry_after_seconds == 3600
+
+    clock.now = 3600
+    assert not isinstance(limiter.reserve("session:one"), TurnRateLimitExceeded)
+
+
+def test_turn_rate_limiter_reads_optional_global_limit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("GTP_TURN_LIMIT_PER_HOUR", "3")
+    monkeypatch.setenv("GTP_TURN_GLOBAL_LIMIT_PER_HOUR", "1")
+    limiter = TurnRateLimiter.from_environment()
+
+    assert not isinstance(limiter.reserve("session:one"), TurnRateLimitExceeded)
+    global_rejection = limiter.reserve("session:two")
+    assert isinstance(global_rejection, TurnRateLimitExceeded)
+    assert global_rejection.scope == "global"
+
+
+def test_turn_rate_limiter_prunes_expired_principals_before_capacity_check() -> None:
+    clock = _FakeClock()
+    limiter = TurnRateLimiter(
+        per_principal_limit=1,
+        max_principals=2,
+        window_seconds=60,
+        clock=clock,
+    )
+    assert not isinstance(limiter.reserve("session:one"), TurnRateLimitExceeded)
+    assert not isinstance(limiter.reserve("session:two"), TurnRateLimitExceeded)
+
+    full = limiter.reserve("session:three")
+    assert isinstance(full, TurnRateLimitExceeded)
+    assert full.scope == "principal_capacity"
+    assert full.retry_after_seconds == 60
+
+    clock.now = 60
+    assert not isinstance(limiter.reserve("session:three"), TurnRateLimitExceeded)
+
+
+def test_turn_quota_isolated_by_anonymous_session_and_does_not_mutate_rejection() -> (
+    None
+):
+    service = FakeTravelPlannerService()
+    limiter = TurnRateLimiter(per_principal_limit=1)
+    app = create_app(
+        service,
+        FakeVisualService(),
+        turn_rate_limiter=limiter,
+    )
+    first = TestClient(app, base_url="https://localhost")
+    second = TestClient(app, base_url="https://localhost")
+    _start(first)
+    _start(second)
+
+    assert first.post("/api/turns", json={"message": "first"}).status_code == 202
+    assert first.get("/api/session").status_code == 200
+    before = first.get("/api/session").json()
+
+    rejected = first.post("/api/turns", json={"message": "too many"})
+    assert rejected.status_code == 429
+    assert rejected.headers["retry-after"] == "3600"
+    assert first.get("/api/session").json() == before
+    assert (
+        second.post("/api/turns", json={"message": "separate session"}).status_code
+        == 202
+    )
+
+
+def test_turn_quota_shares_verified_account_across_sessions(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("GTP_AUTH_SESSION_SECRET", "s" * 32)
+    auth = AuthRepository(tmp_path / "auth.sqlite")
+    auth.migrate()
+    user_id, email = auth.find_or_create_user(
+        VerifiedIdentity("https://tenant.example.test/", "auth0|shared")
+    )
+    token, _ = auth.issue_session(user_id, email)
+    service = FakeTravelPlannerService()
+    app = create_app(
+        service,
+        FakeVisualService(),
+        auth_repository=auth,
+        turn_rate_limiter=TurnRateLimiter(per_principal_limit=1),
+    )
+    first = TestClient(app, base_url="https://localhost")
+    second = TestClient(app, base_url="https://localhost")
+    first.cookies.set(AUTH_COOKIE_NAME, token)
+    second.cookies.set(AUTH_COOKIE_NAME, token)
+    _start(first)
+    _start(second)
+
+    assert (
+        first.post("/api/turns", json={"message": "account first"}).status_code == 202
+    )
+    assert first.get("/api/session").status_code == 200
+    rejected = second.post("/api/turns", json={"message": "account second"})
+    assert rejected.status_code == 429
+    assert (
+        rejected.json()["detail"]
+        == "Bạn đã dùng hết lượt lập lịch trong giờ này. Vui lòng thử lại sau."
+    )
+
+
+def test_global_turn_quota_rejects_before_session_mutation() -> None:
+    service = FakeTravelPlannerService()
+    app = create_app(
+        service,
+        FakeVisualService(),
+        turn_rate_limiter=TurnRateLimiter(per_principal_limit=10, global_limit=1),
+    )
+    first = TestClient(app, base_url="https://localhost")
+    second = TestClient(app, base_url="https://localhost")
+    _start(first)
+    _start(second)
+
+    assert first.post("/api/turns", json={"message": "first"}).status_code == 202
+    assert first.get("/api/session").status_code == 200
+    before = second.get("/api/session").json()
+    rejected = second.post("/api/turns", json={"message": "global"})
+    assert rejected.status_code == 429
+    assert rejected.headers["retry-after"] == "3600"
+    assert second.get("/api/session").json() == before
+
+
+def test_turn_quota_principal_capacity_returns_service_limit_message() -> None:
+    service = FakeTravelPlannerService()
+    limiter = TurnRateLimiter(per_principal_limit=10, max_principals=1)
+    app = create_app(service, FakeVisualService(), turn_rate_limiter=limiter)
+    first = TestClient(app, base_url="https://localhost")
+    second = TestClient(app, base_url="https://localhost")
+    _start(first)
+    _start(second)
+
+    assert first.post("/api/turns", json={"message": "first"}).status_code == 202
+    assert first.get("/api/session").status_code == 200
+    before = second.get("/api/session").json()
+    rejected = second.post("/api/turns", json={"message": "principal cap"})
+
+    assert rejected.status_code == 429
+    assert rejected.headers["retry-after"] == "3600"
+    assert rejected.json()["detail"] == (
+        "Hệ thống đã đạt giới hạn lượt lập lịch tạm thời. Vui lòng thử lại sau."
+    )
+    assert second.get("/api/session").json() == before
 
 
 def test_session_store_caps_idle_sessions_and_reset_replaces_its_predecessor() -> None:

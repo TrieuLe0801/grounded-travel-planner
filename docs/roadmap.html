@@ -53,6 +53,7 @@
         <li>New trips ignore prior itinerary context; out-of-range day changes stop before Planner</li>
         <li>Validate-before-commit plan semantics</li>
         <li>Chat trip-length changes add grounded stops to every new day or update the schedule when shortening</li>
+        <li>New itineraries require at least one grounded stop on every selected day; guard deployed to Compose, root HTTP 200</li>
         <li>Shortening now commits a deterministic Planner proposal with retained stops and sources unchanged; no model or search calls needed</li>
         <li>Validated Planner outcome passed to Chat after commit</li>
         <li>Rejected candidate context excluded from Chat</li>
@@ -213,6 +214,19 @@
         <li>Active mixed <code>gpt-5.5</code> / <code>qwen2.5:3b</code> Hue smoke passed</li>
         <li>Compose app to native Ollama HTTP smoke passed</li>
         <li>Planner structured output requires a complete candidate plan; missing-plan regressions passed</li>
+      </ul>
+    </section>
+    <section class="card active">
+      <span class="badge">App container updated · enforcement QA pending</span>
+      <h3>1K · Request and model-cost guards</h3>
+      <ul>
+        <li>Role output limits: Coordinator 2,048; Planner 8,192; Chat 2,048 tokens, configurable through runtime environment</li>
+        <li>Itinerary schema caps a trip at 28 entries</li>
+        <li>HTTP planning turns use a sliding-hour quota keyed by verified Auth0 account or anonymous session; optional process-wide ceiling is environment-configured</li>
+        <li>Redacted <code>model.usage</code> events carry model, role, token counts and turn ID when LangSmith tracing is enabled</li>
+        <li>Process-local quotas reset on restart and do not coordinate replicas</li>
+        <li>Compose app rebuilt and healthy; environment cap parses in container, HTTP 429 not exercised</li>
+        <li>USD spend enforcement and managed DDoS/WAF edge remain separate deployment tasks</li>
       </ul>
     </section>
     <section class="card active">

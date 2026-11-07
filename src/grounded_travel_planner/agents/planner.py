@@ -17,7 +17,10 @@ from grounded_travel_planner.contracts import (
     ValidationIssue,
     visible_schedule_entries,
 )
-from grounded_travel_planner.i18n import Language, response_language_instruction
+from grounded_travel_planner.i18n import (
+    Language,
+    authored_content_language_instruction,
+)
 from grounded_travel_planner.providers import StructuredChatModel
 from utils.ids import new_id
 
@@ -207,12 +210,13 @@ class PlannerAgent:
             "and source IDs in the supplied sources. Never invent opening "
             "hours. Use opening_hours='unverified' and false unless a supplied "
             "source explicitly supports hours. All visit and travel minute fields "
-            "are estimates. Write user-visible plan summaries, place descriptions "
-            f"and schedule notes in {response_language_instruction(language)}; preserve proper names and source "
-            "titles as supplied. Do not overlap schedule entries. Use 1-based "
+            f"are estimates. {authored_content_language_instruction(language)} "
+            "Use that language for new plan summaries, place descriptions, and "
+            "schedule notes. Do not overlap schedule entries. Use 1-based "
             "day_index values and keep every entry within "
             "1 <= day_index <= request.day_count. For create_trip, create a new "
-            "itinerary from scratch; never reuse entries from an earlier plan. "
+            "itinerary from scratch; never reuse entries from an earlier plan; "
+            "include at least one grounded stop on every trip day. "
             "For other edits, apply the requested change to the prior "
             "plan when present. Preserve existing entry IDs and stops for "
             "add_place. Name an added place exactly as intent.place_name and a "
@@ -235,7 +239,9 @@ class PlannerAgent:
             "Returned sources: "
             f"{json.dumps(source_payload, ensure_ascii=False, separators=(',', ':'))}\n"
             "Repair issues: "
-            f"{json.dumps(issue_payload, ensure_ascii=False, separators=(',', ':'))}"
+            f"{json.dumps(issue_payload, ensure_ascii=False, separators=(',', ':'))}\n"
+            "Final language requirement: "
+            f"{authored_content_language_instruction(language)}"
         )
 
     def _ground_candidate(

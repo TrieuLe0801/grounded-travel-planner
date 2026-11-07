@@ -89,6 +89,8 @@ integrates its result exactly once when the chat page polls or is reopened.
 
 - Accept destination/place, a concrete start date and a selected day count.
 - Search for actual information before sourced recommendations are claimed.
+- When creating a new itinerary, schedule at least one grounded stop on every
+  selected day.
 - Never fabricate source URLs, opening hours or tool results.
 - Source references must originate from normalized search results. The
   `source_place_mismatch` token-overlap rule is temporarily disabled because it

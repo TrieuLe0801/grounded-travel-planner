@@ -3,6 +3,28 @@
 Status: Active
 Last updated: 2026-11-06
 
+## Complete Day Coverage For New Trips — Compose Deployed; Provider QA Pending — 2026-11-06
+
+Every newly created itinerary must include at least one grounded stop on each
+selected day. The Planner prompt states this requirement, and candidate
+validation rejects missing days before commit. One repair attempt can fill gaps;
+if it still omits a day, the current plan remains unchanged.
+
+The running Compose app uses the default Planner output ceiling of 8,192 tokens,
+with no runtime override. No usage trace established that a request reached the
+ceiling. A response truncated before schema completion would fail parsing or
+validation. The confirmed code gap was that a sparse but valid structured
+response passed the prior commit gate.
+
+The focused regression passed 2 tests; `uv run pytest` passed 170 tests with
+one optional PostgreSQL test skipped. isort, Black, flake8, Ruff and
+`git diff --check` passed. The app was rebuilt as image
+`sha256:133f4f2471e7c81c74ce0fffdb9f39c9e14fb8ebd06c60ad73d520027b55da22`
+and recreated. It is healthy, `/` returns HTTP 200, and runtime source inspection
+confirms the coverage guard and Planner prompt are present. PostgreSQL remains
+healthy and ngrok remained running. App recreation cleared session-only plans.
+No live-provider turn or browser interaction was run.
+
 ## Home And Account UI Redeploy — Local Compose And Ngrok Verified — 2026-11-06
 
 Final `git fetch origin` and `git pull --ff-only` confirm branch and upstream
@@ -80,6 +102,27 @@ public root returned HTTP 200, and the tunnel URL matches
 `GTP_AUTH_PUBLIC_ORIGIN`. App recreation cleared session-only plans. Live 429
 enforcement and Auth0 callback exchange were not tested. Other public ingress
 paths still need equivalent rate controls.
+
+## Runtime Token And Turn Quotas — Compose Image Deployed; Enforcement QA Pending — 2026-11-06
+
+ADR 0020 adds per-role output-token ceilings, a 28-entry itinerary limit, a
+sliding-hour HTTP turn quota keyed by verified account or anonymous session,
+and redacted model-usage events when LangSmith tracing is enabled. The
+per-principal default matches the current 20/hour ingress policy. An optional
+process-wide hourly turn ceiling is read from runtime environment; blank leaves
+that extra ceiling disabled. Actual environment values are not stored here.
+
+Mocked/offline verification passed: 168 host tests passed and one optional
+PostgreSQL test skipped; isort, Black, flake8, Ruff and `git diff --check`
+passed. Verification disabled dotenv loading and used dummy model names. The
+runtime image was then rebuilt and the Compose app container recreated. The
+container is healthy, the app root returns HTTP 200, and the process-wide quota
+setting parses as configured. Recreating the app cleared session-only plans;
+the PostgreSQL container and saved tours remained intact. No request was sent
+to exercise HTTP 429, and no LangSmith usage event was inspected. Actual
+environment values are not recorded. The hourly turn ceiling is not a USD
+meter. Configure a provider-project hard spend limit separately and place the
+production app behind a managed DDoS/WAF edge with direct origin access closed.
 
 ## Auth0 Account Ownership — Offline Verified; Rollout Pending — 2026-11-03
 
@@ -440,10 +483,16 @@ Acceptance:
 - Keep validation and source policies language-independent; localize
   user-facing issue messages by stable issue code.
 
-Evidence: ADR 0013; existing focused API/runner/chat-context checks passed 14
-tests; frontend typecheck and production build passed; Python compileall,
-flake8, Black, isort, Ruff, lock and diff checks passed. No new locale-specific
-test was added, and no browser, container or live-provider run is claimed.
+Evidence: ADR 0013; initial API/runner/chat-context checks passed 14 tests;
+frontend typecheck and production build passed. On 2026-11-06, Coordinator,
+Planner and both Chat prompt paths gained an explicit locale policy for new
+prose in multilingual context. On 2026-11-07, UI errors, validation messages
+and action statuses changed to translation keys rendered in the current locale;
+language option names now follow that locale too. Two prompt regression cases
+and the full Python suite passed (172 passed, 1 optional PostgreSQL test
+skipped); isort, Black, flake8, Ruff, diff checks and React production build
+passed. Existing conversation and source data remain verbatim. Browser and
+live-provider locale QA were not run.
 
 ## Phase 1C - Tests And Live Gates — Verified
 

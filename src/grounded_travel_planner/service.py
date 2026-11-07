@@ -84,22 +84,6 @@ class TravelPlannerService:
         chat_name = _required_model_name(
             runtime_config.chat_model_name, "GTP_CHAT_MODEL"
         )
-        coordinator_model = cls._model_factory(
-            runtime_config.coordinator_model_provider,
-            ollama_fallback_model_name=runtime_config.coordinator_ollama_fallback_model,
-            json_schema_model_names=runtime_config.openai_json_schema_model_names,
-        )(coordinator_name)
-        planner_model = cls._model_factory(
-            runtime_config.planner_model_provider,
-            ollama_fallback_model_name=runtime_config.planner_ollama_fallback_model,
-            json_schema_model_names=runtime_config.openai_json_schema_model_names,
-        )(planner_name)
-        chat_model = cls._model_factory(
-            runtime_config.chat_model_provider,
-            ollama_fallback_model_name=runtime_config.chat_ollama_fallback_model,
-            json_schema_model_names=runtime_config.openai_json_schema_model_names,
-        )(chat_name)
-        search = TavilyPlaceSearchProvider()
         tracing_enabled = os.getenv("LANGSMITH_TRACING", "").casefold() in {
             "1",
             "true",
@@ -110,6 +94,31 @@ class TravelPlannerService:
             if tracing_enabled and os.getenv("LANGSMITH_API_KEY")
             else NoOpTraceSink()
         )
+        coordinator_model = cls._model_factory(
+            runtime_config.coordinator_model_provider,
+            ollama_fallback_model_name=runtime_config.coordinator_ollama_fallback_model,
+            json_schema_model_names=runtime_config.openai_json_schema_model_names,
+            max_completion_tokens=runtime_config.coordinator_max_output_tokens,
+            trace_sink=trace_sink,
+            role="coordinator",
+        )(coordinator_name)
+        planner_model = cls._model_factory(
+            runtime_config.planner_model_provider,
+            ollama_fallback_model_name=runtime_config.planner_ollama_fallback_model,
+            json_schema_model_names=runtime_config.openai_json_schema_model_names,
+            max_completion_tokens=runtime_config.planner_max_output_tokens,
+            trace_sink=trace_sink,
+            role="planner",
+        )(planner_name)
+        chat_model = cls._model_factory(
+            runtime_config.chat_model_provider,
+            ollama_fallback_model_name=runtime_config.chat_ollama_fallback_model,
+            json_schema_model_names=runtime_config.openai_json_schema_model_names,
+            max_completion_tokens=runtime_config.chat_max_output_tokens,
+            trace_sink=trace_sink,
+            role="chat",
+        )(chat_name)
+        search = TavilyPlaceSearchProvider()
         return cls(
             CoordinatorAgent(coordinator_model),
             PlannerAgent(planner_model),
@@ -125,6 +134,9 @@ class TravelPlannerService:
         *,
         ollama_fallback_model_name: str | None = None,
         json_schema_model_names: tuple[str, ...] = (),
+        max_completion_tokens: int = 2048,
+        trace_sink: TraceSink | None = None,
+        role: str = "unknown",
     ):
         """Return a selected provider constructor with bounded OpenAI fallback."""
 
@@ -132,7 +144,11 @@ class TravelPlannerService:
 
             def create_openai(model_name: str) -> ChatOpenAIStructuredModel:
                 return ChatOpenAIStructuredModel(
-                    model_name, json_schema_model_names=json_schema_model_names
+                    model_name,
+                    json_schema_model_names=json_schema_model_names,
+                    max_completion_tokens=max_completion_tokens,
+                    trace_sink=trace_sink,
+                    role=role,
                 )
 
             if not ollama_fallback_model_name:
@@ -145,7 +161,9 @@ class TravelPlannerService:
                 return OpenAIWithOllamaFallbackStructuredModel(
                     create_openai(model_name),
                     OllamaStructuredChatModel(
-                        ollama_fallback_model_name, base_url=base_url
+                        ollama_fallback_model_name,
+                        base_url=base_url,
+                        max_completion_tokens=max_completion_tokens,
                     ),
                 )
 
@@ -154,7 +172,11 @@ class TravelPlannerService:
             base_url = os.getenv("OLLAMA_BASE_URL", "").strip() or None
 
             def create_ollama(model_name: str) -> OllamaStructuredChatModel:
-                return OllamaStructuredChatModel(model_name, base_url=base_url)
+                return OllamaStructuredChatModel(
+                    model_name,
+                    base_url=base_url,
+                    max_completion_tokens=max_completion_tokens,
+                )
 
             return create_ollama
         raise ValueError(f"Unsupported model provider: {provider}")

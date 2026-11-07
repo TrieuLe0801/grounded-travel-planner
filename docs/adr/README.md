@@ -19,4 +19,7 @@ moves that archive from embedded SQLite to a PostgreSQL Compose container;
 live plan and conversation state remain session-only.
 ADR 0019 defines GitHub Actions CI and gated app deployment through a local
 Apple Silicon macOS launchd poller. Database migrations remain explicit.
+ADR 0020 defines per-role output ceilings, process-local HTTP turn quotas and
+redacted model-usage telemetry; actual monetary values remain in the runtime
+environment and provider-project spend limits remain separately configured.
 

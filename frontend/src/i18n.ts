@@ -6,6 +6,8 @@ const catalog = {
     pageTitle: "Trợ lý lập lịch tham quan",
     metaDescription: "Lập lịch tham quan có căn cứ và nguồn tham khảo.",
     language: "Ngôn ngữ",
+    languageVietnamese: "Tiếng Việt",
+    languageEnglish: "Tiếng Anh",
     switchToVietnamese: "Chuyển sang tiếng Việt",
     switchToEnglish: "Chuyển sang tiếng Anh",
     graph: "Xem graph",
@@ -112,6 +114,10 @@ const catalog = {
     errorDeleteSavedTour: "Không thể xóa tour đã lưu.",
     maxDays: "Tối đa 7 ngày",
     noFabrication: "Không tự tạo nguồn hoặc giờ mở cửa",
+    sessionExpired: "Phiên đã hết hạn. Vui lòng bắt đầu lại.",
+    turnPending: "Một yêu cầu đang được xử lý.",
+    turnRateLimited: "Hệ thống đã đạt giới hạn yêu cầu. Vui lòng thử lại sau.",
+    serviceUnavailable: "Dịch vụ tạm thời không khả dụng. Vui lòng thử lại sau.",
     errorConnection: "Không thể kết nối máy chủ.",
     errorStart: "Không thể bắt đầu phiên.",
     errorSend: "Không thể gửi yêu cầu.",
@@ -127,6 +133,8 @@ const catalog = {
     pageTitle: "Grounded Travel Planner",
     metaDescription: "Create grounded sightseeing itineraries with sources.",
     language: "Language",
+    languageVietnamese: "Vietnamese",
+    languageEnglish: "English",
     switchToVietnamese: "Switch to Vietnamese",
     switchToEnglish: "Switch to English",
     graph: "View graph",
@@ -233,6 +241,10 @@ const catalog = {
     errorDeleteSavedTour: "Could not delete the saved tour.",
     maxDays: "Up to 7 days",
     noFabrication: "Never fabricates sources or opening hours",
+    sessionExpired: "Your session expired. Please start again.",
+    turnPending: "A request is already being processed.",
+    turnRateLimited: "The request limit was reached. Please try again later.",
+    serviceUnavailable: "The service is temporarily unavailable. Please try again later.",
     errorConnection: "Could not connect to the server.",
     errorStart: "Could not start the session.",
     errorSend: "Could not send the request.",
@@ -246,3 +258,8 @@ const catalog = {
 } as const;
 
 export const text = (language: Language) => catalog[language];
+
+type EnglishCatalog = typeof catalog.en;
+export type TextMessageKey = {
+  [Key in keyof EnglishCatalog]: EnglishCatalog[Key] extends string ? Key : never;
+}[keyof EnglishCatalog];

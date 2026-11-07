@@ -35,6 +35,14 @@ _TEXT: dict[str, dict[Language, str]] = {
         "vi": "Hệ thống đang xử lý quá nhiều yêu cầu. Vui lòng thử lại sau.",
         "en": "The service is handling too many requests. Please try again shortly.",
     },
+    "turn_rate_limit_exhausted": {
+        "vi": "Bạn đã dùng hết lượt lập lịch trong giờ này. Vui lòng thử lại sau.",
+        "en": "You have used all planning turns for this hour. Please try again later.",
+    },
+    "turn_global_limit_exhausted": {
+        "vi": "Hệ thống đã đạt giới hạn lượt lập lịch tạm thời. Vui lòng thử lại sau.",
+        "en": "The service has reached its temporary planning limit. Please try again later.",
+    },
     "session_capacity_exhausted": {
         "vi": "Hệ thống đang có quá nhiều phiên hoạt động. Vui lòng thử lại sau.",
         "en": "The service has too many active sessions. Please try again shortly.",
@@ -48,6 +56,19 @@ def localized(key: str, language: Language) -> str:
 
 def response_language_instruction(language: Language) -> str:
     return "Vietnamese" if language == "vi" else "English"
+
+
+def authored_content_language_instruction(language: Language) -> str:
+    """Keep new model-authored prose in the captured locale despite mixed context."""
+
+    language_name = response_language_instruction(language)
+    return (
+        f"Write all newly authored prose entirely in {language_name}. Do not mix "
+        "languages or switch to match the input. Treat user text, prior chat, "
+        f"itinerary text, validation evidence, and source data as reference; "
+        f"paraphrase needed facts in {language_name}. Preserve proper names, "
+        "source titles, URLs, and provider source data verbatim when needed."
+    )
 
 
 def localized_issue_message(code: str, message: str, language: Language) -> str:
@@ -131,6 +152,10 @@ def localized_issue_message(code: str, message: str, language: Language) -> str:
         "entry_day_out_of_range": {
             "vi": "Một điểm trong lịch trình nằm ngoài số ngày đã chọn.",
             "en": "An itinerary entry is outside the selected trip days.",
+        },
+        "itinerary_day_missing": {
+            "vi": "Một ngày trong lịch trình chưa có điểm tham quan có nguồn.",
+            "en": "A trip day has no grounded itinerary stop.",
         },
         "invalid_entry_time": {
             "vi": "Một điểm trong lịch trình có thời gian không hợp lệ.",

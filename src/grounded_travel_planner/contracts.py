@@ -121,7 +121,9 @@ class SightseeingPlan(BaseModel):
     destination: str = Field(min_length=1, max_length=160)
     start_date: date
     day_count: int = Field(ge=1, le=7)
-    entries: list[ScheduleEntry] = Field(default_factory=list)
+    # Four stops per day permits a practical seven-day itinerary while bounding
+    # the structured model output to 28 entries.
+    entries: list[ScheduleEntry] = Field(default_factory=list, max_length=28)
     summary: str = Field(default="", max_length=2000)
     revision: int = Field(default=1, ge=1)
 

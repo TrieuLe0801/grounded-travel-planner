@@ -34,7 +34,7 @@ import {
   X,
 } from "lucide-react";
 import "./index.css";
-import { text, type Language } from "./i18n";
+import { text, type Language, type TextMessageKey } from "./i18n";
 
 type Source = { title: string; url: string };
 type Visual = {
@@ -124,6 +124,9 @@ type ClaimResult = {
   conflicts: unknown[];
 };
 type View = "itinerary" | "graph" | "saved";
+type LocalizedMessage = TextMessageKey | "";
+type FormErrorField = "destination" | "startDate" | "days" | "chat";
+type FormErrors = Partial<Record<FormErrorField, TextMessageKey>>;
 const savedToursPageSize = 50;
 const today = (() => {
   const date = new Date();
@@ -141,10 +144,29 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
     const body = (await response.json().catch(() => null)) as {
       detail?: string;
     } | null;
-    throw new Error(body?.detail || response.statusText);
+    throw new ApiError(body?.detail || response.statusText, response.status);
   }
   if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;
+}
+
+class ApiError extends Error {
+  constructor(message: string, readonly status: number) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
+function apiErrorMessageKey(
+  error: unknown,
+  fallback: TextMessageKey,
+): TextMessageKey {
+  if (!(error instanceof ApiError)) return fallback;
+  if (error.status === 401) return "sessionExpired";
+  if (error.status === 409) return "turnPending";
+  if (error.status === 429) return "turnRateLimited";
+  if (error.status === 503) return "serviceUnavailable";
+  return fallback;
 }
 function FieldError({ message }: { message?: string }) {
   return message ? (
@@ -378,7 +400,7 @@ function GraphView({
   imageLoading: boolean;
   imageUnavailable: boolean;
   fallbackLoading: boolean;
-  error: string;
+  error: LocalizedMessage;
   onImageLoad: () => void;
   onImageError: () => void;
   onBack: () => void;
@@ -449,7 +471,7 @@ function GraphView({
                 className="mt-6 rounded-xl bg-red-50 p-4 text-red-800"
                 role="alert"
               >
-                {error}
+                {labels[error]}
               </p>
             )}
             {svg && (
@@ -560,10 +582,10 @@ function ChatWidget({
   state: ApiState;
   message: string;
   setMessage: Dispatch<SetStateAction<string>>;
-  errors: Record<string, string>;
-  setErrors: Dispatch<SetStateAction<Record<string, string>>>;
+  errors: FormErrors;
+  setErrors: Dispatch<SetStateAction<FormErrors>>;
   submitting: boolean;
-  requestError: string;
+  requestError: LocalizedMessage;
   onSend: (message: string) => Promise<boolean>;
   language: Language;
 }) {
@@ -594,11 +616,11 @@ function ChatWidget({
     if (!message.trim()) {
       setErrors((current) => ({
         ...current,
-        chat: labels.chatRequired,
+        chat: "chatRequired",
       }));
       return;
     }
-    setErrors((current) => ({ ...current, chat: "" }));
+    setErrors((current) => ({ ...current, chat: undefined }));
     const sent = message.trim();
     void onSend(sent).then((accepted) => {
       if (accepted) setMessage((current) => (current === sent ? "" : current));
@@ -702,7 +724,9 @@ function ChatWidget({
                   placeholder={labels.chatPlaceholder}
                 />
                 <span id="chat-widget-error">
-                  <FieldError message={errors.chat} />
+                  <FieldError
+                    message={errors.chat ? labels[errors.chat] : undefined}
+                  />
                 </span>
               </div>
               <button
@@ -761,7 +785,7 @@ function SavedToursView({
   selectedTour: SavedTour | null;
   loading: boolean;
   hasMore: boolean;
-  error: string;
+  error: LocalizedMessage;
   loadingId: string | null;
   deletingId: string | null;
   onBack: () => void;
@@ -770,7 +794,7 @@ function SavedToursView({
   onLoadMore: () => void;
   onClaim: () => void;
   claiming: boolean;
-  claimStatus: string;
+  claimStatus: LocalizedMessage;
   language: Language;
 }) {
   const labels = text(language);
@@ -803,7 +827,7 @@ function SavedToursView({
           >
             {claiming ? labels.claimingOldTours : labels.claimOldTours}
           </button>
-          {claimStatus && <p className="mt-2 text-sm text-slate-700" role="status">{claimStatus}</p>}
+          {claimStatus && <p className="mt-2 text-sm text-slate-700" role="status">{labels[claimStatus]}</p>}
           {loading && (
             <p className="mt-5 inline-flex items-center gap-2 text-sm text-slate-600" role="status">
               <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
@@ -812,7 +836,7 @@ function SavedToursView({
           )}
           {error && (
             <p className="mt-5 rounded-xl bg-red-50 p-3 text-sm text-red-800" role="alert">
-              {error}
+              {labels[error]}
             </p>
           )}
           {!loading && !error && tours.length === 0 && (
@@ -914,14 +938,14 @@ function App() {
   const [startDate, setStartDate] = useState(today);
   const [days, setDays] = useState(2);
   const [message, setMessage] = useState("");
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [requestError, setRequestError] = useState("");
+  const [errors, setErrors] = useState<FormErrors>({});
+  const [requestError, setRequestError] = useState<LocalizedMessage>("");
   const [submitting, setSubmitting] = useState(false);
   const [visuals, setVisuals] = useState<Record<string, Visual>>({});
   const [visualsLoading, setVisualsLoading] = useState(false);
   const [view, setView] = useState<View>("itinerary");
   const [auth, setAuth] = useState<AuthState | null>(null);
-  const [authError, setAuthError] = useState("");
+  const [authError, setAuthError] = useState<LocalizedMessage>("");
   const [signingOut, setSigningOut] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
@@ -929,20 +953,20 @@ function App() {
   const [graphImageLoading, setGraphImageLoading] = useState(true);
   const [graphImageUnavailable, setGraphImageUnavailable] = useState(false);
   const [graphFallbackLoading, setGraphFallbackLoading] = useState(false);
-  const [graphError, setGraphError] = useState("");
+  const [graphError, setGraphError] = useState<LocalizedMessage>("");
   const [savedTours, setSavedTours] = useState<SavedTourSummary[]>([]);
   const [savedToursLoading, setSavedToursLoading] = useState(false);
   const [savedToursHasMore, setSavedToursHasMore] = useState(false);
   const [savedToursCursor, setSavedToursCursor] = useState<string | null>(null);
   const savedToursRequest = useRef(0);
-  const [savedToursError, setSavedToursError] = useState("");
+  const [savedToursError, setSavedToursError] = useState<LocalizedMessage>("");
   const [selectedSavedTour, setSelectedSavedTour] = useState<SavedTour | null>(null);
   const [savedTourLoadingId, setSavedTourLoadingId] = useState<string | null>(null);
   const [savedTourDeletingId, setSavedTourDeletingId] = useState<string | null>(null);
-  const [saveStatus, setSaveStatus] = useState("");
+  const [saveStatus, setSaveStatus] = useState<LocalizedMessage>("");
   const [savingTour, setSavingTour] = useState(false);
   const [claimingTours, setClaimingTours] = useState(false);
-  const [claimStatus, setClaimStatus] = useState("");
+  const [claimStatus, setClaimStatus] = useState<LocalizedMessage>("");
   const accountMenuRef = useRef<HTMLDivElement>(null);
   const accountTriggerRef = useRef<HTMLButtonElement>(null);
   const labels = text(state.language);
@@ -966,13 +990,11 @@ function App() {
   };
   useEffect(() => {
     if (new URLSearchParams(window.location.search).has("auth_error")) {
-      setAuthError(text("vi").authError);
+      setAuthError("authError");
       window.history.replaceState(null, "", "/");
     }
     void load().catch((error: unknown) =>
-      setRequestError(
-        error instanceof Error ? error.message : labels.errorStart,
-      ),
+      setRequestError(apiErrorMessageKey(error, "errorStart")),
     );
     void api<AuthState>("/api/auth/me")
       .then((current) => {
@@ -984,7 +1006,7 @@ function App() {
       })
       .catch(() => {
         setAuth({ authenticated: false });
-        setAuthError(text("vi").authError);
+        setAuthError("authError");
       });
   }, []);
   useEffect(() => {
@@ -1047,11 +1069,7 @@ function App() {
     setGraphError("");
     void api<{ svg: string }>("/api/graph")
       .then((result) => setGraphSvg(result.svg))
-      .catch((error: unknown) =>
-        setGraphError(
-          error instanceof Error ? error.message : labels.errorGraph,
-        ),
-      )
+      .catch(() => setGraphError("errorGraph"))
       .finally(() => setGraphFallbackLoading(false));
   }, [graphFallbackLoading, graphImageUnavailable, graphSvg]);
   const submit = async (body: object) => {
@@ -1065,9 +1083,7 @@ function App() {
       await load();
       return true;
     } catch (error) {
-      setRequestError(
-        error instanceof Error ? error.message : labels.errorSend,
-      );
+      setRequestError(apiErrorMessageKey(error, "errorSend"));
       return false;
     } finally {
       setSubmitting(false);
@@ -1102,7 +1118,7 @@ function App() {
     } catch {
       const current = await api<AuthState>("/api/auth/me").catch(() => null);
       if (current) setAuth(current);
-      if (request === savedToursRequest.current) setSavedToursError(labels.errorSavedTours);
+      if (request === savedToursRequest.current) setSavedToursError("errorSavedTours");
     } finally {
       if (request === savedToursRequest.current) setSavedToursLoading(false);
     }
@@ -1135,7 +1151,7 @@ function App() {
       savedToursRequest.current += 1;
       window.location.assign(result.logout_url);
     } catch {
-      setAuthError(labels.signOutError);
+      setAuthError("signOutError");
     } finally {
       setSigningOut(false);
     }
@@ -1146,7 +1162,7 @@ function App() {
     try {
       setSelectedSavedTour(await api<SavedTour>(`/api/saved-tours/${id}`));
     } catch {
-      setSavedToursError(labels.errorSavedTours);
+      setSavedToursError("errorSavedTours");
     } finally {
       setSavedTourLoadingId(null);
     }
@@ -1166,11 +1182,11 @@ function App() {
         body: JSON.stringify({}),
       });
       setSavedTours((tours) => [saved, ...tours.filter((tour) => tour.id !== saved.id)]);
-      setSaveStatus(labels.saveTourSuccess);
+      setSaveStatus("saveTourSuccess");
     } catch {
       const current = await api<AuthState>("/api/auth/me").catch(() => null);
       if (current) setAuth(current);
-      setSaveStatus(labels.errorSaveTour);
+      setSaveStatus("errorSaveTour");
     } finally {
       setSavingTour(false);
     }
@@ -1187,7 +1203,7 @@ function App() {
       setSavedTours((tours) => tours.filter((item) => item.id !== tour.id));
       if (selectedSavedTour?.id === tour.id) setSelectedSavedTour(null);
     } catch {
-      setSavedToursError(labels.errorDeleteSavedTour);
+      setSavedToursError("errorDeleteSavedTour");
     } finally {
       setSavedTourDeletingId(null);
     }
@@ -1202,25 +1218,25 @@ function App() {
         headers: { "X-CSRF-Token": auth.csrf_token },
       });
       setClaimStatus(result.conflicts.length > 0
-        ? labels.claimOldToursConflict
+        ? "claimOldToursConflict"
         : result.claimed_count > 0
-          ? labels.claimOldToursDone
-          : labels.claimOldToursNone);
+          ? "claimOldToursDone"
+          : "claimOldToursNone");
       if (result.claimed_count > 0) await loadSavedTours(false);
     } catch {
-      setClaimStatus(labels.claimOldToursError);
+      setClaimStatus("claimOldToursError");
     } finally {
       setClaimingTours(false);
     }
   };
   const makePlan = (event: FormEvent) => {
     event.preventDefault();
-    const next: Record<string, string> = {};
+    const next: FormErrors = {};
     if (!destination.trim())
-      next.destination = labels.requiredDestination;
-    if (!startDate) next.startDate = labels.requiredStartDate;
+      next.destination = "requiredDestination";
+    if (!startDate) next.startDate = "requiredStartDate";
     if (!Number.isInteger(days) || days < 1 || days > 7)
-      next.days = labels.requiredDays;
+      next.days = "requiredDays";
     setErrors(next);
     if (Object.keys(next).length) return;
     void submit({
@@ -1256,9 +1272,7 @@ function App() {
       setView("itinerary");
       window.history.replaceState(null, "", "/");
     } catch (error) {
-      setRequestError(
-        error instanceof Error ? error.message : labels.errorReset,
-      );
+      setRequestError(apiErrorMessageKey(error, "errorReset"));
     }
   };
   const changeLanguage = async (language: Language) => {
@@ -1271,7 +1285,7 @@ function App() {
       setState(updated);
       setRequestError("");
     } catch (error) {
-      setRequestError(error instanceof Error ? error.message : labels.errorConnection);
+      setRequestError(apiErrorMessageKey(error, "errorConnection"));
     }
   };
   return (
@@ -1311,7 +1325,7 @@ function App() {
                 className={`min-h-9 min-w-10 rounded-lg px-2 text-sm font-bold transition-colors ${state.language === "vi" ? "bg-primary text-white shadow-sm" : "text-slate-700 hover:bg-white"}`}
               >
                 <span className="sm:hidden">VI</span>
-                <span className="hidden sm:inline">Tiếng Việt</span>
+                <span className="hidden sm:inline">{labels.languageVietnamese}</span>
               </button>
               <button
                 type="button"
@@ -1322,7 +1336,7 @@ function App() {
                 className={`min-h-9 min-w-10 rounded-lg px-2 text-sm font-bold transition-colors ${state.language === "en" ? "bg-primary text-white shadow-sm" : "text-slate-700 hover:bg-white"}`}
               >
                 <span className="sm:hidden">EN</span>
-                <span className="hidden sm:inline">English</span>
+                <span className="hidden sm:inline">{labels.languageEnglish}</span>
               </button>
             </div>
             <div className="relative" ref={accountMenuRef}>
@@ -1417,7 +1431,7 @@ function App() {
         </div>
       </header>
       <main id="main" className="mx-auto max-w-7xl px-4 pb-32 pt-8 sm:px-6 lg:pb-36 lg:pt-12">
-        {authError && <p className="mb-5 rounded-xl bg-red-50 p-4 text-red-800" role="alert">{authError}</p>}
+        {authError && <p className="mb-5 rounded-xl bg-red-50 p-4 text-red-800" role="alert">{labels[authError]}</p>}
         {view === "graph" ? (
           <GraphView
             svg={graphSvg}
@@ -1495,7 +1509,7 @@ function App() {
                       disabled={state.pending || submitting}
                       className="mt-2 block min-h-12 w-full rounded-xl border border-slate-300 bg-white px-4 text-base"
                     />
-                    <span id="destination-error"><FieldError message={errors.destination} /></span>
+                    <span id="destination-error"><FieldError message={errors.destination ? labels[errors.destination] : undefined} /></span>
                   </label>
                   <div className="grid gap-4 sm:grid-cols-2">
                     <label className="font-semibold" htmlFor="start-date">
@@ -1510,7 +1524,7 @@ function App() {
                         disabled={state.pending || submitting}
                         className="mt-2 block min-h-12 w-full rounded-xl border border-slate-300 bg-white px-3"
                       />
-                      <span id="start-date-error"><FieldError message={errors.startDate} /></span>
+                      <span id="start-date-error"><FieldError message={errors.startDate ? labels[errors.startDate] : undefined} /></span>
                     </label>
                     <label className="font-semibold" htmlFor="day-count">
                       {labels.days}
@@ -1531,7 +1545,7 @@ function App() {
                           </option>
                         ))}
                       </select>
-                      <span id="day-count-error"><FieldError message={errors.days} /></span>
+                      <span id="day-count-error"><FieldError message={errors.days ? labels[errors.days] : undefined} /></span>
                     </label>
                   </div>
                   <button
@@ -1553,7 +1567,7 @@ function App() {
                 className="mt-5 rounded-xl bg-red-50 p-4 text-red-800"
                 role="alert"
               >
-                {requestError}
+                {labels[requestError]}
               </p>
             )}
             {state.pending && (
@@ -1589,7 +1603,7 @@ function App() {
                   </button>
                   {saveStatus && (
                     <p className="w-full text-sm text-slate-700" role="status" aria-live="polite">
-                      {saveStatus}
+                      {labels[saveStatus]}
                     </p>
                   )}
                 </div>

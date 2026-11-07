@@ -14,7 +14,10 @@ from grounded_travel_planner.contracts import (
     visible_schedule_context,
 )
 from grounded_travel_planner.conversation import history_prompt
-from grounded_travel_planner.i18n import Language, response_language_instruction
+from grounded_travel_planner.i18n import (
+    Language,
+    authored_content_language_instruction,
+)
 from grounded_travel_planner.providers import StructuredChatModel
 
 
@@ -42,7 +45,10 @@ class CoordinatorAgent:
         language: Language = "vi",
     ) -> CoordinatorDecision:
         prompt = (
-            f"Classify the user turn for a city sightseeing planner. Write the rolling session_summary in {response_language_instruction(language)}. "
+            "Classify the user turn for a city sightseeing planner. "
+            f"{authored_content_language_instruction(language)} "
+            "Write both the rolling session_summary and response_hint in the "
+            "required language. "
             "Use ordinary_chat for conversation that does not request a plan "
             "mutation. Plan mutations are create_trip, add_place, remove_place, "
             "replace_place, reorder_places, change_day, change_time, "
@@ -74,7 +80,9 @@ class CoordinatorAgent:
             f"Recent conversation: {history_prompt(conversation_history or [])}\n"
             f"Structured request supplied: {request is not None}\n"
             f"Current plan exists: {current_plan is not None}\n"
-            f"Current visible itinerary: {visible_schedule_context(current_plan)}"
+            f"Current visible itinerary: {visible_schedule_context(current_plan)}\n"
+            f"Final language requirement for session_summary and response_hint: "
+            f"{authored_content_language_instruction(language)}"
         )
         decision = self._model.generate_structured(
             prompt,

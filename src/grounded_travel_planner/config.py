@@ -7,6 +7,9 @@ from pydantic import BaseModel, Field, field_validator
 
 DEFAULT_MODEL_PROVIDER = "openai"
 ModelProvider: TypeAlias = Literal["openai", "ollama"]
+DEFAULT_COORDINATOR_MAX_OUTPUT_TOKENS = 2048
+DEFAULT_PLANNER_MAX_OUTPUT_TOKENS = 8192
+DEFAULT_CHAT_MAX_OUTPUT_TOKENS = 2048
 
 
 class RuntimeConfig(BaseModel):
@@ -32,6 +35,18 @@ class RuntimeConfig(BaseModel):
     coordinator_provider: ModelProvider | None = None
     planner_provider: ModelProvider | None = None
     chat_provider: ModelProvider | None = None
+    # Bound one model response per role. Planner receives room for a full
+    # seven-day structured itinerary; production may lower these after usage
+    # measurements show a smaller safe cap.
+    coordinator_max_output_tokens: int = Field(
+        default=DEFAULT_COORDINATOR_MAX_OUTPUT_TOKENS, ge=256, le=16384
+    )
+    planner_max_output_tokens: int = Field(
+        default=DEFAULT_PLANNER_MAX_OUTPUT_TOKENS, ge=256, le=16384
+    )
+    chat_max_output_tokens: int = Field(
+        default=DEFAULT_CHAT_MAX_OUTPUT_TOKENS, ge=256, le=16384
+    )
     graph_step_limit: int = Field(default=8, ge=1, le=8)
     search_call_limit: int = Field(default=2, ge=0, le=2)
     repair_attempt_limit: int = Field(default=1, ge=0, le=1)
@@ -73,11 +88,30 @@ class RuntimeConfig(BaseModel):
         def optional_model_name(name: str) -> str | None:
             return os.environ.get(name)
 
+        def output_token_limit(name: str, default: int) -> int:
+            value = os.getenv(name)
+            if value is None or not value.strip():
+                return default
+            try:
+                return int(value)
+            except ValueError as error:
+                raise ValueError(f"{name} must be an integer") from error
+
         return cls(
             model_provider=os.getenv("GTP_MODEL_PROVIDER", DEFAULT_MODEL_PROVIDER),
             coordinator_provider=optional_provider("GTP_COORDINATOR_PROVIDER"),
             planner_provider=optional_provider("GTP_PLANNER_PROVIDER"),
             chat_provider=optional_provider("GTP_CHAT_PROVIDER"),
+            coordinator_max_output_tokens=output_token_limit(
+                "GTP_COORDINATOR_MAX_OUTPUT_TOKENS",
+                DEFAULT_COORDINATOR_MAX_OUTPUT_TOKENS,
+            ),
+            planner_max_output_tokens=output_token_limit(
+                "GTP_PLANNER_MAX_OUTPUT_TOKENS", DEFAULT_PLANNER_MAX_OUTPUT_TOKENS
+            ),
+            chat_max_output_tokens=output_token_limit(
+                "GTP_CHAT_MAX_OUTPUT_TOKENS", DEFAULT_CHAT_MAX_OUTPUT_TOKENS
+            ),
             model_name=required_model_name("GTP_COORDINATOR_MODEL"),
             planner_model_name=required_model_name("GTP_PLANNER_MODEL"),
             chat_model_name=required_model_name("GTP_CHAT_MODEL"),

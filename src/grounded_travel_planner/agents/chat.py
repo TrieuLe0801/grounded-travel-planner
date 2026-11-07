@@ -15,12 +15,15 @@ from grounded_travel_planner.contracts import (
     ValidationIssue,
     visible_schedule_context,
 )
-from grounded_travel_planner.i18n import Language, response_language_instruction
+from grounded_travel_planner.i18n import (
+    Language,
+    authored_content_language_instruction,
+)
 from grounded_travel_planner.providers import StructuredChatModel
 
 
 class ChatAgent:
-    """Write Vietnamese responses and request, but never run, one tool call."""
+    """Write locale-matched responses and request, but never run, one tool call."""
 
     role = "chat"
 
@@ -102,7 +105,8 @@ class ChatAgent:
         elif not committed and current_plan is not None:
             committed_context = "The prior plan remains unchanged.\n"
         prompt = (
-            f"Respond entirely in natural {response_language_instruction(language)}. Preserve proper place names, "
+            f"{authored_content_language_instruction(language)} "
+            "Preserve proper place names, "
             "times and source titles. Answer in at most three concise sentences. "
             "Never claim an uncommitted candidate was applied. If validation failed, say the previous plan was preserved. "
             "Mention estimates and unverified hours when relevant.\n"
@@ -116,7 +120,8 @@ class ChatAgent:
             f"Chat search status: {search_status}\n"
             "Ground factual current claims only in supplied Chat search sources. "
             "Never create URLs or citations. When search is unavailable or returns "
-            "no usable sources, explicitly say current facts could not be verified."
+            "no usable sources, explicitly say current facts could not be verified. "
+            f"Final language requirement: {authored_content_language_instruction(language)}"
         )
         response = self._model.generate_structured(
             prompt, ChatResponse, metadata=metadata
@@ -134,7 +139,8 @@ class ChatAgent:
         response_hint = str(kwargs["response_hint"])[:1000]
         language = kwargs.get("language", "vi")
         return (
-            f"Write a concise {response_language_instruction(language)} response and decide whether one current web "
+            f"{authored_content_language_instruction(language)} "
+            "Decide whether one current web "
             "search is necessary. Search only for factual current travel information "
             "absent from the itinerary or handoff. Do not search casual conversation "
             "or plan edits handled by Planner. With no search, return should_search=false, "
@@ -152,5 +158,6 @@ class ChatAgent:
             f"Current visible itinerary: {visible_schedule_context(current_plan)}\n"
             f"Committed: {committed}\n"
             f"Planner summary: {candidate.summary if candidate else ''}\n"
-            f"Issues: {[issue.message for issue in issues]}\nHint: {response_hint}"
+            f"Issues: {[issue.message for issue in issues]}\nHint: {response_hint}\n"
+            f"Final language requirement: {authored_content_language_instruction(language)}"
         )

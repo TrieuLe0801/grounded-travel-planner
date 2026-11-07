@@ -1,6 +1,6 @@
 {
-  "version": 81,
-  "updated": "2026-11-06T10:01:33+07:00",
+  "version": 85,
+  "updated": "2026-11-06T20:31:50+07:00",
   "active_scope": "city-place-sightseeing-webapp",
   "current_milestone": "Milestone 1: executable city/place sightseeing vertical slice",
   "completed": {
@@ -85,7 +85,12 @@
     "auth0_account_deployed": false,
     "macos_ci_cd_configured": true,
     "ngrok_session_rate_limit": true,
-    "auth_callback_access_logging_disabled": true
+    "auth_callback_access_logging_disabled": true,
+    "runtime_output_token_caps": true,
+    "http_principal_turn_quota": true,
+    "model_token_usage_events": true,
+    "runtime_global_quota_compose": true,
+    "create_trip_day_coverage": true
   },
   "evidence": {
     "scope_reset_docs": [
@@ -748,7 +753,43 @@
       "full host pytest 155 passed, 1 optional PostgreSQL test skipped",
       "Docker test target: 155 passed, 1 optional PostgreSQL test skipped",
       "rebuilt runtime app healthy with --no-access-log; app recreation cleared session-only plans"
+    ],
+    "runtime_output_token_caps": [
+      "src/grounded_travel_planner/config.py: per-role caps with environment overrides",
+      "src/grounded_travel_planner/adapters/model.py: OpenAI max_completion_tokens and Ollama num_predict",
+      "src/grounded_travel_planner/contracts.py: maximum 28 itinerary entries",
+      "tests/test_two_agent_core.py: mocked config, adapter and schema regressions"
+    ],
+    "http_principal_turn_quota": [
+      "src/grounded_travel_planner/web/turn_rate_limit.py: sliding-hour principal/global process limits, pruning and 4,096 principal bound",
+      "src/grounded_travel_planner/web/api.py: verified Auth0 user_id or anonymous thread_id; 429 before turn mutation",
+      "tests/test_web_api.py: expiry, cross-session account key, global limit, non-mutation and capacity cases",
+      "GTP_TURN_LIMIT_PER_HOUR defaults to 20; optional GTP_TURN_GLOBAL_LIMIT_PER_HOUR is unset unless provided at runtime",
+      "Process-local only; restart resets counters and replicas do not share quota state"
+    ],
+    "model_token_usage_events": [
+      "src/grounded_travel_planner/adapters/model.py: model.usage event with model, role, input/output tokens, turn_id, and thread_id metadata only",
+      "src/grounded_travel_planner/service.py: same TraceSink injected into role models and runtime graph",
+      "Usage metadata is optional; trace errors do not fail a planning turn",
+      "Events require LangSmith tracing to be enabled; no prompt, response, account ID, cookie, secret, or dollar price is recorded"
+    ],
+    "runtime_global_quota_compose": [
+      "docker compose up --build -d app: runtime image rebuilt and app container recreated",
+      "docker compose ps: app and PostgreSQL healthy; ngrok remained running",
+      "local root returned HTTP 200",
+      "TurnRateLimiter parsed a configured global cap inside app container; numeric value not displayed or recorded",
+      "no HTTP 429 or LangSmith usage event was exercised; app recreation cleared session-only plans; saved tours remained in PostgreSQL"
+    ],
+    "create_trip_day_coverage": [
+      "docs/project-charter.md: each day in a newly created itinerary needs a grounded stop",
+      "src/grounded_travel_planner/agents/planner.py: create-trip prompt requires a grounded stop each day",
+      "src/grounded_travel_planner/policies/plan_commit.py: missing days reject candidate before commit; one repair remains bounded",
+      "tests/test_itinerary_day_coverage.py: missing days 2 and 3 reject after one repair and preserve prior plan; complete seven-day plan commits",
+      "Focused regression: 2 passed; full offline pytest: 170 passed, 1 optional PostgreSQL test skipped",
+      "isort, Black, flake8, Ruff and git diff --check passed",
+      "Compose image sha256:133f4f2471e7c81c74ce0fffdb9f39c9e14fb8ebd06c60ad73d520027b55da22 deployed; app healthy, root HTTP 200, runtime source confirms guard and prompt; PostgreSQL healthy, ngrok remained running; app recreation cleared session-only plans",
+      "Planner output ceiling resolves to 8,192 tokens with no runtime override; no request usage trace was available to show the cap was reached"
     ]
   },
-  "notes": "Compose now runs saved tours in PostgreSQL 17 on a sibling host directory outside Git. Three saved rows and indexes survived the move from the old named volume, which remains for recovery. One earlier SQLite tour was backed up and copied exactly to PostgreSQL. A disposable 2M-row PostgreSQL benchmark measured keyset page 1/deep p50 0.729/0.373 ms with tiny snapshots and no concurrent traffic; its volume was removed. Focused pre-push review fixed Secure cookie handling behind TLS proxies. Network-disabled read-only container suite: 132 passed, 1 optional PostgreSQL test skipped; Python quality gates passed. Browser/live-provider checks were not run; the running app image predates the cookie fix. Old SQLite volume and ignored backups remain for recovery. Auth0 account ownership is implemented and verified offline (145 passed, 1 skipped); an isolated five-row PostgreSQL restore survived two migration runs unchanged. Live database/app remain on browser-cookie ownership pending tenant setup, migration and browser QA. A disposable PostgreSQL smoke mapped 16 concurrent logins to one account and verified persisted session, CSRF and revocation. Follow-up: a disposable PG smoke caught and fixed an invalid NUL advisory-lock key; 16 concurrent identity lookups now map to one account. Live DB checksum and running app stayed unchanged; rebuilt image was not deployed. GitHub Actions CI and a local five-minute macOS launchd poller are configured. The poller waits for a successful push CI run and uses no GitHub token. Automatic Mac deployment stays disabled until the explicit Auth0 database migration and rollout; no app restart or migration ran for CI/CD setup. 2026-11-05 security follow-up: optional ngrok ingress limits session create/reset and planning turns to 20 requests per client IP per sliding hour; Uvicorn access logs are disabled. Host suite 155 passed, 1 optional test skipped. On 2026-11-06 the runtime image was rebuilt and Compose recreated app, PostgreSQL and ngrok. App and database are healthy; ngrok loads the read-only policy. Local and public root returned HTTP 200, and the tunnel URL matches GTP_AUTH_PUBLIC_ORIGIN. App recreation cleared session-only plans; database volumes were not removed. Docker test target also passed 155 tests with one optional PostgreSQL test skipped for the security follow-up."
+  "notes": "Compose now runs saved tours in PostgreSQL 17 on a sibling host directory outside Git. Three saved rows and indexes survived the move from the old named volume, which remains for recovery. One earlier SQLite tour was backed up and copied exactly to PostgreSQL. A disposable 2M-row PostgreSQL benchmark measured keyset page 1/deep p50 0.729/0.373 ms with tiny snapshots and no concurrent traffic; its volume was removed. Focused pre-push review fixed Secure cookie handling behind TLS proxies. Network-disabled read-only container suite: 132 passed, 1 optional PostgreSQL test skipped; Python quality gates passed. Browser/live-provider checks were not run; the running app image predates the cookie fix. Old SQLite volume and ignored backups remain for recovery. Auth0 account ownership is implemented and verified offline (145 passed, 1 skipped); an isolated five-row PostgreSQL restore survived two migration runs unchanged. Live database/app remain on browser-cookie ownership pending tenant setup, migration and browser QA. A disposable PostgreSQL smoke mapped 16 concurrent logins to one account and verified persisted session, CSRF and revocation. Follow-up: a disposable PG smoke caught and fixed an invalid NUL advisory-lock key; 16 concurrent identity lookups now map to one account. Live DB checksum and running app stayed unchanged; rebuilt image was not deployed. GitHub Actions CI and a local five-minute macOS launchd poller are configured. The poller waits for a successful push CI run and uses no GitHub token. Automatic Mac deployment stays disabled until the explicit Auth0 database migration and rollout; no app restart or migration ran for CI/CD setup. 2026-11-05 security follow-up: optional ngrok ingress limits session create/reset and planning turns to 20 requests per client IP per sliding hour; Uvicorn access logs are disabled. Host suite 155 passed, 1 optional test skipped. On 2026-11-06 the runtime image was rebuilt and Compose recreated app, PostgreSQL and ngrok. App and database are healthy; ngrok loads the read-only policy. Local and public root returned HTTP 200, and the tunnel URL matches GTP_AUTH_PUBLIC_ORIGIN. App recreation cleared session-only plans; database volumes were not removed. Docker test target also passed 155 tests with one optional PostgreSQL test skipped for the security follow-up. 2026-11-06: added per-role output ceilings, authenticated/session HTTP turn quotas and redacted LangSmith token-usage events. Full host suite 168 passed with one optional PostgreSQL test skipped; Python quality gates passed with dotenv disabled. Compose image rebuilt and app container recreated after environment configuration. App and PostgreSQL are healthy; local root returned HTTP 200; global cap parsed in the app. The numeric environment value was not displayed or recorded. App recreation cleared session-only plans; saved tours remained in PostgreSQL. The optional global cap is a process-local hourly turn count, not USD; provider-project spend controls and managed DDoS edge remain separate. 2026-11-06: new-trip candidate validation now requires at least one grounded stop on every selected day. Missing middle days trigger one repair; a still-incomplete candidate is rejected and the previous plan stays intact. Full offline suite 170 passed, 1 optional PostgreSQL test skipped; Python quality gates passed. Compose image sha256:133f4f2471e7c81c74ce0fffdb9f39c9e14fb8ebd06c60ad73d520027b55da22 now includes this fix; app is healthy and root returns HTTP 200. Recreating app cleared session-only plans; PostgreSQL remained healthy and ngrok stayed running. The app resolves Planner output cap to 8,192 tokens with no override; no usage trace established token exhaustion."
 }
