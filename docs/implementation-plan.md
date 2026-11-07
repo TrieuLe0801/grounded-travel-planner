@@ -500,7 +500,8 @@ browser-native date input with an in-app calendar whose month, weekday and
 control labels follow the selected locale. Streamlit date input order and
 app-rendered dates follow selected locale. `npm run check`, Python isort, Black,
 flake8 and Ruff checks passed; Docker runtime image built, and recreated app
-returned HTTP 200. No pytest or browser check was run.
+returned HTTP 200. GitHub Actions run `42395988122` passed pytest, Python
+format/lint, frontend check/build and Compose validation. Browser QA was not run.
 
 ## Phase 1C - Tests And Live Gates — Verified
 

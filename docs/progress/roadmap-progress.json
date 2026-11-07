@@ -1,6 +1,6 @@
 {
-  "version": 87,
-  "updated": "2026-11-08T00:20:41+07:00",
+  "version": 88,
+  "updated": "2026-11-08T00:23:43+07:00",
   "active_scope": "city-place-sightseeing-webapp",
   "current_milestone": "Milestone 1: executable city/place sightseeing vertical slice",
   "completed": {
@@ -486,7 +486,8 @@
       "Streamlit itinerary start date uses an explicit English or Vietnamese month/day format",
       "npm run check and Python isort/Black/flake8/Ruff checks passed; runtime Docker image built",
       "recreated app is healthy; local root HTTP 200; PostgreSQL/ngrok not recreated",
-      "no pytest or browser QA run; app recreation cleared session-only plans"
+      "GitHub Actions run 42395988122 passed pytest, Python lint, frontend build, and Compose validation",
+      "no browser QA run; app recreation cleared session-only plans"
     ],
     "home_starts_new_trip": [
       "frontend/src/main.tsx",

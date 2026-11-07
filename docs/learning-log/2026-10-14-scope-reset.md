@@ -19,8 +19,9 @@
   runtime Docker image built successfully. Recreated only the app container;
   it is healthy and local root returns HTTP 200. PostgreSQL and ngrok stayed
   running. App recreation cleared session-only plans and conversations.
-- No pytest or browser QA ran. Focused source review found no auth, storage or
-  provider boundary changes.
+- GitHub Actions run `42395988122` passed pytest, Python formatting/lint,
+  frontend check/build and Compose validation. Browser QA was not run. Focused
+  source review found no auth, storage or provider boundary changes.
 
 ## Empty Days In New Itineraries — 2026-11-06
 
