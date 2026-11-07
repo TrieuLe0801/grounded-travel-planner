@@ -1,7 +1,7 @@
 # Implementation Plan
 
 Status: Active
-Last updated: 2026-11-06
+Last updated: 2026-11-08
 
 ## Complete Day Coverage For New Trips — Compose Deployed; Provider QA Pending — 2026-11-06
 
@@ -482,6 +482,9 @@ Acceptance:
   names, source titles/snippets/URLs and evidence text verbatim.
 - Keep validation and source policies language-independent; localize
   user-facing issue messages by stable issue code.
+- Format app-rendered itinerary and saved-tour dates in the selected UI locale;
+  localize React date-picker controls and format Streamlit date inputs by that
+  locale; keep session and API date values in ISO form.
 
 Evidence: ADR 0013; initial API/runner/chat-context checks passed 14 tests;
 frontend typecheck and production build passed. On 2026-11-06, Coordinator,
@@ -492,7 +495,12 @@ language option names now follow that locale too. Two prompt regression cases
 and the full Python suite passed (172 passed, 1 optional PostgreSQL test
 skipped); isort, Black, flake8, Ruff, diff checks and React production build
 passed. Existing conversation and source data remain verbatim. Browser and
-live-provider locale QA were not run.
+live-provider locale QA were not run. On 2026-11-08, React replaced its
+browser-native date input with an in-app calendar whose month, weekday and
+control labels follow the selected locale. Streamlit date input order and
+app-rendered dates follow selected locale. `npm run check`, Python isort, Black,
+flake8 and Ruff checks passed; Docker runtime image built, and recreated app
+returned HTTP 200. No pytest or browser check was run.
 
 ## Phase 1C - Tests And Live Gates — Verified
 

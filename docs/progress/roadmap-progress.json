@@ -1,6 +1,6 @@
 {
-  "version": 85,
-  "updated": "2026-11-06T20:31:50+07:00",
+  "version": 87,
+  "updated": "2026-11-08T00:20:41+07:00",
   "active_scope": "city-place-sightseeing-webapp",
   "current_milestone": "Milestone 1: executable city/place sightseeing vertical slice",
   "completed": {
@@ -51,6 +51,7 @@
     "shared_codex_tooling_reviewed": true,
     "codex_project_token_guidance_configured": true,
     "bilingual_webapp_language": true,
+    "locale_aware_date_formatting": true,
     "home_starts_new_trip": true,
     "account_actions_dropdown": true,
     "bidirectional_chat_trip_length": true,
@@ -478,6 +479,14 @@
       "frontend npm run check and npm run build passed",
       "Python compileall, flake8, Black, isort, Ruff and git diff --check passed",
       "no browser, container or live-provider check run"
+    ],
+    "locale_aware_date_formatting": [
+      "frontend/src/main.tsx uses a custom date calendar with localized month, weekday, and control labels",
+      "itinerary and saved-tour dates and Streamlit date input order follow selected locale; API date values remain ISO",
+      "Streamlit itinerary start date uses an explicit English or Vietnamese month/day format",
+      "npm run check and Python isort/Black/flake8/Ruff checks passed; runtime Docker image built",
+      "recreated app is healthy; local root HTTP 200; PostgreSQL/ngrok not recreated",
+      "no pytest or browser QA run; app recreation cleared session-only plans"
     ],
     "home_starts_new_trip": [
       "frontend/src/main.tsx",

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from html.parser import HTMLParser
 from urllib.parse import urlparse
 
@@ -105,10 +105,30 @@ _TEXT = {
         "create_message": "Create a {days}-day sightseeing itinerary in {destination}, starting on {date}.",
     },
 }
+_ENGLISH_MONTHS = (
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+)
 
 
 def _labels() -> dict[str, str]:
     return _TEXT[st.session_state.get("language", "vi")]
+
+
+def _format_date(value: date, language: str) -> str:
+    if language == "en":
+        return f"{_ENGLISH_MONTHS[value.month - 1]} {value.day}, {value.year}"
+    return f"ngày {value.day} tháng {value.month} năm {value.year}"
 
 
 class _CreditTextParser(HTMLParser):
@@ -289,9 +309,11 @@ def _render_plan(
     plan: SightseeingPlan, visual_service: VisualEnrichmentService
 ) -> None:
     labels = _labels()
+    language = st.session_state.get("language", "vi")
     st.subheader(f"{labels['current']} · v{plan.revision}")
     st.caption(
-        f"{plan.destination} · {labels['starts']} {plan.start_date.isoformat()} · "
+        f"{plan.destination} · {labels['starts']} "
+        f"{_format_date(plan.start_date, language)} · "
         f"{plan.day_count} {labels['days'].lower()}"
     )
     if plan.summary:
@@ -414,6 +436,9 @@ def main(
         start_date = st.date_input(
             labels["start_date"],
             value=datetime.now().astimezone().date(),
+            format=(
+                "DD/MM/YYYY" if st.session_state.language == "vi" else "MM/DD/YYYY"
+            ),
             disabled=turn_pending,
         )
         day_count = st.number_input(

@@ -29,6 +29,9 @@ and English while preserving the active itinerary and chat session.
 - Keep intent codes, schedule/source validation and commit policy
   language-independent. Present known validation issues in the selected locale
   by stable issue code; preserve raw issue evidence for unknown codes.
+- Format app-rendered dates using the selected UI locale. Keep date-only values
+  in ISO form. Use a React date picker with localized month and weekday labels;
+  set the Streamlit date input format from the same preference.
 - Keep the preference session-only. Do not add browser local storage, database
   persistence or cross-session language tracking.
 
@@ -48,6 +51,8 @@ and English while preserving the active itinerary and chat session.
 - Existing conversation and generated plan prose can remain in their original
   language after switching. New model-authored content uses the selected
   locale.
+- Itinerary and saved-tour dates change format with the selected UI locale;
+  stored date values and provider source data remain unchanged.
 - The locale has no effect on routing, source provenance, validation, search
   bounds or plan commit semantics.
 
@@ -55,5 +60,11 @@ and English while preserving the active itinerary and chat session.
 
 - The user requests another UI or assistant language.
 - The app adopts durable user accounts or cross-session preferences.
-- Locale-dependent formatting of dates, numbers or source metadata becomes a
-  product requirement.
+- The app adds locale-dependent formatting for numbers or source metadata.
+
+## User Amendment — 2026-11-08 — React Date Picker Locale
+
+The native browser date control continued to show browser-language month and
+weekday labels after the app switched to English. Replace that React control
+with an in-app calendar whose month, weekday and action labels use the selected
+session locale. Keep the selected date in ISO form for session and API data.

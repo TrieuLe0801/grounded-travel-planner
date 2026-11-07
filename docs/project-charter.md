@@ -1,7 +1,7 @@
 # Project Charter
 
 Status: Active
-Last updated: 2026-11-06
+Last updated: 2026-11-08
 
 ## Product
 
@@ -17,7 +17,9 @@ submitted, so switching languages does not reset the plan, transcript or
 pending work. New model-authored responses and itinerary prose follow that
 captured language. User messages, place names, source titles and provider source
 data retain their original text; internal intent codes, source evidence and
-validation rules remain language-independent.
+validation rules remain language-independent. App-rendered dates follow the
+selected UI locale, including month and weekday labels in the trip-start date
+picker; date values remain ISO in session and API data.
 
 The itinerary also presents source-attributed place photos when available;
 missing imagery leaves the text itinerary usable. The compiled LangGraph
@@ -108,6 +110,8 @@ integrates its result exactly once when the chat page polls or is reopened.
 - Changing language changes UI labels and the locale for future turns; it does
   not translate stored user messages, existing plan text, place names or source
   metadata, and it does not change an already-running turn's captured locale.
+- Format app-rendered dates in the selected UI locale while keeping date values
+  language-independent in session and API data.
 - Ordinary chat should not mutate the plan or perform unnecessary search.
 - Bound every turn to 8 graph steps, 2 shared Planner/Chat Tavily calls and 1
   repair attempt. Chat skips search when the remaining graph steps cannot fit

@@ -1,5 +1,27 @@
 # Learning Log - 2026-10-14 Scope Reset
 
+## Initial Locale-Aware Date Display — 2026-11-07
+
+- The user reported that app-rendered dates still appeared in Vietnamese on the
+  English page. React itinerary and saved-tour dates now use
+  `Intl.DateTimeFormat`; Streamlit formats its date input and itinerary date
+  from the session locale. Date-only values stay ISO in the API and session.
+- Updated ADR 0013, the charter, implementation plan, status and roadmap records.
+- Source reviewed. No tests, frontend build or browser check were run.
+
+## React Date Picker Locale Follow-Up — 2026-11-08
+
+- The user reported that the browser-native React date selector still used
+  Vietnamese month and weekday labels on the English page. Replaced it with a
+  React calendar that localizes month, weekday and control labels, supports
+  keyboard date navigation, and keeps submitted dates in ISO form.
+- `npm run check`, Python isort, Black, flake8 and Ruff checks passed. The
+  runtime Docker image built successfully. Recreated only the app container;
+  it is healthy and local root returns HTTP 200. PostgreSQL and ngrok stayed
+  running. App recreation cleared session-only plans and conversations.
+- No pytest or browser QA ran. Focused source review found no auth, storage or
+  provider boundary changes.
+
 ## Empty Days In New Itineraries — 2026-11-06
 
 - The user reported seven-day suggestions with an empty middle day. The

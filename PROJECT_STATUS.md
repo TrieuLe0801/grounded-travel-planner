@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-11-06
+Last updated: 2026-11-08
 
 ## Current Milestone
 
@@ -32,7 +32,7 @@ background only.
 | No-local API defaults | Historical Compose verification | Earlier container resolved to OpenAI `gpt-5.5` / `gpt-5.4-mini` / `gpt-4.1`; root and graph image returned HTTP 200 |
 | Current Planner OpenAI default | Local app verified | `gpt-6.1-terra` with 60-second per-call timeout and JSON Schema URL validation; live full graph turn committed four sourced Huế entries in 41.3 seconds; 113 tests passed; app healthy, root/graph HTTP 200 |
 | Shared Tavily tool node | Verified offline and with one live request | Planner/Chat route through one graph node; one live Chat call returned five sources and matching `tool.tavily.*` events; rebuilt Compose app healthy |
-| Bilingual webapp | Implemented; response prompts and UI feedback locale-aware | New Coordinator/Planner/Chat prose follows the captured locale despite multilingual context. UI errors, validation messages and action statuses now resolve translation keys at render time; language names follow the selected UI locale. Two locale prompt regressions and the full Python suite passed (172 passed, 1 optional PostgreSQL skip); Python quality gates and React production build passed. Existing conversation and source data remain unchanged per ADR 0013; browser and live-provider locale QA not run |
+| Bilingual webapp | Deployed; date selection follows selected locale | React uses an in-app calendar with localized month, weekday and control labels; Streamlit uses locale-specific date input order. `npm run check`, Python isort/Black/flake8/Ruff checks and runtime image build passed. Recreated app is healthy and local root returns HTTP 200; PostgreSQL and ngrok were not recreated. No pytest or browser QA run |
 | Home starts a new trip | Compose/ngrok smoke verified | Home uses session reset, returns to itinerary start, clears live trip/chat drafts and preserves language, account and saved tours; current image serves Home labels locally and publicly; click QA pending |
 | Chat trip duration | Offline verified; image built | Shortening now creates a deterministic Planner candidate from the current plan, preserving retained entries and their source data exactly; 117 host tests and Python quality gates pass. New image built; running container not recreated because it owns session-only plans |
 | Temporary ngrok sharing | Verified, now stopped | Public root and graph PNG returned 200; session POST 201 and cookie-backed GET 200; app remains healthy locally |

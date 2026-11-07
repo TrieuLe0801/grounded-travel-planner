@@ -2,6 +2,7 @@ import { createRoot } from "react-dom/client";
 import {
   type Dispatch,
   type FormEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
   type SetStateAction,
   useEffect,
   useRef,
@@ -12,6 +13,8 @@ import {
   Bot,
   CalendarDays,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   CheckCircle2,
   Clock3,
   Compass,
@@ -128,11 +131,323 @@ type LocalizedMessage = TextMessageKey | "";
 type FormErrorField = "destination" | "startDate" | "days" | "chat";
 type FormErrors = Partial<Record<FormErrorField, TextMessageKey>>;
 const savedToursPageSize = 50;
+const dateLocale = (language: Language) =>
+  language === "vi" ? "vi-VN" : "en-US";
+
+function formatDateOnly(value: string, language: Language): string {
+  const date = new Date(`${value}T12:00:00Z`);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat(dateLocale(language), {
+    dateStyle: "long",
+    timeZone: "UTC",
+  }).format(date);
+}
+
 const today = (() => {
   const date = new Date();
   const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
   return local.toISOString().slice(0, 10);
 })();
+
+type DatePickerLabels = {
+  startDate: string;
+  previousMonth: string;
+  nextMonth: string;
+  closeCalendar: string;
+};
+
+function isoDateToUtc(value: string): Date {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day, 12));
+}
+
+function utcDateToIso(value: Date): string {
+  const year = value.getUTCFullYear().toString().padStart(4, "0");
+  const month = (value.getUTCMonth() + 1).toString().padStart(2, "0");
+  const day = value.getUTCDate().toString().padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function shiftIsoMonth(value: string, months: number): string {
+  const current = isoDateToUtc(value);
+  const targetMonth = new Date(
+    Date.UTC(current.getUTCFullYear(), current.getUTCMonth() + months, 1, 12),
+  );
+  const lastDay = new Date(
+    Date.UTC(targetMonth.getUTCFullYear(), targetMonth.getUTCMonth() + 1, 0, 12),
+  ).getUTCDate();
+  targetMonth.setUTCDate(Math.min(current.getUTCDate(), lastDay));
+  return utcDateToIso(targetMonth);
+}
+
+function StartDatePicker({
+  value,
+  language,
+  labels,
+  disabled,
+  invalid,
+  describedBy,
+  onChange,
+}: {
+  value: string;
+  language: Language;
+  labels: DatePickerLabels;
+  disabled: boolean;
+  invalid: boolean;
+  describedBy?: string;
+  onChange: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [viewMonth, setViewMonth] = useState(value.slice(0, 7));
+  const [focusedDate, setFocusedDate] = useState(value);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const dayButtonRefs = useRef(new Map<string, HTMLButtonElement>());
+  const locale = dateLocale(language);
+  const weekStartsOn = language === "vi" ? 1 : 0;
+  const monthDate = isoDateToUtc(`${viewMonth}-01`);
+  const monthLabel = new Intl.DateTimeFormat(locale, {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(monthDate);
+  const weekdayFormat = new Intl.DateTimeFormat(locale, {
+    weekday: "short",
+    timeZone: "UTC",
+  });
+  const weekdayLongFormat = new Intl.DateTimeFormat(locale, {
+    weekday: "long",
+    timeZone: "UTC",
+  });
+  const fullDateFormat = new Intl.DateTimeFormat(locale, {
+    dateStyle: "full",
+    timeZone: "UTC",
+  });
+  const weekdayHeaders = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(Date.UTC(2021, 7, 1 + weekStartsOn + index, 12));
+    return {
+      short: weekdayFormat.format(date),
+      long: weekdayLongFormat.format(date),
+    };
+  });
+  const firstWeekday = monthDate.getUTCDay();
+  const leadingDays = (firstWeekday - weekStartsOn + 7) % 7;
+  const daysInMonth = new Date(
+    Date.UTC(monthDate.getUTCFullYear(), monthDate.getUTCMonth() + 1, 0, 12),
+  ).getUTCDate();
+  const cellCount = Math.ceil((leadingDays + daysInMonth) / 7) * 7;
+  const gridStart = new Date(
+    Date.UTC(
+      monthDate.getUTCFullYear(),
+      monthDate.getUTCMonth(),
+      1 - leadingDays,
+      12,
+    ),
+  );
+  const calendarDates = Array.from({ length: cellCount }, (_, index) => {
+    const date = new Date(gridStart);
+    date.setUTCDate(gridStart.getUTCDate() + index);
+    return date;
+  });
+
+  useEffect(() => {
+    if (open) dayButtonRefs.current.get(focusedDate)?.focus();
+  }, [focusedDate, open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const closeOnOutsidePointer = (event: PointerEvent) => {
+      if (event.target instanceof Node && !rootRef.current?.contains(event.target)) {
+        setOpen(false);
+      }
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setOpen(false);
+        triggerRef.current?.focus();
+      }
+    };
+    document.addEventListener("pointerdown", closeOnOutsidePointer);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutsidePointer);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [open]);
+
+  const focusDate = (date: Date) => {
+    const next = utcDateToIso(date);
+    setFocusedDate(next);
+    setViewMonth(next.slice(0, 7));
+  };
+
+  const openCalendar = () => {
+    setFocusedDate(value);
+    setViewMonth(value.slice(0, 7));
+    setOpen(true);
+  };
+
+  const closeCalendar = () => {
+    setOpen(false);
+    window.requestAnimationFrame(() => triggerRef.current?.focus());
+  };
+
+  const changeMonth = (amount: number) => {
+    const next = shiftIsoMonth(`${viewMonth}-01`, amount);
+    setViewMonth(next.slice(0, 7));
+    setFocusedDate(next);
+  };
+
+  const handleDayKeyDown = (
+    event: ReactKeyboardEvent<HTMLButtonElement>,
+    date: Date,
+  ) => {
+    const dayOffsets: Record<string, number> = {
+      ArrowLeft: -1,
+      ArrowRight: 1,
+      ArrowUp: -7,
+      ArrowDown: 7,
+    };
+    if (event.key in dayOffsets) {
+      event.preventDefault();
+      const next = new Date(date);
+      next.setUTCDate(next.getUTCDate() + dayOffsets[event.key]);
+      focusDate(next);
+      return;
+    }
+    if (event.key === "Home" || event.key === "End") {
+      event.preventDefault();
+      const weekdayIndex = (date.getUTCDay() - weekStartsOn + 7) % 7;
+      const next = new Date(date);
+      next.setUTCDate(
+        next.getUTCDate() + (event.key === "Home" ? -weekdayIndex : 6 - weekdayIndex),
+      );
+      focusDate(next);
+      return;
+    }
+    if (event.key === "PageUp" || event.key === "PageDown") {
+      event.preventDefault();
+      const months = (event.key === "PageUp" ? -1 : 1) * (event.shiftKey ? 12 : 1);
+      const next = isoDateToUtc(shiftIsoMonth(utcDateToIso(date), months));
+      focusDate(next);
+    }
+  };
+
+  return (
+    <div className="relative mt-2" ref={rootRef}>
+      <button
+        type="button"
+        id="start-date"
+        ref={triggerRef}
+        aria-labelledby="start-date-label start-date-value"
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        aria-controls={open ? "start-date-calendar" : undefined}
+        aria-invalid={invalid}
+        aria-describedby={describedBy}
+        disabled={disabled}
+        onClick={() => (open ? closeCalendar() : openCalendar())}
+        className="flex min-h-12 w-full items-center justify-between rounded-xl border border-slate-300 bg-white px-3 text-left font-normal focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        <span id="start-date-value">{formatDateOnly(value, language)}</span>
+        <CalendarDays size={18} aria-hidden="true" />
+      </button>
+      {open && (
+        <div
+          id="start-date-calendar"
+          role="dialog"
+          aria-label={labels.startDate}
+          className="absolute left-0 top-full z-50 mt-2 w-[min(21rem,calc(100vw-2rem))] rounded-2xl border border-blue-100 bg-white p-3 shadow-xl"
+        >
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <button
+              type="button"
+              aria-label={labels.previousMonth}
+              onClick={() => changeMonth(-1)}
+              className="inline-flex size-10 items-center justify-center rounded-lg text-slate-700 hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600"
+            >
+              <ChevronLeft size={18} aria-hidden="true" />
+            </button>
+            <h3
+              id="start-date-calendar-title"
+              className="text-center font-semibold text-slate-900"
+            >
+              {monthLabel}
+            </h3>
+            <button
+              type="button"
+              aria-label={labels.nextMonth}
+              onClick={() => changeMonth(1)}
+              className="inline-flex size-10 items-center justify-center rounded-lg text-slate-700 hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600"
+            >
+              <ChevronRight size={18} aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              aria-label={labels.closeCalendar}
+              onClick={closeCalendar}
+              className="inline-flex size-10 items-center justify-center rounded-lg text-slate-600 hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600"
+            >
+              <X size={18} aria-hidden="true" />
+            </button>
+          </div>
+          <table
+            aria-labelledby="start-date-calendar-title"
+            className="w-full table-fixed text-center text-sm"
+          >
+            <thead>
+              <tr>
+                {weekdayHeaders.map((weekday, index) => (
+                  <th className="h-9 font-medium text-slate-500" key={index} scope="col">
+                    <abbr className="no-underline" title={weekday.long}>
+                      {weekday.short}
+                    </abbr>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {Array.from({ length: cellCount / 7 }, (_, row) => (
+                <tr key={row}>
+                  {calendarDates.slice(row * 7, row * 7 + 7).map((date) => {
+                    const isoDate = utcDateToIso(date);
+                    const isCurrentMonth = date.getUTCMonth() === monthDate.getUTCMonth();
+                    const isSelected = isoDate === value;
+                    const isToday = isoDate === today;
+                    return (
+                      <td className="p-0.5" key={isoDate}>
+                        <button
+                          type="button"
+                          ref={(element) => {
+                            if (element) dayButtonRefs.current.set(isoDate, element);
+                            else dayButtonRefs.current.delete(isoDate);
+                          }}
+                          tabIndex={isoDate === focusedDate ? 0 : -1}
+                          aria-label={fullDateFormat.format(date)}
+                          aria-pressed={isSelected}
+                          aria-current={isToday ? "date" : undefined}
+                          onClick={() => {
+                            onChange(isoDate);
+                            closeCalendar();
+                          }}
+                          onKeyDown={(event) => handleDayKeyDown(event, date)}
+                          className={`min-h-10 w-full rounded-lg font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600 ${isSelected ? "bg-primary text-white" : isToday ? "border border-primary text-primary" : "text-slate-800 hover:bg-blue-50"} ${isCurrentMonth ? "" : "text-slate-400"}`}
+                        >
+                          {date.getUTCDate()}
+                        </button>
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
 
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
@@ -278,7 +593,11 @@ function PlanView({
           </h2>
         </div>
         <p className="text-sm text-slate-600">
-          {plan.start_date} · {plan.day_count} {labels.dayUnit}
+          <time dateTime={plan.start_date}>
+            {formatDateOnly(plan.start_date, language)}
+          </time>
+          {" · "}
+          {plan.day_count} {labels.dayUnit}
         </p>
       </div>
       {plan.summary && (
@@ -799,7 +1118,7 @@ function SavedToursView({
 }) {
   const labels = text(language);
   const savedAt = (value: string) =>
-    new Intl.DateTimeFormat(language === "vi" ? "vi-VN" : "en", {
+    new Intl.DateTimeFormat(dateLocale(language), {
       dateStyle: "medium",
       timeStyle: "short",
     }).format(new Date(value));
@@ -863,7 +1182,11 @@ function SavedToursView({
                       )}
                     </span>
                     <span className="mt-1 block text-sm text-slate-600">
-                      {tour.start_date} · {tour.day_count} {labels.dayUnit} · v{tour.revision}
+                      <time dateTime={tour.start_date}>
+                        {formatDateOnly(tour.start_date, language)}
+                      </time>
+                      {" · "}
+                      {tour.day_count} {labels.dayUnit} · v{tour.revision}
                     </span>
                     <span className="mt-1 block text-xs text-slate-500">
                       {labels.savedOn} {savedAt(tour.saved_at)}
@@ -974,7 +1297,7 @@ function App() {
     ? auth.email?.split("@")[0]?.trim() || labels.account
     : labels.account;
   useEffect(() => {
-    document.documentElement.lang = state.language;
+    document.documentElement.lang = dateLocale(state.language);
     document.title = labels.pageTitle;
     document
       .querySelector('meta[name="description"]')
@@ -1512,20 +1835,32 @@ function App() {
                     <span id="destination-error"><FieldError message={errors.destination ? labels[errors.destination] : undefined} /></span>
                   </label>
                   <div className="grid gap-4 sm:grid-cols-2">
-                    <label className="font-semibold" htmlFor="start-date">
-                      {labels.startDate}
-                      <input
-                        id="start-date"
-                        type="date"
+                    <div className="font-semibold">
+                      <span id="start-date-label">{labels.startDate}</span>
+                      <StartDatePicker
                         value={startDate}
-                        onChange={(event) => setStartDate(event.target.value)}
-                        aria-invalid={Boolean(errors.startDate)}
-                        aria-describedby={errors.startDate ? "start-date-error" : undefined}
+                        language={state.language}
+                        labels={{
+                          startDate: labels.startDate,
+                          previousMonth: labels.previousMonth,
+                          nextMonth: labels.nextMonth,
+                          closeCalendar: labels.closeCalendar,
+                        }}
                         disabled={state.pending || submitting}
-                        className="mt-2 block min-h-12 w-full rounded-xl border border-slate-300 bg-white px-3"
+                        invalid={Boolean(errors.startDate)}
+                        describedBy={
+                          errors.startDate ? "start-date-error" : undefined
+                        }
+                        onChange={setStartDate}
                       />
-                      <span id="start-date-error"><FieldError message={errors.startDate ? labels[errors.startDate] : undefined} /></span>
-                    </label>
+                      <span id="start-date-error">
+                        <FieldError
+                          message={
+                            errors.startDate ? labels[errors.startDate] : undefined
+                          }
+                        />
+                      </span>
+                    </div>
                     <label className="font-semibold" htmlFor="day-count">
                       {labels.days}
                       <select
