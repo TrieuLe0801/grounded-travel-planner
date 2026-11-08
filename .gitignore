@@ -28,6 +28,17 @@ htmlcov/
 .local/
 graphify-out/
 
+# Local databases, PostgreSQL clusters, and user-data backups
+postgres/
+postgres-data/
+pgdata/
+.pgdata/
+*.sqlite
+*.sqlite3
+*.db
+*.dump
+*.backup
+
 # Build artifacts
 build/
 dist/

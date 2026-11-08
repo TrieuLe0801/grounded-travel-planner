@@ -16,6 +16,15 @@ frontend/node_modules
 .env
 .env.*
 .local
+postgres
+postgres-data
+pgdata
+.pgdata
+*.sqlite
+*.sqlite3
+*.db
+*.dump
+*.backup
 graphify-out
 artifacts
 
