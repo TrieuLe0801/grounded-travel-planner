@@ -32,6 +32,7 @@ from grounded_travel_planner.contracts import (
 from grounded_travel_planner.saved_tours import SavedTourRepository
 from grounded_travel_planner.web.api import (
     SAVED_TOURS_OWNER_COOKIE_NAME,
+    SessionStore,
     create_app,
 )
 
@@ -78,6 +79,9 @@ class FakeOidcProvider:
 
 class FakeService:
     graph = object()
+
+    def create_session(self) -> str:
+        return "auth-thread"
 
 
 class FakeVisuals:
@@ -199,6 +203,108 @@ def test_auth_callback_validates_state_and_expiry_before_creating_session(
     assert expired.status_code == 303
     assert client.cookies.get(AUTH_COOKIE_NAME) is None
     assert len(provider.callback_calls) == 0
+
+
+def test_live_planner_endpoints_require_a_verified_account(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    provider = FakeOidcProvider("auth0|a", "a@example.test")
+    client, _, _ = _client(tmp_path, provider, monkeypatch)
+
+    assert client.post("/api/session").status_code == 401
+    assert client.get("/api/session").status_code == 401
+    assert client.post("/api/session/reset").status_code == 401
+    assert (
+        client.put("/api/session/language", json={"language": "en"}).status_code == 401
+    )
+    assert client.post("/api/turns", json={"message": "plan"}).status_code == 401
+    assert client.get("/api/visuals?revision=1").status_code == 401
+
+
+def test_live_session_isolated_by_authenticated_account(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    first_provider = FakeOidcProvider("auth0|first", "first@example.test")
+    first, _, _ = _client(tmp_path, first_provider, monkeypatch)
+    _sign_in(first, first_provider)
+    first_session = first.cookies.get("gtp_session")
+    assert first_session
+
+    second_provider = FakeOidcProvider("auth0|second", "second@example.test")
+    second, _, _ = _client(tmp_path, second_provider, monkeypatch)
+    _sign_in(second, second_provider)
+    second.cookies.set(
+        "gtp_session", first_session, domain="planner.example.test", path="/"
+    )
+    assert second.get("/api/session").status_code == 401
+    assert second.post("/api/session/reset").status_code == 401
+    assert second.post("/api/turns", json={"message": "plan"}).status_code == 401
+
+
+def test_login_binds_an_existing_unowned_browser_session(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("GTP_AUTH_SESSION_SECRET", "s" * 32)
+    monkeypatch.setenv("GTP_AUTH_PUBLIC_ORIGIN", "https://planner.example.test")
+    provider = FakeOidcProvider("auth0|a", "a@example.test")
+    auth = AuthRepository(tmp_path / "auth.sqlite")
+    auth.migrate()
+    sessions = SessionStore()
+    session_id, _ = sessions.create(FakeService())
+    client = TestClient(
+        create_app(
+            FakeService(),
+            FakeVisuals(),
+            saved_tour_repository=SavedTourRepository(tmp_path / "saved-tours.sqlite"),
+            auth_provider=provider,
+            auth_repository=auth,
+            session_store=sessions,
+        ),
+        base_url="https://planner.example.test",
+    )
+    client.cookies.set(
+        "gtp_session", session_id, domain="planner.example.test", path="/"
+    )
+
+    _sign_in(client, provider)
+
+    assert client.cookies.get("gtp_session") == session_id
+    assert client.get("/api/session").status_code == 200
+
+
+def test_login_rotates_other_account_session_and_logout_removes_it(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    provider = FakeOidcProvider("auth0|first", "first@example.test")
+    client, _, _ = _client(tmp_path, provider, monkeypatch)
+    csrf = _sign_in(client, provider)
+    first_session = client.cookies.get("gtp_session")
+    assert first_session
+
+    provider.identity = VerifiedIdentity(
+        issuer="https://tenant.example.test/",
+        subject="auth0|second",
+        email="second@example.test",
+    )
+    started = client.get("/api/auth/login", follow_redirects=False)
+    state = parse_qs(urlparse(started.headers["location"]).query)["state"][0]
+    callback = client.get(
+        "/api/auth/callback",
+        params={"code": "offline-code", "state": state},
+        follow_redirects=False,
+    )
+    assert callback.status_code == 303
+    second_session = client.cookies.get("gtp_session")
+    assert second_session and second_session != first_session
+
+    logout = client.post(
+        "/api/auth/logout",
+        headers={"X-CSRF-Token": client.get("/api/auth/me").json()["csrf_token"]},
+    )
+    assert logout.status_code == 200
+    assert 'gtp_session=""' in logout.headers["set-cookie"]
+    assert client.get("/api/session").status_code == 401
+    assert csrf
 
 
 def test_identity_advisory_lock_key_is_unambiguous_postgres_text() -> None:

@@ -195,7 +195,7 @@ def _create(client: TestClient, destination: str) -> dict[str, object]:
 
 def test_sessions_are_isolated_and_rejected_turn_keeps_prior_plan() -> None:
     service = FakeTravelPlannerService()
-    app = create_app(service, FakeVisualService())
+    app = create_app(service, FakeVisualService(), require_auth=False)
     first = TestClient(app, base_url="https://localhost")
     second = TestClient(app, base_url="https://localhost")
     _start(first)
@@ -217,7 +217,8 @@ def test_sessions_are_isolated_and_rejected_turn_keeps_prior_plan() -> None:
 def test_pending_turn_rejects_competing_submission() -> None:
     service = FakeTravelPlannerService()
     client = TestClient(
-        create_app(service, FakeVisualService()), base_url="https://localhost"
+        create_app(service, FakeVisualService(), require_auth=False),
+        base_url="https://localhost",
     )
     _start(client)
 
@@ -240,6 +241,7 @@ def test_global_turn_capacity_rejects_another_session_without_mutating_it() -> N
         service,
         FakeVisualService(),
         turn_runner=runner,
+        require_auth=False,
     )
     first = TestClient(app, base_url="https://localhost")
     second = TestClient(app, base_url="https://localhost")
@@ -326,6 +328,7 @@ def test_turn_quota_isolated_by_anonymous_session_and_does_not_mutate_rejection(
         service,
         FakeVisualService(),
         turn_rate_limiter=limiter,
+        require_auth=False,
     )
     first = TestClient(app, base_url="https://localhost")
     second = TestClient(app, base_url="https://localhost")
@@ -388,6 +391,7 @@ def test_global_turn_quota_rejects_before_session_mutation() -> None:
         service,
         FakeVisualService(),
         turn_rate_limiter=TurnRateLimiter(per_principal_limit=10, global_limit=1),
+        require_auth=False,
     )
     first = TestClient(app, base_url="https://localhost")
     second = TestClient(app, base_url="https://localhost")
@@ -406,7 +410,9 @@ def test_global_turn_quota_rejects_before_session_mutation() -> None:
 def test_turn_quota_principal_capacity_returns_service_limit_message() -> None:
     service = FakeTravelPlannerService()
     limiter = TurnRateLimiter(per_principal_limit=10, max_principals=1)
-    app = create_app(service, FakeVisualService(), turn_rate_limiter=limiter)
+    app = create_app(
+        service, FakeVisualService(), turn_rate_limiter=limiter, require_auth=False
+    )
     first = TestClient(app, base_url="https://localhost")
     second = TestClient(app, base_url="https://localhost")
     _start(first)
@@ -468,7 +474,9 @@ def test_session_endpoint_returns_503_when_store_is_at_capacity() -> None:
     service = FakeTravelPlannerService()
     store = SessionStore(max_sessions=1)
     client = TestClient(
-        create_app(service, FakeVisualService(), session_store=store),
+        create_app(
+            service, FakeVisualService(), session_store=store, require_auth=False
+        ),
         base_url="https://localhost",
     )
 
@@ -517,7 +525,8 @@ def test_idle_expiry_keeps_running_turn_but_releases_uncollected_completion() ->
 def test_api_bounds_conversation_summary_and_reset_session() -> None:
     service = FakeTravelPlannerService()
     client = TestClient(
-        create_app(service, FakeVisualService()), base_url="https://localhost"
+        create_app(service, FakeVisualService(), require_auth=False),
+        base_url="https://localhost",
     )
     _start(client)
 
@@ -545,7 +554,9 @@ def test_api_bounds_conversation_summary_and_reset_session() -> None:
 def test_visuals_require_current_revision_and_expose_attribution() -> None:
     service = FakeTravelPlannerService()
     visuals = FakeVisualService()
-    client = TestClient(create_app(service, visuals), base_url="https://localhost")
+    client = TestClient(
+        create_app(service, visuals, require_auth=False), base_url="https://localhost"
+    )
     _start(client)
     state = _create(client, "Hue")
     revision = state["plan"]["revision"]

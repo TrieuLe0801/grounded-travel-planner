@@ -595,25 +595,32 @@ def test_saved_tour_owner_cookie_secure_attribute_follows_environment_override(
 def test_public_http_proxy_marks_session_cookies_secure(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.delenv("GTP_SAVED_TOURS_COOKIE_SECURE", raising=False)
-    client = TestClient(
-        create_app(
-            FakeTravelPlannerService(),
-            FakeVisualService(),
-            saved_tour_repository=SavedTourRepository(tmp_path / "proxy.sqlite"),
-        ),
+    # Bootstrap the local offline Auth0 fixture over HTTP, then restore the
+    # production Secure default for the cookie assertions below.
+    monkeypatch.setenv("GTP_SAVED_TOURS_COOKIE_SECURE", "false")
+    client = _client(
+        tmp_path / "proxy.sqlite",
+        FakeTravelPlannerService(),
         base_url="http://planner.example",
     )
+    auth_token = client.cookies.get(AUTH_COOKIE_NAME)
+    assert auth_token
+    client.cookies.clear()
+    client.cookies.set(AUTH_COOKIE_NAME, auth_token)
+    monkeypatch.delenv("GTP_SAVED_TOURS_COOKIE_SECURE", raising=False)
     started = client.post("/api/session")
     assert "; secure" in started.headers["set-cookie"].casefold()
-    loopback_host = TestClient(
-        create_app(
-            FakeTravelPlannerService(),
-            FakeVisualService(),
-            saved_tour_repository=SavedTourRepository(tmp_path / "spoofed-host.sqlite"),
-        ),
+    monkeypatch.setenv("GTP_SAVED_TOURS_COOKIE_SECURE", "false")
+    loopback_host = _client(
+        tmp_path / "spoofed-host.sqlite",
+        FakeTravelPlannerService(),
         base_url="http://localhost",
     )
+    loopback_auth = loopback_host.cookies.get(AUTH_COOKIE_NAME)
+    assert loopback_auth
+    loopback_host.cookies.clear()
+    loopback_host.cookies.set(AUTH_COOKIE_NAME, loopback_auth)
+    monkeypatch.delenv("GTP_SAVED_TOURS_COOKIE_SECURE", raising=False)
     assert (
         "; secure"
         in loopback_host.post("/api/session").headers["set-cookie"].casefold()
@@ -622,6 +629,7 @@ def test_public_http_proxy_marks_session_cookies_secure(
     assert session_id is not None
     client.cookies.clear()
     client.cookies.set(COOKIE_NAME, session_id)
+    client.cookies.set(AUTH_COOKIE_NAME, auth_token)
     reset = client.post("/api/session/reset")
     assert reset.status_code == 200
     assert "; secure" in reset.headers["set-cookie"].casefold()

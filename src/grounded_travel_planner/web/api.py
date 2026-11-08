@@ -96,6 +96,7 @@ class WebSession:
     """Volatile state keyed only by an opaque HttpOnly browser cookie."""
 
     thread_id: str
+    owner_user_id: str | None = None
     language: Language = "vi"
     current_plan: SightseeingPlan | None = None
     pending: PendingTurn | None = None
@@ -130,19 +131,28 @@ class SessionStore:
         self._sessions: dict[str, WebSession] = {}
         self._lock = Lock()
 
-    def create(self, service: TravelPlannerService) -> tuple[str, WebSession]:
+    def create(
+        self, service: TravelPlannerService, owner_user_id: str | None = None
+    ) -> tuple[str, WebSession]:
         with self._lock:
             now = self._clock()
             self._evict_idle(now)
             if len(self._sessions) >= self._max_sessions:
                 raise SessionCapacityExceeded("The session capacity is exhausted.")
             session_id = uuid4().hex
-            session = WebSession(thread_id=service.create_session(), last_accessed=now)
+            session = WebSession(
+                thread_id=service.create_session(),
+                owner_user_id=owner_user_id,
+                last_accessed=now,
+            )
             self._sessions[session_id] = session
         return session_id, session
 
     def replace(
-        self, session_id: str | None, service: TravelPlannerService
+        self,
+        session_id: str | None,
+        service: TravelPlannerService,
+        owner_user_id: str | None = None,
     ) -> tuple[str, WebSession]:
         """Create a reset session while removing its predecessor atomically."""
 
@@ -158,6 +168,7 @@ class SessionStore:
                     language = previous.language
             replacement = WebSession(
                 thread_id=service.create_session(),
+                owner_user_id=owner_user_id,
                 language=language,
                 last_accessed=now,
             )
@@ -166,6 +177,55 @@ class SessionStore:
                 self._sessions.pop(session_id, None)
             self._sessions[replacement_id] = replacement
         return replacement_id, replacement
+
+    def bind_or_replace(
+        self, session_id: str | None, service: TravelPlannerService, owner_user_id: str
+    ) -> tuple[str, WebSession]:
+        """Bind a legacy session to its verified owner or replace another owner's."""
+
+        with self._lock:
+            now = self._clock()
+            self._evict_idle(now)
+            existing = self._sessions.get(session_id) if session_id else None
+            if existing is None:
+                if len(self._sessions) >= self._max_sessions:
+                    raise SessionCapacityExceeded("The session capacity is exhausted.")
+                replacement_id = uuid4().hex
+                replacement = WebSession(
+                    thread_id=service.create_session(),
+                    owner_user_id=owner_user_id,
+                    last_accessed=now,
+                )
+                self._sessions[replacement_id] = replacement
+                return replacement_id, replacement
+            with existing.lock:
+                if existing.owner_user_id in {None, owner_user_id}:
+                    existing.owner_user_id = owner_user_id
+                    existing.last_accessed = now
+                    return session_id or "", existing
+            replacement_id = uuid4().hex
+            replacement = WebSession(
+                thread_id=service.create_session(),
+                owner_user_id=owner_user_id,
+                last_accessed=now,
+            )
+            if session_id:
+                self._sessions.pop(session_id, None)
+            self._sessions[replacement_id] = replacement
+            return replacement_id, replacement
+
+    def discard(self, session_id: str | None, owner_user_id: str) -> None:
+        """Remove only a session owned by the account that is logging out."""
+
+        if not session_id:
+            return
+        with self._lock:
+            session = self._sessions.get(session_id)
+            if session is None:
+                return
+            with session.lock:
+                if session.owner_user_id == owner_user_id:
+                    self._sessions.pop(session_id, None)
 
     def get(self, session_id: str | None) -> WebSession:
         if not session_id:
@@ -324,6 +384,7 @@ def create_app(
     auth_provider: OidcProvider | None = None,
     auth_repository: AuthRepository | PostgresAuthRepository | None = None,
     turn_rate_limiter: TurnRateLimiter | None = None,
+    require_auth: bool = True,
 ) -> FastAPI:
     """Create an injectable app so endpoint tests need no live provider calls."""
 
@@ -337,9 +398,6 @@ def create_app(
     provider = auth_provider
     app = FastAPI(title="Grounded Travel Planner", docs_url=None, redoc_url=None)
 
-    def current_session(session_id: str | None) -> WebSession:
-        return sessions.get(session_id)
-
     def current_user(auth_token: str | None) -> AuthenticatedUser:
         try:
             user = auth.authenticated(auth_token)
@@ -350,6 +408,19 @@ def create_app(
         if user is None:
             raise HTTPException(status_code=401, detail="Bạn cần đăng nhập.")
         return user
+
+    def current_session(session_id: str | None, auth_token: str | None) -> WebSession:
+        """Return live state only when its owner matches the verified account."""
+
+        if not require_auth:
+            return sessions.get(session_id)
+        user = current_user(auth_token)
+        session = sessions.get(session_id)
+        if session.owner_user_id != user.user_id:
+            raise HTTPException(
+                status_code=401, detail="Phiên không thuộc tài khoản này."
+            )
+        return session
 
     def turn_principal(session: WebSession, auth_token: str | None) -> str:
         """Use only server-verified account identity or an opaque session ID."""
@@ -419,9 +490,14 @@ def create_app(
         return completed
 
     @app.post("/api/session", status_code=201)
-    def start_session(response: Response, request: Request) -> dict[str, object]:
+    def start_session(
+        response: Response,
+        request: Request,
+        gtp_auth: str | None = Cookie(default=None, alias=AUTH_COOKIE_NAME),
+    ) -> dict[str, object]:
+        user_id = current_user(gtp_auth).user_id if require_auth else None
         try:
-            session_id, session = sessions.create(planner_service)
+            session_id, session = sessions.create(planner_service, user_id)
         except SessionCapacityExceeded as error:
             raise HTTPException(
                 status_code=503,
@@ -442,9 +518,14 @@ def create_app(
         response: Response,
         request: Request,
         gtp_session: str | None = Cookie(default=None),
+        gtp_auth: str | None = Cookie(default=None, alias=AUTH_COOKIE_NAME),
     ) -> dict[str, object]:
+        user_id = current_user(gtp_auth).user_id if require_auth else None
+        current_session(gtp_session, gtp_auth)
         try:
-            session_id, session = sessions.replace(gtp_session, planner_service)
+            session_id, session = sessions.replace(
+                gtp_session, planner_service, user_id
+            )
         except SessionCapacityExceeded as error:
             raise HTTPException(
                 status_code=503,
@@ -464,10 +545,11 @@ def create_app(
     def update_language(
         payload: LanguageInput,
         gtp_session: str | None = Cookie(default=None),
+        gtp_auth: str | None = Cookie(default=None, alias=AUTH_COOKIE_NAME),
     ) -> dict[str, object]:
         """Change only UI/next-turn language for this existing browser session."""
 
-        session = current_session(gtp_session)
+        session = current_session(gtp_session, gtp_auth)
         with session.lock:
             session.language = payload.language
             return _session_payload(session, session.response)
@@ -475,8 +557,9 @@ def create_app(
     @app.get("/api/session")
     def read_session(
         gtp_session: str | None = Cookie(default=None),
+        gtp_auth: str | None = Cookie(default=None, alias=AUTH_COOKIE_NAME),
     ) -> dict[str, object]:
-        session = current_session(gtp_session)
+        session = current_session(gtp_session, gtp_auth)
         with session.lock:
             completed = collect(session)
             return _session_payload(session, completed)
@@ -487,7 +570,7 @@ def create_app(
         gtp_session: str | None = Cookie(default=None),
         gtp_auth: str | None = Cookie(default=None, alias=AUTH_COOKIE_NAME),
     ) -> dict[str, bool]:
-        session = current_session(gtp_session)
+        session = current_session(gtp_session, gtp_auth)
         with session.lock:
             collect(session)
             if session.pending is not None:
@@ -557,8 +640,9 @@ def create_app(
     def plan_visuals(
         revision: int = Query(ge=1),
         gtp_session: str | None = Cookie(default=None),
+        gtp_auth: str | None = Cookie(default=None, alias=AUTH_COOKIE_NAME),
     ) -> dict[str, object]:
-        session = current_session(gtp_session)
+        session = current_session(gtp_session, gtp_auth)
         with session.lock:
             plan = session.current_plan
             if plan is None or plan.revision != revision:
@@ -644,6 +728,7 @@ def create_app(
         state: str | None = Query(default=None),
         gtp_auth_pending: str | None = Cookie(default=None),
         gtp_auth: str | None = Cookie(default=None),
+        gtp_session: str | None = Cookie(default=None),
     ) -> Response:
         nonlocal provider
         if not code or not state or not gtp_auth_pending:
@@ -668,7 +753,10 @@ def create_app(
             user_id, email = auth.find_or_create_user(identity)
             auth.revoke(gtp_auth)
             auth_token, _ = auth.issue_session(user_id, email)
-        except AuthError:
+            session_id, _ = sessions.bind_or_replace(
+                gtp_session, planner_service, user_id
+            )
+        except (AuthError, SessionCapacityExceeded):
             failed = RedirectResponse("/?auth_error=login_failed", status_code=303)
             failed.delete_cookie(AUTH_PENDING_COOKIE_NAME, path="/api/auth")
             return failed
@@ -685,17 +773,27 @@ def create_app(
             secure=_secure_cookie(request),
             path="/",
         )
+        completed.set_cookie(
+            COOKIE_NAME,
+            session_id,
+            httponly=True,
+            samesite="lax",
+            secure=_secure_cookie(request),
+            path="/",
+        )
         return completed
 
     @app.post("/api/auth/logout")
     def auth_logout(
         gtp_auth: str | None = Cookie(default=None),
+        gtp_session: str | None = Cookie(default=None),
         x_csrf_token: str | None = Header(default=None),
     ) -> Response:
         nonlocal provider
-        csrf_user(gtp_auth, x_csrf_token)
+        user = csrf_user(gtp_auth, x_csrf_token)
         # Revoke first so a provider outage cannot leave an app session usable.
         auth.revoke(gtp_auth)
+        sessions.discard(gtp_session, user.user_id)
         try:
             if provider is None:
                 provider = Auth0OidcProvider.from_environment()
@@ -709,6 +807,7 @@ def create_app(
             media_type="application/json",
         )
         completed.delete_cookie(AUTH_COOKIE_NAME, path="/")
+        completed.delete_cookie(COOKIE_NAME, path="/")
         return completed
 
     @app.get("/api/saved-tours")
@@ -750,7 +849,7 @@ def create_app(
         """Persist the current accepted plan only after an explicit user action."""
 
         user = csrf_user(gtp_auth, x_csrf_token)
-        session = current_session(gtp_session)
+        session = current_session(gtp_session, gtp_auth)
         with session.lock:
             if session.pending is not None:
                 raise HTTPException(

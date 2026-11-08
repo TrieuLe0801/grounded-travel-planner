@@ -1250,6 +1250,9 @@ function SavedToursView({
 }
 
 function App() {
+  const [landingLanguage, setLandingLanguage] = useState<Language>(() =>
+    new URLSearchParams(window.location.search).get("lang") === "en" ? "en" : "vi",
+  );
   const [state, setState] = useState<ApiState>({
     language: "vi",
     plan: null,
@@ -1292,45 +1295,117 @@ function App() {
   const [claimStatus, setClaimStatus] = useState<LocalizedMessage>("");
   const accountMenuRef = useRef<HTMLDivElement>(null);
   const accountTriggerRef = useRef<HTMLButtonElement>(null);
-  const labels = text(state.language);
+  const authRecheckInFlight = useRef(false);
+  const currentSessionLanguage = useRef<Language>("vi");
+  const activeLanguage = auth?.authenticated ? state.language : landingLanguage;
+  const labels = text(activeLanguage);
   const accountName = auth?.authenticated
     ? auth.email?.split("@")[0]?.trim() || labels.account
     : labels.account;
   useEffect(() => {
-    document.documentElement.lang = dateLocale(state.language);
+    document.documentElement.lang = dateLocale(activeLanguage);
     document.title = labels.pageTitle;
     document
       .querySelector('meta[name="description"]')
       ?.setAttribute("content", labels.metaDescription);
+  }, [activeLanguage]);
+  useEffect(() => {
+    currentSessionLanguage.current = state.language;
   }, [state.language]);
   const load = async () => {
     try {
       setState(await api<ApiState>("/api/session"));
-    } catch {
+    } catch (error) {
+      if (!(error instanceof ApiError) || error.status !== 401) throw error;
+      clearPrivateWorkspace();
       await api<ApiState>("/api/session", { method: "POST" });
       setState(await api<ApiState>("/api/session"));
     }
   };
-  useEffect(() => {
-    if (new URLSearchParams(window.location.search).has("auth_error")) {
-      setAuthError("authError");
-      window.history.replaceState(null, "", "/");
-    }
-    void load().catch((error: unknown) =>
-      setRequestError(apiErrorMessageKey(error, "errorStart")),
-    );
-    void api<AuthState>("/api/auth/me")
-      .then((current) => {
+  const clearPrivateWorkspace = () => {
+    setState({
+      language: currentSessionLanguage.current,
+      plan: null,
+      pending: false,
+      response: null,
+      conversation: [],
+    });
+    setDestination("");
+    setStartDate(today);
+    setDays(2);
+    setMessage("");
+    setErrors({});
+    setRequestError("");
+    setVisuals({});
+    setVisualsLoading(false);
+    setView("itinerary");
+    setChatOpen(false);
+    setSavedTours([]);
+    setSelectedSavedTour(null);
+    setSavedToursCursor(null);
+    setSavedToursHasMore(false);
+    savedToursRequest.current += 1;
+  };
+  const recheckAuth = async (readDeepLink: boolean) => {
+    if (authRecheckInFlight.current) return;
+    authRecheckInFlight.current = true;
+    if (!readDeepLink) setLandingLanguage(currentSessionLanguage.current);
+    setAuth(null);
+    try {
+      const current = await api<AuthState>("/api/auth/me");
+      if (!current.authenticated) {
+        clearPrivateWorkspace();
         setAuth(current);
-        if (current.authenticated && new URLSearchParams(window.location.search).get("view") === "saved") {
-          setView("saved");
-          window.history.replaceState(null, "", "/");
-        }
-      })
-      .catch(() => {
-        setAuth({ authenticated: false });
-        setAuthError("authError");
-      });
+        return;
+      }
+      await load();
+      const parameters = new URLSearchParams(window.location.search);
+      const requestedLanguage = parameters.get("lang");
+      if (readDeepLink && (requestedLanguage === "en" || requestedLanguage === "vi")) {
+        const updated = await api<ApiState>("/api/session/language", {
+          method: "PUT",
+          body: JSON.stringify({ language: requestedLanguage }),
+        });
+        setState(updated);
+        setLandingLanguage(requestedLanguage);
+      }
+      if (readDeepLink && parameters.get("view") === "saved") {
+        setView("saved");
+      }
+      if (readDeepLink && (parameters.has("view") || parameters.has("lang"))) {
+        window.history.replaceState(null, "", "/");
+      }
+      setAuth(current);
+    } catch (error) {
+      clearPrivateWorkspace();
+      setAuth({ authenticated: false });
+      setAuthError("authError");
+      setRequestError(apiErrorMessageKey(error, "errorStart"));
+    } finally {
+      authRecheckInFlight.current = false;
+    }
+  };
+  useEffect(() => {
+    const parameters = new URLSearchParams(window.location.search);
+    if (parameters.has("auth_error")) {
+      setAuthError("authError");
+      parameters.delete("auth_error");
+      const query = parameters.toString();
+      window.history.replaceState(null, "", query ? `/?${query}` : "/");
+    }
+    void recheckAuth(true);
+  }, []);
+  useEffect(() => {
+    const recheckOnFocus = () => void recheckAuth(false);
+    const recheckOnVisibility = () => {
+      if (document.visibilityState === "visible") recheckOnFocus();
+    };
+    window.addEventListener("focus", recheckOnFocus);
+    document.addEventListener("visibilitychange", recheckOnVisibility);
+    return () => {
+      window.removeEventListener("focus", recheckOnFocus);
+      document.removeEventListener("visibilitychange", recheckOnVisibility);
+    };
   }, []);
   useEffect(() => {
     if (!state.pending) return;
@@ -1455,7 +1530,9 @@ function App() {
   }, [view, auth?.authenticated]);
   const signIn = (returnTo = "/") => {
     setAccountOpen(false);
-    window.location.assign(`/api/auth/login?return_to=${encodeURIComponent(returnTo)}`);
+    const separator = returnTo.includes("?") ? "&" : "?";
+    const localizedReturnTo = `${returnTo}${separator}lang=${landingLanguage}`;
+    window.location.assign(`/api/auth/login?return_to=${encodeURIComponent(localizedReturnTo)}`);
   };
   const signOut = async () => {
     if (!auth?.csrf_token || signingOut) return;
@@ -1599,6 +1676,10 @@ function App() {
     }
   };
   const changeLanguage = async (language: Language) => {
+    if (!auth?.authenticated) {
+      setLandingLanguage(language);
+      return;
+    }
     if (language === state.language) return;
     try {
       const updated = await api<ApiState>("/api/session/language", {
@@ -1611,6 +1692,45 @@ function App() {
       setRequestError(apiErrorMessageKey(error, "errorConnection"));
     }
   };
+  if (!auth?.authenticated) {
+    return (
+      <div className="min-h-dvh bg-gradient-to-b from-blue-50 via-white to-white text-slate-900">
+        <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 rounded bg-white p-3">
+          {labels.skip}
+        </a>
+        <header className="border-b border-blue-100 bg-white/90 backdrop-blur">
+          <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6">
+            <div className="flex items-center gap-3 font-heading font-bold">
+              <span className="grid size-10 place-items-center rounded-2xl bg-primary text-white"><Compass aria-hidden="true" /></span>
+              <span>{labels.brand}</span>
+            </div>
+            <div className="inline-flex items-center rounded-xl border border-blue-100 bg-blue-50/70 p-1" role="group" aria-label={labels.language}>
+              <button type="button" aria-label={labels.switchToVietnamese} aria-pressed={landingLanguage === "vi"} onClick={() => void changeLanguage("vi")} className={`min-h-10 min-w-11 rounded-lg px-2 text-sm font-bold transition-colors ${landingLanguage === "vi" ? "bg-primary text-white shadow-sm" : "text-slate-700 hover:bg-white"}`}>VI</button>
+              <button type="button" aria-label={labels.switchToEnglish} aria-pressed={landingLanguage === "en"} onClick={() => void changeLanguage("en")} className={`min-h-10 min-w-11 rounded-lg px-2 text-sm font-bold transition-colors ${landingLanguage === "en" ? "bg-primary text-white shadow-sm" : "text-slate-700 hover:bg-white"}`}>EN</button>
+            </div>
+          </div>
+        </header>
+        <main id="main" className="mx-auto grid min-h-[calc(100dvh-73px)] max-w-7xl items-center gap-10 px-4 py-12 sm:px-6 lg:grid-cols-[1.15fr_.85fr] lg:py-20">
+          <section className="rise max-w-2xl">
+            <p className="mb-4 inline-flex items-center gap-2 rounded-full bg-blue-100 px-3 py-1 text-sm font-semibold text-blue-800"><ShieldCheck size={16} aria-hidden="true" />{labels.landingEyebrow}</p>
+            <h1 className="font-heading text-4xl font-bold tracking-tight sm:text-6xl">{labels.landingTitle}</h1>
+            <p className="mt-6 max-w-xl text-lg leading-8 text-slate-700">{labels.landingDescription}</p>
+            <ul className="mt-8 grid gap-3 text-slate-700" aria-label={labels.landingEyebrow}>
+              <li className="flex items-start gap-3"><CheckCircle2 className="mt-0.5 shrink-0 text-primary" size={20} aria-hidden="true" />{labels.landingEvidence}</li>
+              <li className="flex items-start gap-3"><CalendarDays className="mt-0.5 shrink-0 text-primary" size={20} aria-hidden="true" />{labels.landingSession}</li>
+            </ul>
+          </section>
+          <section className="rise rounded-3xl bg-white p-7 shadow-xl shadow-blue-900/10 ring-1 ring-blue-100 sm:p-9" aria-labelledby="sign-in-title">
+            <LogIn className="size-9 text-primary" aria-hidden="true" />
+            <h2 id="sign-in-title" className="mt-5 font-heading text-2xl font-bold">{labels.signIn}</h2>
+            <p className="mt-3 leading-7 text-slate-700">{auth === null ? labels.authChecking : labels.landingAccess}</p>
+            {authError && <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-800" role="alert">{labels[authError]}</p>}
+            {auth !== null && <button type="button" onClick={() => signIn("/")} className="mt-7 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 font-bold text-white shadow-lg shadow-blue-500/25 transition hover:bg-blue-500 focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300"><LogIn size={18} aria-hidden="true" />{labels.signInWithEmail}</button>}
+          </section>
+        </main>
+      </div>
+    );
+  }
   return (
     <div className="min-h-dvh">
       <a
