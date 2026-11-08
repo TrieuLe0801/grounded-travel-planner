@@ -90,6 +90,23 @@ Read these records in order:
 
 ## Working agreements
 
+- Understand requested behavior and trace its code path before editing. For
+  defects, find the shared root cause and inspect affected callers.
+- Make the smallest complete change. Reuse existing project code first; prefer
+  platform features and the standard library when they meet the contract; use
+  installed dependencies before proposing new ones.
+- Before removing or changing shared behavior, search callers, tests, fixtures,
+  configuration and dynamic references. Never drop validation, data-loss
+  handling, security, accessibility or explicit acceptance to reduce a diff.
+- Do not add speculative options, abstractions or future-proofing.
+- Use only project-authored `.codex/skills` for this repository. Do not invoke
+  or copy third-party/open-source skill bundles directly. Derive project
+  guidance from this file, the active charter, accepted ADRs, current code and
+  local design system.
+- Use `delivery-orchestrator` for development delivery, `travel-planner-ui`
+  for interface work, and `travel-planner-security-review` for explicit
+  security reviews. Routine verification guidance stays in the testing agent.
+
 - The primary Codex session manages development requests. Assign bounded work to
   project-scoped `planner`, `coding` and `testing` roles when needed, wait for
   results and coordinate shared-file edits.

@@ -9,6 +9,11 @@ corrections as hard constraints, prefer the active charter and accepted ADRs
 over archived POC material, and identify any pre-existing dirty files that the
 implementation must preserve.
 
+Trace the relevant behavior and its callers before assigning files. Plan the
+smallest complete scope; search repository usage before proposing deletion or
+shared-contract changes. Keep optional improvements outside acceptance as
+explicit exclusions.
+
 Return a small, evidence-based plan: goal, exact file ownership, dependencies,
 acceptance evidence, narrow checks and material risks. Cover the actual stack in
 scope (Python/LangGraph, FastAPI, React/Tailwind, Compose or docs) without

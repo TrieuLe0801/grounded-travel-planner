@@ -9,45 +9,31 @@ assigned behavior across Python, FastAPI, React/Tailwind, configuration or
 documentation as appropriate; do not assume every change needs an application
 test.
 
-For agent behavior evaluation and testing assignments, read
-`.codex/skills/evaluation-and-test/SKILL.md` and its security reference only
-when the assigned behavior crosses a relevant trust boundary. Keep the
-evaluation scoped to the assignment; a full security audit needs an explicit
-audit request.
+Turn assigned behavior and user corrections into observable pass/fail criteria.
+Record affected paths, fixture inputs, acceptance evidence, and relevant trust
+boundaries. Choose the narrowest useful check first. Add a focused regression
+only when it proves a missing behavioral contract. Automated tests must be
+deterministic and offline: mock model, Tavily, LangSmith, and other providers.
+Use SQLite for offline archive tests and an isolated PostgreSQL service only
+when the assigned integration needs it. Do not change application code unless
+assigned a specific fix.
 
-Focus on user-corrected behavior and charter invariants: session isolation and
-bounded context, one pending async turn, plan preservation on rejection,
-grounded sources, bounded shared Tavily calls, explicit provider routing,
-selected-language responses with Vietnamese as the default, graph-image
-read-only behavior, and the removed route-map experience. For archive changes,
-check explicit save, immutable source-bearing snapshots, owner isolation,
-bounded keyset pages and absence of live-plan mutation. PostgreSQL integration
-needs an isolated database; SQLite remains the offline fallback. For cookie
-changes, check Secure defaults and the explicit local HTTP opt-out. For capacity
-changes, check eight shared turn slots and the 1,024-session, one-hour idle
-bounds. When assigned a behavioral change, add a focused regression test for a
-missing contract where it provides useful coverage. Use deterministic
-offline fixtures for unit tests; never make network, model, Tavily or LangSmith
-calls from automated tests. Do not change application code unless assigned a
-specific fix, and do not restore rejected policy such as source_place_mismatch.
+Run only assigned/relevant checks. Inspect command exit status and observed
+state; do not infer success from a test name or prior run. Report exact
+commands/results, files changed, pass/fail coverage, unrun checks, and
+reproducible failures. Distinguish static, offline, browser, container, and
+live-provider evidence. Check the running image before reporting source as
+deployed; app recreation clears session-only state.
 
-Run only assigned/relevant checks. Report exact commands, results, files changed,
-unrun checks, and reproducible failing cases. Distinguish static checks from
-browser, container and live-provider evidence.
+For each changed trust boundary, inspect the concrete path and add a focused,
+mocked regression when it has a concrete failure mode. Relevant boundaries
+include session ownership, HTTP input/cookies, provider output/prompt handling,
+source URL provenance, secrets/traces, resource limits, frontend rendering,
+and container configuration. Routine tests are not a security audit and do not
+prove security. Do not restore rejected policy such as source_place_mismatch.
 
-For each assigned change, assess whether it affects a trust boundary: session
-ownership, HTTP input/cookies, provider output and prompt handling, source URL
-provenance, secrets/traces, resource limits, frontend rendering, or container
-configuration. Add a focused, mocked security regression when a changed
-boundary has a concrete failure mode. Do not call routine tests a security
-audit or claim that passing tests proves the application secure.
-
-For an explicit security review or audit assignment, read the project-local
-`.codex/skills/security-audit/SKILL.md` and only its relevant companion files.
-Use its guidance mode for focused review; reserve full audit mode for an
-explicit codebase audit assignment. Follow its source-first evidence and
-execution-safety rules, including the required OS-enforced sandbox before
-running target-controlled code. If the sandbox or independent verification
-required for a full audit is unavailable, report the precise coverage and
-validation gap; never upgrade an unverified lead to a confirmed finding.
+For an explicit security review or audit assignment, use the project-authored
+`.codex/skills/travel-planner-security-review/SKILL.md`. Keep the review scoped
+to the requested boundary and report source-grounded evidence and unverified
+checks. Routine regression tests are not a security audit.
 """

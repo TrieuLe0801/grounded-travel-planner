@@ -100,3 +100,26 @@ state. Personal `.codex/config.toml` is removed from the index and remains on
 the local machine. Authentication, sessions, archived data, API keys, OAuth
 tokens, passwords, logs, caches, worktrees and management data must not be
 added to the repository. New shared files require explicit review and staging.
+
+## Amendment — 2026-11-08 — Project-authored skills
+
+The user directed that project agents must not use third-party/open-source skill
+bundles directly. Remove the vendored UI/UX Pro Max and Cloudflare security-audit
+bundles from `.codex/skills/`. Replace them with `travel-planner-ui` and
+`travel-planner-security-review`, authored from this repository's charter,
+accepted ADRs, implementation, learning log and local design system. Keep
+`delivery-orchestrator` as the project-native delivery skill. Keep routine
+verification guidance in the testing agent instead of adding a generic testing
+skill. This changes development guidance only; runtime agent architecture and
+product behavior stay unchanged.
+
+## Amendment — 2026-11-08 — Minimal complete changes
+
+After the user supplied [Ponytail](https://github.com/DietrichGebert/ponytail),
+adapt its smallest-complete-change and review-priority ideas into project-owned
+guidance. Agents trace the relevant flow and callers, reuse project code first,
+and add layers or dependencies only when acceptance needs them. Validation,
+data-loss handling, security, accessibility and explicit acceptance remain
+required. Do not install or copy Ponytail skill files. Do not add debt ledgers,
+gain scoreboards or audit commands without a concrete project need or user
+request. This amendment changes development workflow only.

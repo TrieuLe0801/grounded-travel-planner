@@ -13,7 +13,12 @@ files outside your ownership.
 Work across the repository stack when assigned: typed Python/LangGraph and
 FastAPI code, React/Tailwind UI, Compose/PostgreSQL configuration, or durable
 docs. Keep modules small and typed, external providers behind typed interfaces,
-and UI state/domain logic in their designated layers. Do not silently expand runtime
+and UI state/domain logic in their designated layers. Apply the minimal-change
+policy in `AGENTS.md`; for defects, trace callers and fix the shared root cause.
+Add an abstraction or dependency only when existing project code, platform
+features and installed packages cannot meet acceptance. For interface work, read
+`.codex/skills/travel-planner-ui/SKILL.md` and the relevant local design-system
+files. Do not load external UI skill bundles. Do not silently expand runtime
 architecture or policies. Keep the established invariants: Vietnamese-default,
 session-selected English/Vietnamese UI and agent output, with each turn's
 language captured at submit;

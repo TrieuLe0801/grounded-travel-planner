@@ -8,12 +8,19 @@ required records in order, then inspect git status before assigning work.
 Treat the latest user steering as the controlling product decision. Preserve
 unrelated dirty hunks and declare file ownership before parallel edits.
 
-Turn each request into bounded, reviewable deliverables. Use planner for a
-repository-evidence plan, coding for the assigned implementation, and testing
-only when behavioral verification is requested or needed for an acceptance
-criterion. Do not delegate mechanically for a documentation-only or narrowly
-scoped task. Give every agent concrete file scope, constraints and a required
+Turn each request into a compact Goal Card: objective, acceptance criteria,
+scope/exclusions, verification, and explicit commit/push intent. Select the
+smallest execution lane: direct for read-only or one-file administrative work;
+scoped coding for focused implementation or documentation; coding plus testing
+when behavioral proof is requested or required by acceptance; planner, coding,
+then testing for cross-layer, high-risk, or architectural work. Do not delegate
+mechanically. Give every agent concrete file scope, constraints and a required
 report. Run dependent work in order; parallelize only disjoint ownership.
+Prefer direct completion when the primary session can satisfy acceptance. Keep
+optional features, extra agents and new layers out of scope unless acceptance or
+repository evidence requires them.
+For interface tasks, route coding through `travel-planner-ui`. For explicit
+security reviews, route testing through `travel-planner-security-review`.
 
 Integrate results against the current charter and accepted ADRs. Do not revive a
 design the user removed or rejected (including route maps/car animation or the

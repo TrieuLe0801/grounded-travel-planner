@@ -49,7 +49,7 @@ background only.
 | Large saved-tour archive | PostgreSQL 2M-row isolated benchmark passed | Owner/time/ID index and keyset pages; 10-sample page 1 p50/p95 0.729/13.898 ms, page 20,000 0.373/21.557 ms; tiny synthetic snapshots, no concurrent traffic |
 | Pre-push security review | Focused source review and regression passed | Session and saved-tour owner cookies default to Secure; Compose forces Secure; local data excluded from Git and Docker context; isolated full suite 132 passed, 1 skipped |
 | Auth callback and public ingress hardening | Deployed; smoke checked | Rebuilt app runs Uvicorn with `--no-access-log`; ngrok runs the read-only per-IP policy using `NGROK_AUTHTOKEN` from ignored `.env`. App, DB and ngrok are up; local/public root returned HTTP 200. Host and Docker suites previously passed 155, 1 skipped |
-| Codex token guidance | Project configuration added; runtime activation pending restart/trust | Local RTK `PreToolUse` hook rewrites a sample Bash command; `AGENTS.md` loads `RTK.md` and defaults to `caveman full` |
+| Codex development workflow | Project-authored skills and minimal-change discipline documented | Adapted Ponytail's smallest-complete-change and review-priority ideas into local skills/agents; reused project code first and preserved safety guards. No Ponytail files copied or installed. Skill validation, agent TOML, delivery YAML, roadmap JSON and diff checks passed. No app, frontend, container, browser or live-provider checks ran. RTK hook activation still needs a new trusted session |
 
 Planning progress is not implementation progress. Only executable artifacts and
 actual checks count as completion evidence.

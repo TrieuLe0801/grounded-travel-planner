@@ -1097,3 +1097,68 @@ three-role runtime and role-specific model policy.
 - `npm run build` passed, including TypeScript project checks and Vite
   production build. Browser interaction QA was not run. The running Compose app
   was not recreated, so deployed UI behavior is not verified.
+
+## Codex Development Workflow Refinement — 2026-11-08
+
+- Reviewed project-local skills and agent instructions against the current
+  charter, accepted runtime ADRs, previous workflow changes and repeated
+  development corrections.
+- Kept `delivery-orchestrator` for repository delivery, `ui-ux-pro-max` for the
+  active React/Tailwind interface, and `security-audit` for explicit security
+  reviews. Removed `evaluation-and-test`: its routine verification workflow
+  duplicated `AGENTS.md` and the testing agent, while adding a routing step.
+- Folded focused pass/fail criteria, deterministic offline checks, trust-boundary
+  review when relevant and exact evidence reporting into the testing agent.
+  Explicit security reviews still use the dedicated `security-audit` skill.
+- Added a compact Goal Card and scoped execution lanes to the delivery skill and
+  agent workflow. Routine tasks stay with the primary session; bounded coding
+  uses the coding role; behavioral evidence uses testing when requested or
+  required; cross-layer, high-risk or architectural work uses planner before
+  coding and testing. `/goal` tracks explicit multi-turn objectives; compatible
+  user steering stays with the active goal. Complete requires accepted evidence,
+  pause requires an explicit request, and blocked requires the same blocker for
+  three consecutive goal turns without progress. Commit and push still require
+  explicit user direction.
+- Updated the roadmap summary and evidence index. Static verification passed:
+  `tomli` parsed all four agent TOML files, PyYAML parsed delivery `openai.yaml`,
+  `rg` found no removed-skill references under `.codex`, and `git diff --check`
+  passed. No tests, app, frontend, container, browser or live-provider checks
+  ran for this documentation/configuration change.
+
+## Project-Authored Agent Skills — 2026-11-08
+
+- The user required project agents to stop using third-party/open-source skill
+  bundles directly. Provenance metadata identified the local UI/UX Pro Max bundle
+  as Next Level Builder's MIT package and the security-audit bundle as
+  Cloudflare's MIT skill. No skill bundle content was used as source material.
+- No local path or file named `Ponytail` was found. The user was asked for its
+  location; this update uses repository-owned requirements while awaiting a
+  pointer.
+- Replaced those vendored bundles with first-party `travel-planner-ui` and
+  `travel-planner-security-review` skills based on the active charter, accepted
+  ADRs, current code contracts and the local design system. Updated AGENTS.md
+  and agent routing. Kept the project-native delivery skill and testing-agent
+  verification rules; did not recreate a generic testing skill.
+- Updated ADR 0001, status, progress evidence and roadmap summary. Static skill,
+  TOML, YAML, JSON and diff checks passed. No application or live integration
+  checks ran for this documentation/configuration change.
+
+## Minimal-Change Agent Workflow — 2026-11-08
+
+- The user supplied the Ponytail repository and asked to adapt its skills for
+  project agents without using open-source skill files directly. Read the core,
+  review, audit, debt, gain and help skill pages as design input.
+- Adapted the useful workflow ideas into project-owned guidance: trace the real
+  flow and callers, choose the smallest complete change, reuse project code,
+  platform features, the standard library and installed dependencies before
+  adding new layers, and prioritize correctness, safety, load and focused tests
+  before material performance or duplication findings.
+- Kept explicit guards: never reduce validation, error handling, security,
+  accessibility or user acceptance to shorten a diff. Updated manager, planner,
+  coding, delivery, UI and security-review guidance. Testing remains focused on
+  concrete missing contracts.
+- Did not add Ponytail itself, copy its skill files, create a debt ledger or
+  claim savings. The repository has no `shortcut:` markers or measured before/
+  after baseline to support those additions.
+- Static skill, TOML, YAML, JSON and diff checks passed. No application tests or
+  runtime checks ran for this workflow-only change.
