@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-10-14
+Last updated: 2026-11-08
 
 ## Current milestone
 
@@ -9,13 +9,18 @@ khai luồng tạo lịch trình có tìm kiếm thật với hai agent.
 
 Active plan: [docs/implementation-plan.md](docs/implementation-plan.md).
 Active charter: [docs/project-charter.md](docs/project-charter.md).
-Current log: [2026-10-14-scope-reset.md](docs/learning-log/2026-10-14-scope-reset.md).
+Current log: [2026-11-08-codex-workflow.md](docs/learning-log/2026-11-08-codex-workflow.md).
 
 Scope, deadline và số liệu tiến độ của POC cũ đã được thay thế. Chưa chốt
 deadline mới; tiến độ triển khai mới không kế thừa các mục đã đánh dấu của
 roadmap cũ.
 
 ## Done
+
+- Chuẩn bị Codex development workflow để dùng trên máy hoặc repository khác:
+  4 role file không còn phụ thuộc sản phẩm, 2 repository skills, hướng dẫn
+  chuyển giao và bản sửa ADR 0001. Kiểm chứng ghi trong
+  [learning log hiện tại](docs/learning-log/2026-11-08-codex-workflow.md).
 
 - Ghi nhận đầu vào: địa điểm/thành phố, ngày bắt đầu, số ngày.
 - Chốt AI tìm kiếm trước khi gợi ý; chat sửa ngày giờ, đổi thứ tự, thêm/bỏ/thay điểm.

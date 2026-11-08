@@ -1,7 +1,7 @@
 # Learning Log — New scope adoption
 
 Date: 2026-10-14
-Status: Current
+Status: Historical; see [current log](2026-11-08-codex-workflow.md)
 
 ## Objective
 

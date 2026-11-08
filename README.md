@@ -40,9 +40,10 @@ Xem [PROJECT_STATUS.md](PROJECT_STATUS.md) để tiếp tục từ đúng trạn
 - [Kế hoạch triển khai ba bước và kiến trúc hai agent](docs/implementation-plan.md)
 - [Đề xuất giao diện](docs/ui-plan.md)
 - [ADR 0004: Scope mới và stack AI](docs/adr/0004-city-sightseeing-webapp.md)
-- [Learning log hiện tại](docs/learning-log/2026-10-14-scope-reset.md)
+- [Learning log hiện tại](docs/learning-log/2026-11-08-codex-workflow.md)
 - [Roadmap](docs/roadmap.html) và [progress JSON](docs/progress/roadmap-progress.json)
 - [Hướng dẫn cho Codex](AGENTS.md)
+- [Codex agents, skills và workflow dùng trên máy hoặc dự án khác](docs/codex-workflow.md)
 - [Tài liệu lịch sử đã thay thế](docs/archive/2026-10-14/README.md)
 
 ## Cấu hình và phát triển

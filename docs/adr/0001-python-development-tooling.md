@@ -63,3 +63,18 @@ decision in this record remains accepted.
 - Black, isort and Ruff produce incompatible output on real application code.
 - A controlled workflow comparison justifies changing the development agents.
 - A requested model is unavailable in the selected Codex client or account.
+
+## Portability amendment — 2026-11-08
+
+Keep the four development roles, but let their models and reasoning effort
+inherit from the signed-in Codex session. The former fixed `gpt-5.5` setting
+failed for the `testing` development agent on a ChatGPT Codex account. This
+supersedes the model assignments in the original decision for Codex development
+agents only; it does not change the application's runtime model. Make role
+instructions independent of travel-planner product details. `AGENTS.md` and
+the current project records continue to supply those details. Add repository
+skills under `.agents/skills/` for workflow transfer and project verification;
+the first documents cross-repository adaptation, while the second holds the
+current Python check sequence. `docs/codex-workflow.md` records what travels
+with Git and what requires local setup on another machine. The Python hook and
+tooling decision above remain in force.
