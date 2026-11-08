@@ -1,6 +1,5 @@
 # The primary Codex session receives requests and coordinates development work.
-model = "gpt-6-sol"
-model_reasoning_effort = "medium"
+# Models come from the signed-in Codex session so this project works across accounts.
 
 [agents]
 enabled = true

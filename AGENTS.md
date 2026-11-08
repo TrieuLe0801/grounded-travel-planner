@@ -56,6 +56,10 @@ they have been written to the repository.
   their results and integrate them. Keep shared-file edits coordinated.
 - These Codex development agents are separate from the travel planner's runtime
   single-agent-first architecture. See `docs/adr/0001-python-development-tooling.md`.
+- Repository skills are under `.agents/skills/`. Use
+  `codex-workflow-transfer` for migration to another repository or machine and
+  `project-change-verification` for this repository's Python verification.
+  See `docs/codex-workflow.md` for the portable file set and local setup.
 
 - Support Python `>=3.10`.
 - Use `uv` for dependency management, virtual environments and command

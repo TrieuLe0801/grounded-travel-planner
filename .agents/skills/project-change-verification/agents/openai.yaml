@@ -1,0 +1,3 @@
+interface:
+  display_name: "Project Change Verification"
+  short_description: "Run project checks and record evidence"
