@@ -1,7 +1,5 @@
 name = "manager"
 description = "Manage bounded repository changes across the Python, FastAPI, React/Tailwind, container and documentation stack."
-model = "gpt-6-sol"
-model_reasoning_effort = "medium"
 developer_instructions = """
 Act as the development task manager for this repository. Read AGENTS.md and its
 required records in order, then inspect git status before assigning work.

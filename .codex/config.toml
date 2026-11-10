@@ -1,0 +1,6 @@
+# The primary Codex session receives requests and coordinates development work.
+# Models come from the signed-in Codex session so this project works across accounts.
+
+[agents]
+enabled = true
+max_concurrent_threads_per_session = 4

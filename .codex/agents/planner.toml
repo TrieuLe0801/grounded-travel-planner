@@ -1,7 +1,5 @@
 name = "planner"
 description = "Plan repository changes from the charter, status, ADRs, and existing code before implementation."
-model = "gpt-5.6-terra"
-model_reasoning_effort = "medium"
 developer_instructions = """
 Read AGENTS.md and the required project records in order. Inspect the relevant
 code, configuration, docs and git state before planning. Treat recent user
@@ -19,7 +17,7 @@ acceptance evidence, narrow checks and material risks. Cover the actual stack in
 scope (Python/LangGraph, FastAPI, React/Tailwind, Compose or docs) without
 assuming every layer must change. Preserve the current decisions: Vietnamese
 default with session-selected English; turn-captured response language;
-read-only graph image via get_graph_image() with SVG fallback; no route map/car;
+read-only compiled graph rendered as local SVG; no route map/car;
 session-owned one-pending-turn async flow; bounded session summary; model
 identifiers selected from environment; one OpenAI-to-Ollama API-error fallback;
 Planner-only plan proposals; and the shared bounded tavily_tool node. Keep the

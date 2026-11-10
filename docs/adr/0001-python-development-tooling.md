@@ -123,3 +123,15 @@ data-loss handling, security, accessibility and explicit acceptance remain
 required. Do not install or copy Ponytail skill files. Do not add debt ledgers,
 gain scoreboards or audit commands without a concrete project need or user
 request. This amendment changes development workflow only.
+
+## Portability amendment — 2026-11-08
+
+Development agents inherit model and reasoning settings from the signed-in
+Codex session. Fixed model assignments caused testing-agent startup failures on
+accounts without that model. This supersedes model assignments for development
+agents only; runtime models remain unchanged. Keep project-specific agent
+instructions and skills under `.codex/`. Portable workflow skills under
+`.agents/skills/` support migration and verification, but current project rules
+and skill selection remain governed by `AGENTS.md`. The tracked
+`.codex/config.toml` contains only shared agent concurrency settings, no
+personal model or account configuration.

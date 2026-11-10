@@ -188,3 +188,4 @@ PROJECT_STATUS.md                 current status, risks and next steps
 - [Scope-reset learning log](docs/learning-log/2026-10-14-scope-reset.md)
 - [Architecture decisions](docs/adr/)
 - [Baseline environment](docs/experiments/baseline-environment.md)
+- [Portable Codex workflow](docs/codex-workflow.md)

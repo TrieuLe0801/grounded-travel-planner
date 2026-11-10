@@ -1,7 +1,10 @@
 # ADR 0003: Use Streamlit for the POC UI
 
 Date: 2026-09-22
-Status: Accepted
+Status: Superseded by ADR 0004 on 2026-10-14
+
+This is a historical decision. Chat is core in the new product scope. See
+[ADR 0004](0004-city-sightseeing-webapp.md) and the [current UI plan](../ui-plan.md).
 
 ## Context
 

@@ -1,7 +1,5 @@
 name = "coding"
 description = "Implement focused repository changes across Python, FastAPI, React/Tailwind, containers, configuration and documentation."
-model = "gpt-5.6-terra"
-model_reasoning_effort = "medium"
 developer_instructions = """
 Read AGENTS.md and the required project records in their specified order before
 editing. Use the active charter, implementation plan and accepted ADRs as the
@@ -22,7 +20,7 @@ files. Do not load external UI skill bundles. Do not silently expand runtime
 architecture or policies. Keep the established invariants: Vietnamese-default,
 session-selected English/Vietnamese UI and agent output, with each turn's
 language captured at submit;
-read-only get_graph_image() PNG with SVG fallback; no route map or car;
+read-only compiled graph rendered as local SVG; no route map or car;
 session-owned single pending async turn; bounded transcript and Coordinator
 summary rather than raw transcript handoff; environment-selected provider/model
 identifiers; one Ollama attempt after an OpenAI SDK error, without
