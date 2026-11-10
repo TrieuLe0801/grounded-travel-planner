@@ -1,59 +1,143 @@
 # Grounded Travel Planner
 
-Một webapp gợi ý điểm tham quan và lịch trình theo địa điểm/thành phố, ngày bắt
-đầu và số ngày. AI tìm thông tin qua Tavily; người dùng chat để sửa ngày giờ,
-đổi thứ tự, thêm, bỏ hoặc thay điểm tham quan.
+Grounded Travel Planner is a city/place sightseeing webapp. A user provides a
+destination, concrete start date and a 1–7 day duration; the app builds one
+source-backed itinerary and supports bounded chat edits.
 
-Yêu cầu mới ngày **2026-10-14** thay thế toàn bộ scope POC trước đây. Tài liệu
-hiện hành là [product charter](docs/project-charter.md) và
-[kế hoạch triển khai](docs/implementation-plan.md). Chưa có deadline mới.
+## Current scope
 
-## Phạm vi và stack AI đã chốt
+- JavaScript/Tailwind UI with a same-origin FastAPI adapter; Streamlit remains
+  available during the UI migration.
+- LangGraph runtime with `Coordinator`, `Planner`, `Chat` and one shared
+  `tavily_tool` node. Planner owns plan changes; Chat explains results and can
+  search for current facts without mutating the plan.
+- Deterministic validation for input, schedule, overlaps, opening hours and
+  source provenance. Failed candidates preserve the current plan.
+- Session-only live plan and chat, bounded background turns, Vietnamese by
+  default and an English option. Explicitly saved tours persist separately.
+  Secrets are kept in ignored environment files.
+- Optional source-attributed place photos and a read-only compiled graph view.
 
-| Thành phần | Vai trò |
-|---|---|
-| LangChain | Tích hợp model, agents, tools và output có cấu trúc |
-| LangGraph | State, định tuyến, bàn giao và giới hạn vòng sửa |
-| Tavily | Tìm thông tin và nguồn cho các điểm tham quan |
-| LangSmith | Trace toàn bộ lượt chat, agent và tool calls, nhóm theo phiên |
-| `gpt-5.5` | Model dùng chung cho Coordinator và Planner |
+See [PROJECT_STATUS.md](PROJECT_STATUS.md) for current progress and known
+risks. The active requirements are in the
+[project charter](docs/project-charter.md) and
+[implementation plan](docs/implementation-plan.md).
 
-Bản đầu có hai agent: **Coordinator** chat với người dùng, hỏi lại, giao tác vụ
-và giải thích kết quả; **Planner** tìm thông tin, đề xuất và cập nhật lịch trình.
-Kiểm tra ngày giờ và nguồn dùng code trước khi áp dụng bản lịch mới.
+## Quick start
 
-Lịch trình và hội thoại chỉ tồn tại trong phiên app hiện tại. Trace được gửi
-đến LangSmith và có thể còn sau khi phiên kết thúc; app không dùng trace để
-khôi phục chuyến đi. Streamlit là đề xuất giao diện một trang có form, lịch
-trình và chat.
+Requirements: Python 3.10+, [uv](https://docs.astral.sh/uv/), Node.js/npm for
+the frontend, and Docker Desktop for the container workflow.
 
-## Trạng thái thực tế
+```bash
+uv sync
+cp .env.example .env
+```
 
-Đã ghi nhận yêu cầu, kiến trúc, các bước triển khai và cấu hình mẫu. Repository
-có Python development tooling cùng hook tests; chưa có application package,
-hai runtime agents, Tavily integration, webapp hoặc LangSmith trace chạy thật.
-Xem [PROJECT_STATUS.md](PROJECT_STATUS.md) để tiếp tục từ đúng trạng thái.
+Fill the required provider credentials and model placeholders in `.env`, then
+set `GTP_SAVED_TOURS_COOKIE_SECURE=false` for this direct local HTTP setup and
+start the API:
 
-## Tài liệu hiện hành
+```bash
+uv run --env-file .env uvicorn grounded_travel_planner.web.api:app \
+  --host 127.0.0.1 --port 8000 --no-access-log
+```
 
-- [Product charter và acceptance scenarios](docs/project-charter.md)
-- [Kế hoạch triển khai ba bước và kiến trúc hai agent](docs/implementation-plan.md)
-- [Đề xuất giao diện](docs/ui-plan.md)
-- [ADR 0004: Scope mới và stack AI](docs/adr/0004-city-sightseeing-webapp.md)
-- [Learning log hiện tại](docs/learning-log/2026-11-08-codex-workflow.md)
-- [Roadmap](docs/roadmap.html) và [progress JSON](docs/progress/roadmap-progress.json)
-- [Hướng dẫn cho Codex](AGENTS.md)
-- [Codex agents, skills và workflow dùng trên máy hoặc dự án khác](docs/codex-workflow.md)
-- [Tài liệu lịch sử đã thay thế](docs/archive/2026-10-14/README.md)
+Install and start the frontend in a second terminal:
 
-## Cấu hình và phát triển
+```bash
+cd frontend
+npm ci
+npm run dev
+```
 
-[.env.example](.env.example) liệt kê cấu hình model, Tavily và LangSmith.
-Điền cấu hình thực tế vào file `.env` được Git ignore. Cấu hình mẫu không xác
-nhận tài khoản đã có quyền truy cập model hoặc các provider.
+Open the Vite URL shown in the terminal. For the retained Streamlit UI:
 
-Development tooling hiện có dùng Python `>=3.10`, `uv`, `pytest`, isort,
-Black, flake8 và Ruff. Các lệnh kiểm tra:
+```bash
+uv run --env-file .env streamlit run \
+  src/grounded_travel_planner/ui/streamlit_app.py
+```
+
+## Configuration
+
+Copy `.env.example` to the ignored `.env` and replace every
+`<YOUR_MODEL_NAME>` with a model available from the selected provider. The
+three role providers may use OpenAI or Ollama independently:
+
+```dotenv
+GTP_MODEL_PROVIDER=openai
+GTP_COORDINATOR_MODEL=<YOUR_MODEL_NAME>
+GTP_PLANNER_MODEL=<YOUR_MODEL_NAME>
+GTP_CHAT_MODEL=<YOUR_MODEL_NAME>
+GTP_OPENAI_JSON_SCHEMA_MODELS=<YOUR_MODEL_NAME>
+GTP_OLLAMA_FALLBACK_MODEL=<YOUR_MODEL_NAME>
+```
+
+An OpenAI API error makes one bounded Ollama fallback attempt when configured.
+An explicitly Ollama-only role does not fall back to OpenAI. Direct host runs
+use `OLLAMA_BASE_URL`; Compose uses `GTP_COMPOSE_OLLAMA_BASE_URL`. The optional
+Compose Ollama profile is CPU-only under Docker Desktop on Apple Silicon:
+
+```bash
+docker compose --profile ollama up --wait ollama ollama-init
+docker compose --profile ollama up -d app
+```
+
+Never commit `.env`, API keys, model credentials or provider responses.
+
+## Saved tours
+
+After a plan passes validation, choose **Lưu tour / Save tour** to store an
+immutable snapshot with its source references. The saved-tour view can list,
+inspect and delete snapshots without restoring or changing the live plan.
+Opening a snapshot does not recheck current facts.
+
+Compose stores saved tours in PostgreSQL 17. Its data directory defaults to
+`../grounded-travel-planner-data/postgres`, outside the Git repository. Set
+`GTP_DATA_DIR` in the ignored `.env` to choose another host directory. Create
+its `postgres` subdirectory before starting Compose. Set a unique
+`GTP_SAVED_TOURS_POSTGRES_PASSWORD` in `.env`. The database has no host port.
+Back up the host directory separately; a bind mount does not protect against
+host loss. Local runs outside Compose use the SQLite path
+`GTP_SAVED_TOURS_DB_PATH` by default.
+
+The archive belongs to a browser through a separate 365-day HttpOnly owner
+cookie. Clearing that cookie loses access; there is no account or cross-device
+recovery. Both owner and session cookies default to `Secure`, and Compose forces
+that setting. For direct local HTTP only, set
+`GTP_SAVED_TOURS_COOKIE_SECURE=false` outside Compose.
+
+Account-owned saved tours with Auth0 are implemented in the worktree but have
+not been rolled out to the running app. See
+[`docs/proposals/2026-11-02-auth0-account-owned-saved-tours-plan.md`](docs/proposals/2026-11-02-auth0-account-owned-saved-tours-plan.md)
+and [ADR 0016](docs/adr/0016-auth0-account-owned-saved-tours.md) before
+migrating. The new app requires an explicit account migration, Auth0 tenant
+configuration in the ignored `.env`, and browser QA. The live tour and chat
+remain session-only.
+
+To move an existing SQLite Compose archive to PostgreSQL, stop the app, back up
+the SQLite volume, start `db`, then run:
+
+```bash
+docker compose --profile migrate-saved-tours run --rm migrate-saved-tours
+```
+
+The migration reads the SQLite volume without modifying it and can be rerun.
+Start the app after it succeeds. Keep the old volume for rollback; avoid
+`docker compose down -v` during migration. See [ADR 0015](docs/adr/0015-postgres-compose-saved-tour-storage.md)
+for the storage decision.
+
+For a PostgreSQL backup, run `pg_dump` into a directory outside the repository
+and store the dump securely outside the host:
+
+```bash
+mkdir -p ../grounded-travel-planner-data/backups
+docker compose exec -T db pg_dump -U travel_planner -d travel_planner \
+  --format=custom > ../grounded-travel-planner-data/backups/saved_tours.dump
+```
+
+## Verification
+
+Offline tests use mocked providers and do not call live services:
 
 ```bash
 uv run pytest
@@ -63,15 +147,45 @@ uv run flake8 . .codex/hooks/format_python.py
 uv run ruff check . .codex/hooks/format_python.py
 ```
 
-Lệnh chạy webapp sẽ được bổ sung khi entrypoint và runtime dependencies đã
-được triển khai. Các Codex development agents trong `.codex/` hỗ trợ phát triển;
-chúng tách biệt với Coordinator/Planner của webapp. Tooling được ghi ở
-[ADR 0001](docs/adr/0001-python-development-tooling.md).
+Frontend checks:
 
-Một prompt tiếp tục phù hợp:
+```bash
+cd frontend
+npm ci
+npm run check
+npm run build
+```
+
+Build and run the local container:
+
+```bash
+docker build --target test -t grounded-travel-planner:test .
+docker compose up -d --wait
+```
+
+The Compose app is served at `http://127.0.0.1:8503` by default. Live
+OpenAI/Tavily/LangSmith verification is separate from the offline suite and is
+recorded under `docs/experiments/` when run.
+
+## Repository map
 
 ```text
-Đọc AGENTS.md, PROJECT_STATUS.md, docs/project-charter.md,
-docs/implementation-plan.md và docs/learning-log/2026-10-14-scope-reset.md.
-Triển khai bước chưa hoàn thành đầu tiên của kế hoạch mới.
+frontend/                         React/Tailwind application
+src/grounded_travel_planner/      runtime, graph, policies and web/UI adapters
+src/utils/                        reusable helpers
+tests/                            offline tests
+docs/project-charter.md           active product requirements
+docs/implementation-plan.md       delivery plan and evidence
+docs/adr/                         accepted architecture decisions
+PROJECT_STATUS.md                 current status, risks and next steps
 ```
+
+## Further reading
+
+- [Project charter](docs/project-charter.md)
+- [Implementation plan](docs/implementation-plan.md)
+- [Current status](PROJECT_STATUS.md)
+- [Scope-reset learning log](docs/learning-log/2026-10-14-scope-reset.md)
+- [Architecture decisions](docs/adr/)
+- [Baseline environment](docs/experiments/baseline-environment.md)
+- [Portable Codex workflow](docs/codex-workflow.md)

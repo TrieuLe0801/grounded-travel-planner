@@ -1,71 +1,279 @@
 <!doctype html>
-<html lang="vi">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="light dark">
-  <title>Travel Planner — Kế hoạch hiện hành</title>
+  <title>Grounded Sightseeing Planner · Active Roadmap</title>
   <style>
-    :root { font-family: system-ui, sans-serif; color-scheme: light dark; line-height: 1.6; }
-    body { margin: 0; background: light-dark(#f4f6f9, #111827); color: light-dark(#182335, #e5e7eb); }
-    main { max-width: 880px; margin: auto; padding: 32px 20px 60px; }
-    header, section { padding: 24px; margin-bottom: 18px; border: 1px solid light-dark(#dbe1e9, #374151); border-radius: 16px; background: light-dark(#fff, #1f2937); }
-    h1, h2 { line-height: 1.25; }
-    h1 { margin-top: 10px; }
-    h2 { font-size: 1.2rem; }
-    a { color: light-dark(#1d4ed8, #93c5fd); text-underline-offset: 3px; }
-    .label { font-size: .85rem; font-weight: 650; color: light-dark(#475569, #cbd5e1); }
-    li { margin: 7px 0; }
-    code { overflow-wrap: anywhere; }
+    :root { color-scheme: light dark; font-family: Inter, system-ui, sans-serif; }
+    body { margin: 0; background: #0b1220; color: #e5edf8; }
+    main { max-width: 980px; margin: auto; padding: 48px 24px 72px; }
+    h1 { font-size: clamp(2rem, 5vw, 3.7rem); margin: 0 0 12px; }
+    h2 { margin-top: 36px; }
+    p { color: #aebbd0; line-height: 1.65; }
+    .meta, .grid { display: grid; gap: 16px; }
+    .meta { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); margin: 28px 0; }
+    .grid { grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); }
+    .card { border: 1px solid #263650; background: #111c2f; border-radius: 16px; padding: 20px; }
+    .done { border-color: #227d61; }
+    .active { border-color: #c98c2d; }
+    .pending { opacity: .78; }
+    .badge { display: inline-block; border-radius: 999px; padding: 5px 10px; font-size: .78rem; font-weight: 700; }
+    .done .badge { background: #164d3e; color: #8bf0c7; }
+    .active .badge { background: #5d4218; color: #ffd792; }
+    .pending .badge { background: #29364a; color: #c7d2e5; }
+    code { color: #8fd3ff; }
+    ul { padding-left: 20px; line-height: 1.65; color: #cbd5e1; }
+    a { color: #7dd3fc; }
   </style>
 </head>
 <body>
 <main>
-  <header>
-    <div class="label">Yêu cầu mới · 14/10/2026</div>
-    <h1>Travel Planner</h1>
-    <p>Nhập địa điểm, ngày bắt đầu và số ngày. AI tìm điểm tham quan và tạo lịch
-      trình; người dùng chat để sửa thời gian, đổi thứ tự, thêm, bỏ hoặc thay điểm.</p>
-    <p><strong>Trạng thái:</strong> Đã ghi nhận yêu cầu và kiến trúc.
-      Cả ba bước triển khai đều chưa bắt đầu; chưa có deadline mới.</p>
-    <p><a href="project-charter.md">Yêu cầu hiện hành</a> ·
-      <a href="implementation-plan.md">Kế hoạch chi tiết</a> ·
-      <a href="../PROJECT_STATUS.md">Trạng thái repository</a> ·
-      <a href="progress/roadmap-progress.json">Progress JSON</a></p>
-  </header>
-  <section>
-    <h2>Kiến trúc</h2>
-    <p>LangChain + LangGraph, Tavily tìm kiếm, LangSmith trace từng phiên.
-      Coordinator và Planner cùng dùng <code>gpt-5.5</code>.</p>
-    <ul>
-      <li><strong>Coordinator:</strong> hội thoại, hỏi rõ, bàn giao và giải thích kết quả.</li>
-      <li><strong>Planner:</strong> tìm thông tin, đề xuất và cập nhật lịch trình.</li>
-      <li><strong>Code:</strong> kiểm tra input, ngày giờ và nguồn trước khi áp dụng.</li>
-    </ul>
-    <p>State app chỉ tồn tại trong phiên. Trace LangSmith dùng để quan sát và
-      không khôi phục chuyến đi. Streamlit là đề xuất giao diện một trang.</p>
-  </section>
-  <section>
-    <h2>1. Tạo lịch trình từ tìm kiếm thật — Chưa triển khai</h2>
-    <p>Tạo contracts, hai agent, graph, Tavily và trace. Hoàn tất khi một yêu cầu
-      tạo được lịch trình có nguồn, còn chat thường được Coordinator xử lý.</p>
-  </section>
-  <section>
-    <h2>2. Chỉnh sửa qua chat — Chưa triển khai</h2>
-    <p>Đổi ngày giờ/thứ tự, thêm/bỏ/thay điểm. Kiểm tra bản cập nhật trước khi
-      thay lịch đang xem; giải thích yêu cầu chưa rõ hoặc xung đột.</p>
-  </section>
-  <section>
-    <h2>3. Webapp và kiểm chứng — Chưa triển khai</h2>
-    <p>Form, lịch trình và chat theo phiên; kiểm tra lỗi, cách ly dữ liệu và
-      root/child traces được nhóm đúng phiên trên LangSmith.</p>
-  </section>
-  <footer>
-    <p>Đây là bản tóm tắt; Markdown và progress JSON là nguồn trạng thái.
-      Số liệu checklist cũ không được kế thừa.</p>
-    <p><a href="archive/2026-10-14/README.md">Lịch sử đã thay thế</a> ·
-      <a href="adr/0004-city-sightseeing-webapp.md">ADR 0004</a></p>
-  </footer>
+  <p>Active scope · reset 2026-10-14</p>
+  <h1>City sightseeing planner</h1>
+  <p>LangGraph runtime with Coordinator routing and bounded session summaries,
+  Planner grounded proposals, and Chat responses with optional search through
+  one shared Tavily graph node.</p>
+
+  <div class="meta">
+    <div class="card"><strong>Models</strong><p>Role, fallback and structured-output model identifiers come from environment variables; one local Ollama attempt after OpenAI API errors; explicit Ollama by role</p></div>
+    <div class="card"><strong>State</strong><p>Live plan, 12-message transcript and 1,200-character handoff summary in the session; explicitly saved tour snapshots in PostgreSQL Compose, with SQLite as the local fallback</p></div>
+    <div class="card"><strong>Bounds</strong><p>8 graph · 2 search · 1 repair</p></div>
+  </div>
+
+  <h2>Milestone 1</h2>
+  <div class="grid">
+    <section class="card done">
+      <span class="badge">Implemented</span>
+      <h3>1A · Core runtime</h3>
+      <ul>
+        <li>Typed contracts and provider boundaries</li>
+        <li>Coordinator → Planner → Chat LangGraph delegation</li>
+        <li>Input, schedule and source validation</li>
+        <li>New trips ignore prior itinerary context; out-of-range day changes stop before Planner</li>
+        <li>Validate-before-commit plan semantics</li>
+        <li>Chat trip-length changes add grounded stops to every new day or update the schedule when shortening</li>
+        <li>New itineraries require at least one grounded stop on every selected day; guard deployed to Compose, root HTTP 200</li>
+        <li>Shortening now commits a deterministic Planner proposal with retained stops and sources unchanged; no model or search calls needed</li>
+        <li>Validated Planner outcome passed to Chat after commit</li>
+        <li>Rejected candidate context excluded from Chat</li>
+        <li>Coordinator summarizes bounded chat history before Planner/Chat handoff</li>
+        <li>Chat can request one Tavily function-call search and cite returned sources</li>
+        <li>Planner and Chat use one shared <code>tavily_tool</code>; it is the only provider caller</li>
+        <li>Two search calls per turn; <code>tool.tavily.*</code> traces carry the session thread ID</li>
+        <li>Terra Planner JSON Schema removes unsupported URL format metadata, then validates URLs locally; live Huế plan committed with four sourced entries</li>
+        <li>OpenAI model calls allow up to 60 seconds; a live full graph turn completed in 41.3 seconds and committed a sourced plan</li>
+        <li>Agent prompts remove duplicate Planner plan/source context and ask Coordinator, Planner and Chat for concise outputs; offline prompt regressions pass, live token/latency comparison pending</li>
+        <li>Planner failure skips Chat generation and returns a localized safe result, preserving the existing plan</li>
+        <li>Invalid model credentials yield a localized error while preserving the plan</li>
+        <li>Unused agent config/result wrappers and dead graph state removed</li>
+        <li>94 host and Docker tests passed</li>
+      </ul>
+    </section>
+    <section class="card done">
+      <span class="badge">Implemented</span>
+      <h3>1B · Streamlit</h3>
+      <ul>
+        <li>Destination, date and 1–7 day form</li>
+        <li>Session-owned plan and conversation</li>
+        <li>Estimated/unverified labels and sources</li>
+        <li>Rejected edit keeps the prior plan</li>
+        <li>Offline AppTest coverage</li>
+      </ul>
+    </section>
+    <section class="card done">
+      <span class="badge">Verified</span>
+      <h3>1C · Live gates</h3>
+      <ul>
+        <li>OpenAI <code>gpt-5.5</code> structured output passed; lightweight Planner/Chat default selected</li>
+        <li>Tavily returned-source provenance passed</li>
+        <li>LangSmith root/child <code>thread_id</code> passed</li>
+        <li>Offline session-isolation test passed</li>
+      </ul>
+    </section>
+    <section class="card done">
+      <span class="badge">Verified</span>
+      <h3>1D · Local container</h3>
+      <ul>
+        <li>Multi-stage locked build</li>
+        <li>19/19 tests inside Linux image</li>
+        <li>Non-root runtime and health 200</li>
+        <li>Live Hue plan committed in container</li>
+      </ul>
+    </section>
+    <section class="card done">
+      <span class="badge">Verified</span>
+      <h3>1E · Chat editing</h3>
+      <ul>
+        <li>Visible stop order matches reorder validation</li>
+        <li>Nine versioned offline edit cases</li>
+        <li>Relative and absolute trip-extension checks</li>
+        <li>Live create then remove committed revision 2</li>
+        <li>Lô Lô Chải add-name variant rechecked live in container</li>
+      </ul>
+    </section>
+    <section class="card done">
+      <span class="badge">Bilingual · app healthy</span>
+      <h3>Vietnamese / English UI</h3>
+      <ul>
+        <li>Vietnamese remains the default; English is selectable</li>
+        <li>React and Streamlit follow the session locale; the graph page is hidden</li>
+        <li>Pending turns keep the language captured at submission</li>
+        <li>User messages, place names and source data remain unchanged</li>
+        <li>React date selection and app-rendered dates use the selected locale</li>
+        <li>GitHub Actions tests, frontend build and Compose validation passed</li>
+        <li>14 focused API/runner/chat-context tests passed; no locale-specific test added</li>
+        <li>Frontend production build and Python static checks passed</li>
+        <li>Live Vietnamese add-place turn committed revision 2</li>
+      </ul>
+    </section>
+    <section class="card done">
+      <span class="badge">Offline baseline</span>
+      <h3>1F · Source quality</h3>
+      <ul>
+        <li>16 labelled synthetic citations across five plans</li>
+        <li>Relevance, place coverage and host diversity metrics</li>
+        <li>Runtime provenance rule unchanged</li>
+        <li>Live citation labelling remains next</li>
+      </ul>
+    </section>
+    <section class="card done">
+      <span class="badge">Verified offline</span>
+      <h3>1G · Visual itinerary</h3>
+      <ul>
+        <li>Commons place images with creator, license and source</li>
+        <li>Route map and car removed at the user's request</li>
+        <li>Separate page shows the get_graph_image() PNG</li>
+        <li>47/47 host and container tests passed</li>
+      </ul>
+    </section>
+    <section class="card active">
+      <span class="badge">Offline + Compose verified · browser QA pending</span>
+      <h3>1K · Saved tours</h3>
+      <ul>
+        <li>Explicit save of a validated plan snapshot with original sources</li>
+        <li>PostgreSQL 17 database container with an external host data directory, health check and browser owner isolation</li>
+        <li>Read-only Vietnamese/English list, detail and delete with owner-scoped keyset pagination</li>
+        <li>Composite owner/time/ID index and explicit migration for populated legacy databases</li>
+        <li>9 focused and 131 full host/container tests; Python gates and frontend build pass</li>
+        <li>Disposable PostgreSQL 2M-row benchmark passed: first/deep keyset page p50 0.729/0.373 ms; synthetic tiny snapshots, no concurrent traffic</li>
+        <li>Existing tour copied exactly from SQLite; PostgreSQL and app container recreation preserved it</li>
+        <li>PostgreSQL integration test passed in Compose; current containers healthy, browser QA pending</li>
+        <li>Three saved rows and indexes survived the move from named volume to a sibling directory outside Git; former volume retained for recovery</li>
+        <li>Focused pre-push cookie security fix and isolated full suite: 132 passed, 1 optional test skipped</li>
+      </ul>
+    </section>
+    <section class="card active">
+      <span class="badge">Mandatory gate offline verified · live rollout pending</span>
+      <h3>1L · Auth0 accounts and planner entry</h3>
+      <ul>
+        <li>Auth0 OIDC email OTP BFF and persistent account sessions implemented</li>
+        <li>Account-scoped save, list, detail, delete and lossless legacy-cookie claim</li>
+        <li>Public bilingual landing is the only unauthenticated React view; FastAPI gates planner APIs and binds live sessions to the verified account</li>
+        <li>React account dropdown shows signed-in email, Saved tours and sign-out; login/logout rotate or discard live state safely</li>
+        <li>Five restored snapshots retained their checksum after two migration runs</li>
+        <li>Full offline suite: 185 passed, 1 optional PostgreSQL test skipped; frontend build and Python quality gates pass</li>
+        <li>Security fixes verified offline: CSRF on planner writes, local graph SVG, HTTPS-only Auth0 issuer and private SQLite fallback files</li>
+        <li>Browser QA, live Auth0 OTP/callback and deployment remain pending; running app image is unchanged</li>
+      </ul>
+    </section>
+    <section class="card active">
+      <span class="badge">CI configured · automatic deploy gated</span>
+      <h3>Mac CI/CD</h3>
+      <ul>
+        <li>GitHub Actions runs Python, frontend and Compose checks on the active branch and pull requests</li>
+        <li>Run 42471059065 passed all checks after a transient HTTP 504 during Python setup; deployment remained gated</li>
+        <li>A Mac launchd poller fetches a branch update only after push CI passes</li>
+        <li>Deployment updates and health-checks only the app service; PostgreSQL data remains in its external host directory</li>
+        <li>Automatic deployment remains gated until the explicit Auth0 account migration and rollout complete</li>
+      </ul>
+    </section>
+    <section class="card active">
+      <span class="badge">Browser QA pending</span>
+      <h3>1H · Async session turns</h3>
+      <ul>
+        <li>Bounded background worker pool</li>
+        <li>Eight running or queued turns maximum per process; overload returns HTTP 429 before changing a session</li>
+        <li>HTTP sessions capped at 1,024 with one-hour idle expiry, including completed uncollected turns; full capacity returns HTTP 503</li>
+        <li>Deployed: ngrok policy limits session create/reset and planning turns by client IP; runtime Uvicorn disables callback access logs</li>
+        <li>One pending turn per browser session</li>
+        <li>Exact-once result integration after page return</li>
+        <li>50/50 host and Docker tests passed</li>
+      </ul>
+    </section>
+    <section class="card done">
+      <span class="badge">Host smoke verified</span>
+      <h3>1J · Configurable models</h3>
+      <ul>
+        <li>Global provider fallback with explicit per-role <code>openai</code>/<code>ollama</code> overrides</li>
+        <li>Coordinator, Planner and Chat model environment variables</li>
+        <li>OpenAI defaults work without a local model server</li>
+        <li>Container resolves all three API role defaults</li>
+        <li>Rebuilt app and graph image return HTTP 200</li>
+        <li>Typed <code>ChatOllama</code> structured output adapter</li>
+        <li>Automatic OpenAI failure fallback to local <code>qwen2.5:3b</code>: 110 host tests and a sourced live Hue turn passed</li>
+        <li>Any OpenAI SDK API error, including HTTP 400/404, now triggers one Ollama attempt: 113 offline tests passed; invalid-key container smoke returned structured output through MLX</li>
+        <li>New runtime image committed a live Hue plan through fallback in a one-shot container; Compose app was then recreated and reached healthy status</li>
+        <li>Opt-in Compose Ollama profile verified with a persistent model volume and a sourced Hue turn; Apple M1 Docker inference uses CPU</li>
+        <li>Active app reaches native macOS Ollama through <code>host.docker.internal</code>; fallback returned structured output and <code>ollama ps</code> showed 100% GPU</li>
+        <li>Native Ollama v0.40.10 runs the configured MLX model with runner <code>mlx</code> at 100% GPU; <code>qwen2.5:3b</code> removed from native and container stores</li>
+        <li>Active mixed <code>gpt-5.5</code> / <code>qwen2.5:3b</code> Hue smoke passed</li>
+        <li>Compose app to native Ollama HTTP smoke passed</li>
+        <li>Planner structured output requires a complete candidate plan; missing-plan regressions passed</li>
+      </ul>
+    </section>
+    <section class="card active">
+      <span class="badge">App container updated · enforcement QA pending</span>
+      <h3>1K · Request and model-cost guards</h3>
+      <ul>
+        <li>Role output limits: Coordinator 2,048; Planner 8,192; Chat 2,048 tokens, configurable through runtime environment</li>
+        <li>Itinerary schema caps a trip at 28 entries</li>
+        <li>HTTP planning turns use a sliding-hour quota keyed by verified Auth0 account or anonymous session; optional process-wide ceiling is environment-configured</li>
+        <li>Redacted <code>model.usage</code> events carry model, role, token counts and turn ID when LangSmith tracing is enabled</li>
+        <li>Process-local quotas reset on restart and do not coordinate replicas</li>
+        <li>Compose app rebuilt and healthy; environment cap parses in container, HTTP 429 not exercised</li>
+        <li>USD spend enforcement and managed DDoS/WAF edge remain separate deployment tasks</li>
+      </ul>
+    </section>
+    <section class="card active">
+      <span class="badge">Browser QA pending</span>
+      <h3>1I · JavaScript/Tailwind UI</h3>
+      <ul>
+        <li>React itinerary, chat and read-only graph</li>
+        <li>Same-origin FastAPI session adapter</li>
+        <li>Transcript rehydrates from the session API and resets with a new session</li>
+        <li>Home and New Trip start a fresh session and clear live trip/chat drafts; language, account and saved tours remain</li>
+        <li>Current image serves Home and Account UI locally and through ngrok; roots return HTTP 200; browser interaction QA pending</li>
+        <li>Chat search citations render in conversation bubbles</li>
+        <li>Tool node appears in the compiled graph image with requester return paths</li>
+        <li>Lower-right floating chat panel with keyboard focus/close</li>
+        <li>Separate user and assistant conversation bubbles</li>
+        <li>Light blue and navy visual system</li>
+        <li>Credited Commons photos and source links</li>
+        <li>Responsive get_graph_image() PNG with SVG fallback</li>
+        <li>90 host tests; prior frontend build and container health remain recorded</li>
+        <li>Planner proposal schema excludes provider-owned source inventory</li>
+      </ul>
+    </section>
+  </div>
+
+  <h2>Later</h2>
+  <div class="grid">
+    <section class="card pending"><span class="badge">Next</span><h3>Live quality evaluation</h3><p>Measure Chat answer accuracy and source relevance across more factual questions; label source diversity and extend edit coverage to reorder and replace.</p></section>
+    <section class="card done"><span class="badge">Verified, stopped</span><h3>Temporary sharing</h3><p>Ngrok HTTPS tunnel passed app, graph and session checks, then was stopped on request; the local app remains healthy.</p></section>
+    <section class="card pending"><span class="badge">Deferred</span><h3>Production concerns</h3><p>Auth0 production rollout, cross-device archive recovery, non-ngrok ingress limits, log retention and operational security.</p></section>
+  </div>
+
+  <p>Durable detail: <a href="project-charter.md">charter</a>,
+  <a href="implementation-plan.md">implementation plan</a> and
+  <a href="progress/roadmap-progress.json">progress JSON</a>. The archived POC
+  roadmap is retained as <code>roadmap-2026-09-poc.html</code>.</p>
+  <p>Development tooling: project Codex RTK hook and caveman full reply guidance
+  configured. Delivery uses a Goal Card and scoped execution lanes. UI and
+  security guidance now use project-authored skills; direct vendored bundles
+  were removed. Agent guidance favors the smallest complete change while
+  preserving validation, security and accessibility. Hook activation needs a
+  new trusted Codex session.</p>
 </main>
 </body>
 </html>

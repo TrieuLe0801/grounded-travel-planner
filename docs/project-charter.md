@@ -1,149 +1,146 @@
-# Travel Planner — Yêu cầu mới
+# Project Charter
 
-Ngày cập nhật: 2026-10-14
+Status: Active
+Last updated: 2026-11-08
 
-Tài liệu này ghi nhận yêu cầu mới từ cuộc trao đổi hiện tại. Kế hoạch POC cũ
-không được kế thừa làm ràng buộc cho sản phẩm này. Stack AI đã chốt gồm
-LangChain, LangGraph, LangSmith, Tavily và model `gpt-5.5`. Chưa bắt đầu viết
-code ứng dụng.
+## Product
 
-## Mục tiêu
+Grounded Travel Planner is a city/place sightseeing webapp. A user enters a
+destination or place, a concrete start date and a day count from 1 to 7. The app
+creates one current itinerary and lets the user chat to add constraints or make
+bounded changes such as add, remove, replace, reorder, extend or shorten the
+trip, change days and change times.
 
-Một webapp đơn giản giúp người dùng khám phá các điểm tham quan và nhận lịch
-trình tại một địa điểm hoặc thành phố. AI tìm kiếm thông tin trước khi gợi ý;
-người dùng tham khảo kết quả và chat để chỉnh sửa lịch trình.
+The UI and assistant default to Vietnamese and provide an English option. The
+selected language is stored in the current session and captured when a turn is
+submitted, so switching languages does not reset the plan, transcript or
+pending work. New model-authored responses and itinerary prose follow that
+captured language. User messages, place names, source titles and provider source
+data retain their original text; internal intent codes, source evidence and
+validation rules remain language-independent. App-rendered dates follow the
+selected UI locale, including month and weekday labels in the trip-start date
+picker; date values remain ISO in session and API data.
 
-## Các quyết định đã chốt
+The itinerary also presents source-attributed place photos when available;
+missing imagery leaves the text itinerary usable. The compiled LangGraph
+diagram remains available to developers through the graph API, but its
+inspection page is hidden from the user interface.
 
-### Đầu vào ban đầu
+The current interface uses JavaScript and Tailwind on the same origin as a thin
+Python HTTP adapter. The earlier Streamlit interface remains available during
+migration; the Coordinator/Planner/Chat runtime and validation rules are shared.
 
-- Địa điểm hoặc thành phố muốn tham quan.
-- Ngày bắt đầu cụ thể.
-- Số ngày tham quan do người dùng nhập.
+The public React entry is a bilingual introduction page. Visitors must complete
+Auth0 email one-time-code sign-in before the planner, chat, visuals, or saved
+tours appear. FastAPI enforces the same requirement on private API routes; the
+landing page and static assets remain public. Each live planner session is
+bound to its verified internal account UUID. See ADR 0021.
 
-### Luồng sử dụng
+The user can explicitly save a validated current tour and later review that
+snapshot from the same browser. Saved tours use a separate database and owner
+credential; they are read-only records of the plan and sources at save time.
+An application commit alone does not save a tour. The live itinerary and chat
+still belong to the current session.
 
-1. Người dùng nhập ba thông tin trên và yêu cầu tạo lịch trình.
-2. AI tìm kiếm thông tin về các điểm tham quan phù hợp.
-3. App trình bày các điểm gợi ý và một lịch trình theo từng ngày, có giờ dự kiến.
-4. Người dùng chat để thay đổi ngày giờ, sắp xếp lại, thêm, bỏ hoặc thay điểm
-   tham quan.
-5. App cập nhật lịch trình đang xem và kiểm tra lại phần bị ảnh hưởng.
+Clicking Home starts a fresh trip session and returns to the itinerary start.
+It clears the live plan, conversation and trip-form draft while preserving the
+selected language, account and saved-tour archive.
 
-### Phạm vi chỉnh sửa qua chat
+ADR 0016 selects account-owned saved tours through Auth0 email OTP; ADR 0021
+requires sign-in for planner use. The prior account-ownership implementation
+and isolated migrations have offline evidence. The mandatory entry and
+session-owner changes remain subject to current verification. The running
+application remains on its earlier image until controlled rollout. Account
+ownership does not persist live itinerary or chat state.
 
-- Đổi ngày hoặc giờ tham quan một điểm.
-- Chuyển thứ tự hoặc chuyển một điểm sang ngày khác.
-- Thêm điểm tham quan vào lịch trình.
-- Bỏ điểm không muốn ghé.
-- Thay một điểm bằng điểm khác theo yêu cầu.
-- AI tìm kiếm thông tin và nguồn cho điểm mới được thêm hoặc thay thế.
-- Lịch trình sau chỉnh sửa vẫn phải phù hợp với ngày bắt đầu và số ngày hiện
-  tại; yêu cầu thay đổi phạm vi ngày mơ hồ cần được hỏi lại.
+## Runtime Scope
 
-### Kết quả
+The runtime has three roles:
 
-- Các điểm gợi ý và lý do nên ghé.
-- Lịch trình theo ngày thực tế, với giờ bắt đầu và thời lượng dự kiến.
-- Khoảng nghỉ và thời gian di chuyển dự kiến.
-- Đường dẫn nguồn từ kết quả tìm kiếm.
-- Thông tin còn thiếu, chưa xác minh hoặc xung đột ảnh hưởng đến lịch trình.
+- Coordinator: classifies the request in either supported language, reads
+  bounded recent session history and produces a short handoff summary in the
+  selected language for downstream roles.
+- Planner: proposes every plan change and emits a typed search request when
+  grounded plan recommendations need Tavily research.
+- Chat: writes the final response in the selected language after deterministic
+  policy nodes decide whether a candidate can be committed. When current facts
+  are needed and search budget remains, Chat may request one Tavily search and
+  cite only provider-returned sources; it never proposes or mutates the plan.
+- `tavily_tool`: one shared LangGraph node executes typed search requests from
+  Planner or Chat. It is the only runtime node that calls the search provider,
+  and returns sources only to the requesting role.
 
-### Phiên sử dụng
+`GTP_MODEL_PROVIDER` selects the global `openai` (the default) or `ollama`
+provider. `GTP_COORDINATOR_PROVIDER`, `GTP_PLANNER_PROVIDER` and
+`GTP_CHAT_PROVIDER` optionally override that provider by role. The three model
+variables select their respective role models; OpenAI defaults are `gpt-5.5`
+for Coordinator, `gpt-6.1-terra` for Planner and `gpt-4.1` for Chat. The default
+`.env.example` does not require a local server for normal OpenAI calls. When an
+OpenAI API call fails, the same role tries the configured local Ollama fallback
+model once. This path requires a reachable local server and installed model;
+failure leaves the prior plan intact. A role explicitly assigned to Ollama
+never falls back to OpenAI. The webapp keeps the live itinerary and
+conversation in session-local state. Only user-approved saved tour snapshots
+use durable storage. It does not use LangSmith traces as state storage.
 
-- Lịch trình và lịch sử chat chỉ được giữ trong phiên hiện tại.
-- Kết thúc hoặc mất phiên có thể làm mất lịch trình và hội thoại.
-- Bản đầu không có chức năng lưu chuyến đi để mở lại hoặc tiếp tục chat ở phiên
-  sau. Giao diện cần thông báo rõ hành vi này.
-- LangSmith nhận trace các lượt hội thoại để phục vụ quan sát và gỡ lỗi. Trace
-  có thể tồn tại sau khi phiên app kết thúc theo cấu hình lưu giữ của LangSmith;
-  app không dùng trace để khôi phục chuyến đi hoặc hội thoại ở phiên mới.
+The webapp keeps the canonical plan, at most 12 conversation messages and a
+rolling summary of at most 1,200 characters in session-only state. Coordinator
+prompts receive at most eight recent messages of 600 characters each plus the
+summary. Planner and Chat receive the summary and task-specific plan context,
+not the raw transcript. Reloading the JavaScript page rehydrates the transcript
+from the same in-memory session; reset creates a new isolated session. The app
+does not use LangSmith traces as state storage.
 
-### Stack AI và các agent
+Model/search turns run as bounded background jobs so they can continue while a
+user navigates between app pages. Each session owns at most one pending turn and
+integrates its result exactly once when the chat page polls or is reopened.
 
-- LangChain tích hợp model, tool và dữ liệu trả về có cấu trúc.
-- LangGraph quản lý state và điều phối các bước xử lý.
-- Tavily là công cụ tìm kiếm thông tin tham quan.
-- LangSmith trace toàn bộ lượt chat, các agent và tool calls, nhóm theo phiên.
-- Hai agent dùng chung model `gpt-5.5`.
-- Webapp có ít nhất hai agent khi vận hành. Bản đầu đề xuất đúng hai agent với
-  trách nhiệm như sau:
+## Invariants
 
-| Agent | Trách nhiệm |
-|---|---|
-| Coordinator | Chat thông thường, hiểu yêu cầu, hỏi lại khi cần, giao việc cho Planner và giải thích kết quả |
-| Planner | Tìm thông tin qua Tavily, đề xuất lịch trình và tạo bản lịch trình cập nhật khi người dùng yêu cầu |
+- Accept destination/place, a concrete start date and a selected day count.
+- Search for actual information before sourced recommendations are claimed.
+- When creating a new itinerary, schedule at least one grounded stop on every
+  selected day.
+- Never fabricate source URLs, opening hours or tool results.
+- Source references must originate from normalized search results. The
+  `source_place_mismatch` token-overlap rule is temporarily disabled because it
+  rejected valid sources; source relevance remains an evaluation metric.
+- Label estimated visit/travel times and unverified opening hours.
+- Validate input, schedule range, overlaps and known opening-hour conflicts
+  before committing a candidate.
+- Preserve the previous current plan when validation fails.
+- Chat can change trip length in either direction within the 1–7 day bound.
+  Each added day needs a grounded stop. Shortening keeps stops on retained days
+  and removes or reschedules stops from days beyond the new duration before
+  committing the updated itinerary.
+- Do not mutate the canonical plan from a background worker. Integrate a
+  completed result only in its originating UI session.
+- Changing language changes UI labels and the locale for future turns; it does
+  not translate stored user messages, existing plan text, place names or source
+  metadata, and it does not change an already-running turn's captured locale.
+- Format app-rendered dates in the selected UI locale while keeping date values
+  language-independent in session and API data.
+- Ordinary chat should not mutate the plan or perform unnecessary search.
+- Bound every turn to 8 graph steps, 2 shared Planner/Chat Tavily calls and 1
+  repair attempt. Chat skips search when the remaining graph steps cannot fit
+  the tool node and its final response.
+- Keep provider secrets out of model prompts, traces, logs and tracked files.
+- Visual enrichment never changes or blocks the validated current plan. Do not
+  invent photos; show image creator, license and source-page credit.
+- Only an explicit save action on a validated canonical plan creates a saved
+  tour. Archive reads do not run agents/search or mutate the live plan. Every
+  archive operation is scoped to a verified owner. The running app still uses
+  its earlier image until the controlled Auth0 account migration and rollout.
+- The React planner requires a verified Auth0 account. FastAPI checks account
+  ownership on every live planner session and session-backed operation; a
+  missing or mismatched account cannot read or change another account's state.
 
-Coordinator là đầu mối giao tiếp với người dùng. Planner nhận yêu cầu cùng dữ
-liệu chuyến đi hiện tại và trả kết quả có cấu trúc về Coordinator. Mọi thay đổi
-lịch trình đi qua Planner và bước kiểm tra bằng code trước khi được áp dụng.
+## Non-Goals
 
-## Nguyên tắc chất lượng tối thiểu
-
-- AI phải thực sự tìm kiếm trước khi trình bày kết quả như thông tin có nguồn.
-- Đường dẫn nguồn phải xuất phát từ kết quả tìm kiếm, không được tự bịa.
-- Thời lượng tham quan và thời gian di chuyển ước tính phải được ghi rõ.
-- Thiếu dữ liệu giờ mở cửa phải được thể hiện là chưa xác minh.
-- Khi phát hiện lịch bị trùng giờ hoặc trái với giờ mở cửa đã tìm được, app báo
-  xung đột và đưa phương án điều chỉnh; không âm thầm coi yêu cầu sửa là khả thi.
-- Chat phải cập nhật lịch trình hiện tại. Lịch cũ chưa đáp ứng yêu cầu mới không
-  được hiển thị như kết quả đã sửa thành công.
-- Khi thêm, bỏ hoặc thay điểm, phần lịch liên quan được sắp xếp lại và nguồn
-  được gắn đúng với các điểm còn trong lịch trình.
-- Kết quả giúp người dùng tham khảo và không bảo đảm tình trạng hoạt động hoặc
-  khả năng di chuyển tại thời điểm chuyến đi.
-
-## Các tình huống cần kiểm chứng
-
-1. Nhập địa điểm, ngày bắt đầu và số ngày hợp lệ: nhận lịch trình tương ứng kèm
-   các nguồn đã tìm được.
-2. Chat chuyển một điểm sang ngày hoặc giờ khác: lịch trình hiển thị cập nhật
-   và phần thời gian liên quan được kiểm tra lại.
-3. Chat thêm một điểm: app tìm thông tin và nguồn rồi đưa điểm vào lịch trình.
-4. Chat bỏ một điểm: điểm đó được bỏ khỏi lịch trình hiển thị và phần lịch liên
-   quan được điều chỉnh.
-5. Chat thay một điểm: điểm cũ được thay bằng điểm mới có nguồn tương ứng.
-6. Yêu cầu sửa gây xung đột với dữ liệu đã biết: app giải thích và đề xuất cách
-   điều chỉnh.
-7. Không tìm đủ thông tin hoặc tìm kiếm lỗi: app nêu rõ giới hạn dữ liệu,
-   không tự tạo nguồn hoặc thông tin xác nhận.
-8. Input hoặc yêu cầu chat mơ hồ: app hỏi lại thông tin cần thiết để tiếp tục.
-9. Phiên mới bắt đầu với lịch trình và chat trống; các phiên không dùng chung
-   dữ liệu chuyến đi.
-10. Chat thông thường được Coordinator trả lời và không làm thay đổi lịch
-    trình hoặc gọi Planner/Tavily khi không cần.
-11. Tạo hoặc sửa lịch trình được giao cho Planner; lỗi hoặc kết quả không hợp
-    lệ không được báo như đã cập nhật thành công.
-12. Các lượt chat trong cùng phiên, bao gồm child runs của hai agent và Tavily,
-    xuất hiện dưới cùng mã phiên trong LangSmith khi chạy thử tích hợp thật.
-
-## Đề xuất thiết kế, chưa phải quyết định đã chốt
-
-- Một trang gồm form nhập yêu cầu, lịch trình hiện tại và vùng chat.
-- Mỗi lịch trình tập trung vào một thành phố hoặc khu vực cụ thể.
-
-## Cấu trúc triển khai tối thiểu đề xuất
-
-1. Giao diện: form, lịch trình theo ngày và vùng chat.
-2. Coordinator và Planner dùng LangChain, được điều phối bằng LangGraph.
-3. Tavily cung cấp kết quả và URL nguồn cho Planner.
-4. Kiểm tra bằng code: input hợp lệ, lịch không trùng giờ, các điểm nằm trong
-   phạm vi ngày và các nguồn tham chiếu thực sự tồn tại trong kết quả tìm kiếm.
-5. LangSmith trace từng lượt xử lý với cùng mã phiên được truyền xuyên suốt.
-
-Một bản lịch trình có cấu trúc trong state là dữ liệu chính dùng để hiển thị
-và cập nhật. Mỗi agent có prompt và trách nhiệm riêng; hai agent có thể dùng
-chung model mà vẫn giữ vai trò tách biệt. Kiểm tra ngày giờ và nguồn là code.
-
-## Trạng thái yêu cầu
-
-Các lựa chọn sản phẩm chính đã chốt: đầu vào có ngày bắt đầu và số ngày, AI tìm
-kiếm trước khi gợi ý, chat có thể thêm/bỏ/thay điểm và sửa ngày giờ, dữ liệu chỉ
-tồn tại trong phiên hiện tại. Stack AI và model đã chốt như trên. Kế hoạch
-kiến trúc hai agent nằm tại `docs/implementation-plan.md`; Streamlit vẫn là đề xuất
-cho giao diện một trang.
-
-## Trạng thái triển khai
-
-Hiện có tài liệu yêu cầu. Chưa có code ứng dụng, dữ liệu tìm kiếm thực tế hoặc
-kết quả kiểm thử ứng dụng trong repository này.
+- Search-history storage and restoration of archived tours into an editable
+  session. Account-owned saved tours are in scope under ADR 0016; their live
+  rollout is pending. PostgreSQL snapshot storage remains under ADR 0015.
+- More runtime travel-specialist agents before this three-role vertical slice is
+  executable and verified.
+- Offline fixture claims represented as live sourced recommendations.
+- Production booking, payments or reservation workflow.

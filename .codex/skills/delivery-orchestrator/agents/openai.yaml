@@ -1,0 +1,4 @@
+interface:
+  display_name: "Delivery Orchestrator"
+  short_description: "Coordinate project agents from goal to verified delivery."
+  default_prompt: "Use $delivery-orchestrator. Goal Card: objective; acceptance; scope/exclusions; verification; commit/push. Select smallest lane: direct, scoped coding, coding + testing, or planner + coding + testing. Commit and push default to no. Example: $delivery-orchestrator Objective: fix graph image layout; acceptance: image fits page; scope: frontend only; verify: typecheck/build; commit: no; push: no."

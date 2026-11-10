@@ -1,0 +1,113 @@
+name: grounded-travel-planner
+
+services:
+  db:
+    image: postgres:17-bookworm
+    environment:
+      POSTGRES_DB: travel_planner
+      POSTGRES_USER: travel_planner
+      POSTGRES_PASSWORD: ${GTP_SAVED_TOURS_POSTGRES_PASSWORD:?Set GTP_SAVED_TOURS_POSTGRES_PASSWORD in .env}
+    volumes:
+      - ${GTP_DATA_DIR:-../grounded-travel-planner-data}/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    restart: "no"
+
+  app:
+    image: grounded-travel-planner:local
+    build:
+      context: .
+      target: runtime
+    env_file:
+      - .env
+    environment:
+      OLLAMA_BASE_URL: ${GTP_COMPOSE_OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      GTP_SAVED_TOURS_BACKEND: postgres
+      GTP_SAVED_TOURS_POSTGRES_HOST: db
+      GTP_SAVED_TOURS_POSTGRES_DATABASE: travel_planner
+      GTP_SAVED_TOURS_POSTGRES_USER: travel_planner
+      GTP_SAVED_TOURS_POSTGRES_PASSWORD: ${GTP_SAVED_TOURS_POSTGRES_PASSWORD:?Set GTP_SAVED_TOURS_POSTGRES_PASSWORD in .env}
+      GTP_SAVED_TOURS_COOKIE_SECURE: "true"
+    depends_on:
+      db:
+        condition: service_healthy
+    init: true
+    restart: "no"
+    ports:
+      - "127.0.0.1:${GTP_PORT:-8503}:8000"
+    stop_grace_period: 10s
+
+  migrate-saved-tours:
+    image: grounded-travel-planner:local
+    profiles: ["migrate-saved-tours"]
+    environment:
+      GTP_SAVED_TOURS_BACKEND: postgres
+      GTP_SAVED_TOURS_POSTGRES_HOST: db
+      GTP_SAVED_TOURS_POSTGRES_DATABASE: travel_planner
+      GTP_SAVED_TOURS_POSTGRES_USER: travel_planner
+      GTP_SAVED_TOURS_POSTGRES_PASSWORD: ${GTP_SAVED_TOURS_POSTGRES_PASSWORD:?Set GTP_SAVED_TOURS_POSTGRES_PASSWORD in .env}
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - saved-tours-data:/legacy:ro
+    command:
+      ["python", "/app/scripts/migrate_saved_tours_to_postgres.py", "--sqlite", "/legacy/saved_tours.sqlite"]
+    restart: "no"
+
+  ngrok:
+    image: ngrok/ngrok:latest
+    profiles: ["ngrok"]
+    environment:
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN:-}
+    command:
+      [
+        "http",
+        "app:8000",
+        "--log",
+        "stdout",
+        "--inspect=false",
+        "--traffic-policy-file",
+        "/etc/ngrok/traffic-policy.json",
+      ]
+    volumes:
+      - ./deploy/ngrok-traffic-policy.json:/etc/ngrok/traffic-policy.json:ro
+    depends_on:
+      app:
+        condition: service_started
+    restart: "no"
+
+  ollama:
+    image: ollama/ollama:latest
+    profiles: ["ollama"]
+    volumes:
+      - ollama-models:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+      start_period: 10s
+
+  ollama-init:
+    image: ollama/ollama:latest
+    profiles: ["ollama"]
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      OLLAMA_HOST: ollama:11434
+      OLLAMA_PULL_MODELS: ${OLLAMA_PULL_MODELS:-}
+    volumes:
+      - ollama-models:/root/.ollama
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      ["set -f; for model in $${OLLAMA_PULL_MODELS}; do ollama pull \"$$model\"; done"]
+
+volumes:
+  ollama-models:
+  saved-tours-data:

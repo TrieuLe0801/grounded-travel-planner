@@ -10,9 +10,7 @@ not yet exist. The development workflow now needs Codex coding/testing helpers
 and automatic PEP 8 formatting with isort, Black and flake8.
 
 These are development assistants. They are separate from the travel planner's
-runtime agent topology. Update 2026-10-14: the current Coordinator/Planner
-runtime is defined by [ADR 0004](0004-city-sightseeing-webapp.md); the tooling
-decision in this record remains accepted.
+runtime agent topology, which remains single-agent-first.
 
 ## Decision
 
@@ -46,8 +44,8 @@ decision in this record remains accepted.
   they run. The hook only covers `apply_patch`; Python files edited by other
   means need the documented manual commands.
 - Project `.codex/config.toml` and custom agents load in trusted Codex project
-  sessions. The manager workflow does not determine the application's runtime
-  topology, which is governed by the current product ADR.
+  sessions. The manager workflow does not alter the application's runtime
+  single-agent-first decision.
 - `uv` may sync the environment when a hook first runs. Hook failures appear in
   Codex as a warning; they do not undo the source edit.
 - The baseline verification commands are `uv run pytest`, `uv run isort
@@ -64,17 +62,76 @@ decision in this record remains accepted.
 - A controlled workflow comparison justifies changing the development agents.
 - A requested model is unavailable in the selected Codex client or account.
 
+## Amendment — 2026-10-20
+
+The development-agent instructions now cover the repository's full product
+stack: typed Python/LangGraph and FastAPI code, React/Tailwind UI, container and
+environment configuration, and durable project documents. The coding role no
+longer describes itself as Python-only. The manager must preserve pre-existing
+dirty hunks, use direct user steering as a constraint, assign explicit file
+ownership, and avoid restarting an approach that the user has rejected.
+
+The delivery workflow detects explicit commit/push authorization and otherwise
+does neither; it does not pause to ask a yes/no authorization question. Agents
+must distinguish static, offline, browser, container and live-provider evidence
+and may not make the latter claims without a corresponding executed artifact.
+These development roles remain separate from the runtime Coordinator, Planner,
+Chat and `tavily_tool` graph node.
+
+## Amendment — 2026-10-27 — Security review guidance for testing
+
+The project-scoped testing agent now checks whether an assigned change affects
+a trust boundary and adds a focused offline regression when a concrete security
+failure mode warrants one. Explicit security reviews use the project-local
+Cloudflare `security-audit` skill in guidance mode; a complete audit requires
+an explicit audit assignment and the skill's sandbox and independent-verifier
+conditions. Ordinary test results do not establish security assurance.
+
+The vendored skill was fetched from `cloudflare/security-audit-skill`, main at
+`c1c8a8c1471069fb0e188eeaff69b8e8db6564a8`, with its MIT license. This
+changes the Codex testing workflow only, not the webapp runtime architecture.
+
+## Amendment — 2026-10-28
+
+The initial request moved `.codex/` to local-only use. The user then clarified
+that reviewed project-wide agents, hooks and skills should be shared. Git keeps
+those 102 files tracked while `.codex/` remains ignored by default for new local
+state. Personal `.codex/config.toml` is removed from the index and remains on
+the local machine. Authentication, sessions, archived data, API keys, OAuth
+tokens, passwords, logs, caches, worktrees and management data must not be
+added to the repository. New shared files require explicit review and staging.
+
+## Amendment — 2026-11-08 — Project-authored skills
+
+The user directed that project agents must not use third-party/open-source skill
+bundles directly. Remove the vendored UI/UX Pro Max and Cloudflare security-audit
+bundles from `.codex/skills/`. Replace them with `travel-planner-ui` and
+`travel-planner-security-review`, authored from this repository's charter,
+accepted ADRs, implementation, learning log and local design system. Keep
+`delivery-orchestrator` as the project-native delivery skill. Keep routine
+verification guidance in the testing agent instead of adding a generic testing
+skill. This changes development guidance only; runtime agent architecture and
+product behavior stay unchanged.
+
+## Amendment — 2026-11-08 — Minimal complete changes
+
+After the user supplied [Ponytail](https://github.com/DietrichGebert/ponytail),
+adapt its smallest-complete-change and review-priority ideas into project-owned
+guidance. Agents trace the relevant flow and callers, reuse project code first,
+and add layers or dependencies only when acceptance needs them. Validation,
+data-loss handling, security, accessibility and explicit acceptance remain
+required. Do not install or copy Ponytail skill files. Do not add debt ledgers,
+gain scoreboards or audit commands without a concrete project need or user
+request. This amendment changes development workflow only.
+
 ## Portability amendment — 2026-11-08
 
-Keep the four development roles, but let their models and reasoning effort
-inherit from the signed-in Codex session. The former fixed `gpt-5.5` setting
-failed for the `testing` development agent on a ChatGPT Codex account. This
-supersedes the model assignments in the original decision for Codex development
-agents only; it does not change the application's runtime model. Make role
-instructions independent of travel-planner product details. `AGENTS.md` and
-the current project records continue to supply those details. Add repository
-skills under `.agents/skills/` for workflow transfer and project verification;
-the first documents cross-repository adaptation, while the second holds the
-current Python check sequence. `docs/codex-workflow.md` records what travels
-with Git and what requires local setup on another machine. The Python hook and
-tooling decision above remain in force.
+Development agents inherit model and reasoning settings from the signed-in
+Codex session. Fixed model assignments caused testing-agent startup failures on
+accounts without that model. This supersedes model assignments for development
+agents only; runtime models remain unchanged. Keep project-specific agent
+instructions and skills under `.codex/`. Portable workflow skills under
+`.agents/skills/` support migration and verification, but current project rules
+and skill selection remain governed by `AGENTS.md`. The tracked
+`.codex/config.toml` contains only shared agent concurrency settings, no
+personal model or account configuration.

@@ -1,0 +1,202 @@
+"""Small, code-owned presentation translations for the session language."""
+
+from __future__ import annotations
+
+from typing import Literal
+
+Language = Literal["vi", "en"]
+
+_TEXT: dict[str, dict[Language, str]] = {
+    "missing_graph_response": {
+        "vi": "Chưa nhận được phản hồi hợp lệ cho yêu cầu này.",
+        "en": "The request did not return a valid response.",
+    },
+    "graph_failure": {
+        "vi": "Chưa thể hoàn tất yêu cầu; lịch trình cũ đã được giữ nguyên.",
+        "en": "The request could not be completed; the previous itinerary was preserved.",
+    },
+    "background_failure": {
+        "vi": "Chưa thể hoàn tất yêu cầu; lịch trình trước đó vẫn được giữ nguyên.",
+        "en": "The request could not be completed; the previous itinerary was preserved.",
+    },
+    "model_authentication_failure": {
+        "vi": "Khóa API của nhà cung cấp mô hình không hợp lệ hoặc đã bị vô hiệu hóa. Hãy cập nhật khóa trong cấu hình rồi khởi động lại ứng dụng; lịch trình trước đó được giữ nguyên.",
+        "en": "The model provider API key is invalid or has been disabled. Update the key in the configuration and restart the app; the previous itinerary was preserved.",
+    },
+    "planner_model_failure": {
+        "vi": "Chưa thể tạo lịch trình đề xuất; lịch trình trước đó được giữ nguyên.",
+        "en": "A candidate itinerary could not be created; the previous itinerary was preserved.",
+    },
+    "turn_pending": {
+        "vi": "Một yêu cầu đang được xử lý.",
+        "en": "A request is already being processed.",
+    },
+    "turn_capacity_exhausted": {
+        "vi": "Hệ thống đang xử lý quá nhiều yêu cầu. Vui lòng thử lại sau.",
+        "en": "The service is handling too many requests. Please try again shortly.",
+    },
+    "turn_rate_limit_exhausted": {
+        "vi": "Bạn đã dùng hết lượt lập lịch trong giờ này. Vui lòng thử lại sau.",
+        "en": "You have used all planning turns for this hour. Please try again later.",
+    },
+    "turn_global_limit_exhausted": {
+        "vi": "Hệ thống đã đạt giới hạn lượt lập lịch tạm thời. Vui lòng thử lại sau.",
+        "en": "The service has reached its temporary planning limit. Please try again later.",
+    },
+    "session_capacity_exhausted": {
+        "vi": "Hệ thống đang có quá nhiều phiên hoạt động. Vui lòng thử lại sau.",
+        "en": "The service has too many active sessions. Please try again shortly.",
+    },
+}
+
+
+def localized(key: str, language: Language) -> str:
+    return _TEXT[key][language]
+
+
+def response_language_instruction(language: Language) -> str:
+    return "Vietnamese" if language == "vi" else "English"
+
+
+def authored_content_language_instruction(language: Language) -> str:
+    """Keep new model-authored prose in the captured locale despite mixed context."""
+
+    language_name = response_language_instruction(language)
+    return (
+        f"Write all newly authored prose entirely in {language_name}. Do not mix "
+        "languages or switch to match the input. Treat user text, prior chat, "
+        f"itinerary text, validation evidence, and source data as reference; "
+        f"paraphrase needed facts in {language_name}. Preserve proper names, "
+        "source titles, URLs, and provider source data verbatim when needed."
+    )
+
+
+def localized_issue_message(code: str, message: str, language: Language) -> str:
+    """Translate stable codes, while preserving dynamic evidence verbatim."""
+    known: dict[str, dict[Language, str]] = {
+        "candidate_required": {
+            "vi": "Planner chưa tạo được lịch trình đề xuất.",
+            "en": "The Planner did not produce a candidate itinerary.",
+        },
+        "missing_graph_response": _TEXT["missing_graph_response"],
+        "bounded_graph_failure": _TEXT["graph_failure"],
+        "background_turn_failure": {
+            "vi": "Lượt xử lý nền chưa hoàn tất.",
+            "en": "The background turn did not complete.",
+        },
+        "requested_change_not_applied": {
+            "vi": "Lịch trình đề xuất chưa áp dụng đúng thay đổi được yêu cầu.",
+            "en": "The candidate itinerary did not apply the requested change.",
+        },
+        "trip_request_required": {
+            "vi": "Cần thông tin chuyến đi hợp lệ trước khi lập lịch.",
+            "en": "A valid trip request is required before planning.",
+        },
+        "destination_required": {
+            "vi": "Điểm đến hoặc địa điểm không được để trống.",
+            "en": "Destination or place must not be blank.",
+        },
+        "day_count_out_of_range": {
+            "vi": "Số ngày phải từ 1 đến 7.",
+            "en": "Day count must be between 1 and 7.",
+        },
+        "candidate_request_mismatch": {
+            "vi": "Lịch trình đề xuất không khớp điểm đến, ngày bắt đầu hoặc số ngày đã chọn.",
+            "en": "The candidate does not preserve the selected destination, start date, and days.",
+        },
+        "requested_day_out_of_range": {
+            "vi": "Ngày được yêu cầu nằm ngoài số ngày đã chọn.",
+            "en": "The requested day is outside the selected trip days.",
+        },
+        "trip_extension_target_required": {
+            "vi": "Cần số ngày mục tiêu hoặc số ngày muốn thêm.",
+            "en": "Trip extension needs a target day count or increment.",
+        },
+        "trip_extension_must_increase": {
+            "vi": "Số ngày mới phải lớn hơn lịch trình hiện tại.",
+            "en": "Trip extension must increase the current day count.",
+        },
+        "trip_shortening_target_required": {
+            "vi": "Cần số ngày mục tiêu hoặc số ngày muốn bớt.",
+            "en": "Trip shortening needs a target day count or number of days to remove.",
+        },
+        "trip_shortening_must_decrease": {
+            "vi": "Số ngày mới phải ít hơn lịch trình hiện tại.",
+            "en": "Trip shortening must decrease the current day count.",
+        },
+        "trip_resize_requires_current_plan": {
+            "vi": "Cần có lịch trình hiện tại để thay đổi số ngày chuyến đi.",
+            "en": "A current itinerary is required to change trip length.",
+        },
+        "invalid_search_request": {
+            "vi": "Yêu cầu tìm kiếm bị giới hạn không hợp lệ.",
+            "en": "The bounded search request was invalid.",
+        },
+        "search_call_limit": {
+            "vi": "Đã đạt giới hạn số lần tìm kiếm cho lượt này.",
+            "en": "The search-call limit was reached for this turn.",
+        },
+        "coordinator_model_failure": {
+            "vi": "Chưa thể hiểu yêu cầu này.",
+            "en": "The request could not be understood.",
+        },
+        "model_authentication_failure": _TEXT["model_authentication_failure"],
+        "planner_model_failure": {
+            "vi": "Chưa thể tạo lịch trình đề xuất; lịch trình trước đó được giữ nguyên.",
+            "en": "A candidate itinerary could not be created; the previous itinerary was preserved.",
+        },
+        "search_provider_failure": {
+            "vi": "Không thể hoàn tất việc tra cứu nguồn lúc này.",
+            "en": "Source research could not be completed at this time.",
+        },
+        "entry_day_out_of_range": {
+            "vi": "Một điểm trong lịch trình nằm ngoài số ngày đã chọn.",
+            "en": "An itinerary entry is outside the selected trip days.",
+        },
+        "itinerary_day_missing": {
+            "vi": "Một ngày trong lịch trình chưa có điểm tham quan có nguồn.",
+            "en": "A trip day has no grounded itinerary stop.",
+        },
+        "invalid_entry_time": {
+            "vi": "Một điểm trong lịch trình có thời gian không hợp lệ.",
+            "en": "An itinerary entry has an invalid time range.",
+        },
+        "schedule_overlap": {
+            "vi": "Các điểm trong lịch trình bị chồng lấn thời gian.",
+            "en": "Itinerary entries overlap in time.",
+        },
+        "opening_hours_conflict": {
+            "vi": "Thời gian lịch trình xung đột với giờ mở cửa đã biết.",
+            "en": "The itinerary conflicts with known opening hours.",
+        },
+        "invalid_opening_hours": {
+            "vi": "Giờ mở cửa trong lịch trình không hợp lệ.",
+            "en": "An opening-hours value is invalid.",
+        },
+        "place_source_required": {
+            "vi": "Mỗi địa điểm cần có nguồn đã trả về.",
+            "en": "Each place needs a returned source.",
+        },
+        "invalid_source_url": {
+            "vi": "Một nguồn không dùng URL HTTP(S) hợp lệ.",
+            "en": "A source does not use a valid HTTP(S) URL.",
+        },
+        "source_not_returned": {
+            "vi": "Một nguồn không xuất phát từ kết quả tìm kiếm đã trả về.",
+            "en": "A source was not returned by the search provider.",
+        },
+        "opening_hours_missing": {
+            "vi": "Thiếu giờ mở cửa đã xác minh cho địa điểm này.",
+            "en": "Verified opening hours are missing for this place.",
+        },
+        "opening_hours_unsubstantiated": {
+            "vi": "Giờ mở cửa đã xác minh không có nguồn hỗ trợ.",
+            "en": "Verified opening hours are not supported by a source.",
+        },
+        "opening_hours_must_be_unverified": {
+            "vi": "Giờ mở cửa phải được ghi là chưa xác minh khi không có nguồn hỗ trợ.",
+            "en": "Opening hours must be marked unverified when no source supports them.",
+        },
+    }
+    translated = known.get(code)
+    return translated[language] if translated else message

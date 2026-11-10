@@ -1,106 +1,847 @@
 {
-  "version": 9,
-  "plan_id": "city-sightseeing-2026-10-14",
-  "updated": "2026-10-14",
-  "planning_status": "recorded",
-  "implementation_status": "not_started",
-  "active_charter": "docs/project-charter.md",
-  "active_plan": "docs/implementation-plan.md",
-  "current_log": "docs/learning-log/2026-10-14-scope-reset.md",
-  "deadline": null,
-  "completed_artifacts": [
-    "docs/project-charter.md",
-    "docs/implementation-plan.md",
-    "docs/adr/0004-city-sightseeing-webapp.md",
-    ".env.example"
-  ],
-  "phases": [
-    {
-      "id": "create",
-      "title": "Tạo lịch trình từ tìm kiếm thật",
-      "status": "not_started",
-      "tasks": [
-        {
-          "id": "contracts",
-          "done": false
-        },
-        {
-          "id": "two_agents_and_graph",
-          "done": false
-        },
-        {
-          "id": "tavily_and_validation",
-          "done": false
-        },
-        {
-          "id": "initial_planning_and_trace",
-          "done": false
-        }
-      ]
-    },
-    {
-      "id": "edit",
-      "title": "Chỉnh sửa lịch trình qua chat",
-      "status": "not_started",
-      "tasks": [
-        {
-          "id": "reschedule_and_reorder",
-          "done": false
-        },
-        {
-          "id": "add_remove_replace",
-          "done": false
-        },
-        {
-          "id": "atomic_plan_update",
-          "done": false
-        },
-        {
-          "id": "clarification_and_conflicts",
-          "done": false
-        }
-      ]
-    },
-    {
-      "id": "webapp",
-      "title": "Webapp và kiểm chứng",
-      "status": "not_started",
-      "tasks": [
-        {
-          "id": "form_itinerary_chat",
-          "done": false
-        },
-        {
-          "id": "session_isolation",
-          "done": false
-        },
-        {
-          "id": "offline_behavior_checks",
-          "done": false
-        },
-        {
-          "id": "live_integrations_and_thread_traces",
-          "done": false
-        }
-      ]
-    }
-  ],
-  "verification": {
-    "status": "passed",
-    "document_links": 61,
-    "progress_schema": "passed",
-    "environment_template": "passed",
-    "existing_hook_tests": "2 passed",
-    "lock": "passed",
-    "isort": "passed",
-    "black": "passed",
-    "flake8": "passed",
-    "ruff": "passed",
-    "diff_check": "passed",
-    "application_checks": "N/A - no application implemented",
-    "live_provider_checks": "not_run",
-    "independent_review": "passed - 65 local links, approved drafts and 5 historical snapshots verified"
+  "version": 94,
+  "updated": "2026-11-10T10:42:00+07:00",
+  "active_scope": "city-place-sightseeing-webapp",
+  "current_milestone": "Milestone 1: executable city/place sightseeing vertical slice",
+  "completed": {
+    "scope_reset_docs": true,
+    "adr_0004": true,
+    "core_runtime_package": true,
+    "streamlit_ui": true,
+    "mocked_tests": true,
+    "live_provider_verification": true,
+    "local_container": true,
+    "chat_edit_hardening": true,
+    "source_quality_offline_baseline": true,
+    "langsmith_v2_query": true,
+    "add_place_alias_offline_fix": true,
+    "add_place_alias_live_recheck": true,
+    "vietnamese_chat": true,
+    "visual_itinerary_implementation": true,
+    "route_map_removed": true,
+    "graph_inspection_page": true,
+    "graph_inspection_page_hidden": true,
+    "source_place_mismatch_temporarily_disabled": true,
+    "async_session_turns": true,
+    "async_multipage_browser_qa": false,
+    "javascript_tailwind_ui_offline": true,
+    "planner_source_schema_hardening": true,
+    "javascript_graph_png_rendering": true,
+    "role_specific_runtime_models": true,
+    "coordinator_chat_routing_and_trip_extension": true,
+    "planner_chat_context_handoff": true,
+    "floating_chat_widget": true,
+    "javascript_tailwind_browser_qa": false,
+    "chat_conversation_bubbles": true,
+    "light_blue_navy_visual_system": true,
+    "configurable_openai_ollama_models_offline": true,
+    "mixed_role_model_provider_routing": true,
+    "compose_host_ollama_endpoint_static_config": true,
+    "compose_app_native_ollama_endpoint_live": true,
+    "ollama_live_smoke": true,
+    "ollama_compose_profile_live": true,
+    "planner_complete_proposal_contract": true,
+    "api_defaults_without_local_ollama": true,
+    "container_rebuild_after_model_defaults": true,
+    "chat_search_bounded_session_context": true,
+    "shared_tavily_tool_node": true,
+    "runtime_flow_refactor": true,
+    "development_agents_and_skills_refined": true,
+    "local_only_codex_tooling": false,
+    "shared_codex_tooling_reviewed": true,
+    "codex_project_token_guidance_configured": true,
+    "bilingual_webapp_language": true,
+    "locale_aware_date_formatting": true,
+    "home_starts_new_trip": true,
+    "account_actions_dropdown": true,
+    "bidirectional_chat_trip_length": true,
+    "ngrok_compose_profile_prepared": true,
+    "ngrok_public_tunnel_verified": true,
+    "ngrok_tunnel_running": true,
+    "model_authentication_diagnostic": true,
+    "openai_ollama_automatic_fallback": true,
+    "apple_m1_ollama_gpu_routing": true,
+    "planner_terra_model_default": true,
+    "terra_planner_schema_compatibility": true,
+    "openai_any_api_error_ollama_fallback": true,
+    "openai_request_timeout_increase": true,
+    "agent_prompt_latency_token_optimization": true,
+    "model_identifiers_environment_only": true,
+    "native_ollama_mlx_fallback": true,
+    "deterministic_trip_shortening": true,
+    "shared_turn_capacity_bound": true,
+    "web_session_capacity_bound": true,
+    "saved_tours_offline": true,
+    "saved_tours_container_volume_smoke": true,
+    "saved_tours_browser_qa": false,
+    "saved_tours_large_archive_offline": true,
+    "saved_tours_large_archive_compose": true,
+    "saved_tours_current_compose_deployment": true,
+    "saved_tours_postgres_compose": true,
+    "saved_tours_postgres_host_directory": true,
+    "saved_tours_postgres_large_benchmark": true,
+    "security_pre_push_review": true,
+    "auth0_account_offline": true,
+    "auth0_account_live": false,
+    "auth0_account_deployed": false,
+    "macos_ci_cd_configured": true,
+    "ngrok_session_rate_limit": true,
+    "auth_callback_access_logging_disabled": true,
+    "runtime_output_token_caps": true,
+    "http_principal_turn_quota": true,
+    "model_token_usage_events": true,
+    "runtime_global_quota_compose": true,
+    "create_trip_day_coverage": true,
+    "mandatory_auth_entry_offline": true,
+    "security_audit_2026_11_10_offline": true
   },
-  "historical_snapshot": "docs/archive/2026-10-14/roadmap-progress.json",
-  "note": "Old completion counts and delivery dates do not apply to the new scope. Development tooling is retained and is not runtime implementation progress."
+  "evidence": {
+    "scope_reset_docs": [
+      "docs/project-charter.md",
+      "docs/implementation-plan.md",
+      "docs/learning-log/2026-10-14-scope-reset.md"
+    ],
+    "adr_0004": [
+      "docs/adr/0004-city-sightseeing-two-agent-runtime.md"
+    ],
+    "core_runtime_package": [
+      "src/grounded_travel_planner/",
+      "src/utils/"
+    ],
+    "streamlit_ui": [
+      "src/grounded_travel_planner/ui/streamlit_app.py",
+      "tests/test_streamlit_ui.py"
+    ],
+    "mocked_tests": [
+      "tests/test_two_agent_core.py",
+      "19 passed"
+    ],
+    "live_provider_verification": [
+      "scripts/live_smoke.py",
+      "docs/experiments/2026-10-14-live-two-agent-smoke.md"
+    ],
+    "local_container": [
+      "Dockerfile",
+      ".dockerignore",
+      "compose.yaml",
+      "docs/experiments/2026-10-14-local-container-smoke.md",
+      "container pytest 19 passed",
+      "container health HTTP 200"
+    ],
+    "chat_edit_hardening": [
+      "data/eval/chat-edit-v1.jsonl",
+      "tests/test_chat_edit_eval.py",
+      "tests/test_streamlit_ui.py",
+      "scripts/live_chat_edit_smoke.py",
+      "docs/experiments/2026-10-15-live-chat-edit-smoke.md",
+      "offline pytest 47 passed",
+      "live revision 1 to 2 with one place removed"
+    ],
+    "source_quality_offline_baseline": [
+      "data/eval/source-quality-v1.jsonl",
+      "src/grounded_travel_planner/evaluation/source_quality.py",
+      "scripts/evaluate_source_quality.py",
+      "docs/experiments/2026-10-15-source-quality-baseline.md",
+      "16 synthetic labelled citations across 5 plans"
+    ],
+    "langsmith_v2_query": [
+      "scripts/live_smoke.py",
+      "tests/test_live_smoke_trace.py",
+      "docs/experiments/2026-10-15-langsmith-query-v2-smoke.md",
+      "live v2 query: 25 runs with matching thread_id"
+    ],
+    "add_place_alias_offline_fix": [
+      "src/grounded_travel_planner/policies/change_validation.py",
+      "src/grounded_travel_planner/agents/planner.py",
+      "tests/test_two_agent_core.py",
+      "docs/experiments/2026-10-15-lo-lo-chai-add-regression.md",
+      "offline pytest 47 passed",
+      "runtime container healthy HTTP 200"
+    ],
+    "add_place_alias_live_recheck": [
+      "scripts/live_lo_lo_chai_smoke.py",
+      "docs/experiments/2026-10-16-live-lo-lo-chai-add.md",
+      "live container edit committed revision 2 with one Planner search"
+    ],
+    "vietnamese_chat": [
+      "docs/project-charter.md",
+      "src/grounded_travel_planner/ui/streamlit_app.py",
+      "src/grounded_travel_planner/agents/coordinator.py",
+      "tests/test_streamlit_ui.py",
+      "docs/experiments/2026-10-16-vietnamese-chat-smoke.md",
+      "offline pytest 47 passed",
+      "live Vietnamese add-place response and revision 2 commit"
+    ],
+    "visual_itinerary_implementation": [
+      "Historical 2026-10 UI work used the then-vendored UI skill; current project guidance is .codex/skills/travel-planner-ui/SKILL.md",
+      "docs/adr/0006-photo-only-itinerary-and-graph-inspection.md",
+      "src/grounded_travel_planner/visuals/service.py",
+      "src/grounded_travel_planner/ui/streamlit_app.py",
+      "tests/test_visuals.py",
+      "docs/experiments/2026-10-16-visual-itinerary-smoke.md",
+      "host pytest 47 passed",
+      "container pytest 47 passed",
+      "historical live Commons metadata for two Hue landmarks"
+    ],
+    "route_map_removed": [
+      "src/grounded_travel_planner/ui/streamlit_app.py",
+      "src/grounded_travel_planner/visuals/service.py",
+      "tests/test_streamlit_ui.py",
+      "tests/test_visuals.py",
+      "rebuilt Compose runtime healthy on 127.0.0.1:8503"
+    ],
+    "graph_inspection_page": [
+      "src/grounded_travel_planner/ui/graph_diagram.py",
+      "src/grounded_travel_planner/ui/graph_architecture.py",
+      "src/grounded_travel_planner/service.py#get_graph_image",
+      "tests/test_graph_diagram.py",
+      "focused UI/photo/graph tests 9 passed",
+      "host and container pytest 47 passed"
+    ],
+    "graph_inspection_page_hidden": [
+      "frontend/src/main.tsx",
+      "src/grounded_travel_planner/ui/graph_architecture.py",
+      "docs/adr/0006-photo-only-itinerary-and-graph-inspection.md",
+      "focused graph tests 4 passed",
+      "host pytest 131 passed",
+      "frontend npm run check and npm run build passed",
+      "Python isort, Black, flake8 and Ruff passed",
+      "browser and running-container checks not run"
+    ],
+    "source_place_mismatch_temporarily_disabled": [
+      "src/grounded_travel_planner/policies/source_validation.py",
+      "tests/test_two_agent_core.py",
+      "ADR 0004 temporary amendment",
+      "URL provenance and opening-hours gates retained"
+    ],
+    "async_session_turns": [
+      "docs/adr/0007-session-owned-background-turns.md",
+      "src/grounded_travel_planner/ui/turn_runner.py",
+      "src/grounded_travel_planner/ui/streamlit_app.py",
+      "tests/test_turn_runner.py",
+      "tests/test_async_streamlit_ui.py",
+      "focused async/UI pytest 9 passed",
+      "host pytest 50 passed",
+      "container pytest 50 passed"
+    ],
+    "async_multipage_browser_qa": [
+      "pending real-browser chat-to-graph-to-chat navigation during a live turn"
+    ],
+    "javascript_tailwind_ui_offline": [
+      "docs/adr/0008-javascript-tailwind-web-ui.md",
+      "frontend/src/main.tsx",
+      "src/grounded_travel_planner/web/api.py",
+      "tests/test_web_api.py",
+      "frontend npm check and build passed",
+      "host pytest 57 passed",
+      "Compose runtime healthy and page/assets/graph HTTP 200",
+      "Docker test target pytest 56 passed"
+    ],
+    "planner_source_schema_hardening": [
+      "src/grounded_travel_planner/contracts.py#PlannerProposal",
+      "src/grounded_travel_planner/agents/planner.py",
+      "tests/test_two_agent_core.py",
+      "33 focused tests passed",
+      "56 host and offline Docker tests passed",
+      "rebuilt Compose runtime healthy on 127.0.0.1:8503"
+    ],
+    "javascript_graph_png_rendering": [
+      "src/grounded_travel_planner/service.py#get_graph_image",
+      "src/grounded_travel_planner/web/api.py#/api/graph/image",
+      "frontend/src/main.tsx",
+      "tests/test_web_api.py",
+      "image/png contract test with no planning turn",
+      "host pytest 57 passed",
+      "frontend npm check and build passed",
+      "local adapter: GET /api/graph/image returned 200 image/png (24,241 bytes)",
+      "local adapter: SVG fallback returned HTTP 200"
+    ],
+    "role_specific_runtime_models": [
+      "docs/adr/0009-coordinator-routed-chat-agent-and-trip-extension.md",
+      "src/grounded_travel_planner/config.py",
+      "src/grounded_travel_planner/service.py",
+      "focused role/model tests 41 passed",
+      "host pytest 61 passed",
+      "gpt-5.5 Coordinator; gpt-5.4-mini Planner; gpt-4.1 Chat",
+      "no new live provider run claimed"
+    ],
+    "coordinator_chat_routing_and_trip_extension": [
+      "docs/adr/0009-coordinator-routed-chat-agent-and-trip-extension.md",
+      "src/grounded_travel_planner/graph/workflow.py",
+      "src/grounded_travel_planner/graph/nodes.py",
+      "src/grounded_travel_planner/agents/chat.py",
+      "data/eval/chat-edit-v1.jsonl",
+      "tests/test_two_agent_core.py",
+      "tests/test_graph_diagram.py",
+      "44 focused tests passed",
+      "64 host and Docker tests passed",
+      "frontend typecheck and production build passed",
+      "rebuilt Compose runtime healthy on 127.0.0.1:8503",
+      "no new live provider run claimed"
+    ],
+    "planner_chat_context_handoff": [
+      "src/grounded_travel_planner/agents/chat.py",
+      "src/grounded_travel_planner/graph/nodes.py",
+      "tests/test_two_agent_core.py",
+      "44 focused tests passed",
+      "64 host tests passed",
+      "64 Docker build-stage tests passed",
+      "64 offline Docker tests passed",
+      "rebuilt Compose runtime healthy on 127.0.0.1:8503",
+      "app and graph image endpoints returned HTTP 200",
+      "no new live provider run claimed"
+    ],
+    "floating_chat_widget": [
+      "frontend/src/main.tsx#ChatWidget",
+      "frontend/src/index.css",
+      "frontend npm run check passed",
+      "frontend npm run build passed",
+      "browser-level responsive QA pending"
+    ],
+    "javascript_tailwind_browser_qa": [
+      "pending real-browser responsive and pending-turn navigation check"
+    ],
+    "chat_conversation_bubbles": [
+      "frontend/src/main.tsx#ChatBubble",
+      "frontend/src/main.tsx#ChatWidget",
+      "frontend npm run check passed",
+      "frontend npm run build passed",
+      "browser-level responsive QA pending"
+    ],
+    "light_blue_navy_visual_system": [
+      "frontend/src/index.css",
+      "frontend/src/main.tsx",
+      "frontend npm run check passed",
+      "frontend npm run build passed",
+      "browser surface unavailable for visual inspection"
+    ],
+    "configurable_openai_ollama_models_offline": [
+      "docs/adr/0010-configurable-openai-ollama-model-provider.md",
+      "src/grounded_travel_planner/config.py",
+      "src/grounded_travel_planner/adapters/model.py",
+      "compose.yaml",
+      "mocked provider configuration and adapter tests"
+    ],
+    "mixed_role_model_provider_routing": [
+      "src/grounded_travel_planner/config.py",
+      "src/grounded_travel_planner/service.py",
+      "tests/test_two_agent_core.py",
+      "mocked Coordinator OpenAI / Planner and Chat Ollama construction",
+      "historical native gpt-5.5 Coordinator / qwen3:4b Planner and Chat Hue smoke committed",
+      "active native gpt-5.5 Coordinator / qwen2.5:3b Planner and Chat Compose-app Hue smoke committed"
+    ],
+    "compose_host_ollama_endpoint_static_config": [
+      "compose.yaml",
+      "GTP_COMPOSE_OLLAMA_BASE_URL defaults to host.docker.internal",
+      "opt-in profile uses an explicit http://ollama:11434 override",
+      "static configuration only; no Compose live smoke"
+    ],
+    "compose_app_native_ollama_endpoint_live": [
+      "compose.yaml",
+      "recreated app container healthy on 127.0.0.1:8503",
+      "container qwen3:4b structured output through host.docker.internal",
+      "fresh HTTP API Hue plan committed: 4 entries, 1 search, 0 repairs, 0 validation issues",
+      "internal Compose Ollama profile subsequently verified under ollama_compose_profile_live"
+    ],
+    "ollama_live_smoke": [
+      "docs/experiments/2026-10-18-ollama-local-smoke.md",
+      "native Ollama 0.9.0 with qwen2.5:3b",
+      "one-day Hue plan committed: 2 entries, 1 search, 0 repairs, 0 validation issues",
+      "native mixed gpt-5.5 Coordinator / qwen3:4b Planner and Chat: 4-entry Hue plan committed, 1 search, 0 repairs, 0 validation issues",
+      "active mixed gpt-5.5 Coordinator / qwen2.5:3b Planner and Chat: 2-entry Compose-app Hue plan committed, 1 search, 0 repairs, 0 validation issues",
+      "LangSmith: 25 matching runs with the same thread_id for each smoke"
+    ],
+    "ollama_compose_profile_live": [
+      "ollama and ollama-init Compose services started; qwen2.5:3b pulled into named volume",
+      "app reached http://ollama:11434 and committed an invalid-key Hue turn: 1 entry, 1 search, 0 repairs, no validation issues",
+      "Ollama container reported 100% CPU on Apple M1"
+    ],
+    "planner_complete_proposal_contract": [
+      "src/grounded_travel_planner/contracts.py",
+      "src/grounded_travel_planner/agents/planner.py",
+      "tests/test_two_agent_core.py",
+      "4 missing/null-plan regression cases",
+      "82 host tests and isort/Black/flake8/Ruff passed",
+      "separate rebuilt-image live qwen2.5:3b Hue plan committed: 2 entries, 1 search, 0 repairs"
+    ],
+    "api_defaults_without_local_ollama": [
+      "src/grounded_travel_planner/config.py",
+      ".env.example",
+      "README.md",
+      "docs/adr/0010-configurable-openai-ollama-model-provider.md",
+      "tests/test_two_agent_core.py: 49 focused tests passed",
+      "full host pytest: 82 passed",
+      "loaded local .env resolved openai gpt-5.5 / gpt-5.4-mini / gpt-4.1",
+      "isort, Black, flake8, Ruff, uv lock --check and git diff --check passed"
+    ],
+    "container_rebuild_after_model_defaults": [
+      "docker test target passed 82 pytest tests",
+      "runtime image and frontend production build completed",
+      "Compose app healthy on 127.0.0.1:8503",
+      "container RuntimeConfig resolved openai gpt-5.5 / gpt-5.4-mini / gpt-4.1",
+      "GET / and GET /api/graph/image returned HTTP 200",
+      "no live model request was made"
+    ],
+    "chat_search_bounded_session_context": [
+      "README.md",
+      "PROJECT_STATUS.md",
+      "docs/project-charter.md",
+      "docs/implementation-plan.md",
+      "docs/adr/0011-bounded-session-context-and-chat-search.md",
+      "src/grounded_travel_planner/conversation.py",
+      "src/grounded_travel_planner/agents/chat.py",
+      "src/grounded_travel_planner/graph/nodes.py",
+      "src/grounded_travel_planner/ui/streamlit_app.py",
+      "src/grounded_travel_planner/web/api.py",
+      "frontend/src/main.tsx",
+      "tests/test_chat_context.py",
+      "scripts/live_chat_search_smoke.py",
+      "88 host tests passed",
+      "frontend npm run check and npm run build passed",
+      "one live Chat Tavily call returned five sources",
+      "LangSmith chat.search.start/success events matched the same thread_id",
+      "Compose app rebuilt and healthy; root and graph PNG returned HTTP 200",
+      "docs/experiments/2026-10-19-live-chat-search-smoke.md"
+    ],
+    "shared_tavily_tool_node": [
+      "docs/adr/0012-shared-tavily-tool-node.md",
+      "src/grounded_travel_planner/contracts.py#TavilyToolRequest",
+      "src/grounded_travel_planner/graph/nodes.py#tavily_tool",
+      "src/grounded_travel_planner/graph/workflow.py",
+      "tests/test_chat_context.py",
+      "tests/test_graph_diagram.py",
+      "tests/test_two_agent_core.py",
+      "67 focused tests passed; 89 full host tests passed",
+      "isort, Black, flake8, Ruff and uv lock --check passed",
+      "frontend npm run check and npm run build passed",
+      "one live Chat tool call returned five sources",
+      "LangSmith tool.tavily.start/success events had matching thread_id",
+      "Compose app rebuilt and healthy; root and graph PNG returned HTTP 200",
+      "GET /api/graph returned SVG containing the Tavily node label",
+      "docs/experiments/2026-10-19-live-shared-tool-node-smoke.md"
+    ],
+    "runtime_flow_refactor": [
+      "src/grounded_travel_planner/agents/planner.py",
+      "src/grounded_travel_planner/agents/chat.py",
+      "src/grounded_travel_planner/graph/state.py",
+      "src/grounded_travel_planner/graph/nodes.py",
+      "src/grounded_travel_planner/ui/turn_runner.py",
+      "src/grounded_travel_planner/web/api.py",
+      "tests/test_chat_context.py",
+      "tests/test_turn_runner.py",
+      "tests/test_web_api.py",
+      "63 focused tests passed; 90 full host tests passed",
+      "isort, Black, flake8 and Ruff passed",
+      "no live provider call or container rebuild"
+    ],
+    "development_agents_and_skills_refined": [
+      ".codex/agents/manager.toml",
+      ".codex/agents/planner.toml",
+      ".codex/agents/coding.toml",
+      ".codex/agents/testing.toml",
+      ".codex/skills/delivery-orchestrator/SKILL.md",
+      "Moved the first-party UI constraints into .codex/skills/travel-planner-ui/SKILL.md",
+      "docs/adr/0001-python-development-tooling.md",
+      "docs/learning-log/2026-10-14-scope-reset.md: 2026-11-08 workflow refinement record",
+      ".codex/skills/delivery-orchestrator/agents/openai.yaml: Goal Card and lane prompt",
+      "Prior 2026-11-08 refinement removed evaluation-and-test; its temporary retention of vendor bundles was superseded by the native-only skill amendment below",
+      "folded focused offline verification, boundary checks and evidence reporting into testing.toml",
+      "Goal Card and direct, coding, coding-plus-testing, and plan-first delivery lanes documented",
+      "all four .codex/agents/*.toml files parsed with tomli; delivery openai.yaml parsed with PyYAML",
+      "rg found no removed evaluation-and-test references under .codex; git diff --check passed",
+      "no tests, application, frontend, container, browser or live-provider checks ran",
+      "2026-11-08 follow-up: removed vendored Next Level Builder UI/UX Pro Max and Cloudflare security-audit bundles per user direction",
+      ".codex/skills/travel-planner-ui/SKILL.md and .codex/skills/travel-planner-security-review/SKILL.md are project-authored replacements based on project records and local design system",
+      "AGENTS.md, coding/testing/manager agents and ADR 0001 now route only to project-authored skills",
+      "both new skills passed quick_validate.py; all agent TOML, delivery YAML, progress JSON and git diff --check passed",
+      "Prior 2026-11-08 update found no local Ponytail source; user later supplied github.com/DietrichGebert/ponytail",
+      "Read Ponytail core, review, audit, debt, gain and help pages as design input only",
+      "Adapted minimal-complete-change, reuse-first, caller-tracing and review-priority rules into AGENTS, delivery, manager, planner, coding and project skills",
+      "No Ponytail skill files copied or installed; no debt ledger, gain scoreboard or savings claim added",
+      "No shortcut: markers or measured before/after baseline exist in this repository",
+      "2026-11-01 prior refresh: TOML parsing and git diff --check passed",
+      "2026-11-01 refresh: four agents, delivery/evaluation skills and UI overlay aligned with PostgreSQL Compose, session-only state, model fallback, cookie and capacity decisions",
+      "2026-11-01 refresh checks: two skill validators passed, four TOML files parsed with tomli, git diff --check passed"
+    ],
+    "codex_project_token_guidance_configured": [
+      "AGENTS.md: local @RTK.md reference and Vietnamese caveman full default",
+      "RTK.md: local rtk-owned compact output guidance",
+      ".codex/hooks.json: Bash PreToolUse rtk hook codex; existing Python PostToolUse preserved",
+      "direct valid hook payload rewrote git status --short to rtk git status --short; already rewritten command was unchanged",
+      "runtime activation and token savings in a restarted, trusted Codex project session not verified"
+    ],
+    "local_only_codex_tooling": [
+      "superseded by the user's selective-sharing amendment on 2026-10-28"
+    ],
+    "shared_codex_tooling_reviewed": [
+      "102 reviewed project-wide .codex agent, hook and skill files remain tracked",
+      "personal .codex/config.toml removed from Git index and preserved locally",
+      ".gitignore keeps new .codex local state ignored by default",
+      "122 host tests passed; isort, Black, Ruff and focused flake8 passed",
+      "full flake8 retains three existing F841 findings in ignored presentation artifacts",
+      "docs/adr/0001-python-development-tooling.md records the decision"
+    ],
+    "bilingual_webapp_language": [
+      "docs/adr/0013-bilingual-session-language.md",
+      "src/grounded_travel_planner/i18n.py",
+      "src/grounded_travel_planner/web/api.py",
+      "src/grounded_travel_planner/ui/turn_runner.py",
+      "src/grounded_travel_planner/agents/coordinator.py",
+      "src/grounded_travel_planner/agents/planner.py",
+      "src/grounded_travel_planner/agents/chat.py",
+      "frontend/src/i18n.ts",
+      "src/grounded_travel_planner/ui/streamlit_app.py",
+      "src/grounded_travel_planner/ui/graph_architecture.py",
+      "existing focused API/runner/chat-context suite: 14 passed; no locale-specific test added",
+      "frontend npm run check and npm run build passed",
+      "Python compileall, flake8, Black, isort, Ruff and git diff --check passed",
+      "no browser, container or live-provider check run"
+    ],
+    "locale_aware_date_formatting": [
+      "frontend/src/main.tsx uses a custom date calendar with localized month, weekday, and control labels",
+      "itinerary and saved-tour dates and Streamlit date input order follow selected locale; API date values remain ISO",
+      "Streamlit itinerary start date uses an explicit English or Vietnamese month/day format",
+      "npm run check and Python isort/Black/flake8/Ruff checks passed; runtime Docker image built",
+      "recreated app is healthy; local root HTTP 200; PostgreSQL/ngrok not recreated",
+      "GitHub Actions run 42395988122 passed pytest, Python lint, frontend build, and Compose validation",
+      "no browser QA run; app recreation cleared session-only plans"
+    ],
+    "home_starts_new_trip": [
+      "frontend/src/main.tsx",
+      "frontend/src/i18n.ts",
+      "docs/project-charter.md",
+      "docs/implementation-plan.md",
+      "docs/learning-log/2026-10-14-scope-reset.md",
+      "PROJECT_STATUS.md",
+      "frontend npm run check and npm run build passed",
+      "uv run pytest: 155 passed, 1 skipped",
+      "source commit 051c5fc; final local/upstream branch match",
+      "no-cache Compose image sha256:0746fd6f5a1d3c9e442464ab16ae1ed43cc295ac66eadd14816f82dacbcfd7a0; app/ngrok healthy",
+      "local and ngrok public roots HTTP 200; served Home labels",
+      "git diff --check passed",
+      "browser click verification pending"
+    ],
+    "account_actions_dropdown": [
+      "frontend/src/main.tsx",
+      "frontend/src/i18n.ts",
+      "frontend npm run check and npm run build passed",
+      "source commit 051c5fc; final local/upstream branch match",
+      "no-cache Compose image sha256:0746fd6f5a1d3c9e442464ab16ae1ed43cc295ac66eadd14816f82dacbcfd7a0",
+      "local and ngrok public roots HTTP 200; served Home and Account labels",
+      "ngrok Traffic Policy mounted read-only",
+      "six saved tours and account schema/indexes verified; database not recreated",
+      "browser dropdown and Auth0 callback/OTP verification pending"
+    ],
+    "bidirectional_chat_trip_length": [
+      "docs/adr/0009-coordinator-routed-chat-agent-and-trip-extension.md",
+      "docs/project-charter.md",
+      "src/grounded_travel_planner/contracts.py",
+      "src/grounded_travel_planner/agents/coordinator.py",
+      "src/grounded_travel_planner/agents/chat.py",
+      "src/grounded_travel_planner/agents/planner.py",
+      "src/grounded_travel_planner/graph/nodes.py",
+      "src/grounded_travel_planner/policies/change_validation.py",
+      "src/grounded_travel_planner/i18n.py",
+      "chat extension adds a grounded stop on every added day; shortening preserves retained-day stops and removes or reschedules later stops",
+      "92 host and Docker test-target tests passed on 2026-10-26",
+      "Ruff, Black, isort and app/test flake8 passed",
+      "Compose runtime rebuilt and healthy; root and graph PNG HTTP 200",
+      "live provider follow-up not run"
+    ],
+    "ngrok_compose_profile_prepared": [
+      "compose.yaml",
+      ".env.example",
+      "README.md",
+      "docker compose --profile ngrok config --quiet passed",
+      "ngrok/ngrok:latest image pulled and version 3.39.13 checked"
+    ],
+    "ngrok_public_tunnel_verified": [
+      "public HTTPS root returned HTTP 200",
+      "public graph PNG returned HTTP 200",
+      "public session POST returned HTTP 201 and cookie-backed GET returned HTTP 200",
+      "Compose app healthy after recreation from .env change; prior sessions lost"
+    ],
+    "ngrok_tunnel_running": [
+      "2026-11-06: rebuilt app image and force-recreated default Compose services plus ngrok profile",
+      "app and PostgreSQL healthy; ngrok running with --traffic-policy-file and policy mounted read-only",
+      "ngrok inspector: tunnel targets app:8000; active public URL matches GTP_AUTH_PUBLIC_ORIGIN; local and public root returned HTTP 200",
+      "app recreation cleared session-only plans; database volumes were not removed"
+    ],
+    "model_authentication_diagnostic": [
+      "exact Ha Giang request returned OpenAI HTTP 401 token_invalidated before Planner or Tavily",
+      "src/grounded_travel_planner/graph/nodes.py",
+      "src/grounded_travel_planner/i18n.py",
+      "tests/test_two_agent_core.py",
+      "94 host and Docker tests passed",
+      "runtime image rebuilt; running container retained for session preservation",
+      "pre-fallback diagnostic: a valid OPENAI_API_KEY was then required"
+    ],
+    "openai_ollama_automatic_fallback": [
+      "docs/adr/0010-configurable-openai-ollama-model-provider.md",
+      "src/grounded_travel_planner/adapters/model.py",
+      "tests/test_model_fallback.py: 16 offline cases",
+      "110 host pytest tests passed; isort, Black, flake8, Ruff and diff check passed",
+      "live invalid OpenAI key switched to host Ollama qwen2.5:3b structured response",
+      "live Hue plan committed: 3 Tavily citations, 1 search, 0 repairs, 6 graph steps",
+      "Compose runtime image build passed",
+      "one-shot runtime image Hue plan committed through host Ollama: 1 entry, 1 search, 0 repairs, no validation issues",
+      "running Compose app recreated from new image and healthy; root and graph PNG HTTP 200; session POST 201",
+      "restart cleared prior session-only plans and conversations",
+      "LangSmith not checked"
+    ],
+    "planner_terra_model_default": [
+      "src/grounded_travel_planner/config.py: Planner OpenAI default gpt-6.1-terra",
+      "src/grounded_travel_planner/adapters/model.py: Terra JSON-schema structured output and reasoning_effort none",
+      "tests/test_two_agent_core.py: mocked adapter and default coverage; 70 focused tests passed, 111 full tests passed",
+      "isort, Black, Ruff and diff check passed; full flake8 retains three pre-existing F841 findings",
+      "direct model-only ChatResponse call succeeded in 3.91 seconds; full Planner schema bound offline",
+      "rebuilt Compose app healthy with OpenAI gpt-6.1-terra Planner and Ollama qwen2.5:3b fallback; root/graph HTTP 200; recreation cleared session-only state",
+      "no full Planner turn or end-to-end latency comparison verified"
+    ],
+    "apple_m1_ollama_gpu_routing": [
+      "ignored .env sets GTP_COMPOSE_OLLAMA_BASE_URL=http://host.docker.internal:11434",
+      "running app container reached native Ollama and returned a structured fallback response after invalid OpenAI key",
+      "native Ollama.app reported qwen2.5:3b at 100% GPU in ollama ps",
+      "Compose app and Ollama container healthy; container retained as idle CPU option; ngrok stopped"
+    ],
+    "terra_planner_schema_compatibility": [
+      "src/grounded_travel_planner/adapters/model.py: remove unsupported uri schema format for Terra and validate returned data with original Pydantic contract",
+      "src/grounded_travel_planner/graph/nodes.py and src/grounded_travel_planner/i18n.py: safe localized failure skips Chat generation after Planner failure",
+      "tests/test_two_agent_core.py: Terra schema and no-hallucinated-plan regression coverage",
+      "111 host pytest tests passed; isort, Black, flake8, Ruff and git diff --check passed",
+      "rebuilt Compose app healthy; root and graph image HTTP 200",
+      "live Huế API turn committed four entries with source references on all four; Terra invalid-schema warning absent from app logs",
+      "recreating the app cleared session-only state; ngrok stopped"
+    ],
+    "openai_any_api_error_ollama_fallback": [
+      "docs/adr/0010-configurable-openai-ollama-model-provider.md: 2026-10-27 amendment",
+      "src/grounded_travel_planner/adapters/model.py: any OpenAIError triggers one Ollama attempt",
+      "tests/test_model_fallback.py: 18 passed, including HTTP 400/404 and base OpenAIError",
+      "full host pytest: 113 passed; isort, Black, flake8, Ruff and diff check passed",
+      "expanded fallback is included in the rebuilt runtime; the successful live full turn used OpenAI, so the expanded fallback path was not invoked"
+    ],
+    "openai_request_timeout_increase": [
+      "src/grounded_travel_planner/adapters/model.py: shared OpenAI per-call timeout raised from 20 to 60 seconds",
+      "tests/test_two_agent_core.py: model adapter verifies 60-second timeout",
+      "113 host pytest tests passed; isort, Black, flake8, Ruff and git diff --check passed",
+      "fresh live gpt-6.1-terra graph turn completed in 41.3 seconds and committed four sourced Huế entries without validation issues",
+      "rebuilt Compose app healthy; root and graph image HTTP 200; restart clears session-only state"
+    ],
+    "agent_prompt_latency_token_optimization": [
+      "src/grounded_travel_planner/agents/planner.py: compact chronological prior-plan context, deduplicated source records and request text",
+      "src/grounded_travel_planner/agents/chat.py and coordinator.py: concise response/summary instructions and no duplicate full-plan context for Chat",
+      "tests/test_agent_prompt_optimization.py: 2 focused prompt regressions passed",
+      "Ruff, Black and git diff --check passed; full pytest collection blocked by unrelated dirty config.py/service.py edits",
+      "No live before/after token usage or latency benchmark run; no numeric gain claimed"
+    ],
+    "model_identifiers_environment_only": [
+      "src/grounded_travel_planner/config.py and service.py: no model identifier constants; all runtime role, fallback and JSON-schema model selections come from environment values",
+      ".env.example and README.md document required model environment variables",
+      "compose.yaml no longer embeds a model identifier in the optional Ollama initializer",
+      "tests use synthetic model identifiers",
+      "isort, Black, flake8, Ruff and git diff --check passed; full test suite not run for this refactor",
+      "rebuilt app resolves model names and JSON-schema selection from .env and is healthy"
+    ],
+    "native_ollama_mlx_fallback": [
+      "Ollama native v0.40.10 installed from official release; published SHA-256 matched and macOS code signature verified",
+      "qwen3.5:4b-mlx returned structured output on host and from app container via host.docker.internal",
+      "invalid OpenAI key triggered one structured MLX fallback response from app container",
+      "ollama ps reported runner mlx and 100% GPU; app container healthy and root HTTP 200",
+      "qwen2.5:3b removed from native and container stores; CPU Ollama container stopped",
+      "app recreation cleared session-only state; earlier Ollama.app retained temporarily as local backup"
+    ],
+    "deterministic_trip_shortening": [
+      "src/grounded_travel_planner/agents/planner.py: deterministic shortening preserves retained entries/source data and advances revision",
+      "tests/test_shorten_trip_regression.py: relative one-day reduction commits with zero model/search/repair work",
+      "tests/test_planner_shorten_source_context.py: model-backed Planner context retains per-entry source provenance without duplicate source payload",
+      "Full uv run pytest: 117 passed; isort, Black, flake8, Ruff and git diff --check passed",
+      "docker compose build app completed with image sha256:c6e955e6394d66ff274ea699beb9f823df803fdf14251de76afe7ea1141f98a9",
+      "Running Compose container remains on previous image and was not recreated; replacement clears session-only plans"
+    ],
+    "shared_turn_capacity_bound": [
+      "src/grounded_travel_planner/ui/turn_runner.py: eight total running or queued turns; Future completion releases capacity",
+      "src/grounded_travel_planner/web/api.py: localized 429 before session mutation on capacity exhaustion",
+      "tests/test_turn_runner.py and tests/test_web_api.py: cross-session capacity and completion regressions",
+      "network-disabled read-only container: 15 focused and 122 full tests passed",
+      "isort, Black, flake8, Ruff and git diff --check passed",
+      "running Compose app retained its previous image and session-only plans"
+    ],
+    "saved_tours_offline": [
+      "docs/adr/0014-explicit-saved-tour-database.md",
+      "src/grounded_travel_planner/saved_tours.py and web/api.py: explicit owner-scoped SQLite snapshots",
+      "frontend/src/main.tsx and i18n.ts: save and read-only saved-tour views",
+      "tests/test_saved_tours.py: 6 focused cases passed; full host pytest: 128 passed",
+      "isort, Black, flake8, Ruff, npm check/build, Compose config and git diff --check passed",
+      "Docker test target: 128 passed after synthetic test-only model names were configured",
+      "isolated Compose app healthy; root 200, session 201; synthetic saved tour survived container force-recreation on named volume with one fixture source",
+      "temporary Compose project and volume removed; original app remains on older image; browser QA not verified"
+    ],
+    "saved_tours_large_archive_offline": [
+      "docs/adr/0014-explicit-saved-tour-database.md: keyset cursor, composite index and explicit migration decision",
+      "saved_tours.py and web/api.py: owner-scoped bounded keyset pages and 422 cursor/offset validation",
+      "scripts/migrate_saved_tours_index.py: idempotent atomic v1-to-v2 index migration",
+      "tests/test_saved_tours.py: 9 focused passed; full host and Docker test-target pytest: 131 passed each",
+      "scripts/benchmark_saved_tours.py: disposable 2,000,000-row synthetic snapshot fixture, 1,313,050,624-byte DB after checkpoint; page 1 p50/p95 0.715/3.985 ms, page 20,000 0.667/1.465 ms, ten samples",
+      "isort, Black, flake8, Ruff, frontend check/build, Compose config and git diff --check passed"
+    ],
+    "saved_tours_large_archive_compose": [
+      "isolated Compose runtime image built and app reached healthy; root 200, empty cursor-list response, offset 422",
+      "fresh SQLite schema user_version=2 with composite index; runtime migration CLI ran on isolated volume",
+      "temporary Compose project and volume removed; original app container was not recreated"
+    ],
+    "saved_tours_current_compose_deployment": [
+      "existing mounted archive: one v1 row; backup at ignored .local/backups/saved_tours_pre_v2_2026-11-01.sqlite passed integrity check",
+      "explicit v2 migration completed; archive retains one row and composite index; integrity ok",
+      "runtime image rebuilt; app container recreated and healthy on 127.0.0.1:8503; root 200 and POST /api/session 201",
+      "Docker test image rebuilt with cached layer from prior 131-test pass; live session-only state cleared by app recreation"
+    ],
+    "saved_tours_postgres_compose": [
+      "docs/adr/0015-postgres-compose-saved-tour-storage.md: PostgreSQL container decision",
+      "compose.yaml: PostgreSQL 17 with named volume, health check, no host port; app waits for db",
+      "postgres_saved_tours.py: owner-scoped immutable snapshots, bounded pool, keyset list and unique save key",
+      "scripts/migrate_saved_tours_to_postgres.py: read-only SQLite source, 1000-row batches, exact row verification and idempotent rerun",
+      "one existing tour backed up and copied exactly; PostgreSQL and app container recreation retained one row; both healthy",
+      "root HTTP 200, session creation 201; PostgreSQL integration test passed inside Compose network",
+      "host and Docker test-target suites: 131 passed, 1 PostgreSQL test skipped by default; isort, Black, flake8, Ruff, lock and Compose config passed",
+      "PostgreSQL custom-format dump created in ignored .local/backups; pg_restore --list succeeded; old SQLite volume kept"
+    ],
+    "saved_tours_postgres_host_directory": [
+      "compose.yaml: PostgreSQL bind mount defaults to ../grounded-travel-planner-data/postgres outside Git; GTP_DATA_DIR can override",
+      "fresh owner-only custom-format dump in sibling backups directory passed pg_restore --list",
+      "three saved rows retained ordered-row checksum b2106fd26f97d08098fd137e10f97f74; three indexes present after restore",
+      "app and database healthy; root HTTP 200 and session creation HTTP 201; former postgres-data named volume retained",
+      "app restart cleared session-only state; browser and live-provider checks not run"
+    ],
+    "saved_tours_postgres_large_benchmark": [
+      "scripts/benchmark_postgres_saved_tours.py: disposable 2,000,000-row PostgreSQL Compose fixture under one owner with tiny snapshots; 10 samples",
+      "first-page p50/p95 0.729/13.898 ms; page 20,000 p50/p95 0.373/21.557 ms; save 0.155/1.194 ms; delete 0.136/0.523 ms",
+      "database 1,415,034,547 bytes; list index 341,360,640 bytes; isolated Compose project and volume removed; no concurrent traffic"
+    ],
+    "security_pre_push_review": [
+      "focused source review found and fixed missing Secure attributes for session and saved-tour owner cookies behind TLS proxy; Compose forces Secure independent of Host",
+      "tests/test_saved_tours.py: default Secure, public-host and loopback-Host HTTP response-header regressions; explicit local HTTP opt-out",
+      "network-disabled read-only container: 132 passed, 1 optional PostgreSQL test skipped; isort, Black, flake8 and Ruff passed",
+      "Git ignores .env, .local/ and graphify-out/; Docker context excludes local data; explicit 36-file staging set passed path and secret-pattern scans"
+    ],
+    "web_session_capacity_bound": [
+      "src/grounded_travel_planner/web/api.py: 1024-session cap, one-hour idle expiry, running-turn protection and atomic reset replacement",
+      "tests/test_web_api.py: capacity, expiry including uncollected completed turns, reset and 503 regressions",
+      "network-disabled read-only container: 15 focused and 122 full tests passed",
+      "running Compose app retained its previous image and session-only plans"
+    ],
+    "auth0_account_offline": [
+      "docs/adr/0016-auth0-account-owned-saved-tours.md",
+      "src/grounded_travel_planner/auth.py",
+      "src/grounded_travel_planner/web/api.py",
+      "src/grounded_travel_planner/saved_tours.py",
+      "src/grounded_travel_planner/postgres_saved_tours.py",
+      "scripts/migrate_saved_tours_account_ownership.py",
+      "tests/test_auth_integration.py",
+      "tests/test_account_storage.py",
+      "docs/experiments/2026-11-03-auth0-account-offline.md",
+      "host pytest 145 passed, 1 optional PostgreSQL integration test skipped; Python gates and frontend build passed",
+      "isolated PostgreSQL migration twice; 5 snapshot rows retained exact ordered checksum",
+      "Docker test target: 145 passed, 1 optional PostgreSQL test skipped",
+      "2026-11-04: previous app session revoked on login; concurrent first-account creation serialized",
+      "Disposable PostgreSQL: 16 concurrent OIDC identity lookups mapped to one account; session reconnect, CSRF and revocation passed",
+      "first PG concurrency smoke found NUL separator error; length-prefixed lock key fixed and 16-login rerun passed",
+      "live PostgreSQL still 5 rows with original snapshot checksum; root HTTP 200; runtime image built but running container remains previous digest",
+      "2026-11-06: React account dropdown groups Saved tours and sign-in/sign-out; authenticated display name uses email local-part",
+      "frontend npm run check and npm run build passed; git diff --check passed; browser/container/live Auth0 checks not run"
+    ],
+    "auth0_account_live": [
+      "pending Auth0 tenant, email OTP and cross-browser A/B QA"
+    ],
+    "auth0_account_deployed": [
+      "pending controlled migration of live PostgreSQL and app rollout"
+    ],
+    "macos_ci_cd_configured": [
+      ".github/workflows/ci-cd.yml: GitHub-hosted verification on active-branch pushes and pull requests",
+      "scripts/poll_and_deploy_macos.sh: waits for successful push CI, filters app changes and gates deployment locally",
+      "scripts/deploy_macos.sh: Compose/database preflight, app-only update, health check and previous-image rollback",
+      "scripts/install_macos_deploy_agent.sh: installed five-minute macOS launchd poller",
+      "local Mac config stores paths only; app .env and PostgreSQL data remain outside Git",
+      "GTP_DEPLOY_ENABLED=false pending the explicit Auth0 database migration and rollout",
+      "deployment preflight, shell syntax, YAML parsing, plist validation and diff checks passed; app not restarted",
+      "GitHub Actions run 42471059065 failed at setup-python on three HTTP 504 responses while downloading CPython 3.10.22 on ubuntu-26.04",
+      "Rerun at SHA 27a17e7 passed Python setup/tests/lint, frontend check/build and Compose validation; GTP_DEPLOY_ENABLED=false, so no app deployment ran"
+    ],
+    "ngrok_session_rate_limit": [
+      "deploy/ngrok-traffic-policy.json: per-client-IP sliding-hour limits for POST /api/session, POST /api/session/reset and POST /api/turns",
+      "compose.yaml: optional ngrok service mounts and loads the policy read-only",
+      "tests/test_deployment_security.py: policy and Compose wiring regressions",
+      "docker compose --profile ngrok config --quiet passed",
+      "full host pytest 155 passed, 1 optional PostgreSQL test skipped",
+      "Docker test target: 155 passed, 1 optional PostgreSQL test skipped",
+      "2026-11-06: app image rebuilt and full Compose stack recreated with ngrok profile; policy loaded read-only; live 429 enforcement not tested"
+    ],
+    "auth_callback_access_logging_disabled": [
+      "Dockerfile: runtime Uvicorn starts with --no-access-log",
+      "README.md: local Uvicorn command also disables access logs",
+      "tests/test_deployment_security.py: runtime logging configuration regression",
+      "full host pytest 155 passed, 1 optional PostgreSQL test skipped",
+      "Docker test target: 155 passed, 1 optional PostgreSQL test skipped",
+      "rebuilt runtime app healthy with --no-access-log; app recreation cleared session-only plans"
+    ],
+    "runtime_output_token_caps": [
+      "src/grounded_travel_planner/config.py: per-role caps with environment overrides",
+      "src/grounded_travel_planner/adapters/model.py: OpenAI max_completion_tokens and Ollama num_predict",
+      "src/grounded_travel_planner/contracts.py: maximum 28 itinerary entries",
+      "tests/test_two_agent_core.py: mocked config, adapter and schema regressions"
+    ],
+    "http_principal_turn_quota": [
+      "src/grounded_travel_planner/web/turn_rate_limit.py: sliding-hour principal/global process limits, pruning and 4,096 principal bound",
+      "src/grounded_travel_planner/web/api.py: verified Auth0 user_id or anonymous thread_id; 429 before turn mutation",
+      "tests/test_web_api.py: expiry, cross-session account key, global limit, non-mutation and capacity cases",
+      "GTP_TURN_LIMIT_PER_HOUR defaults to 20; optional GTP_TURN_GLOBAL_LIMIT_PER_HOUR is unset unless provided at runtime",
+      "Process-local only; restart resets counters and replicas do not share quota state"
+    ],
+    "model_token_usage_events": [
+      "src/grounded_travel_planner/adapters/model.py: model.usage event with model, role, input/output tokens, turn_id, and thread_id metadata only",
+      "src/grounded_travel_planner/service.py: same TraceSink injected into role models and runtime graph",
+      "Usage metadata is optional; trace errors do not fail a planning turn",
+      "Events require LangSmith tracing to be enabled; no prompt, response, account ID, cookie, secret, or dollar price is recorded"
+    ],
+    "runtime_global_quota_compose": [
+      "docker compose up --build -d app: runtime image rebuilt and app container recreated",
+      "docker compose ps: app and PostgreSQL healthy; ngrok remained running",
+      "local root returned HTTP 200",
+      "TurnRateLimiter parsed a configured global cap inside app container; numeric value not displayed or recorded",
+      "no HTTP 429 or LangSmith usage event was exercised; app recreation cleared session-only plans; saved tours remained in PostgreSQL"
+    ],
+    "create_trip_day_coverage": [
+      "docs/project-charter.md: each day in a newly created itinerary needs a grounded stop",
+      "src/grounded_travel_planner/agents/planner.py: create-trip prompt requires a grounded stop each day",
+      "src/grounded_travel_planner/policies/plan_commit.py: missing days reject candidate before commit; one repair remains bounded",
+      "tests/test_itinerary_day_coverage.py: missing days 2 and 3 reject after one repair and preserve prior plan; complete seven-day plan commits",
+      "Focused regression: 2 passed; full offline pytest: 170 passed, 1 optional PostgreSQL test skipped",
+      "isort, Black, flake8, Ruff and git diff --check passed",
+      "Compose image sha256:133f4f2471e7c81c74ce0fffdb9f39c9e14fb8ebd06c60ad73d520027b55da22 deployed; app healthy, root HTTP 200, runtime source confirms guard and prompt; PostgreSQL healthy, ngrok remained running; app recreation cleared session-only plans",
+      "Planner output ceiling resolves to 8,192 tokens with no runtime override; no request usage trace was available to show the cap was reached"
+    ],
+    "mandatory_auth_entry_offline": [
+      "docs/proposals/2026-11-08-mandatory-authenticated-entry-and-account-management.md",
+      "docs/adr/0021-mandatory-authenticated-planner-entry.md",
+      "docs/project-charter.md: public landing and Auth0 required for React planner/API",
+      "frontend/src/main.tsx and frontend/src/i18n.ts: bilingual landing, auth-first bootstrap, focus/visibility recheck, private-state clearing",
+      "src/grounded_travel_planner/web/api.py: Auth0-required planner APIs and owner-bound volatile sessions",
+      "tests/test_auth_integration.py, tests/test_web_api.py, tests/test_saved_tours.py",
+      "Focused auth/API/archive tests: 44 passed",
+      "Full uv run pytest: 176 passed, 1 optional PostgreSQL test skipped",
+      "frontend npm run check and npm run build passed",
+      "isort, Black, flake8, Ruff and git diff --check passed",
+      "No browser QA, live Auth0 OTP/callback, Compose rebuild or app restart; running image unchanged"
+    ],
+    "security_audit_2026_11_10_offline": [
+      "docs/experiments/2026-11-10-security-audit.md",
+      "src/grounded_travel_planner/web/api.py and ui/graph_architecture.py: CSRF checks on authenticated session creation/reset, language updates and turns; graph views render local SVG",
+      "src/grounded_travel_planner/auth.py: Auth0 issuer must be an HTTPS origin before token exchange",
+      "src/utils/sqlite.py, src/grounded_travel_planner/auth.py, src/grounded_travel_planner/saved_tours.py: private SQLite DB and sidecar permissions",
+      "TravelPlannerService.get_graph_image Mermaid PNG call path removed",
+      "Full uv run pytest: 185 passed, 1 optional PostgreSQL test skipped",
+      "Frontend npm run check/build, isort, Black, flake8, Ruff and git diff --check passed",
+      "No live provider, browser, deployed endpoint, real local database or Compose image was checked"
+    ]
+  },
+  "notes": "Compose now runs saved tours in PostgreSQL 17 on a sibling host directory outside Git. Three saved rows and indexes survived the move from the old named volume, which remains for recovery. One earlier SQLite tour was backed up and copied exactly to PostgreSQL. A disposable 2M-row PostgreSQL benchmark measured keyset page 1/deep p50 0.729/0.373 ms with tiny snapshots and no concurrent traffic; its volume was removed. Focused pre-push review fixed Secure cookie handling behind TLS proxies. Network-disabled read-only container suite: 132 passed, 1 optional PostgreSQL test skipped; Python quality gates passed. Browser/live-provider checks were not run; the running app image predates the cookie fix. Old SQLite volume and ignored backups remain for recovery. Auth0 account ownership is implemented and verified offline (145 passed, 1 skipped); an isolated five-row PostgreSQL restore survived two migration runs unchanged. Live database/app remain on browser-cookie ownership pending tenant setup, migration and browser QA. A disposable PostgreSQL smoke mapped 16 concurrent logins to one account and verified persisted session, CSRF and revocation. Follow-up: a disposable PG smoke caught and fixed an invalid NUL advisory-lock key; 16 concurrent identity lookups now map to one account. Live DB checksum and running app stayed unchanged; rebuilt image was not deployed. GitHub Actions CI and a local five-minute macOS launchd poller are configured. The poller waits for a successful push CI run and uses no GitHub token. Automatic Mac deployment stays disabled until the explicit Auth0 database migration and rollout; no app restart or migration ran for CI/CD setup. 2026-11-05 security follow-up: optional ngrok ingress limits session create/reset and planning turns to 20 requests per client IP per sliding hour; Uvicorn access logs are disabled. Host suite 155 passed, 1 optional test skipped. On 2026-11-06 the runtime image was rebuilt and Compose recreated app, PostgreSQL and ngrok. App and database are healthy; ngrok loads the read-only policy. Local and public root returned HTTP 200, and the tunnel URL matches GTP_AUTH_PUBLIC_ORIGIN. App recreation cleared session-only plans; database volumes were not removed. Docker test target also passed 155 tests with one optional PostgreSQL test skipped for the security follow-up. 2026-11-06: added per-role output ceilings, authenticated/session HTTP turn quotas and redacted LangSmith token-usage events. Full host suite 168 passed with one optional PostgreSQL test skipped; Python quality gates passed with dotenv disabled. Compose image rebuilt and app container recreated after environment configuration. App and PostgreSQL are healthy; local root returned HTTP 200; global cap parsed in the app. The numeric environment value was not displayed or recorded. App recreation cleared session-only plans; saved tours remained in PostgreSQL. The optional global cap is a process-local hourly turn count, not USD; provider-project spend controls and managed DDoS edge remain separate. 2026-11-06: new-trip candidate validation now requires at least one grounded stop on every selected day. Missing middle days trigger one repair; a still-incomplete candidate is rejected and the previous plan stays intact. Full offline suite 170 passed, 1 optional PostgreSQL test skipped; Python quality gates passed. Compose image sha256:133f4f2471e7c81c74ce0fffdb9f39c9e14fb8ebd06c60ad73d520027b55da22 now includes this fix; app is healthy and root returns HTTP 200. Recreating app cleared session-only plans; PostgreSQL remained healthy and ngrok stayed running. The app resolves Planner output cap to 8,192 tokens with no override; no usage trace established token exhaustion. 2026-11-08: mandatory Auth0 sign-in and a bilingual public landing are implemented in source. The FastAPI planner API requires a valid account and owner-matched volatile session; login binds or rotates sessions, logout revokes and discards session state, and focus rechecks clear stale browser state. Full offline suite 176 passed with one optional PostgreSQL skip; frontend check/build and Python gates passed. No browser/live Auth0 or Compose deployment ran; the running image is unchanged. 2026-11-10: source-scoped security audit fixed CSRF gaps on planner mutations, removed Mermaid API rendering from graph diagnostics, rejected non-HTTPS Auth0 issuers and restricted SQLite fallback file permissions. Full offline suite 185 passed, one optional PostgreSQL test skipped; frontend and Python quality gates passed. Browser, live provider, real database permissions and deployment were not checked."
 }

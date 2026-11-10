@@ -7,13 +7,13 @@ This repository keeps its Codex development workflow in Git:
 | `AGENTS.md` | Project rules and required reading |
 | `.codex/config.toml` | Agent concurrency; models inherit from the session |
 | `.codex/agents/*.toml` | Manager, planner, coding, and testing roles |
-| `.agents/skills/*/SKILL.md` | Reusable workflow and project verification skills |
+| `.agents/skills/*/SKILL.md` | Portable workflow-transfer and verification references |
 | `.codex/hooks.json`, `.codex/hooks/format_python.py` | Python edit hook |
 | `pyproject.toml`, `uv.lock` | Development tools and locked dependencies |
 
-The Codex development agents are separate from the app's Coordinator and
-Planner runtime agents. The role files stay generic; `AGENTS.md` and project
-records carry travel-planner decisions.
+The Codex development agents are separate from the app's Coordinator, Planner
+and Chat runtime roles. Project-specific agent instructions and skills remain
+under `.codex/`; `AGENTS.md` and project records carry product decisions.
 
 ## Another machine, same repository
 
@@ -24,8 +24,8 @@ records carry travel-planner decisions.
    signed-in account; development subagents inherit it.
 3. Set up credentials in ignored local environment files. Do not transfer
    `.env`, personal Codex config, plugin cache, or credentials through Git.
-4. Check that Codex discovers the four agents and two repository skills. Run
-   the verification commands in `AGENTS.md`.
+4. Check that Codex discovers the four agents and the project and portable
+   skills. Follow `AGENTS.md` for this repository's active workflow.
 
 Personal skills in `~/.agents/skills/` or `~/.codex/skills/`, including
 `caveman`, are not part of this repository. Install them separately on the
@@ -35,7 +35,8 @@ need separate setup; they are not repository files.
 
 ## Another repository
 
-Copy `.codex/agents/` and the selected `.agents/skills/` folders. Copy
+Copy `.codex/agents/` only after adapting their product rules. Copy selected
+`.agents/skills/` folders as portable workflow tools. Copy
 `.codex/config.toml` after checking concurrency needs. Development models
 inherit from the signed-in Codex session.
 Rewrite `AGENTS.md` from the destination's actual decisions. Copy the hook

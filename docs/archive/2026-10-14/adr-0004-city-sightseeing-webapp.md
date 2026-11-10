@@ -1,7 +1,11 @@
 # ADR 0004 — New sightseeing webapp scope and two runtime agents
 
+Historical snapshot from the main branch. Superseded by the current
+[ADR 0004](../../adr/0004-city-sightseeing-two-agent-runtime.md), with later
+runtime updates in ADR 0009 and subsequent accepted records.
+
 Date: 2026-10-14
-Status: Accepted
+Status: Historical; superseded
 Supersedes: ADR 0002 and ADR 0003 for product/runtime scope.
 
 ## Context

@@ -1,0 +1,49 @@
+# ADR 0006 - Photo-Only Itinerary and Graph Inspection Page
+
+Status: Accepted
+Date: 2026-10-16
+Supersedes: ADR 0005
+
+User amendment, 2026-11-01: Hide the graph inspection page from the product UI.
+The React navigation no longer exposes it, and the Streamlit page source lives
+outside Streamlit's auto-discovered `pages` directory. Keep the compiled-graph
+rendering and HTTP diagnostic endpoints for developer inspection.
+
+Security amendment, 2026-11-10: Render graph diagnostics as local SVG in both
+the HTTP adapter and retained Streamlit page. Do not send graph definitions to
+the external Mermaid renderer. The former `TravelPlannerService.get_graph_image`
+PNG path was removed; `/api/graph/image` now serves `image/svg+xml`.
+
+## Context
+
+The itinerary map and car marker introduced under ADR 0005 produced an
+unhelpful geographic view for the user. The user explicitly requested removal
+of the route map. The user also requested a separate page with an image of the
+runtime graph to inspect its architecture.
+
+## Decision
+
+Keep source-attributed place photos as optional presentation data. Stop looking
+up coordinates, remove the route map and car interaction, and retain the text
+itinerary when a photo is unavailable. Visual lookups remain outside the
+Coordinator/Planner graph and cannot change the canonical plan.
+
+Add a read-only Streamlit page and HTTP diagnostics that render the compiled
+LangGraph topology as local SVG. Show conditional branches and the repair loop,
+and expose topology data for inspection. Loading the page must not invoke the
+workflow, call model/search/tracing/rendering services, or mutate session plan
+state. The graph image is an architecture diagram, not a geographic route.
+
+## Consequences
+
+- The itinerary UI has no map tiles, geocoding requests, route geometry or car
+  animation.
+- Public photo results still require creator, license and source-page credit.
+- The separate page adds navigation without adding a runtime agent or a new
+  application state store.
+
+## Review Triggers
+
+- The user requests a geographic map again with a clear interaction goal.
+- The compiled graph or Streamlit page structure changes enough to make the
+  diagram layout misleading.

@@ -1,7 +1,7 @@
 # Learning Log — Portable Codex workflow
 
 Date: 2026-11-08
-Status: Current
+Status: Historical; current product log is `2026-10-14-scope-reset.md`.
 
 ## Objective
 
@@ -11,8 +11,8 @@ The travel-planner runtime architecture is outside this change.
 
 ## Changes
 
-- Kept the manager, planner, coding, and testing responsibilities while
-  removing travel-planner product detail from their agent TOML files.
+- Kept the manager, planner, coding, and testing responsibilities and current
+  project-specific guardrails in agent TOML files.
 - Removed fixed Codex development models and reasoning effort from the project
   config and agents. A `testing` agent spawn using the former `gpt-5.5` setting
   failed on the current ChatGPT Codex account. Development agents now inherit

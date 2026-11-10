@@ -1,62 +1,1233 @@
-# Learning Log — New scope adoption
+# Learning Log - 2026-10-14 Scope Reset
 
-Date: 2026-10-14
-Status: Historical; see [current log](2026-11-08-codex-workflow.md)
+## Application Security Audit — 2026-11-10
 
-## Objective
+- Reviewed the Auth0-protected planner session and turn mutations, Auth0 issuer
+  construction, HTTP and Streamlit graph rendering, and SQLite fallback
+  storage. Four concrete issues were fixed: protected planner writes lacked
+  CSRF checks; graph views called the external Mermaid renderer; Auth0 issuer
+  configuration allowed HTTP; and SQLite fallback database files could
+  inherit `0644` permissions under the host umask.
+- All planner mutations now require the authenticated account's CSRF token and
+  React supplies it from in-memory `/api/auth/me` state. Both graph views render
+  SVG locally and the Mermaid PNG call path was removed. Auth0 accepts HTTPS
+  origins only. SQLite DB and
+  existing sidecars are restricted to `0600`, while newly created storage
+  directories use `0700`; existing configured directories are not changed.
+- Regression tests use mocked identities/services and temporary SQLite paths.
+  Full offline suite: 185 passed, one optional PostgreSQL test skipped.
+  Frontend check/build, isort, Black, flake8, Ruff and `git diff --check`
+  passed.
+- No browser, live Auth0/provider/Mermaid call, real local database, deployed
+  endpoint or Compose image was checked. The fixes remain source-only. Full
+  findings and limits: `docs/experiments/2026-11-10-security-audit.md`.
 
-Replace the previous POC plan with the user's new sightseeing-webapp request
-and make the repository's entry points consistent with the agreed scope.
+## GitHub Actions Python Download Retry — 2026-11-09
 
-## Decisions recorded
+- Run `42471059065` failed in `actions/setup-python` before tests started. The
+  Ubuntu 26.04 runner received HTTP 504 on all three attempts to download the
+  CPython 3.10.22 artifact. The same workflow and runner image had passed in
+  run `42395988122` the prior day.
+- Reran the failed job at the same source SHA (`27a17e7`). Python setup,
+  dependency install, pytest, Python lint, frontend check/build and Compose
+  validation all passed. The local Mac deployment gate is `false`, so this CI
+  rerun did not deploy or restart the app.
+- This was a transient artifact-download failure; no workflow or application
+  source change was needed. The CI run is green after rerun.
 
-- Input: destination/place, concrete start date and user-selected day count.
-- Search through Tavily before proposing sightseeing places and an itinerary.
-- Chat edits timing, order and the set of places.
-- LangChain/LangGraph runtime with Coordinator and Planner using `gpt-5.5`.
-- Code validation before applying plan changes.
-- App state is session-only; LangSmith traces every turn and groups child runs
-  by the same session ID. Traces are not app persistence.
-- The old delivery dates, fixture journey, pricing rules and completion counts
-  do not govern the new scope. No new deadline has been agreed.
+## Initial Locale-Aware Date Display — 2026-11-07
 
-## Artifacts
+- The user reported that app-rendered dates still appeared in Vietnamese on the
+  English page. React itinerary and saved-tour dates now use
+  `Intl.DateTimeFormat`; Streamlit formats its date input and itinerary date
+  from the session locale. Date-only values stay ISO in the API and session.
+- Updated ADR 0013, the charter, implementation plan, status and roadmap records.
+- Source reviewed. No tests, frontend build or browser check were run.
 
-- [Charter](../project-charter.md) and [implementation plan](../implementation-plan.md)
-- [ADR 0004](../adr/0004-city-sightseeing-webapp.md)
-- [UI proposal](../ui-plan.md), [roadmap](../roadmap.html) and
-  [progress JSON](../progress/roadmap-progress.json)
-- [Repository status](../../PROJECT_STATUS.md), [README](../../README.md) and
-  [Codex instructions](../../AGENTS.md)
-- [Environment template](../../.env.example)
-- [Historical snapshots](../archive/2026-10-14/README.md)
+## React Date Picker Locale Follow-Up — 2026-11-08
 
-## Verification
+- The user reported that the browser-native React date selector still used
+  Vietnamese month and weekday labels on the English page. Replaced it with a
+  React calendar that localizes month, weekday and control labels, supports
+  keyboard date navigation, and keeps submitted dates in ISO form.
+- `npm run check`, Python isort, Black, flake8 and Ruff checks passed. The
+  runtime Docker image built successfully. Recreated only the app container;
+  it is healthy and local root returns HTTP 200. PostgreSQL and ngrok stayed
+  running. App recreation cleared session-only plans and conversations.
+- GitHub Actions run `42395988122` passed pytest, Python formatting/lint,
+  frontend check/build and Compose validation. Browser QA was not run. Focused
+  source review found no auth, storage or provider boundary changes.
 
-- Document checks: passed; 61 local Markdown/HTML links resolve.
-- Progress JSON: parsed and checked; 3 phases with 12 implementation tasks,
-  all uncompleted. Completed planning artifacts exist.
-- Current roadmap: old localStorage seeds/task IDs removed.
-- Environment template: credential values empty and runtime model `gpt-5.5`;
-  existing `.env` remains ignored and `.env.example` is trackable.
-- `uv lock --check`: passed.
-- `uv run pytest`: 2 passed, covering the existing development hook.
-- `uv run isort --check-only . .codex/hooks/format_python.py`: passed.
-- `uv run black --check . .codex/hooks/format_python.py`: passed.
-- `uv run flake8 . .codex/hooks/format_python.py`: passed.
-- `uv run ruff check . .codex/hooks/format_python.py`: passed.
-- `git diff --check`: passed.
-- Independent read-only review: passed with no actionable issues; all 12
-  acceptance scenarios match the approved drafts. Its broader link check
-  covered 65 local links, including historical records, with no missing targets.
-  The five archive snapshots match the previous HEAD after newline normalization.
+## Empty Days In New Itineraries — 2026-11-06
 
-Application tests and live model/Tavily/LangSmith checks: N/A / not run; the
-application is not implemented by this documentation update. Tooling checks
-do not demonstrate runtime behavior or trace delivery.
+- The user reported seven-day suggestions with an empty middle day. The
+  confirmed gap was in candidate validation: schedule checks validated day
+  ranges, overlaps and hours, but did not require each requested day to contain
+  a stop. The Planner prompt also lacked that requirement.
+- The running Compose app uses the default Planner output ceiling of 8,192
+  tokens, with no runtime override. No request usage trace showed that the cap
+  was reached. Output truncated before schema completion would fail
+  parsing/validation; a sparse but valid candidate was the path that could
+  commit.
+- New-trip prompts now require a grounded stop on every selected day. Candidate
+  validation reports each missing day and allows the existing single repair;
+  if repair still fails, the previous plan is preserved. Other edit semantics
+  remain unchanged.
+- The focused regression passed 2 tests; the full offline suite passed 170
+  tests with one optional PostgreSQL test skipped. isort, Black, flake8, Ruff
+  and `git diff --check` passed. Live providers and browser were not tested.
+- The user then requested an image/container restart. Built image
+  `sha256:133f4f2471e7c81c74ce0fffdb9f39c9e14fb8ebd06c60ad73d520027b55da22`
+  and recreated only `app`. It is healthy and serves root with HTTP 200;
+  runtime source inspection confirms the guard and prompt are present.
+  PostgreSQL remained healthy and ngrok stayed running. App recreation cleared
+  session-only plans. No live-provider turn or browser interaction was run.
+## Current Worktree Redeploy — 2026-11-06
 
-## Next
+- The branch advanced from `c47426e` to `051c5fc` during this work. Final fetch
+  and pull confirm local and upstream at `051c5fc`. Rebuilt that source content
+  without cache as image
+  `sha256:0746fd6f5a1d3c9e442464ab16ae1ed43cc295ac66eadd14816f82dacbcfd7a0`.
+- Recreated only the app and ngrok containers. PostgreSQL stayed healthy with
+  six saved tours, the account-owner column, owner indexes and auth tables.
+  No database migration ran during this deployment.
+- Local and public roots returned HTTP 200 and served Home/Account labels.
+  Ngrok mounted the Traffic Policy read-only. Auth0/session configuration is
+  present in the container; browser interactions and callback/OTP remain
+  unverified.
+- The deployment itself created no commit or push. This deployment evidence
+  remains in the local worktree; the Home and Account source is in `051c5fc`.
 
-Implement the first incomplete step in the new plan: contracts, two runtime
-agents, LangGraph state/routing, Tavily, validation and tracing for initial
-planning. Preserve existing tooling and local secrets.
+## User Decision — Account Actions Dropdown — 2026-11-06
+
+- Group saved tours and the sign-in/sign-out action under one user-icon dropdown
+  in the React header. Show the authenticated user's email local-part as the
+  display name; keep email as display data, never as the archive owner key.
+- Keep Saved tours available in both auth states. Anonymous users see sign-in;
+  authenticated users see sign-out. Keyboard Escape and outside pointer input
+  close the dropdown.
+- The React typecheck and build passed. Follow-up deployment evidence is above.
+  Browser dropdown interaction and live Auth0 checks remain pending.
+
+## User Decision — Home Starts a New Trip — 2026-11-06
+
+- The user requested that the header Home control return to the trip start and
+  behave like creating a new trip. It uses the existing session reset, confirms
+  before discarding a current plan, and clears live trip/chat drafts while
+  preserving language, account and explicitly saved tours.
+- The React implementation and session-reset behavior pass frontend
+  typecheck/build and the full offline Python suite (155 passed, 1 skipped).
+  The new image serves Home labels locally and publicly. Browser click
+  verification remains pending.
+
+## Auth0 Account Implementation — Offline Verification — 2026-11-03
+
+- The Auth0 account-owned archive implementation, React sign-in/out/claim
+  controls, explicit migration and ADR 0016 are now in the worktree. Offline
+  tests and an isolated PostgreSQL restore/migration passed; details are in
+  `docs/experiments/2026-11-03-auth0-account-offline.md`.
+- No Auth0 tenant settings were present in `.env`. The live database and
+  running app were not migrated or recreated. Their browser-cookie behavior
+  remains deployed. The old-cookie claim window and account deletion/export
+  policy still need decisions before public rollout.
+- Follow-up on 2026-11-04: sign-in revokes any prior app session; same-identity
+  account creation is serialized. Host and container suites pass 146 tests,
+  with one optional PostgreSQL integration test skipped. A disposable
+  PostgreSQL smoke mapped 16 concurrent logins to one account and verified
+  session persistence, CSRF and revocation.
+
+## User Decision — Auth0 For Account-Owned Saved Tours — 2026-11-02
+
+- The user selected Auth0 as the future OIDC identity service. Email OTP through
+  Auth0 Universal Login should let a verified first-time user enter without a
+  separate registration page. The existing PostgreSQL Compose archive remains
+  the tour store; account ownership will replace browser-cookie ownership after
+  a controlled migration. A Mac implementation plan is recorded in
+  `docs/proposals/2026-11-02-auth0-account-owned-saved-tours-plan.md`.
+- This is a planning decision only. No Auth0 tenant, application integration,
+  schema migration, cross-browser behavior, or live verification exists yet.
+  The currently accepted same-browser storage behavior remains deployed until
+  implementation updates the charter and ADRs.
+
+## Branch Integration — 2026-11-02
+
+- Merged the 2026-11-01 Codex-tooling branch into the active feature branch.
+  Resolved status, progress JSON and README conflicts while retaining the
+  current branch's concise setup guidance and selective `.codex` sharing.
+  Documented PostgreSQL saved tours, Secure-cookie local HTTP configuration
+  and SQLite migration in the short README. The pre-existing local
+  `AGENTS.md` correction to the Planner model is included in the merge.
+- On Windows, `uv run pytest` passed 132 tests with one optional PostgreSQL
+  integration test skipped. Frontend typecheck/build, Black, Ruff and lock
+  checks passed. Full flake8 retains three existing F841 findings in
+  ignored `artifacts/presentations/update_deck.py`. Isort passed under Python
+  UTF-8 mode; the default Windows code page produced parsing warnings.
+  Compose, live-provider and browser checks were not run on this checkout.
+
+## User Decision — Separate PostgreSQL Data Directory — 2026-11-01
+
+- The user requested a separate persistent data directory that is not pushed
+  to Git. Compose now bind-mounts PostgreSQL from the sibling
+  `../grounded-travel-planner-data/postgres` directory by default; `GTP_DATA_DIR`
+  may select another host directory. The former named volume remains intact.
+- Stopped the app before a fresh custom-format dump. The dump in the sibling
+  `backups` directory has owner-only permissions and passed `pg_restore --list`.
+  Initialized PostgreSQL on the empty bind mount and restored the dump.
+- The three saved rows had identical ordered-row checksum
+  `b2106fd26f97d08098fd137e10f97f74` before and after. All three indexes
+  remained. App and database are healthy; root returned 200 and session
+  creation 201. The restart cleared session-only plans and conversations.
+  Browser and live-provider behavior were not checked.
+
+## Project Codex Token Guidance — 2026-11-01
+
+- The user requested RTK and `caveman full` for this project. `rtk init
+  --codex` added local `RTK.md`, its `AGENTS.md` reference and a `Bash`
+  `PreToolUse` handler in `.codex/hooks.json`; the existing Python formatter
+  hook remains. `AGENTS.md` now requests Vietnamese `caveman full` replies by
+  default, while allowing the user to change style.
+- A direct RTK hook test with a valid `permission_mode` rewrote `git status
+  --short` to `rtk git status --short`. Passing an already rewritten command
+  returned no second rewrite. This verifies the handler, not Codex runtime
+  activation. Restart and project-hook trust are still needed; no token-saving
+  measurement from a new project session exists yet.
+
+## Development Agent And Skill Refresh — 2026-11-01
+
+- Updated manager, planner, coding and testing instructions to reflect the
+  PostgreSQL Compose saved-tour archive, SQLite local fallback, session-only
+  live state, explicit save and owner isolation, environment-selected model
+  identifiers, OpenAI-to-Ollama fallback, Secure cookie defaults and bounded
+  turn/session capacity.
+- Updated the delivery and evaluation skills and the project UI overlay for
+  storage, deployment evidence and saved-tour behavior. No runtime agent
+  topology or application code changed.
+- Both edited skill entry points passed `quick_validate.py` under `uv run
+  python`; all four agent TOML files parsed with `tomli`; `git diff --check`
+  passed. No application, browser, container or live-provider check was run.
+
+## User Decision — Security Gate Before Commit And Push — 2026-11-01
+
+- The user requested security review before commit and push, with no local data
+  or keys in the repository. The focused source review found that HTTP requests
+  forwarded by a TLS proxy could issue non-Secure session and saved-tour owner
+  cookies. Both cookies now default to Secure, and Compose forces Secure
+  independently of client Host headers. Direct local HTTP needs explicit
+  opt-out.
+- A new response-header regression and the full suite passed in a
+  network-disabled, read-only container: 132 passed, one optional PostgreSQL
+  integration test skipped. isort, Black, flake8 and Ruff passed in the same
+  environment. `.env`, `.local/` and generated `graphify-out/` are excluded
+  from Git; local data is excluded from Docker build context. The explicit
+  36-file staging set passed path and secret-pattern scans, with no local
+  database, dump, environment file or key staged. This focused review is not
+  a full codebase audit. The running app image predates the cookie fix.
+
+## User Decision — Database Container In Compose — 2026-11-01
+
+- The user requested a database container in Docker Compose. ADR 0015 moves
+  explicitly saved tours from embedded SQLite to a PostgreSQL 17 `db` service
+  with a named volume, health check and no published host port. The live plan,
+  transcript and pending turns remain session-only.
+- The app was stopped before copying the old SQLite volume. Its one saved row
+  was backed up to ignored
+  `.local/backups/saved_tours_pre_postgres_2026-11-01.sqlite`; the backup passed
+  SQLite integrity check. The read-only migration copied and verified all row
+  fields, including the exact snapshot text. A second run confirmed
+  idempotency. The old SQLite volume remains for rollback.
+- Both PostgreSQL and app containers are healthy. Root returned HTTP 200 and
+  session creation 201. PostgreSQL retained one row after both containers were
+  recreated. A custom-format PostgreSQL dump was created in ignored `.local`
+  backups and `pg_restore --list` accepted it. A PostgreSQL integration test
+  passed inside the Compose network; an isolated Compose smoke passed
+  migration, snapshot preservation, CRUD and owner isolation.
+- The full host and Docker test-target suites passed 131 cases with one
+  PostgreSQL test skipped by default. Python quality gates, lock and Compose
+  config passed. Browser and live-provider behavior were not checked. The
+  earlier two-million-row performance result belongs to SQLite. A new isolated
+  PostgreSQL Compose benchmark populated 2,000,000 tiny synthetic snapshots
+  under one owner. Ten samples gave first-page p50/p95 0.729/13.898 ms, page
+  20,000 0.373/21.557 ms, save 0.155/1.194 ms and delete 0.136/0.523 ms.
+  Database size was 1,415,034,547 bytes, with a 341,360,640-byte list index.
+  The temporary project and volume were removed; real snapshots and concurrent
+  traffic were not measured.
+
+## Compose Image And Container Restart — 2026-11-01
+
+- The user requested a fresh image and container run. The app container had
+  already exited because the mounted SQLite archive held one saved tour under
+  schema v1; startup correctly required explicit migration.
+- Backed up the archive with SQLite's backup API to ignored
+  `.local/backups/saved_tours_pre_v2_2026-11-01.sqlite`. The backup had one row
+  and passed `PRAGMA integrity_check`. Ran the v2 migration against the mounted
+  volume without deleting it. The archive still has one row, the composite
+  index, schema version 2 and integrity `ok`.
+- Rebuilt the runtime image and recreated the app. Compose reports healthy;
+  root returned HTTP 200 and session creation 201 on `127.0.0.1:8503`. The
+  Docker test image rebuilt with a cached 131-test layer from its earlier pass.
+  Recreating the app cleared live session-only state. Browser and live-provider
+  checks were not run.
+
+## User Decision — Hide Show Graph Page — 2026-11-01
+
+- Remove the graph entry from React navigation and Streamlit's discovered
+  pages. Retain graph rendering code and read-only API endpoints for developer
+  diagnostics; no itinerary or runtime graph behavior changes.
+- The graph tests passed 4/4, the full host suite passed 131/131, frontend
+  TypeScript check and production build passed, and all Python quality gates
+  passed. Browser and running container behavior were not checked.
+
+## User Decision — Scale Saved-Tour History Beyond Two Million Rows — 2026-11-01
+
+- The user requested optimized storage structure, retrieval and updates for a
+  history table that may exceed 2,000,000 rows. The current durable history is
+  `saved_tours`; search-history records are still a separate product proposal.
+  ADR 0014 now defines the saved-tour archive's large-table path.
+- Owner-scoped keyset pagination replaces `OFFSET`; a composite
+  `(owner_hash, saved_at DESC, id DESC)` index serves the list order. Metadata
+  list reads exclude the immutable snapshot, while detail loads one snapshot.
+  New databases create v2 directly; populated v1 databases require an explicit
+  atomic index migration after backup and a pause in writes. The app does not
+  rebuild a populated index at startup.
+- Nine saved-tour regressions and 131 full host tests passed. The Docker test
+  target passed 131 tests; Python quality gates, frontend typecheck/build and
+  Compose config passed. A temporary Compose app became healthy, returned root
+  200 and the empty cursor-list payload, rejected offset with 422, created v2
+  schema and ran the migration CLI. Its project and volume were removed.
+- A disposable 2,000,000-row benchmark used a tiny synthetic snapshot under
+  one owner: 1,313,050,624-byte database after checkpoint; list page 1
+  p50/p95 0.715/3.985 ms and page 20,000 0.667/1.465 ms over ten samples;
+  save 1.281/3.061 ms and delete 2.051/2.851 ms. These measurements do not
+  predict storage size or latency for real itinerary snapshots or concurrent
+  traffic. No browser QA or live-provider turn was run for this change.
+
+## User Decision — Database For Approved Tour Suggestions — 2026-10-31
+
+- The user chose a database for tour suggestions they explicitly approve to
+  save. ADR 0014 narrows durable storage to saved plan snapshots. Current plan,
+  transcript and pending work remain session-only; automatic commit does not
+  count as user approval.
+- The initial design uses SQLite with a persistent Compose volume and a
+  browser-bound owner credential. It enables review after live-session expiry
+  on that browser; account recovery, cross-device access, search-history
+  storage and restore-to-edit are not included in this decision.
+- Implementation adds owner-scoped, idempotent SQLite snapshots and read-only
+  React review with deletion and pagination. Six focused and 128 full offline
+  tests passed; isort, Black, flake8, Ruff, frontend typecheck/build, Compose
+  config and diff checks passed. The Docker test image initially lacked model
+  names for import-time runtime construction; adding synthetic test-only names
+  made all 128 container tests pass. An isolated Compose app passed health,
+  root/session HTTP and saved-tour list/detail checks. A synthetic sourced
+  snapshot remained available after force-recreating its container with the
+  same volume; the temporary project and volume were removed. Browser QA and
+  live-provider behavior for this feature remain unverified. The original app
+  retained its older running image and its in-memory sessions.
+
+## Search History And Saved Tours Research — 2026-10-31
+
+- The user requested research into retaining trip-search history and
+  user-accepted tour suggestions so they can revisit saved tours. This is a
+  research request, not yet a decision to add accounts or change the accepted
+  session-only runtime boundary.
+- `docs/proposals/2026-10-31-search-history-and-saved-tours.md` compares
+  browser, anonymous server and authenticated server storage. It recommends
+  separate structured search records and explicitly saved snapshots of
+  validated plans, with owner-scoped access and read-only review.
+- Identity scope, retention and restoration semantics remain product decisions.
+  No application persistence, UI or live-provider verification was performed.
+
+## Deterministic Trip Shortening — 2026-10-27
+
+- The user reported that reducing trip duration returned the safe Planner
+  failure response. Recent prompt optimization had removed source references
+  from each prior-plan entry, while shortening validation requires retained
+  entries and their nested source data to remain unchanged.
+- The Planner now creates a deterministic shortened candidate from the current
+  plan, preserving retained-day entries and full source data while dropping
+  entries after the new final day. This edit requires no model call or search.
+  Other model-backed prompts again keep source references attached to their
+  entries without duplicating them in the separate source list.
+- A graph-level offline regression verifies commit, exact retained entry/source
+  preservation, and zero searches/repairs. Full host tests: 117 passed; isort,
+  Black, flake8, Ruff and diff check passed. The running Compose container has
+  not been recreated because replacement clears session-only plans.
+
+## User Decision — Model Identifiers from Environment — 2026-10-27
+
+- The user directed that model names live in environment variables and runtime
+  code only load them. Removed provider model identifiers and model-name
+  defaults from the Python runtime. Coordinator, Planner, Chat and Ollama
+  fallback identifiers are required environment values; JSON-schema-mode model
+  identifiers use `GTP_OPENAI_JSON_SCHEMA_MODELS`. Missing role/fallback names
+  now fail configuration instead of silently selecting a model.
+- The OpenAI adapter receives its JSON-schema model list from `RuntimeConfig`.
+  `.env.example` and README document the environment settings; the optional
+  Compose model initializer no longer embeds a model identifier. Test fixtures
+  now use synthetic identifiers.
+
+## Native Ollama MLX Fallback — 2026-10-27
+
+- Updated the native macOS Ollama app to v0.40.10 from the official release.
+  Its published SHA-256 matched, and macOS verified the app code signature.
+- Pulled `qwen3.5:4b-mlx`. Structured output succeeded on the host and from the
+  app container at `host.docker.internal`; an intentionally invalid OpenAI key
+  also triggered one structured MLX response from the app container.
+  `ollama ps` reported runner `mlx` and `100% GPU`.
+- The app image was rebuilt and recreated with the MLX fallback model in `.env`.
+  It reached healthy status and the root returned HTTP 200. Removed
+  `qwen2.5:3b` from the native Ollama store and CPU container model volume, then
+  stopped the CPU container. App recreation cleared session-only state; the
+  previous Ollama app remains as a temporary local backup.
+- No test suite was run for the environment-only model-name refactor. Isort,
+  Black, flake8, Ruff and diff checks passed; the rebuilt app resolved all model
+  names and the schema-mode list from `.env` and remained healthy. The
+  preceding fallback change had passed 113 host tests before this refactor.
+
+## Agent Prompt Latency And Token Optimization — 2026-10-27
+
+- Following the OpenAI latency guide, removed repeated Planner prompt data:
+  the prior schedule is serialized once in chronological user-visible order,
+  source references are supplied in a separate trusted list, and the prompt no
+  longer repeats the raw user message embedded in intent or the whole request
+  object. Chat now uses the visible schedule and Planner summary instead of
+  repeating full plan JSON. Coordinator, Planner and Chat are directed to keep
+  generated summaries/responses concise.
+- Two focused offline regressions passed; Ruff, Black and `git diff --check`
+  passed. No live before/after usage or latency benchmark was run. Full pytest
+  collection is blocked by other dirty `config.py` and `service.py` changes in
+  the shared worktree (missing model constants in tests and a recursive model
+  factory); these files were left untouched.
+- OpenAI reference: https://developers.openai.com/api/docs/guides/latency-optimization
+
+## OpenAI Model Call Timeout — 2026-10-27
+
+- The user reported Planner model substitutions timing out. The adapter applied
+  one 20-second timeout to every OpenAI model call, so switching model names did
+  not change the time limit.
+- Increased the per-request timeout to 60 seconds. A fresh live graph run with
+  the current `gpt-6.1-terra` Planner completed in 41.3 seconds total and
+  committed four Huế entries with no validation issues. The 113-test suite,
+  isort, Black, flake8, Ruff and diff check passed. The rebuilt app is healthy;
+  root and graph image return HTTP 200. Recreating the app cleared session-only
+  state.
+
+## User Decision — Fall Back on Any OpenAI API Error — 2026-10-27
+
+- The user asked for immediate Ollama fallback whenever the OpenAI API raises
+  an error. The OpenAI-configured role wrapper now catches any OpenAI SDK
+  `OpenAIError`, including HTTP 400/404, and makes one Ollama structured-output
+  attempt with the same prompt, schema and trace metadata. Local validation and
+  application errors still propagate without switching providers; explicit
+  Ollama roles remain Ollama-only. ADR 0010 records this policy amendment.
+- Focused fallback tests passed 18 and the full host suite passed 113. Isort,
+  Black, flake8, Ruff and `git diff --check` passed. The expanded fallback is
+  included in the rebuilt runtime; a successful live turn used OpenAI, so this
+  new fallback coverage was not invoked in that run.
+
+## Terra Planner Schema Compatibility — 2026-10-27
+
+- The first live full-turn check exposed OpenAI HTTP 400: Pydantic emitted
+  `format: uri` for `SourceReference.url`, which the model's structured-output
+  schema rejected. The Planner therefore had no candidate plan to commit.
+- The Terra adapter now removes only that unsupported schema format before
+  submission. It still validates the returned mapping with the original
+  `PlannerProposal` Pydantic type, including `HttpUrl` checks. If Planner fails,
+  the graph returns a localized code-owned message and skips Chat generation,
+  preventing an unsupported text-only itinerary from appearing as a result.
+- The full 111-test suite, isort, Black, flake8, Ruff and diff check passed. The
+  rebuilt Compose app is healthy and returns HTTP 200 for the root and graph
+  image. A live Huế turn committed a four-entry plan with source references on
+  all entries. The prior Terra-specific schema warning did not appear in the
+  app logs. Recreating the app cleared session-only state.
+
+## User Decision — Replace Slow Planner Model — 2026-10-27
+
+- The user reported that `gpt-5.4-mini` is too slow and its context window
+  is too limited for Planner. The new Planner OpenAI default is
+  `gpt-6.1-terra`; Coordinator, Chat and Ollama fallback remain unchanged.
+- OpenAI Docs lists 1,050,000 context tokens for Terra and 400,000 for the
+  previous Mini model. Terra uses `reasoning_effort="none"` and JSON-schema
+  structured output in this app. Its native tool calling needs the Responses
+  API, while the app's Tavily request is handled by its graph node.
+- This decision changes the model ceiling, not the session summary, transcript
+  or Tavily bounds. Focused tests passed 70, the full suite passed 111, and
+  isort, Black, Ruff and diff check passed. Repo-wide flake8 retains three
+  pre-existing F841 findings. A small direct live structured call succeeded
+  in 3.91 seconds; LangChain bound the full Planner schema offline. The
+  rebuilt app is healthy, resolves Terra with Ollama `qwen2.5:3b` fallback,
+  and serves root/graph at HTTP 200. Recreating it cleared session-only
+  state. Full-turn latency remains unverified.
+
+## User Decision — Restore Committed Code, Keep Ollama Fallback — 2026-10-27
+
+- The user requested a return to the old code while retaining Ollama as a
+  backup when OpenAI fails. Commit `8aea1a9` already contains the accepted
+  OpenAI-to-Ollama fallback from `e1392ed`.
+- Restored the post-commit Planner latency, compact output, day/time edit and
+  timeout-refactor changes to that committed baseline. The OpenAI adapter
+  still uses a 20-second timeout and makes one Ollama fallback attempt after
+  qualifying API failures.
+- The uncommitted day/time preservation fix was part of the rollback. The
+  observed multi-entry day-move data-loss issue is therefore unresolved in
+  the restored code. All 110 tests, isort, Black, Ruff and diff check passed;
+  full flake8 still reports three pre-existing F841 findings in
+  `artifacts/presentations/update_deck.py`. No container rebuild or live
+  provider turn is claimed.
+
+The active repository scope was reset from the older three-week POC to a
+city/place sightseeing webapp.
+
+The initial two-role and single-model decisions below describe the 2026-10-14
+baseline. ADR 0009 and the 2026-10-17 entry at the end record the current
+three-role runtime and role-specific model policy.
+
+## Decisions Recorded
+
+- The current product is a session-only Streamlit travel-planning webapp.
+- Runtime roles are limited to Coordinator and Planner for the first vertical
+  slice.
+- Planner is the only runtime role that may call Tavily search and propose plan
+  mutations.
+- Coordinator is user-facing and explains only validated committed results.
+- The requested default model is exactly `gpt-5.5`.
+- External model, search and trace providers stay behind typed interfaces.
+- LangSmith traces are observability data and not application state.
+- On 2026-10-16 the user selected Vietnamese as the default language for
+  webapp chat requests and replies. Proper place names and source titles remain
+  as provided by users and search results.
+- The Vietnamese UI and fallback paths passed AppTest/pytest (40 total tests).
+  A live Vietnamese add request inside the container committed revision 2 and
+  produced a Vietnamese assistant reply with one search and no repair.
+- On 2026-10-16 the user requested source-backed place images, a mapped route
+  view, and a car moving to a clicked itinerary stop. ADR 0005 keeps these
+  presentation features separate from the canonical plan and two-agent graph.
+- The UI/UX Pro Max Codex skill was installed project-locally as version
+  `2.15.0`. The visual itinerary passed 48 host/container tests and live
+  Commons/Wikipedia metadata checks for two Hue landmarks. A fake-DOM
+  JavaScript run confirmed click, reduced motion and interruption behavior;
+  real-browser visual inspection remains open.
+- Later on 2026-10-16 the user requested a separate page with an image of the
+  compiled runtime graph, then explicitly requested removal of the itinerary
+  route map shown in their screenshot. ADR 0006 supersedes the map/car portion
+  of ADR 0005. Source-attributed place photos remain in the itinerary.
+- The new graph page and photo-only itinerary passed focused offline tests.
+  After the `get_graph_image()` integration, 47 tests passed in both host and
+  Docker test runs. The rebuilt Compose
+  container reached healthy status at `127.0.0.1:8503`. A previously commented
+  source-place matching check was restored after the full suite exposed its
+  failure; the remaining project lint and formatting checks then passed.
+- The graph page now uses the PNG bytes returned by
+  `TravelPlannerService.get_graph_image()` as requested. The existing local SVG
+  renderer remains a fallback when Mermaid image rendering is unavailable.
+- The user then requested temporary removal of `source_place_mismatch` because
+  its token overlap caused repeated false rejections. URL provenance and the
+  remaining deterministic source/hour checks stay enabled. Do not restore this
+  issue code until a better relevance matcher is accepted.
+- The user reported that navigating away from chat abandoned a synchronous
+  planning turn. ADR 0007 moves `handle_turn()` to a bounded background worker,
+  stores one pending Future in the originating session and polls it immediately
+  on page return plus once per second while chat stays open. The worker receives
+  copied inputs and never mutates Session State.
+- Nine focused async/UI tests simulated leaving and returning through a
+  whole-page rerun; the full host and Docker suites passed 50 tests. Streamlit
+  AppTest cannot exercise actual sidebar navigation, so a real-browser
+  cross-page check remains.
+- On 2026-10-17 ADR 0008's JavaScript/Tailwind interface was completed as the
+  current web UI. React presents responsive itinerary/chat, read-only graph,
+  and optional Commons photos with creator/license/source. A thin FastAPI
+  adapter keeps a canonical plan in an opaque server session and exposes
+  revision-bound visual metadata without blocking a planning turn.
+- The initial container build exposed a missing static-dist path after package
+  installation; an explicit runtime path fixed it. The rebuilt container
+  became healthy at `127.0.0.1:8503` and returned HTTP 200 for the page,
+  generated JS/CSS assets and graph API. Host and Docker test targets each
+  passed 54 pytest cases;
+  frontend typecheck/build, isort, Black, flake8 and Ruff. Real-browser layout
+  and navigation QA remains pending because the browser surface was unavailable.
+- On 2026-10-17 an overlong model-authored
+  `PlanCandidate.returned_sources[].snippet` exposed that provider-owned source
+  inventory was still part of the Planner structured-output schema. The model
+  now returns a `PlannerProposal` containing only plan, summary and issues;
+  trusted source URLs and references are attached afterward by grounding.
+  Tavily prompt snippets remain capped at 1,000 characters and grounded
+  `SourceReference` snippets now allow up to 4,000 characters.
+- Later on 2026-10-17, the user requested that the JavaScript graph page show
+  the PNG from `get_graph_image()` and keep it within the page. The adapter now
+  serves that image at a read-only endpoint; the UI constrains its width and
+  viewport height, and requests the existing SVG only when PNG rendering fails.
+  A local adapter check returned 24,241 PNG bytes with HTTP 200; the SVG fallback
+  also returned HTTP 200.
+- On 2026-10-17, the runtime model policy was split by role. Coordinator keeps
+  `gpt-5.5` for routing, while Planner and Chat default to `gpt-5.4-mini` for
+  lower-cost, higher-volume structured proposal and response calls. The
+  role-specific settings remain behind `RuntimeConfig` and the typed model
+  adapter; historical live `gpt-5.5` evidence remains unchanged.
+- The same day, the user moved response generation out of Coordinator into a
+  dedicated Chat node and requested a fix for extending an itinerary by chat.
+  `extend_trip` now resolves a target duration from an absolute count or a
+  positive increment before Planner runs. Invalid bounds stop before search;
+  valid extensions preserve existing entries and require a grounded entry in
+  the added days. The host and Docker suites passed 64 tests, and the rebuilt
+  runtime reached healthy status on port 8503.
+- A follow-up exposed that Chat received only a boolean indicating whether a
+  plan existed, despite the typed Planner candidate remaining in graph state.
+  The Chat handoff now includes the Planner summary and validated committed plan.
+  Rejected candidates are omitted; Chat receives the validation issues and the
+  retained prior plan instead. Focused tests passed 44 cases, while the full host,
+  Docker build-stage and offline Docker suites each passed 64. The rebuilt
+  runtime became healthy and returned HTTP 200 for the app and graph PNG.
+- On 2026-10-18, the user requested configurable local Ollama support. ADR
+  0010 selects explicit `openai`/`ollama` provider configuration, a global
+  fallback with optional per-role overrides, and three role-model variables.
+  The offline implementation uses the typed
+  `ChatOllama` structured-output adapter and an opt-in Compose profile that
+  persists pulled weights. Native Ollama 0.9.0 then pulled `qwen2.5:3b` on the
+  Mac M1, passed a structured-output call and committed a one-day Hue plan with
+  two entries, one Tavily search and no repair or validation issues. LangSmith
+  found 25 matching runs, all with the same `thread_id`. Detailed evidence is
+  `docs/experiments/2026-10-18-ollama-local-smoke.md`.
+- Later on 2026-10-18, the user selected OpenAI `gpt-5.5` for Coordinator and
+  local Ollama `qwen3:4b` for Planner and Chat. Per-role provider overrides now
+  preserve the global provider as a backward-compatible fallback. The native
+  mixed-provider smoke loaded `qwen3:4b`, passed direct structured output, and
+  committed a one-day Hue plan with four entries, one Tavily search, no repair
+  and no validation issues. LangSmith returned 25 matching runs (seven root,
+  18 child), all carrying the smoke `thread_id`. The Docker Compose profile and
+  local chat-edit flow remain unverified. The full pytest suite passed 78 tests;
+  isort, Black, flake8, Ruff, lockfile, Compose configuration and JSON/diff
+  checks also passed. Compose subsequently separated its app endpoint from the
+  direct-host endpoint: `GTP_COMPOSE_OLLAMA_BASE_URL` defaults to host Ollama,
+  while the opt-in profile requires explicit `http://ollama:11434` routing. The
+  recreated Compose app passed a native-host `qwen3:4b` structured call and a
+  fresh HTTP Hue turn committed four entries with one search and no repair; the
+  internal Compose profile and local chat-edit flow remain unverified.
+- On 2026-10-19, the user selected `qwen2.5:3b` in place of `qwen3:4b` for Planner and
+  Chat. The Compose default pull list and local runtime configuration now use
+  that smaller model. Its structured output passed inside the app container, and
+  a fresh HTTP Hue request committed two entries with one search, no repair and
+  no validation issues.
+- Later on 2026-10-19, the user requested API/local model selection through
+  `.env` and API defaults when no local model is serving. Per-role routing
+  already supported this. This host has no Ollama CLI or configured
+  `OLLAMA_BASE_URL`, so `.env` now selects OpenAI for all roles with
+  `gpt-5.5` Coordinator, `gpt-5.4-mini` Planner and `gpt-4.1` Chat. The copied
+  `.env.example` uses the same defaults and documents explicit local overrides.
+  No automatic provider fallback was added; selecting an unavailable local
+  model still returns a safe error rather than making an unexpected API call.
+- Loading `.env` resolved the expected three model/provider assignments without
+  a live API request. The focused suite passed 49 tests; the full host suite
+  passed 82, and all formatting/lint/lock/diff checks passed. Docker was
+  initially unavailable, then returned; the test image passed 82 tests and the
+  rebuilt Compose app became healthy. The container reads the expected model
+  assignments and both the root page and graph PNG endpoint returned HTTP 200.
+  No live model API request was made.
+
+## Evidence
+
+- On 2026-10-19, a reported `Planner did not produce a candidate plan` result
+  exposed that `PlannerProposal.plan` was optional. The structured schema now
+  requires a complete plan, and Planner's prompt explicitly asks for one.
+  Missing or null model output fails at the provider boundary and retains the
+  prior plan. Four offline regression cases and the full 82-test suite passed,
+  along with isort, Black, flake8 and Ruff. A separate rebuilt-image live Hue
+  request using `qwen2.5:3b` committed two entries, one search and no repair.
+  The already running app was not restarted so existing sessions remain intact.
+- New charter and implementation plan describe the active product.
+- ADR 0004 records the accepted two-agent runtime architecture.
+- Phase 1A added the importable Coordinator/Planner runtime, typed provider
+  boundaries and deterministic validators.
+- Phase 1B added the session-only Streamlit form/chat adapter.
+- Nineteen offline tests passed, including core routing/commit behavior and two
+  Streamlit AppTests.
+- The final live smoke committed a Hue plan with five Tavily-returned citations;
+  all 14 matching LangSmith root/child runs carried the same `thread_id`.
+- The Docker test target passed 19/19 tests on Linux/Python 3.10.22. The non-root
+  Compose runtime reached health 200 and committed a live Hue plan from inside
+  the container.
+- On 2026-10-15 the user prioritized post-plan chat editing. The offline suite
+  passed 39 tests, including eight versioned chat-edit cases and UI success/reject
+  coverage. A live create-then-remove turn committed revision 2 on the same
+  session and preserved the four untargeted stops.
+- Added a separate, offline source-quality baseline with 16 manually labelled
+  synthetic citations. The labels expose relevance and host-diversity metrics
+  but do not measure live Tavily quality or change runtime commit rules.
+- Migrated the original smoke to LangSmith v2 `runs.query()` and verified a
+  live Hue run with 25 matching runs carrying the same `thread_id`.
+- The Planner source-schema regression passed 33 focused tests and 56 full tests
+  on both the host and a rebuilt offline Docker image. Formatting, lint, lockfile
+  and diff checks passed; the rebuilt Compose runtime is healthy on port 8503.
+- Coordinator routing, Chat response isolation and trip extension passed 44
+  focused tests and 64 full host/Docker tests. Frontend typecheck/build and all
+  Python quality gates passed. Live providers were not invoked for this change.
+- Planner-to-Chat context regressions prove that committed replies receive the
+  added entry and grounded source data, while rejected replies cannot see the
+  rejected plan body. The host and both Docker test runs passed 64 tests; no
+  live provider was invoked. The rebuilt Compose runtime reached healthy status.
+- The JavaScript chat composer was then moved into a lower-right floating panel.
+  The icon trigger opens it without leaving the itinerary or graph view, the
+  input receives focus on open, Escape closes it, and the panel keeps pending,
+  response and error feedback near the input. User and assistant turns are
+  rendered as separate right/left conversation bubbles with role labels.
+  Frontend typecheck/build passed; real-browser visual QA remains open.
+- The JavaScript interface was then lightened from the previous dark palette to
+  a light blue and navy system. A soft blue page background and white surfaces
+  keep the app bright, while blue accents identify primary actions, links and
+  focus states. Frontend typecheck/build passed; browser inspection was
+  unavailable.
+
+## Open Risks
+
+- Live providers still require local credentials and network access.
+- Tavily results may not include opening hours; those hours must remain labeled
+  unverified.
+- Live source provenance is verified, but source editorial quality and domain
+  diversity are not yet scored.
+
+## Integration Learnings
+
+- Tavily content must be bounded before Pydantic validation; one live snippet
+  exceeded 1,000 characters.
+- Provider-owned grounding metadata must not be exposed as model-authored
+  structured output. Otherwise Pydantic can reject an untrusted echoed source
+  before Planner has a chance to replace it with normalized provider results.
+- `ChatOpenAI.with_structured_output` needed `method="function_calling"` because
+  strict response-format validation rejected Pydantic `HttpUrl`'s `uri` format.
+- Search-call counters must advance at tool-attempt time, not only after a later
+  model call succeeds.
+- Edit validation must prove the requested add/remove/replace/reorder/day/time
+  change was applied; generic schedule validity alone is not enough.
+- Versioned uv derived-image tag names change with supported distro variants;
+  copying a pinned uv binary into an official Python slim base was more robust.
+- Container verification should cover both safe rejection and a successful live
+  plan; provider reachability alone does not demonstrate commit behavior.
+- Unverified hours are a permissible grounded data gap. Planner grounding must
+  normalize them to `unverified`; only deterministic policy errors may block a
+  commit, not advisory issues authored by the model.
+- Reorder indices must match the chronological order visible in the UI;
+  changing only the stored list order does not meet a user's reorder request.
+- A repair must carry forward only trusted search/current-plan sources. Copying
+  candidate references into that pool can launder a fabricated URL.
+- Exact casefolded place-name comparison rejects benign Vietnamese accent and
+  village-descriptor variants. Bound alias matching and ask Planner to retain
+  the requested name; preserve old stops when validating an addition. The
+  initial Lô Lô Chải live recheck hit OpenAI HTTP 429 `billing_not_active`.
+  On 2026-10-16, a representative container flow added Lô Lô Chải, preserved
+  the existing stop and committed revision 2 with one search and no repair.
+- The Docker test stage must include versioned eval data and the smoke script
+  imported by tests; excluding them from the build context caused collection
+  errors even though host pytest passed.
+- A final response agent needs the validated Planner outcome, rather than only a
+  plan-exists flag. Passing the typed candidate only after commit and retaining
+  the prior plan on rejection keeps response generation aligned with commit
+  semantics without adding graph steps.
+
+## User Decision — Bounded Session Context And Chat Search — 2026-10-19
+
+- The user asked Chat to call Tavily through a bounded structured function-call
+  decision when current information is needed. Planner remains the only role
+  that proposes plan changes; the shared per-turn cap stays at two calls.
+- Keep the active transcript in the existing session only (12 messages max).
+  Coordinator reads at most eight recent messages, capped at 600 characters
+  each, with a rolling 1,200-character summary. Planner and Chat receive that
+  summary and task-specific context, not the raw transcript.
+- Return actual Chat search citations in the assistant transcript. Search
+  results do not enter the candidate plan or validation state. If there are no
+  usable sources, Chat must say the current fact was not verified.
+- Record redacted Tavily start/success/failure events with the same session
+  `thread_id`; do not include user transcript, query or credential data.
+- The offline tests cover the no-search, search, failure, citation, shared
+  budget, bounded handoff, API hydration, reset and session-isolation paths.
+  The first direct-call iteration had a live factual Chat request that made one
+  Tavily call, returned five sources and produced `chat.search.*` LangSmith
+  events with a matching `thread_id`. ADR 0012 later replaced that direct-call
+  path with the shared graph node and `tool.tavily.*` events. The original smoke
+  is preserved at `docs/experiments/2026-10-19-live-chat-search-smoke.md`.
+
+## User Decision — Shared Tavily Graph Tool Node — 2026-10-19
+
+- The user requested a graph tool node shared by Planner and Chat. Both roles
+  now emit bounded `TavilyToolRequest`s; the single `tavily_tool` node owns all
+  provider calls, increments the shared call budget before attempting search,
+  and returns normalized sources only to the requesting role.
+- LangSmith events use `tool.tavily.start/success/failure` with requester,
+  count and session `thread_id`; event payloads omit query and conversation
+  content.
+- Keep the 8-node graph limit and one repair. Coordinator now performs
+  deterministic input checks in its route node; candidate validation invokes
+  at most one Planner repair. Chat skips search when there is no remaining room
+  for the tool node and final response.
+- Offline tests and one live request verified owner routing, failure/count
+  behavior, plan isolation, and the new trace names. See ADR 0012 and
+  `docs/experiments/2026-10-19-live-shared-tool-node-smoke.md`.
+
+## Runtime Flow Cleanup — 2026-10-19
+
+- A repository-wide usage check found two graph-state declarations, two agent
+  config references, two one-field result wrappers and one service search
+  reference with no runtime consumers. They were removed without changing the
+  graph topology or provider boundary.
+- The background Future still receives bounded deep copies of summary and chat
+  history; `PendingTurn` no longer stores a second copy that no foreground code
+  reads. It retains the captured plan needed for safe failure recovery.
+- The HTTP adapter now uses the conversation module's shared transcript and
+  summary limits instead of repeating the values `12` and `1200`.
+- Regression coverage confirms exact Chat citations from the tool-owned source
+  list, Planner repair behavior, worker input isolation, API session bounds and
+  reset behavior. Focused tests passed 63 cases; the full host suite passed 90,
+  and all Python formatting/lint gates passed.
+
+## Development Agent And Skill Refinement — 2026-10-20
+
+- The project-scoped Codex manager, planner, coding and testing instructions
+  now reflect the actual Python/LangGraph, FastAPI, React/Tailwind, Compose and
+  documentation stack. They preserve unrelated dirty hunks, treat subsequent
+  user corrections as hard constraints, and distinguish static/offline evidence
+  from browser, container and live-provider evidence.
+- The delivery skill detects explicit commit/push intent and defaults to neither
+  action without interrupting a completed change to request authorization.
+- UI/UX Pro Max keeps its upstream catalog and adds a small repository overlay
+  for Vietnamese chat, photo-only itinerary, read-only graph image, pending-turn
+  navigation and current UI evidence rules.
+- This was a configuration/documentation update only. Static parsing and diff
+  checks were run; no application, frontend, container, browser or live-provider
+  check is claimed.
+
+## User Decision — Bilingual Webapp — 2026-10-20
+
+- Add English as a selectable UI and assistant language while keeping Vietnamese
+  as the default. Store the choice in the current session; changing it must not
+  clear the itinerary, conversation, summary or pending turn. A pending turn
+  uses the locale captured when it was submitted; new turns use the current
+  selection.
+- Apply the choice to React/Tailwind, Streamlit and its graph page, Coordinator
+  summaries, Planner itinerary prose, Chat responses and code-owned fallbacks.
+  Preserve user text, place names, existing plan/transcript content and source
+  metadata without translation. Validation and source policies remain
+  language-independent.
+- ADR 0013 records the decision. Existing focused API/runner/chat-context checks
+  passed 14 tests; `npm run check`, `npm run build`, Python compileall, flake8,
+  Black, isort, Ruff, lock and diff checks passed. No browser, container or
+  live-provider verification was run.
+
+## Trip-Day Boundary Follow-Up — 2026-10-23 (Superseded)
+
+- New-trip proposals now ignore the prior session itinerary and start at
+  revision 1, preventing entries from a longer prior itinerary from leaking
+  into a newly selected shorter trip.
+- A request to move a stop to a day beyond the trip length now stops before
+  Planner and displays a localized explanation.
+- `git diff --check` passed and the rebuilt Compose container reached healthy
+  status. Regression tests and live provider checks were not run.
+
+## User Amendment — Bidirectional Chat Trip-Length Changes — 2026-10-23
+
+- The user clarified that trip duration changes must work both ways through
+  chat: adding days updates the full schedule, and removing days shortens and
+  updates the full schedule.
+- Each added day must contain a grounded stop. Shortening preserves stops on
+  retained days and may remove or reschedule existing stops from removed days;
+  it does not create unsupported new places.
+- `shorten_trip` uses an absolute target or a positive relative count of days to
+  remove. Both directions keep the 1–7 day bound and use validate-before-commit.
+- Code and durable project records are updated; the Compose image rebuilt and
+  the container reached healthy status. Regression tests and live provider
+  checks were not run.
+
+## Trip-Length Verification And Local Rebuild — 2026-10-26
+
+- Added regression checks that require a stop on each added day and reject
+  changed retained stops or invented stops when shortening. Updated older UI
+  and Vietnamese fallback assertions to match existing app wording.
+- The 92-test host suite and Docker test target passed. Ruff, Black and isort
+  passed; flake8 passed for app and test code. The all-repo flake8 command still
+  reports three unused variables in ignored `artifacts/presentations/` scripts.
+- The Compose runtime image rebuilt and the app container reached healthy
+  status on `127.0.0.1:8503`. The root endpoint returned HTTP 200 and
+  `/api/graph/image` returned HTTP 200 with an image/png response.
+- No new live model, Tavily or LangSmith turn was run for this verification.
+
+## Temporary ngrok Sharing — 2026-10-26
+
+- The user requested a public tunnel to the locally running app and will supply
+  the needed `.env` variable. The app was healthy at `127.0.0.1:8503` and its
+  root endpoint returned HTTP 200 before tunnel setup.
+- Added an opt-in Compose ngrok service targeting `app:8000`, with only
+  `NGROK_AUTHTOKEN` passed to that container. The official image was pulled;
+  `docker compose --profile ngrok config --quiet` passed.
+- After the token was added to the ignored `.env`, the ngrok container started
+  and logged its public HTTPS URL. External requests returned 200 for `/` and
+  `/api/graph/image`; `POST /api/session` returned 201, and a cookie-backed
+  `GET /api/session` returned 200. A bare session GET returned the expected 401.
+- Compose recreated the app when `.env` changed. The new app reached healthy
+  status, but prior in-memory sessions were lost. No model, Tavily or LangSmith
+  turn was invoked during tunnel verification.
+- The user then requested that ngrok be turned off. `docker compose --profile
+  ngrok stop ngrok` stopped only the tunnel; `docker compose ps` still showed
+  the app healthy, and its local root endpoint returned HTTP 200.
+
+## Invalid OpenAI Key Diagnosis — 2026-10-26
+
+- Replayed the user's exact two-day Hà Giang request against the local Compose
+  service. The configured OpenAI Coordinator returned HTTP 401 with provider
+  code `token_invalidated`. No Planner or Tavily call occurred; the date and
+  request text were not the cause of this failure.
+- The prior generic fallback hid the provider error. Coordinator now emits a
+  stable authentication issue, and Chat response handling returns a localized
+  code-owned explanation without calling the failed model again. It preserves
+  the canonical plan and does not expose the provider exception to the UI.
+- Two mocked locale cases were added. All 94 host and Docker tests passed;
+  focused Black, isort, Ruff and app/test flake8 checks passed. The runtime
+  image was rebuilt; the running container was left intact to preserve its
+  session-only state. A new valid `OPENAI_API_KEY` is required for live planning.
+
+## User Decision — Automatic Ollama Fallback — 2026-10-26
+
+- The user requested Ollama when the OpenAI API is unavailable. Roles assigned
+  to OpenAI now try one local Ollama structured-output call after an OpenAI API
+  failure, using a separately configured Ollama model. Explicit Ollama roles
+  remain Ollama-only.
+- The prompt, schema and trace metadata remain the same across that retry;
+  graph, search and repair limits and validate-before-commit still apply. If
+  both providers fail, the previous plan remains current and the app gives a
+  safe error. ADR 0010 records the changed provider policy.
+- The host had Ollama 0.9.0 and `qwen2.5:3b` installed but its server was
+  initially stopped. After starting it, a live call with an intentionally
+  invalid OpenAI key returned a structured Ollama response. A full live Hue
+  turn with the same invalid key committed with three Tavily citations, one
+  search, zero repairs and six graph steps. LangSmith was not checked.
+- Sixteen new fallback cases and updated provider-construction assertions
+  contributed to 110 passing host tests. isort, Black, flake8, Ruff and
+  `git diff --check` passed. The Compose runtime image built successfully. The
+  one-shot image also committed a Hue plan through host Ollama with one entry,
+  one Tavily search, no repair and no validation issues. The running app was
+  initially left intact. At the user's subsequent request, Compose recreated
+  it from image
+  `sha256:29d02ba30f145eab4731c980f3cef38d353560acbe81e6b4a26d27b509ca8097`.
+  It reached healthy status; the root and graph PNG returned HTTP 200 and
+  session creation returned 201. Existing in-memory sessions were cleared.
+  The earlier ngrok stop state was restored after it appeared running during
+  preflight; the app remained healthy.
+
+## User Decision — Apple M1 Inference — 2026-10-26
+
+- The user observed that no Ollama container was running. The opt-in Compose
+  `ollama` service was started and became healthy; `ollama-init` exited 0 after
+  pulling `qwen2.5:3b` (1.9 GB) into the named model volume. The app reached
+  `http://ollama:11434` and an invalid-key live Hue turn committed one entry
+  with one Tavily search, zero repairs and no validation issues.
+- The user then requested use of the Apple M1 chip. The Ollama Linux container
+  reported `100% CPU`, consistent with Ollama's documented lack of Apple GPU
+  passthrough in Docker Desktop. Native Ollama on macOS reported `100% GPU`.
+- The ignored `.env` now sets
+  `GTP_COMPOSE_OLLAMA_BASE_URL=http://host.docker.internal:11434`. Compose
+  recreated the app and it reached healthy status. The app container reached
+  the host Ollama endpoint and returned a structured response through the
+  OpenAI-to-Ollama fallback with an intentionally invalid OpenAI key. Ollama.app
+  was opened to own the native server. The Ollama container remains healthy as
+  an idle CPU option; its model was unloaded. Ngrok was stopped again.
+
+## User Decision — Testing-Agent Security Skill — 2026-10-27
+
+- The user requested review of Cloudflare's `security-audit-skill` and a
+  security capability for the project testing agent. Installed the upstream
+  `security-audit` skill project-locally from main at
+  `c1c8a8c1471069fb0e188eeaff69b8e8db6564a8`, including its MIT license.
+  The testing agent now checks changed trust boundaries and loads the skill for
+  explicit security review assignments.
+- Cloudflare's full audit workflow requires independent verification and an
+  OS-enforced sandbox for target-controlled execution. This task configured the
+  agent; it did not run a codebase security audit or establish that the app has
+  no vulnerabilities. ADR 0001 records the development-agent change. The
+  skill validator, testing-agent TOML parser, both Node.js syntax checks and
+  `git diff --check` passed. Application tests were not run for this
+  configuration/documentation change.
+
+## Scoped Security Review And Availability Fixes — 2026-10-27
+
+- Before the requested commit/push, two read-only agent passes reviewed the
+  pending code and adjacent HTTP, model, trace and UI trust boundaries. The
+  testing pass found that four worker threads did not bound the shared queue:
+  anyone able to create many browser sessions could submit one turn per
+  session and retain unbounded queued work. The 60-second OpenAI timeout and
+  one Ollama fallback attempt increase the duration of occupied slots.
+- `TurnRunner` now reserves at most eight running/queued turns per process and
+  releases each slot when its Future completes, even without a poll. The HTTP
+  adapter rejects overload with a localized 429 before changing conversation,
+  response or pending state; Streamlit displays a localized busy error.
+- Independent retest found a second path through unlimited session creation.
+  `SessionStore` now caps retained sessions at 1,024, expires idle sessions
+  after one hour, retains only still-running turns during expiry, and replaces
+  the prior session atomically on reset. New sessions receive a localized 503
+  at capacity. A final local review caught completed but uncollected Futures
+  that would otherwise avoid expiry; the regression now covers that case.
+- Focused sandboxed tests passed 15 and the full suite passed 122. The test
+  container had no network, a read-only target, a sanitized dummy environment,
+  bounded CPU/memory/processes/files and a 180-second limit. Isort, Black,
+  flake8, Ruff and `git diff --check` passed. No live model/search/tracing
+  service or deployed endpoint was probed. The running app image was not
+  recreated, so its existing session-only plans remain in memory.
+- The ngrok tunnel was unexpectedly running despite the earlier stop decision.
+  Stopped only its container; the app remained healthy. Public ingress abuse
+  controls, HTTPS cookie transport and automatic LangChain trace retention
+  remain deployment/privacy checks; this scoped review is not a complete
+  codebase security audit.
+
+## User Decision — Local-only Codex Tooling — 2026-10-28
+
+- The user requested removal of `.codex/` from repository tracking while keeping
+  its contents on this machine. Git now ignores the directory and its 80 tracked
+  files were removed from the index with `git rm --cached`.
+- The Docker test stage no longer copies the local hook; hook-specific tests skip
+  when it is absent. Repository quality commands no longer require the optional
+  local file. ADR 0001 records the amended tooling scope.
+- Host pytest passed 111 tests; Docker test target passed 109 with one skipped
+  hook module. Isort, Black, Ruff and diff checks passed. Repo-wide flake8 still
+  reports three earlier F841 findings in `artifacts/presentations/update_deck.py`.
+
+## User Amendment — Share Reviewed Codex Tooling — 2026-10-28
+
+- The user clarified that project-wide `.codex` agents, hooks and skills should
+  remain in the repository. Personal configuration and local state must not be
+  pushed, including authentication, sessions, archived data, API keys, OAuth
+  tokens, passwords, logs, caches, worktrees and management data.
+- The prior staged deletion of 79 shared files was reversed. Only
+  `.codex/config.toml` is staged for removal; its local copy remains. The broad
+  `.codex/` ignore rule protects new local files from ordinary `git add`.
+- The original Docker hook copy and hook test were restored because the hook is
+  shared. The previous Docker result of 109 passed and 1 skipped describes the
+  temporary local-only setup and is not evidence for this revised selection.
+- A concurrent remote commit added testing and security guidance under
+  `.codex/`. After merging, 102 shared files are tracked. The full tracked
+  `.codex` set had zero high-confidence secret-pattern and sensitive-name hits;
+  personal `config.toml` still exists locally and is ignored by Git.
+- After merge, host pytest passed 122 tests. Isort, Black, Ruff, focused flake8,
+  JSON parsing and diff checks passed. Full flake8 still reports the same three
+  F841 findings in ignored `artifacts/presentations/update_deck.py`.
+
+## User Decision — Generic Model Examples — 2026-10-28
+
+- Remove the development-agent model column from README. Use
+  `<YOUR_MODEL_NAME>` in `.env.example` and README setup commands instead of
+  naming specific models. Detailed historical verification artifacts remain
+  unchanged; README summaries no longer name the models used in those runs.
+
+## Mac CI/CD Setup — 2026-11-05
+
+- Added GitHub Actions verification for the active branch and pull requests:
+  Python tests and quality checks, frontend typecheck/build, and Compose config.
+  Action dependencies use immutable commit pins.
+- Installed a Mac `launchd` poller that checks the public GitHub Actions API
+  every five minutes. It fetches the active branch only after its push CI run
+  succeeds. Pull request workflows use GitHub-hosted runners only; no
+  self-hosted GitHub runner remains registered for this public repository.
+- Local deploy configuration contains only the existing `.env` path,
+  PostgreSQL data directory, source checkout and separate deployment checkout.
+  `.env` and database files remain outside Git. The deploy script rebuilds and
+  health-checks only the app service, checks its HTTP endpoint, leaves
+  PostgreSQL running, and attempts app-image rollback after failure.
+- `GTP_DEPLOY_ENABLED=false` remains in local Mac configuration. ADR 0016 still
+  requires a controlled backup, write pause and live account-schema migration
+  before Auth0 rollout.
+  The workflow and poller are prepared, but this change does not deploy or
+  restart the app.
+- `scripts/deploy_macos.sh --check`, `bash -n`, `git diff --check`, workflow
+  YAML parsing and local deployment-config checks passed. No application tests,
+  image build, migration or live provider call ran for this config-only change.
+
+## Auth Callback And Public Session Ingress Hardening — 2026-11-05
+
+- Uvicorn now runs with access logging disabled, preventing Auth0 callback
+  `code` and `state` query parameters from appearing in application access
+  logs. The local README command follows the same policy.
+- Added a per-client-IP ngrok Traffic Policy for `POST /api/session`,
+  `POST /api/session/reset`, and `POST /api/turns`: at most 20 requests per
+  route in a sliding hour. Covering reset prevents requests without a valid
+  session cookie from bypassing the creation limit; the turn limit also
+  reduces repeated provider quota use. Other public ingress deployments still
+  need their own trusted client-IP rate limit.
+- Three focused deployment-security tests passed. `docker compose --profile
+  ngrok config --quiet` and `git diff --check` passed. Host pytest and the
+  Docker test target each passed 155 tests with one optional PostgreSQL
+  integration test skipped. Isort, Black, flake8 and Ruff passed. On 2026-11-06,
+  after the user saved `NGROK_AUTHTOKEN` in ignored `.env`, only ngrok was
+  recreated. Docker inspection confirmed its process is running with the policy
+  mounted read-only and restart count zero. The ngrok inspector confirmed the
+  tunnel targets `app:8000`; its current public URL matches the running app's
+  `GTP_AUTH_PUBLIC_ORIGIN`, and public root returned HTTP 200. At this point,
+  the app was still running its prior image; live 429 enforcement and Auth0
+  callback behavior were not tested.
+- On 2026-11-06, rebuilt `grounded-travel-planner:local` and ran
+  `docker compose --profile ngrok up -d --build --force-recreate --wait
+  --wait-timeout 180`. App, PostgreSQL and ngrok came up; app and DB became
+  healthy. The runtime command includes `--no-access-log`; ngrok loads the
+  policy read-only. Tunnel targets `app:8000`; its URL matches
+  `GTP_AUTH_PUBLIC_ORIGIN`. Local and public root returned HTTP 200. App
+  recreation cleared session-only plans; database volumes were not removed.
+  Live 429 enforcement and Auth0 callback exchange remain untested.
+
+## Runtime Request And Token Guards — 2026-11-06
+
+- The user asked to keep budget thresholds in runtime environment variables and
+  out of tracked files. `.env` contents were not displayed or modified;
+  Compose injects configured values into the app at runtime. `.env.example`
+  contains blank placeholders only; actual values are not recorded.
+- Added role-specific generation ceilings: Coordinator 2,048, Planner 8,192,
+  Chat 2,048. They can be overridden with `GTP_*_MAX_OUTPUT_TOKENS`. OpenAI
+  receives `max_completion_tokens`; Ollama receives `num_predict`. The itinerary
+  schema allows up to 28 entries (four per day across seven days).
+- Added a sliding-hour HTTP turn quota keyed by verified Auth0 internal user ID
+  or anonymous session thread ID. Default is 20 turns per principal per hour;
+  `GTP_TURN_LIMIT_PER_HOUR` overrides it. An optional process-wide hourly turn
+  cap uses `GTP_TURN_GLOBAL_LIMIT_PER_HOUR`. Rejections return localized 429 and
+  `Retry-After` before scheduling or appending the rejected turn. The limiter
+  prunes expired principals, retains at most 4,096 active principal keys, and
+  returns a slot when the worker queue is full.
+- OpenAI usage metadata now emits a redacted `model.usage` LangSmith event with
+  model, role, input/output token counts and turn ID. It carries thread ID in
+  run metadata, never prompt, response, account ID, cookie or secret. Missing
+  usage metadata or trace errors do not fail planning. Events require LangSmith
+  tracing to be enabled.
+- Verification used `PYTHON_DOTENV_DISABLED=1` and dummy model names; no provider
+  credentials were used. Focused tests: 95 passed. Full suite: 168 passed, one
+  optional PostgreSQL test skipped. Isort, Black, flake8, Ruff and `git diff
+  --check` passed.
+- The limiter is process-local and resets on restart; a multi-replica service
+  needs shared quota storage. The global cap counts turns, not USD.
+- After the user provided the global limit through runtime environment, the
+  Compose image was rebuilt and app container recreated. The container is
+  healthy, local root returns HTTP 200, and the limit parsed as configured. No
+  429 request was sent. App recreation cleared session-only plans; PostgreSQL
+  and saved tours remained intact. The actual environment value was not
+  displayed or recorded.
+- No provider-project spend cap or managed DDoS/WAF edge was configured.
+
+## Bilingual Response Prompt Guard — 2026-11-06
+
+- The user reported English and Vietnamese content mixing after changing the
+  session language. The selected language already reaches each submitted turn;
+  role prompts did not clearly separate new prose from multilingual history,
+  itinerary fields, validation evidence and source data.
+- Added one shared prompt policy. Coordinator applies it to both the rolling
+  summary and response hint; Planner applies it to new plan prose; Chat applies
+  it to both search-decision replies and final responses. The policy requires
+  new prose to use the captured locale, paraphrase reference content in that
+  locale, and preserve proper names, source titles, URLs and provider data.
+- Added Vietnamese-to-English and English-to-Vietnamese prompt regressions.
+  Focused backend checks passed 88 tests. Full host suite passed 172 tests with
+  one optional PostgreSQL test skipped. Isort, Black, flake8, Ruff and
+  `git diff --check` passed.
+- Existing conversation, user text, place names and provider source data remain
+  unchanged under ADR 0013. No live model locale QA, browser QA, image rebuild or
+  container restart was performed; deployed behavior is not verified.
+
+## Locale-aware UI Feedback — 2026-11-07
+
+- The user clarified that interface feedback also stayed in its old language
+  after switching locales. The React UI stored translated error and status
+  strings directly in state, so later renders reused text from the prior locale.
+- UI feedback now stores catalog keys and resolves them against the active
+  locale during render. This covers form validation, chat input validation,
+  session/auth errors, graph and saved-tour errors, save/claim statuses, and
+  request failures. Language names in the selector now use the active locale.
+- `npm run build` passed, including TypeScript project checks and Vite
+  production build. Browser interaction QA was not run. The running Compose app
+  was not recreated, so deployed UI behavior is not verified.
+
+## Mandatory Sign-In And Account Session Management — 2026-11-08
+
+- The user requested a public introduction page and mandatory sign-in before
+  using the planner, plus research into login and signed-in user management.
+  The current source already had Auth0 email one-time-code login, but the React
+  app created planner sessions before checking the account and the HTTP planner
+  routes accepted anonymous requests.
+- Research compared keeping anonymous planning, adding app-managed passwords,
+  browser-held Auth0 tokens, and reusing the current Auth0 BFF. Reuse won: Auth0
+  Universal Login handles email OTP and account records; FastAPI keeps the
+  credential exchange and opaque account session server-side. The app exposes
+  verified email, saved tours and sign-out; account administration stays in
+  Auth0 Dashboard. The proposal records options and limits.
+- Added public bilingual landing. React checks `/api/auth/me` before requesting
+  planner state, preserves the selected locale through the safe local return
+  target, and rechecks auth when a tab regains focus. Failed or changed auth
+  clears cached private UI state. FastAPI requires an authenticated account on
+  planner session, turn, visual and session-backed save operations. Volatile
+  sessions bind to the internal account UUID; login binds a same-browser
+  unowned session or rotates a different owner's session. Logout revokes auth,
+  discards the live session and clears both cookies. Live trip/chat state stays
+  session-only.
+- ADR 0021 amends ADR 0016, which had allowed anonymous planning. The charter,
+  implementation plan, progress status and roadmap record mandatory sign-in as
+  the current product requirement. Auth0 tenant, callback, OTP and browser
+  behavior remain separate deployment checks.
+- Offline verification: focused auth/API/archive tests passed 44 cases. Full
+  `uv run pytest` passed 176 cases with one optional PostgreSQL test skipped.
+  Frontend `npm run check` and `npm run build`, isort, Black, flake8, Ruff, and
+  `git diff --check` passed. Tests cover anonymous rejection, owner isolation,
+  callback bind/rotation, logout invalidation, and existing archive behavior.
+- No live Auth0 OTP/callback, browser QA, Compose rebuild, or app restart ran.
+  The running app image remains unchanged; mandatory sign-in is not deployed.
+
+## Codex Development Workflow Refinement — 2026-11-08
+
+- Reviewed project-local skills and agent instructions against the current
+  charter, accepted runtime ADRs, previous workflow changes and repeated
+  development corrections.
+- Kept `delivery-orchestrator` for repository delivery, `ui-ux-pro-max` for the
+  active React/Tailwind interface, and `security-audit` for explicit security
+  reviews. Removed `evaluation-and-test`: its routine verification workflow
+  duplicated `AGENTS.md` and the testing agent, while adding a routing step.
+- Folded focused pass/fail criteria, deterministic offline checks, trust-boundary
+  review when relevant and exact evidence reporting into the testing agent.
+  Explicit security reviews still use the dedicated `security-audit` skill.
+- Added a compact Goal Card and scoped execution lanes to the delivery skill and
+  agent workflow. Routine tasks stay with the primary session; bounded coding
+  uses the coding role; behavioral evidence uses testing when requested or
+  required; cross-layer, high-risk or architectural work uses planner before
+  coding and testing. `/goal` tracks explicit multi-turn objectives; compatible
+  user steering stays with the active goal. Complete requires accepted evidence,
+  pause requires an explicit request, and blocked requires the same blocker for
+  three consecutive goal turns without progress. Commit and push still require
+  explicit user direction.
+- Updated the roadmap summary and evidence index. Static verification passed:
+  `tomli` parsed all four agent TOML files, PyYAML parsed delivery `openai.yaml`,
+  `rg` found no removed-skill references under `.codex`, and `git diff --check`
+  passed. No tests, app, frontend, container, browser or live-provider checks
+  ran for this documentation/configuration change.
+
+## Project-Authored Agent Skills — 2026-11-08
+
+- The user required project agents to stop using third-party/open-source skill
+  bundles directly. Provenance metadata identified the local UI/UX Pro Max bundle
+  as Next Level Builder's MIT package and the security-audit bundle as
+  Cloudflare's MIT skill. No skill bundle content was used as source material.
+- No local path or file named `Ponytail` was found. The user was asked for its
+  location; this update uses repository-owned requirements while awaiting a
+  pointer.
+- Replaced those vendored bundles with first-party `travel-planner-ui` and
+  `travel-planner-security-review` skills based on the active charter, accepted
+  ADRs, current code contracts and the local design system. Updated AGENTS.md
+  and agent routing. Kept the project-native delivery skill and testing-agent
+  verification rules; did not recreate a generic testing skill.
+- Updated ADR 0001, status, progress evidence and roadmap summary. Static skill,
+  TOML, YAML, JSON and diff checks passed. No application or live integration
+  checks ran for this documentation/configuration change.
+
+## Minimal-Change Agent Workflow — 2026-11-08
+
+- The user supplied the Ponytail repository and asked to adapt its skills for
+  project agents without using open-source skill files directly. Read the core,
+  review, audit, debt, gain and help skill pages as design input.
+- Adapted the useful workflow ideas into project-owned guidance: trace the real
+  flow and callers, choose the smallest complete change, reuse project code,
+  platform features, the standard library and installed dependencies before
+  adding new layers, and prioritize correctness, safety, load and focused tests
+  before material performance or duplication findings.
+- Kept explicit guards: never reduce validation, error handling, security,
+  accessibility or user acceptance to shorten a diff. Updated manager, planner,
+  coding, delivery, UI and security-review guidance. Testing remains focused on
+  concrete missing contracts.
+- Did not add Ponytail itself, copy its skill files, create a debt ledger or
+  claim savings. The repository has no `shortcut:` markers or measured before/
+  after baseline to support those additions.
+- Static skill, TOML, YAML, JSON and diff checks passed. No application tests or
+  runtime checks ran for this workflow-only change.

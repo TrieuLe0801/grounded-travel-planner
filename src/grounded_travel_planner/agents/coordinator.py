@@ -1,0 +1,109 @@
+"""User-facing Coordinator agent; it never creates or commits plans."""
+
+from __future__ import annotations
+
+from collections.abc import Mapping
+
+from grounded_travel_planner.contracts import (
+    ConversationTurn,
+    CoordinatorDecision,
+    IntentAction,
+    PlanChangeIntent,
+    SightseeingPlan,
+    TripRequest,
+    visible_schedule_context,
+)
+from grounded_travel_planner.conversation import history_prompt
+from grounded_travel_planner.i18n import (
+    Language,
+    authored_content_language_instruction,
+)
+from grounded_travel_planner.providers import StructuredChatModel
+
+
+class CoordinatorAgent:
+    """Classify turns and route mutations; it never writes final responses."""
+
+    role = "coordinator"
+
+    def __init__(self, model: StructuredChatModel) -> None:
+        self._model = model
+
+    @property
+    def model_name(self) -> str:
+        return self._model.model_name
+
+    def classify(
+        self,
+        message: str,
+        *,
+        request: TripRequest | None,
+        current_plan: SightseeingPlan | None,
+        metadata: Mapping[str, str],
+        session_summary: str = "",
+        conversation_history: list[ConversationTurn] | None = None,
+        language: Language = "vi",
+    ) -> CoordinatorDecision:
+        prompt = (
+            "Classify the user turn for a city sightseeing planner. "
+            f"{authored_content_language_instruction(language)} "
+            "Write both the rolling session_summary and response_hint in the "
+            "required language. "
+            "Use ordinary_chat for conversation that does not request a plan "
+            "mutation. Plan mutations are create_trip, add_place, remove_place, "
+            "replace_place, reorder_places, change_day, change_time, "
+            "extend_trip or shorten_trip. Understand requests in Vietnamese or "
+            "English. For "
+            "Vietnamese requests such as 'thêm N ngày' or English requests "
+            "such as 'add N days', use extend_trip and set day_count_delta to "
+            "the positive N. For requests to remove/reduce N days, including "
+            "Vietnamese 'bớt N ngày'/'rút ngắn N ngày' or English "
+            "'remove/cut N days', use shorten_trip and set day_count_delta to "
+            "the positive number of days removed. For an absolute requested "
+            "total, use extend_trip or shorten_trip as appropriate and set "
+            "day_count. Adding days must "
+            "extend the trip and populate every newly added day; reducing days "
+            "must shorten the trip and remove entries on days beyond the new "
+            "total. Do not treat a trip-length change as a single-stop change_day. "
+            "Do not invent a plan. Preserve "
+            "the user's place names and original spelling in the structured intent. "
+            "Reorder from_index and to_index are zero-based "
+            "positions in the chronological itinerary the user sees, sorted by "
+            "day, start time, end time, then entry ID. When the user names a "
+            "user-facing Stop N, set its internal index to N - 1 using the "
+            "current visible itinerary. Return durable user constraints and the "
+            "current request in a session_summary of at most two concise sentences. "
+            "Keep response_hint to one short sentence for the next roles. Do not "
+            "include a verbatim transcript or unsupported facts.\n"
+            f"User message: {message[:4000]}\n"
+            f"Prior session summary: {session_summary[:1200]}\n"
+            f"Recent conversation: {history_prompt(conversation_history or [])}\n"
+            f"Structured request supplied: {request is not None}\n"
+            f"Current plan exists: {current_plan is not None}\n"
+            f"Current visible itinerary: {visible_schedule_context(current_plan)}\n"
+            f"Final language requirement for session_summary and response_hint: "
+            f"{authored_content_language_instruction(language)}"
+        )
+        decision = self._model.generate_structured(
+            prompt,
+            CoordinatorDecision,
+            metadata=metadata,
+        )
+        intent = decision.intent
+        request_is_valid = bool(
+            request is not None
+            and request.destination.strip()
+            and 1 <= request.day_count <= 7
+        )
+        if request_is_valid and request is not None and current_plan is None:
+            intent = PlanChangeIntent(
+                action=IntentAction.CREATE_TRIP,
+                user_message=message,
+                destination=request.destination,
+                start_date=request.start_date,
+                day_count=request.day_count,
+            )
+        requires_planner = intent.mutates_plan
+        return decision.model_copy(
+            update={"intent": intent, "requires_planner": requires_planner}
+        )
