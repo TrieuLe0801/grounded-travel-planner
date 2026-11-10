@@ -422,6 +422,30 @@ def create_app(
             )
         return session
 
+    def mutation_user(
+        auth_token: str | None, csrf_token: str | None
+    ) -> AuthenticatedUser | None:
+        """Require CSRF before any authenticated planner state mutation."""
+
+        if not require_auth:
+            return None
+        return csrf_user(auth_token, csrf_token)
+
+    def mutation_session(
+        session_id: str | None, auth_token: str | None, csrf_token: str | None
+    ) -> WebSession:
+        """Return an owned live session only after the CSRF check succeeds."""
+
+        user = mutation_user(auth_token, csrf_token)
+        if user is None:
+            return sessions.get(session_id)
+        session = sessions.get(session_id)
+        if session.owner_user_id != user.user_id:
+            raise HTTPException(
+                status_code=401, detail="Phiên không thuộc tài khoản này."
+            )
+        return session
+
     def turn_principal(session: WebSession, auth_token: str | None) -> str:
         """Use only server-verified account identity or an opaque session ID."""
 
@@ -494,8 +518,10 @@ def create_app(
         response: Response,
         request: Request,
         gtp_auth: str | None = Cookie(default=None, alias=AUTH_COOKIE_NAME),
+        x_csrf_token: str | None = Header(default=None),
     ) -> dict[str, object]:
-        user_id = current_user(gtp_auth).user_id if require_auth else None
+        user = mutation_user(gtp_auth, x_csrf_token)
+        user_id = user.user_id if user is not None else None
         try:
             session_id, session = sessions.create(planner_service, user_id)
         except SessionCapacityExceeded as error:
@@ -519,12 +545,12 @@ def create_app(
         request: Request,
         gtp_session: str | None = Cookie(default=None),
         gtp_auth: str | None = Cookie(default=None, alias=AUTH_COOKIE_NAME),
+        x_csrf_token: str | None = Header(default=None),
     ) -> dict[str, object]:
-        user_id = current_user(gtp_auth).user_id if require_auth else None
-        current_session(gtp_session, gtp_auth)
+        session = mutation_session(gtp_session, gtp_auth, x_csrf_token)
         try:
             session_id, session = sessions.replace(
-                gtp_session, planner_service, user_id
+                gtp_session, planner_service, session.owner_user_id
             )
         except SessionCapacityExceeded as error:
             raise HTTPException(
@@ -546,10 +572,11 @@ def create_app(
         payload: LanguageInput,
         gtp_session: str | None = Cookie(default=None),
         gtp_auth: str | None = Cookie(default=None, alias=AUTH_COOKIE_NAME),
+        x_csrf_token: str | None = Header(default=None),
     ) -> dict[str, object]:
         """Change only UI/next-turn language for this existing browser session."""
 
-        session = current_session(gtp_session, gtp_auth)
+        session = mutation_session(gtp_session, gtp_auth, x_csrf_token)
         with session.lock:
             session.language = payload.language
             return _session_payload(session, session.response)
@@ -569,8 +596,9 @@ def create_app(
         payload: TurnInput,
         gtp_session: str | None = Cookie(default=None),
         gtp_auth: str | None = Cookie(default=None, alias=AUTH_COOKIE_NAME),
+        x_csrf_token: str | None = Header(default=None),
     ) -> dict[str, bool]:
-        session = current_session(gtp_session, gtp_auth)
+        session = mutation_session(gtp_session, gtp_auth, x_csrf_token)
         with session.lock:
             collect(session)
             if session.pending is not None:
@@ -625,16 +653,16 @@ def create_app(
 
     @app.get("/api/graph/image")
     def graph_image() -> Response:
-        """Return the compiled LangGraph PNG without running a planning turn."""
+        """Return a locally rendered graph SVG without running a planning turn."""
 
         try:
-            image = planner_service.get_graph_image()
+            image = compiled_graph_svg(planner_service.graph)
         except Exception as error:
             raise HTTPException(
                 status_code=503,
                 detail="Không thể tạo ảnh kiến trúc graph lúc này.",
             ) from error
-        return Response(content=image, media_type="image/png")
+        return Response(content=image, media_type="image/svg+xml")
 
     @app.get("/api/visuals")
     def plan_visuals(

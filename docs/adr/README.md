@@ -25,4 +25,6 @@ Apple Silicon macOS launchd poller. Database migrations remain explicit.
 ADR 0020 defines per-role output ceilings, process-local HTTP turn quotas and
 redacted model-usage telemetry; actual monetary values remain in the runtime
 environment and provider-project spend limits remain separately configured.
+ADR 0021 makes Auth0 sign-in mandatory before React planner use and binds each
+volatile planner session to its verified account owner.
 

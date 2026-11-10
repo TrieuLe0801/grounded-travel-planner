@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import sqlite3
+import stat
 from datetime import date, time
 from pathlib import Path
 from threading import Event
@@ -32,6 +34,38 @@ from grounded_travel_planner.web.api import (
     COOKIE_NAME,
     create_app,
 )
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX permissions are required")
+def test_saved_tour_sqlite_files_are_private_before_opening(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    database_directory = tmp_path / "saved-tour-storage"
+    database_directory.mkdir()
+    os.chmod(database_directory, 0o755)
+    database_path = database_directory / "saved-tours.sqlite"
+    with sqlite3.connect(database_path):
+        pass
+    sidecars = [
+        database_path.with_name(database_path.name + suffix)
+        for suffix in ("-wal", "-shm", "-journal")
+    ]
+    for path in [database_path, *sidecars]:
+        path.touch()
+        os.chmod(path, 0o644)
+
+    import grounded_travel_planner.saved_tours as saved_tours_module
+
+    original_connect = saved_tours_module.sqlite3.connect
+
+    def assert_private_connect(*args, **kwargs):
+        assert stat.S_IMODE(database_directory.stat().st_mode) == 0o755
+        for path in [database_path, *sidecars]:
+            assert stat.S_IMODE(path.stat().st_mode) == 0o600
+        return original_connect(*args, **kwargs)
+
+    monkeypatch.setattr(saved_tours_module.sqlite3, "connect", assert_private_connect)
+    SavedTourRepository(database_path)
 
 
 def _plan(destination: str) -> SightseeingPlan:

@@ -30,6 +30,12 @@ The current interface uses JavaScript and Tailwind on the same origin as a thin
 Python HTTP adapter. The earlier Streamlit interface remains available during
 migration; the Coordinator/Planner/Chat runtime and validation rules are shared.
 
+The public React entry is a bilingual introduction page. Visitors must complete
+Auth0 email one-time-code sign-in before the planner, chat, visuals, or saved
+tours appear. FastAPI enforces the same requirement on private API routes; the
+landing page and static assets remain public. Each live planner session is
+bound to its verified internal account UUID. See ADR 0021.
+
 The user can explicitly save a validated current tour and later review that
 snapshot from the same browser. Saved tours use a separate database and owner
 credential; they are read-only records of the plan and sources at save time.
@@ -40,10 +46,12 @@ Clicking Home starts a fresh trip session and returns to the itinerary start.
 It clears the live plan, conversation and trip-form draft while preserving the
 selected language, account and saved-tour archive.
 
-ADR 0016 selects account-owned saved tours through Auth0 email OTP. Its code
-and isolated migration are verified offline, but the running application still
-uses the browser owner cookie until the controlled database migration and
-rollout. The account change does not persist live itinerary or chat state.
+ADR 0016 selects account-owned saved tours through Auth0 email OTP; ADR 0021
+requires sign-in for planner use. The prior account-ownership implementation
+and isolated migrations have offline evidence. The mandatory entry and
+session-owner changes remain subject to current verification. The running
+application remains on its earlier image until controlled rollout. Account
+ownership does not persist live itinerary or chat state.
 
 ## Runtime Scope
 
@@ -121,9 +129,11 @@ integrates its result exactly once when the chat page polls or is reopened.
   invent photos; show image creator, license and source-page credit.
 - Only an explicit save action on a validated canonical plan creates a saved
   tour. Archive reads do not run agents/search or mutate the live plan. Every
-  archive operation is scoped to a verified owner. The deployed app still uses
-  its browser owner credential; ADR 0016 changes ownership to an authenticated
-  account after the controlled rollout.
+  archive operation is scoped to a verified owner. The running app still uses
+  its earlier image until the controlled Auth0 account migration and rollout.
+- The React planner requires a verified Auth0 account. FastAPI checks account
+  ownership on every live planner session and session-backed operation; a
+  missing or mismatched account cannot read or change another account's state.
 
 ## Non-Goals
 

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
 
 from dotenv import load_dotenv
 
@@ -183,25 +182,6 @@ class TravelPlannerService:
 
     def create_session(self) -> str:
         return new_id("thread")
-
-    def get_graph_image(
-        self, parent_path: str | os.PathLike[str] | None = None
-    ) -> bytes:
-        """Render the compiled workflow as PNG without invoking a graph turn.
-
-        When ``parent_path`` is provided, LangGraph also writes ``flow.png`` to
-        that directory. The returned bytes are suitable for direct UI display.
-        """
-
-        output_file_path = (
-            str(Path(parent_path) / "flow.png") if parent_path is not None else None
-        )
-        image = self.graph.get_graph(xray=True).draw_mermaid_png(
-            output_file_path=output_file_path
-        )
-        if not image.startswith(b"\x89PNG\r\n\x1a\n"):
-            raise ValueError("LangGraph did not return a valid PNG image.")
-        return image
 
     def handle_turn(
         self,

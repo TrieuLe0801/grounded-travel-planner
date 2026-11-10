@@ -1312,13 +1312,16 @@ function App() {
   useEffect(() => {
     currentSessionLanguage.current = state.language;
   }, [state.language]);
-  const load = async () => {
+  const load = async (csrfToken = auth?.csrf_token || "") => {
     try {
       setState(await api<ApiState>("/api/session"));
     } catch (error) {
       if (!(error instanceof ApiError) || error.status !== 401) throw error;
       clearPrivateWorkspace();
-      await api<ApiState>("/api/session", { method: "POST" });
+      await api<ApiState>("/api/session", {
+        method: "POST",
+        headers: { "X-CSRF-Token": csrfToken || "" },
+      });
       setState(await api<ApiState>("/api/session"));
     }
   };
@@ -1358,12 +1361,16 @@ function App() {
         setAuth(current);
         return;
       }
-      await load();
+      await load(current.csrf_token);
       const parameters = new URLSearchParams(window.location.search);
       const requestedLanguage = parameters.get("lang");
       if (readDeepLink && (requestedLanguage === "en" || requestedLanguage === "vi")) {
         const updated = await api<ApiState>("/api/session/language", {
           method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRF-Token": current.csrf_token || "",
+          },
           body: JSON.stringify({ language: requestedLanguage }),
         });
         setState(updated);
@@ -1476,6 +1483,10 @@ function App() {
     try {
       await api<{ accepted: boolean }>("/api/turns", {
         method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRF-Token": auth?.csrf_token || "",
+        },
         body: JSON.stringify(body),
       });
       await load();
@@ -1657,7 +1668,10 @@ function App() {
     if (state.plan && !window.confirm(labels.confirmReset)) return;
     setRequestError("");
     try {
-      const replacement = await api<ApiState>("/api/session/reset", { method: "POST" });
+      const replacement = await api<ApiState>("/api/session/reset", {
+        method: "POST",
+        headers: { "X-CSRF-Token": auth?.csrf_token || "" },
+      });
       setState(replacement);
       setDestination("");
       setStartDate(today);
@@ -1684,6 +1698,10 @@ function App() {
     try {
       const updated = await api<ApiState>("/api/session/language", {
         method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRF-Token": auth.csrf_token || "",
+        },
         body: JSON.stringify({ language }),
       });
       setState(updated);

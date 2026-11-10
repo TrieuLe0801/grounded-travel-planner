@@ -16,6 +16,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from grounded_travel_planner.contracts import SightseeingPlan
+from utils.sqlite import prepare_private_sqlite_database
 
 SNAPSHOT_SCHEMA_VERSION = 1
 LIST_LIMIT = 50
@@ -108,7 +109,6 @@ class SavedTourRepository:
 
     def __init__(self, database_path: Path) -> None:
         self._database_path = Path(database_path)
-        self._database_path.parent.mkdir(parents=True, exist_ok=True)
         self._initialize()
 
     @staticmethod
@@ -638,6 +638,7 @@ class SavedTourRepository:
 
     @contextmanager
     def _connection(self) -> Iterator[sqlite3.Connection]:
+        prepare_private_sqlite_database(self._database_path)
         connection = sqlite3.connect(self._database_path, timeout=5)
         connection.row_factory = sqlite3.Row
         connection.execute("PRAGMA busy_timeout=5000")

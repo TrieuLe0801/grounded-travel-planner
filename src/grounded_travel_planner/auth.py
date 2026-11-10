@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Protocol
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit
 from urllib.request import urlopen
 from uuid import uuid4
 
@@ -26,6 +26,8 @@ import psycopg
 from jwt import PyJWKClient
 from psycopg.rows import dict_row
 from psycopg_pool import ConnectionPool, PoolClosed, PoolTimeout
+
+from utils.sqlite import prepare_private_sqlite_database
 
 AUTH_COOKIE_NAME = "gtp_auth"
 AUTH_PENDING_COOKIE_NAME = "gtp_auth_pending"
@@ -170,10 +172,37 @@ class Auth0OidcProvider:
     def __init__(self, *, issuer: str, client_id: str, client_secret: str) -> None:
         if not all((issuer, client_id, client_secret)):
             raise AuthError("Auth0 settings are incomplete.")
-        self._issuer = f"{issuer.rstrip('/')}/"
-        self._endpoint = issuer.rstrip("/")
+        endpoint = self._https_origin(issuer)
+        self._issuer = f"{endpoint}/"
+        self._endpoint = endpoint
         self._client_id = client_id
         self._client_secret = client_secret
+
+    @staticmethod
+    def _https_origin(issuer: str) -> str:
+        """Accept only an HTTPS origin before sending a client secret to Auth0."""
+
+        try:
+            parsed = urlsplit(issuer)
+            port = parsed.port
+        except ValueError as error:
+            raise AuthError("Auth0 issuer must be a valid HTTPS origin.") from error
+        if (
+            parsed.scheme != "https"
+            or not parsed.hostname
+            or parsed.username is not None
+            or parsed.password is not None
+            or parsed.path not in {"", "/"}
+            or parsed.query
+            or parsed.fragment
+        ):
+            raise AuthError("Auth0 issuer must be a valid HTTPS origin.")
+        authority = parsed.hostname
+        if ":" in authority and not authority.startswith("["):
+            authority = f"[{authority}]"
+        if port is not None:
+            authority = f"{authority}:{port}"
+        return f"https://{authority}"
 
     @classmethod
     def from_environment(cls) -> Auth0OidcProvider:
@@ -266,7 +295,6 @@ class AuthRepository:
     def migrate(self) -> None:
         """Create the fresh auth schema; invoke from an explicit maintenance step."""
 
-        self._database_path.parent.mkdir(parents=True, exist_ok=True)
         with self._connection() as connection:
             connection.executescript("""
                 CREATE TABLE IF NOT EXISTS app_users (
@@ -406,6 +434,7 @@ class AuthRepository:
 
     @contextmanager
     def _connection(self) -> Iterator[sqlite3.Connection]:
+        prepare_private_sqlite_database(self._database_path)
         connection = sqlite3.connect(self._database_path)
         connection.row_factory = sqlite3.Row
         try:

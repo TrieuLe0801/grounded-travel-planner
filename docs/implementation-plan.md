@@ -3,6 +3,33 @@
 Status: Active
 Last updated: 2026-11-08
 
+## Mandatory Sign-In And Public Landing — Offline Verified; Live Rollout Pending — 2026-11-08
+
+The React root now shows a public bilingual introduction page and one Auth0
+email one-time-code sign-in action. It checks `/api/auth/me` before requesting
+planner state. Focus and tab-visibility changes recheck authentication; an
+invalid account or planner session clears cached itinerary, chat, drafts, and
+archive view state before the app can appear again.
+
+FastAPI now requires a valid Auth0 account for planner session creation, reads,
+resets, language updates, turns, visuals, and session-backed saves. Each live
+session is tied to the verified internal account UUID. Login binds a legacy
+unowned session from the same browser or rotates a session owned by another
+account. Logout revokes the app session, discards that live session, and clears
+both cookies. Credentials stay with Auth0; the app shows the email, saved tours,
+and sign-out.
+
+Verification on the current source: 44 focused auth/API/archive tests passed;
+the full offline suite passed 176 tests with one optional PostgreSQL test
+skipped. `npm run check`, `npm run build`, isort, Black, flake8, Ruff, and
+`git diff --check` passed. Mocked tests confirm unauthenticated rejection,
+account isolation, login binding/rotation, and logout invalidation.
+
+No browser QA, live Auth0 OTP/callback, Compose rebuild, or app restart ran. The
+running app image remains the prior deployment; live Auth0 and the controlled
+account/database rollout remain pending. Source verification does not establish
+deployed behavior.
+
 ## Complete Day Coverage For New Trips — Compose Deployed; Provider QA Pending — 2026-11-06
 
 Every newly created itinerary must include at least one grounded stop on each
@@ -698,8 +725,8 @@ Acceptance:
   icon button; support responsive sizing, keyboard close and focus on open.
 - Keep one server-owned canonical plan per opaque browser session. A pending
   turn continues when the user opens the read-only graph view.
-- Render the compiled graph as the responsive PNG from `get_graph_image()`;
-  constrain it to the graph panel and retain the SVG fallback for render errors.
+- Render the compiled graph as a locally generated responsive SVG; constrain it
+  to the graph panel and avoid external rendering services.
 - Display source references, estimated durations, unverified opening hours and
   optional Commons photos with creator, license and file-page credit.
 - Preserve the previous plan after a rejected edit; show validation feedback.
@@ -711,14 +738,19 @@ repository during migration. Offline browser interaction and responsive visual
 inspection remain open until a browser is available. The frontend and API
 tests do not constitute a new live OpenAI/Tavily/LangSmith verification.
 
-The JavaScript graph follow-up serves `get_graph_image()` bytes from
+The JavaScript graph follow-up serves the graph diagnostic from
 `GET /api/graph/image`. The responsive image is capped by its panel and
-viewport height, while `GET /api/graph` remains the SVG fallback. Its contract
-test verifies `image/png` delivery and that no planning turn runs. On
+viewport height, while `GET /api/graph` returns topology SVG. Its original
+contract test verified `image/png` delivery and that no planning turn runs. On
 2026-10-17, `uv run pytest` passed 57 tests; frontend typecheck and production
 build, isort, Black, flake8, Ruff and `uv lock --check` passed. The running
 adapter returned `200 image/png` (24,241 bytes) and its SVG fallback returned
 HTTP 200.
+
+Security amendment, 2026-11-10: both HTTP and retained Streamlit graph views
+now render locally as SVG. The Mermaid API PNG renderer and its
+`TravelPlannerService.get_graph_image()` call path were removed; the public
+image route returns `image/svg+xml` without outbound rendering requests.
 
 ## Configurable OpenAI/Ollama Runtime Models — Host Smoke Verified
 

@@ -9,6 +9,11 @@ The React navigation no longer exposes it, and the Streamlit page source lives
 outside Streamlit's auto-discovered `pages` directory. Keep the compiled-graph
 rendering and HTTP diagnostic endpoints for developer inspection.
 
+Security amendment, 2026-11-10: Render graph diagnostics as local SVG in both
+the HTTP adapter and retained Streamlit page. Do not send graph definitions to
+the external Mermaid renderer. The former `TravelPlannerService.get_graph_image`
+PNG path was removed; `/api/graph/image` now serves `image/svg+xml`.
+
 ## Context
 
 The itinerary map and car marker introduced under ADR 0005 produced an
@@ -23,13 +28,11 @@ up coordinates, remove the route map and car interaction, and retain the text
 itinerary when a photo is unavailable. Visual lookups remain outside the
 Coordinator/Planner graph and cannot change the canonical plan.
 
-Add a read-only Streamlit page that calls
-`TravelPlannerService.get_graph_image()` to render a PNG from the compiled
-LangGraph workflow. Show conditional branches and the repair loop, and expose
-the topology data for inspection. Loading the page must not invoke the workflow,
-call model/search/tracing services, or mutate session plan state. If Mermaid PNG
-rendering is unavailable, use the local SVG topology renderer as a fallback.
-The graph image is an architecture diagram, not a geographic route.
+Add a read-only Streamlit page and HTTP diagnostics that render the compiled
+LangGraph topology as local SVG. Show conditional branches and the repair loop,
+and expose topology data for inspection. Loading the page must not invoke the
+workflow, call model/search/tracing/rendering services, or mutate session plan
+state. The graph image is an architecture diagram, not a geographic route.
 
 ## Consequences
 

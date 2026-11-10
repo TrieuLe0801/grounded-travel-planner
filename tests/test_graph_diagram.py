@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import base64
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
@@ -89,29 +88,6 @@ def test_svg_copies_compiled_topology_including_repair_loop() -> None:
     assert "stroke-dasharray" in svg
 
 
-def test_service_get_graph_image_returns_png_and_optionally_writes_file(
-    monkeypatch, tmp_path
-) -> None:
-    service = _service()
-    expected = b"\x89PNG\r\n\x1a\nrendered"
-    received_paths: list[str | None] = []
-
-    class FakeRenderableGraph:
-        def draw_mermaid_png(self, *, output_file_path=None):
-            received_paths.append(output_file_path)
-            return expected
-
-    monkeypatch.setattr(
-        service.graph, "get_graph", lambda *, xray=False: FakeRenderableGraph()
-    )
-
-    assert service.get_graph_image() == expected
-    assert received_paths == [None]
-
-    assert service.get_graph_image(tmp_path) == expected
-    assert received_paths[-1] == str(tmp_path / "flow.png")
-
-
 def test_svg_escapes_dynamic_graph_labels() -> None:
     svg = render_topology_svg(
         [
@@ -134,11 +110,6 @@ def test_graph_page_renders_offline_without_changing_session_plan(
     monkeypatch,
 ) -> None:
     service = _service()
-    graph_image = base64.b64decode(
-        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk"
-        "+A8AAQUBAScY42YAAAAASUVORK5CYII="
-    )
-    monkeypatch.setattr(service, "get_graph_image", lambda: graph_image)
     monkeypatch.setattr(
         TravelPlannerService,
         "from_environment",
@@ -156,8 +127,8 @@ def test_graph_page_renders_offline_without_changing_session_plan(
         if getattr(item, "value", "")
     )
     assert "Kiến trúc LangGraph" in text
-    assert "không gọi model, Tavily hoặc LangSmith" in text
+    assert "dịch vụ render bên ngoài" in text
     assert app.session_state.current_plan == sentinel
     assert len(app.get("image")) == 1
     assert len(app.get("download_button")) == 1
-    assert app.get("download_button")[0].label == "Tải ảnh graph PNG"
+    assert app.get("download_button")[0].label == "Tải sơ đồ SVG"

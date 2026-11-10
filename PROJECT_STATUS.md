@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-11-08
+Last updated: 2026-11-10
 
 ## Current Milestone
 
@@ -17,7 +17,7 @@ background only.
 | Scope reset | Complete | Charter, implementation plan, current log and ADR 0004/0009/0011/0012 |
 | Runtime package | Complete | Coordinator/Planner/Chat graph, typed providers and validators |
 | Streamlit app | Complete | Session-only itinerary/chat; graph page hidden from navigation |
-| Tests | 170 passed, 1 skipped on host | Full offline suite; one optional PostgreSQL test skipped |
+| Tests | 185 passed, 1 skipped on host | Current full offline suite; one optional PostgreSQL test skipped |
 | Live integration | Passed | OpenAI/Tavily/LangSmith smoke recorded under `docs/experiments/` |
 | Local container | Passed | Test/runtime images, health, non-root and live provider checks |
 | Chat editing | Passed | Trip extension plus eight prior offline eval cases and live two-turn smoke |
@@ -25,9 +25,9 @@ background only.
 | Source quality evaluation | Offline baseline | 16 labelled synthetic citations; live relevance not measured |
 | Vietnamese chat | Passed | Vietnamese AppTest/fallback and live add-place response |
 | Visual itinerary | Complete | Source-backed photos; route map removed by user request |
-| Graph inspection | Hidden from UI | Rendering and diagnostic API retained; earlier PNG/SVG offline coverage |
+| Graph inspection | Hidden from UI; local SVG diagnostics retained | HTTP and Streamlit render locally; no external Mermaid renderer call |
 | Async page navigation | Implemented | Background Future, exact-once session integration; browser QA pending |
-| JavaScript/Tailwind UI | Implemented; `051c5fc` deployed | React itinerary/chat/saved tours, Home reset, Account dropdown, FastAPI session adapter, optional credited photos; local/public roots HTTP 200; browser interaction QA pending |
+| JavaScript/Tailwind UI | Existing UI deployed; mandatory-login source offline verified | React itinerary/chat/saved tours, Home reset and Account dropdown remain in current image `051c5fc`; new landing/auth gate is source-only, browser QA pending |
 | Configurable model provider | Passed on host and Compose app | Active mixed routing and an HTTP Compose-app Hue plan committed with OpenAI `gpt-5.5` Coordinator and Ollama `qwen2.5:3b` Planner/Chat |
 | No-local API defaults | Historical Compose verification | Earlier container resolved to OpenAI `gpt-5.5` / `gpt-5.4-mini` / `gpt-4.1`; root and graph image returned HTTP 200 |
 | Current Planner OpenAI default | Local app verified | `gpt-6.1-terra` with 60-second per-call timeout and JSON Schema URL validation; live full graph turn committed four sourced Huế entries in 41.3 seconds; 113 tests passed; app healthy, root/graph HTTP 200 |
@@ -44,17 +44,39 @@ background only.
 | Turn and session capacity | Offline verified; running app image unchanged | At most eight queued/running turns and 1,024 retained sessions per process; idle sessions expire after one hour, including uncollected completed turns. HTTP returns 429/503 without changing the rejected session. 15 focused and 122 full sandboxed tests passed |
 | Request and model-cost guards | Compose image rebuilt; app healthy | Per-role completion ceilings, 28 itinerary-entry cap, Auth0-user/session sliding-hour quota, configured process-wide hourly quota, and redacted LangSmith token-usage events. Offline suite 168 passed, one optional PostgreSQL test skipped; Python quality gates passed. App root HTTP 200; quota configuration parsed in the running container. Live 429/event behavior was not exercised. Limiter is process-local; no USD spend limit or managed DDoS edge is configured |
 | Saved tours | PostgreSQL Compose app healthy; browser QA pending | Database now uses a sibling host directory outside Git; three saved rows and checksum survived the move; former named volume retained; root 200, session creation 201 |
-| Auth0 account ownership | Runtime deployed; live auth flow unverified | PostgreSQL has account-owner column, both owner indexes and auth tables; six saved tours. Auth0/session config is present in app container. No live callback/OTP or browser account-flow QA. |
-| Mac CI/CD | Configured; automatic deployment gated | GitHub Actions CI and Mac `launchd` poller are ready. `GTP_DEPLOY_ENABLED=false` remains; the latest app/ngrok rollout was a separate manual Compose action, not CI/CD. |
+| Auth0 account ownership | Source offline verified; live rollout pending | PostgreSQL has account-owner column, both owner indexes and auth tables; six saved tours. Auth0/session config is present. Current app image predates mandatory sign-in. No live callback/OTP or browser account-flow QA. |
+| Mandatory sign-in and landing | Offline verified; deployment pending | Auth0 email OTP gate, bilingual public landing, account-owned live sessions, cross-tab auth recheck and logout cleanup. Full suite 176 passed, 1 optional PostgreSQL skip; frontend build and Python gates passed. No browser, live OTP, Compose rebuild or app restart. |
+| Security audit | Source fixes offline verified; deployment pending | CSRF on authenticated planner writes, local graph SVG rendering, HTTPS-only Auth0 issuer and private SQLite file modes. Full suite 185 passed, 1 optional PostgreSQL skip. No browser, live Auth0 or deployed endpoint check. |
+| Mac CI/CD | CI passed; automatic deployment gated | Run `42471059065` first hit HTTP 504 downloading CPython 3.10.22 on `ubuntu-26.04`; rerunning SHA `27a17e7` passed Python tests/lint, frontend checks/build and Compose validation. `GTP_DEPLOY_ENABLED=false`; app was not deployed. |
 | Large saved-tour archive | PostgreSQL 2M-row isolated benchmark passed | Owner/time/ID index and keyset pages; 10-sample page 1 p50/p95 0.729/13.898 ms, page 20,000 0.373/21.557 ms; tiny synthetic snapshots, no concurrent traffic |
 | Pre-push security review | Focused source review and regression passed | Session and saved-tour owner cookies default to Secure; Compose forces Secure; local data excluded from Git and Docker context; isolated full suite 132 passed, 1 skipped |
 | Auth callback and public ingress hardening | Deployed; smoke checked | Rebuilt app runs Uvicorn with `--no-access-log`; ngrok runs the read-only per-IP policy using `NGROK_AUTHTOKEN` from ignored `.env`. App, DB and ngrok are up; local/public root returned HTTP 200. Host and Docker suites previously passed 155, 1 skipped |
-| Codex development workflow | Project-authored skills and minimal-change discipline documented | Adapted Ponytail's smallest-complete-change and review-priority ideas into local skills/agents; reused project code first and preserved safety guards. No Ponytail files copied or installed. Skill validation, agent TOML, delivery YAML, roadmap JSON and diff checks passed. No app, frontend, container, browser or live-provider checks ran. RTK hook activation still needs a new trusted session |
+| Codex development workflow | Project-authored skills, minimal-change discipline and portable setup documented | Development agents inherit session models; portable transfer/verification guides supplement project-specific `.codex` skills. Adapted Ponytail's smallest-complete-change ideas into local guidance. No Ponytail files copied. Skill validation, agent TOML, delivery YAML, roadmap JSON and diff checks passed. RTK hook activation still needs a new trusted session |
 
 Planning progress is not implementation progress. Only executable artifacts and
 actual checks count as completion evidence.
 
 ## Done
+
+- Completed a source-scoped security audit of planner mutations, Auth0 issuer
+  handling, graph rendering and SQLite fallback storage. Added CSRF checks to
+  session creation/reset, language updates and turns; replaced Mermaid PNG
+  rendering in the HTTP and Streamlit graph views with local SVG; rejected non-HTTPS
+  Auth0 issuers; and restricted SQLite DB/sidecar files to `0600` while creating
+  missing storage directories as `0700`. Full offline suite: 185 passed, one
+  optional PostgreSQL test skipped. Frontend check/build and Python quality
+  gates passed. Browser, live Auth0, actual local DB permissions and deployment
+  were not checked. See `docs/experiments/2026-11-10-security-audit.md`.
+
+- Added a public bilingual landing page and made Auth0 email OTP mandatory for
+  React planner access. FastAPI now enforces authentication and live-session
+  owner matching; login binds or rotates session state, logout revokes and
+  removes it, and tab focus rechecks account state before showing cached data.
+  The app still uses Auth0 for credentials and keeps live itinerary/chat
+  session-only. Focused auth/API/archive tests: 44 passed. Full offline suite:
+  176 passed, one optional PostgreSQL test skipped. Frontend check/build,
+  isort, Black, flake8, Ruff and diff checks passed. No browser QA, live Auth0
+  flow, Compose rebuild or app restart ran; current running image is unchanged.
 
 - Final fetch/pull confirms active branch and upstream at `051c5fc`. Rebuilt
   that source content without cache as image

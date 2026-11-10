@@ -164,14 +164,17 @@
       </ul>
     </section>
     <section class="card active">
-      <span class="badge">Offline + isolated PostgreSQL verified · rollout pending</span>
-      <h3>1L · Auth0 account-owned saved tours</h3>
+      <span class="badge">Mandatory gate offline verified · live rollout pending</span>
+      <h3>1L · Auth0 accounts and planner entry</h3>
       <ul>
         <li>Auth0 OIDC email OTP BFF and persistent account sessions implemented</li>
         <li>Account-scoped save, list, detail, delete and lossless legacy-cookie claim</li>
-        <li>React account dropdown groups Saved tours and sign-in/sign-out in Vietnamese and English; signed-in display name uses email local-part</li>
+        <li>Public bilingual landing is the only unauthenticated React view; FastAPI gates planner APIs and binds live sessions to the verified account</li>
+        <li>React account dropdown shows signed-in email, Saved tours and sign-out; login/logout rotate or discard live state safely</li>
         <li>Five restored snapshots retained their checksum after two migration runs</li>
-        <li>Live Auth0 email, cross-browser QA and production rollout pending</li>
+        <li>Full offline suite: 185 passed, 1 optional PostgreSQL test skipped; frontend build and Python quality gates pass</li>
+        <li>Security fixes verified offline: CSRF on planner writes, local graph SVG, HTTPS-only Auth0 issuer and private SQLite fallback files</li>
+        <li>Browser QA, live Auth0 OTP/callback and deployment remain pending; running app image is unchanged</li>
       </ul>
     </section>
     <section class="card active">
@@ -179,6 +182,7 @@
       <h3>Mac CI/CD</h3>
       <ul>
         <li>GitHub Actions runs Python, frontend and Compose checks on the active branch and pull requests</li>
+        <li>Run 42471059065 passed all checks after a transient HTTP 504 during Python setup; deployment remained gated</li>
         <li>A Mac launchd poller fetches a branch update only after push CI passes</li>
         <li>Deployment updates and health-checks only the app service; PostgreSQL data remains in its external host directory</li>
         <li>Automatic deployment remains gated until the explicit Auth0 account migration and rollout complete</li>

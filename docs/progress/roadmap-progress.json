@@ -1,6 +1,6 @@
 {
-  "version": 88,
-  "updated": "2026-11-08T00:23:43+07:00",
+  "version": 94,
+  "updated": "2026-11-10T10:42:00+07:00",
   "active_scope": "city-place-sightseeing-webapp",
   "current_milestone": "Milestone 1: executable city/place sightseeing vertical slice",
   "completed": {
@@ -91,7 +91,9 @@
     "http_principal_turn_quota": true,
     "model_token_usage_events": true,
     "runtime_global_quota_compose": true,
-    "create_trip_day_coverage": true
+    "create_trip_day_coverage": true,
+    "mandatory_auth_entry_offline": true,
+    "security_audit_2026_11_10_offline": true
   },
   "evidence": {
     "scope_reset_docs": [
@@ -171,7 +173,7 @@
       "live Vietnamese add-place response and revision 2 commit"
     ],
     "visual_itinerary_implementation": [
-      ".codex/skills/ui-ux-pro-max/SKILL.md",
+      "Historical 2026-10 UI work used the then-vendored UI skill; current project guidance is .codex/skills/travel-planner-ui/SKILL.md",
       "docs/adr/0006-photo-only-itinerary-and-graph-inspection.md",
       "src/grounded_travel_planner/visuals/service.py",
       "src/grounded_travel_planner/ui/streamlit_app.py",
@@ -760,7 +762,9 @@
       "scripts/install_macos_deploy_agent.sh: installed five-minute macOS launchd poller",
       "local Mac config stores paths only; app .env and PostgreSQL data remain outside Git",
       "GTP_DEPLOY_ENABLED=false pending the explicit Auth0 database migration and rollout",
-      "deployment preflight, shell syntax, YAML parsing, plist validation and diff checks passed; app not restarted"
+      "deployment preflight, shell syntax, YAML parsing, plist validation and diff checks passed; app not restarted",
+      "GitHub Actions run 42471059065 failed at setup-python on three HTTP 504 responses while downloading CPython 3.10.22 on ubuntu-26.04",
+      "Rerun at SHA 27a17e7 passed Python setup/tests/lint, frontend check/build and Compose validation; GTP_DEPLOY_ENABLED=false, so no app deployment ran"
     ],
     "ngrok_session_rate_limit": [
       "deploy/ngrok-traffic-policy.json: per-client-IP sliding-hour limits for POST /api/session, POST /api/session/reset and POST /api/turns",
@@ -814,7 +818,30 @@
       "isort, Black, flake8, Ruff and git diff --check passed",
       "Compose image sha256:133f4f2471e7c81c74ce0fffdb9f39c9e14fb8ebd06c60ad73d520027b55da22 deployed; app healthy, root HTTP 200, runtime source confirms guard and prompt; PostgreSQL healthy, ngrok remained running; app recreation cleared session-only plans",
       "Planner output ceiling resolves to 8,192 tokens with no runtime override; no request usage trace was available to show the cap was reached"
+    ],
+    "mandatory_auth_entry_offline": [
+      "docs/proposals/2026-11-08-mandatory-authenticated-entry-and-account-management.md",
+      "docs/adr/0021-mandatory-authenticated-planner-entry.md",
+      "docs/project-charter.md: public landing and Auth0 required for React planner/API",
+      "frontend/src/main.tsx and frontend/src/i18n.ts: bilingual landing, auth-first bootstrap, focus/visibility recheck, private-state clearing",
+      "src/grounded_travel_planner/web/api.py: Auth0-required planner APIs and owner-bound volatile sessions",
+      "tests/test_auth_integration.py, tests/test_web_api.py, tests/test_saved_tours.py",
+      "Focused auth/API/archive tests: 44 passed",
+      "Full uv run pytest: 176 passed, 1 optional PostgreSQL test skipped",
+      "frontend npm run check and npm run build passed",
+      "isort, Black, flake8, Ruff and git diff --check passed",
+      "No browser QA, live Auth0 OTP/callback, Compose rebuild or app restart; running image unchanged"
+    ],
+    "security_audit_2026_11_10_offline": [
+      "docs/experiments/2026-11-10-security-audit.md",
+      "src/grounded_travel_planner/web/api.py and ui/graph_architecture.py: CSRF checks on authenticated session creation/reset, language updates and turns; graph views render local SVG",
+      "src/grounded_travel_planner/auth.py: Auth0 issuer must be an HTTPS origin before token exchange",
+      "src/utils/sqlite.py, src/grounded_travel_planner/auth.py, src/grounded_travel_planner/saved_tours.py: private SQLite DB and sidecar permissions",
+      "TravelPlannerService.get_graph_image Mermaid PNG call path removed",
+      "Full uv run pytest: 185 passed, 1 optional PostgreSQL test skipped",
+      "Frontend npm run check/build, isort, Black, flake8, Ruff and git diff --check passed",
+      "No live provider, browser, deployed endpoint, real local database or Compose image was checked"
     ]
   },
-  "notes": "Compose now runs saved tours in PostgreSQL 17 on a sibling host directory outside Git. Three saved rows and indexes survived the move from the old named volume, which remains for recovery. One earlier SQLite tour was backed up and copied exactly to PostgreSQL. A disposable 2M-row PostgreSQL benchmark measured keyset page 1/deep p50 0.729/0.373 ms with tiny snapshots and no concurrent traffic; its volume was removed. Focused pre-push review fixed Secure cookie handling behind TLS proxies. Network-disabled read-only container suite: 132 passed, 1 optional PostgreSQL test skipped; Python quality gates passed. Browser/live-provider checks were not run; the running app image predates the cookie fix. Old SQLite volume and ignored backups remain for recovery. Auth0 account ownership is implemented and verified offline (145 passed, 1 skipped); an isolated five-row PostgreSQL restore survived two migration runs unchanged. Live database/app remain on browser-cookie ownership pending tenant setup, migration and browser QA. A disposable PostgreSQL smoke mapped 16 concurrent logins to one account and verified persisted session, CSRF and revocation. Follow-up: a disposable PG smoke caught and fixed an invalid NUL advisory-lock key; 16 concurrent identity lookups now map to one account. Live DB checksum and running app stayed unchanged; rebuilt image was not deployed. GitHub Actions CI and a local five-minute macOS launchd poller are configured. The poller waits for a successful push CI run and uses no GitHub token. Automatic Mac deployment stays disabled until the explicit Auth0 database migration and rollout; no app restart or migration ran for CI/CD setup. 2026-11-05 security follow-up: optional ngrok ingress limits session create/reset and planning turns to 20 requests per client IP per sliding hour; Uvicorn access logs are disabled. Host suite 155 passed, 1 optional test skipped. On 2026-11-06 the runtime image was rebuilt and Compose recreated app, PostgreSQL and ngrok. App and database are healthy; ngrok loads the read-only policy. Local and public root returned HTTP 200, and the tunnel URL matches GTP_AUTH_PUBLIC_ORIGIN. App recreation cleared session-only plans; database volumes were not removed. Docker test target also passed 155 tests with one optional PostgreSQL test skipped for the security follow-up. 2026-11-06: added per-role output ceilings, authenticated/session HTTP turn quotas and redacted LangSmith token-usage events. Full host suite 168 passed with one optional PostgreSQL test skipped; Python quality gates passed with dotenv disabled. Compose image rebuilt and app container recreated after environment configuration. App and PostgreSQL are healthy; local root returned HTTP 200; global cap parsed in the app. The numeric environment value was not displayed or recorded. App recreation cleared session-only plans; saved tours remained in PostgreSQL. The optional global cap is a process-local hourly turn count, not USD; provider-project spend controls and managed DDoS edge remain separate. 2026-11-06: new-trip candidate validation now requires at least one grounded stop on every selected day. Missing middle days trigger one repair; a still-incomplete candidate is rejected and the previous plan stays intact. Full offline suite 170 passed, 1 optional PostgreSQL test skipped; Python quality gates passed. Compose image sha256:133f4f2471e7c81c74ce0fffdb9f39c9e14fb8ebd06c60ad73d520027b55da22 now includes this fix; app is healthy and root returns HTTP 200. Recreating app cleared session-only plans; PostgreSQL remained healthy and ngrok stayed running. The app resolves Planner output cap to 8,192 tokens with no override; no usage trace established token exhaustion."
+  "notes": "Compose now runs saved tours in PostgreSQL 17 on a sibling host directory outside Git. Three saved rows and indexes survived the move from the old named volume, which remains for recovery. One earlier SQLite tour was backed up and copied exactly to PostgreSQL. A disposable 2M-row PostgreSQL benchmark measured keyset page 1/deep p50 0.729/0.373 ms with tiny snapshots and no concurrent traffic; its volume was removed. Focused pre-push review fixed Secure cookie handling behind TLS proxies. Network-disabled read-only container suite: 132 passed, 1 optional PostgreSQL test skipped; Python quality gates passed. Browser/live-provider checks were not run; the running app image predates the cookie fix. Old SQLite volume and ignored backups remain for recovery. Auth0 account ownership is implemented and verified offline (145 passed, 1 skipped); an isolated five-row PostgreSQL restore survived two migration runs unchanged. Live database/app remain on browser-cookie ownership pending tenant setup, migration and browser QA. A disposable PostgreSQL smoke mapped 16 concurrent logins to one account and verified persisted session, CSRF and revocation. Follow-up: a disposable PG smoke caught and fixed an invalid NUL advisory-lock key; 16 concurrent identity lookups now map to one account. Live DB checksum and running app stayed unchanged; rebuilt image was not deployed. GitHub Actions CI and a local five-minute macOS launchd poller are configured. The poller waits for a successful push CI run and uses no GitHub token. Automatic Mac deployment stays disabled until the explicit Auth0 database migration and rollout; no app restart or migration ran for CI/CD setup. 2026-11-05 security follow-up: optional ngrok ingress limits session create/reset and planning turns to 20 requests per client IP per sliding hour; Uvicorn access logs are disabled. Host suite 155 passed, 1 optional test skipped. On 2026-11-06 the runtime image was rebuilt and Compose recreated app, PostgreSQL and ngrok. App and database are healthy; ngrok loads the read-only policy. Local and public root returned HTTP 200, and the tunnel URL matches GTP_AUTH_PUBLIC_ORIGIN. App recreation cleared session-only plans; database volumes were not removed. Docker test target also passed 155 tests with one optional PostgreSQL test skipped for the security follow-up. 2026-11-06: added per-role output ceilings, authenticated/session HTTP turn quotas and redacted LangSmith token-usage events. Full host suite 168 passed with one optional PostgreSQL test skipped; Python quality gates passed with dotenv disabled. Compose image rebuilt and app container recreated after environment configuration. App and PostgreSQL are healthy; local root returned HTTP 200; global cap parsed in the app. The numeric environment value was not displayed or recorded. App recreation cleared session-only plans; saved tours remained in PostgreSQL. The optional global cap is a process-local hourly turn count, not USD; provider-project spend controls and managed DDoS edge remain separate. 2026-11-06: new-trip candidate validation now requires at least one grounded stop on every selected day. Missing middle days trigger one repair; a still-incomplete candidate is rejected and the previous plan stays intact. Full offline suite 170 passed, 1 optional PostgreSQL test skipped; Python quality gates passed. Compose image sha256:133f4f2471e7c81c74ce0fffdb9f39c9e14fb8ebd06c60ad73d520027b55da22 now includes this fix; app is healthy and root returns HTTP 200. Recreating app cleared session-only plans; PostgreSQL remained healthy and ngrok stayed running. The app resolves Planner output cap to 8,192 tokens with no override; no usage trace established token exhaustion. 2026-11-08: mandatory Auth0 sign-in and a bilingual public landing are implemented in source. The FastAPI planner API requires a valid account and owner-matched volatile session; login binds or rotates sessions, logout revokes and discards session state, and focus rechecks clear stale browser state. Full offline suite 176 passed with one optional PostgreSQL skip; frontend check/build and Python gates passed. No browser/live Auth0 or Compose deployment ran; the running image is unchanged. 2026-11-10: source-scoped security audit fixed CSRF gaps on planner mutations, removed Mermaid API rendering from graph diagnostics, rejected non-HTTPS Auth0 issuers and restricted SQLite fallback file permissions. Full offline suite 185 passed, one optional PostgreSQL test skipped; frontend and Python quality gates passed. Browser, live provider, real database permissions and deployment were not checked."
 }

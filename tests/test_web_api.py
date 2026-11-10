@@ -170,8 +170,8 @@ class _FakeClock:
         return self.now
 
 
-def _start(client: TestClient) -> None:
-    response = client.post("/api/session")
+def _start(client: TestClient, headers: dict[str, str] | None = None) -> None:
+    response = client.post("/api/session", headers=headers)
     assert response.status_code == 201
 
 
@@ -358,7 +358,7 @@ def test_turn_quota_shares_verified_account_across_sessions(
     user_id, email = auth.find_or_create_user(
         VerifiedIdentity("https://tenant.example.test/", "auth0|shared")
     )
-    token, _ = auth.issue_session(user_id, email)
+    token, csrf = auth.issue_session(user_id, email)
     service = FakeTravelPlannerService()
     app = create_app(
         service,
@@ -370,14 +370,20 @@ def test_turn_quota_shares_verified_account_across_sessions(
     second = TestClient(app, base_url="https://localhost")
     first.cookies.set(AUTH_COOKIE_NAME, token)
     second.cookies.set(AUTH_COOKIE_NAME, token)
-    _start(first)
-    _start(second)
+    headers = {"X-CSRF-Token": csrf}
+    _start(first, headers)
+    _start(second, headers)
 
     assert (
-        first.post("/api/turns", json={"message": "account first"}).status_code == 202
+        first.post(
+            "/api/turns", json={"message": "account first"}, headers=headers
+        ).status_code
+        == 202
     )
     assert first.get("/api/session").status_code == 200
-    rejected = second.post("/api/turns", json={"message": "account second"})
+    rejected = second.post(
+        "/api/turns", json={"message": "account second"}, headers=headers
+    )
     assert rejected.status_code == 429
     assert (
         rejected.json()["detail"]
@@ -600,8 +606,12 @@ def test_graph_endpoint_is_read_only(monkeypatch) -> None:
     assert service.turns == []
 
 
-def test_graph_image_endpoint_returns_compiled_png_without_a_turn() -> None:
+def test_graph_image_endpoint_returns_local_svg_without_a_turn(monkeypatch) -> None:
     service = FakeTravelPlannerService()
+    monkeypatch.setattr(
+        "grounded_travel_planner.web.api.compiled_graph_svg",
+        lambda graph: "<svg aria-label='local graph'/>",
+    )
     client = TestClient(
         create_app(service, FakeVisualService()), base_url="https://localhost"
     )
@@ -609,7 +619,7 @@ def test_graph_image_endpoint_returns_compiled_png_without_a_turn() -> None:
     response = client.get("/api/graph/image")
 
     assert response.status_code == 200
-    assert response.headers["content-type"] == "image/png"
-    assert response.content == service.graph_image
-    assert service.graph_image_calls == 1
+    assert response.headers["content-type"] == "image/svg+xml"
+    assert response.text == "<svg aria-label='local graph'/>"
+    assert service.graph_image_calls == 0
     assert service.turns == []

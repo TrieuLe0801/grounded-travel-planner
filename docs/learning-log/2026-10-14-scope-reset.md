@@ -1,5 +1,40 @@
 # Learning Log - 2026-10-14 Scope Reset
 
+## Application Security Audit — 2026-11-10
+
+- Reviewed the Auth0-protected planner session and turn mutations, Auth0 issuer
+  construction, HTTP and Streamlit graph rendering, and SQLite fallback
+  storage. Four concrete issues were fixed: protected planner writes lacked
+  CSRF checks; graph views called the external Mermaid renderer; Auth0 issuer
+  configuration allowed HTTP; and SQLite fallback database files could
+  inherit `0644` permissions under the host umask.
+- All planner mutations now require the authenticated account's CSRF token and
+  React supplies it from in-memory `/api/auth/me` state. Both graph views render
+  SVG locally and the Mermaid PNG call path was removed. Auth0 accepts HTTPS
+  origins only. SQLite DB and
+  existing sidecars are restricted to `0600`, while newly created storage
+  directories use `0700`; existing configured directories are not changed.
+- Regression tests use mocked identities/services and temporary SQLite paths.
+  Full offline suite: 185 passed, one optional PostgreSQL test skipped.
+  Frontend check/build, isort, Black, flake8, Ruff and `git diff --check`
+  passed.
+- No browser, live Auth0/provider/Mermaid call, real local database, deployed
+  endpoint or Compose image was checked. The fixes remain source-only. Full
+  findings and limits: `docs/experiments/2026-11-10-security-audit.md`.
+
+## GitHub Actions Python Download Retry — 2026-11-09
+
+- Run `42471059065` failed in `actions/setup-python` before tests started. The
+  Ubuntu 26.04 runner received HTTP 504 on all three attempts to download the
+  CPython 3.10.22 artifact. The same workflow and runner image had passed in
+  run `42395988122` the prior day.
+- Reran the failed job at the same source SHA (`27a17e7`). Python setup,
+  dependency install, pytest, Python lint, frontend check/build and Compose
+  validation all passed. The local Mac deployment gate is `false`, so this CI
+  rerun did not deploy or restart the app.
+- This was a transient artifact-download failure; no workflow or application
+  source change was needed. The CI run is green after rerun.
+
 ## Initial Locale-Aware Date Display — 2026-11-07
 
 - The user reported that app-rendered dates still appeared in Vietnamese on the
@@ -1097,6 +1132,40 @@ three-role runtime and role-specific model policy.
 - `npm run build` passed, including TypeScript project checks and Vite
   production build. Browser interaction QA was not run. The running Compose app
   was not recreated, so deployed UI behavior is not verified.
+
+## Mandatory Sign-In And Account Session Management — 2026-11-08
+
+- The user requested a public introduction page and mandatory sign-in before
+  using the planner, plus research into login and signed-in user management.
+  The current source already had Auth0 email one-time-code login, but the React
+  app created planner sessions before checking the account and the HTTP planner
+  routes accepted anonymous requests.
+- Research compared keeping anonymous planning, adding app-managed passwords,
+  browser-held Auth0 tokens, and reusing the current Auth0 BFF. Reuse won: Auth0
+  Universal Login handles email OTP and account records; FastAPI keeps the
+  credential exchange and opaque account session server-side. The app exposes
+  verified email, saved tours and sign-out; account administration stays in
+  Auth0 Dashboard. The proposal records options and limits.
+- Added public bilingual landing. React checks `/api/auth/me` before requesting
+  planner state, preserves the selected locale through the safe local return
+  target, and rechecks auth when a tab regains focus. Failed or changed auth
+  clears cached private UI state. FastAPI requires an authenticated account on
+  planner session, turn, visual and session-backed save operations. Volatile
+  sessions bind to the internal account UUID; login binds a same-browser
+  unowned session or rotates a different owner's session. Logout revokes auth,
+  discards the live session and clears both cookies. Live trip/chat state stays
+  session-only.
+- ADR 0021 amends ADR 0016, which had allowed anonymous planning. The charter,
+  implementation plan, progress status and roadmap record mandatory sign-in as
+  the current product requirement. Auth0 tenant, callback, OTP and browser
+  behavior remain separate deployment checks.
+- Offline verification: focused auth/API/archive tests passed 44 cases. Full
+  `uv run pytest` passed 176 cases with one optional PostgreSQL test skipped.
+  Frontend `npm run check` and `npm run build`, isort, Black, flake8, Ruff, and
+  `git diff --check` passed. Tests cover anonymous rejection, owner isolation,
+  callback bind/rotation, logout invalidation, and existing archive behavior.
+- No live Auth0 OTP/callback, browser QA, Compose rebuild, or app restart ran.
+  The running app image remains unchanged; mandatory sign-in is not deployed.
 
 ## Codex Development Workflow Refinement — 2026-11-08
 

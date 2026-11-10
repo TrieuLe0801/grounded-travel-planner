@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import io
 import json
+import os
+import sqlite3
+import stat
 import time as clock
 from datetime import date, time
 from types import SimpleNamespace
@@ -169,6 +172,75 @@ def _sign_in(client: TestClient, provider: FakeOidcProvider) -> str:
     return client.get("/api/auth/me").json()["csrf_token"]
 
 
+@pytest.mark.parametrize(
+    "issuer",
+    [
+        "http://tenant.example.test",
+        "https://",
+        "https://tenant.example.test/path",
+        "https://tenant.example.test?query=value",
+        "https://user@tenant.example.test",
+    ],
+)
+def test_auth0_provider_rejects_non_https_origins(issuer: str) -> None:
+    with pytest.raises(AuthError, match="valid HTTPS origin"):
+        Auth0OidcProvider(
+            issuer=issuer, client_id="client-id", client_secret="test-secret"
+        )
+
+
+def test_auth0_provider_environment_requires_an_https_origin(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("GTP_AUTH0_ISSUER", "http://tenant.example.test")
+    monkeypatch.setenv("GTP_AUTH0_CLIENT_ID", "client-id")
+    monkeypatch.setenv("GTP_AUTH0_CLIENT_SECRET", "test-secret")
+
+    with pytest.raises(AuthError, match="valid HTTPS origin"):
+        Auth0OidcProvider.from_environment()
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX permissions are required")
+def test_auth_sqlite_files_are_private_before_opening(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    database_directory = tmp_path / "auth-storage"
+    database_directory.mkdir()
+    os.chmod(database_directory, 0o755)
+    database_path = database_directory / "auth.sqlite"
+    with sqlite3.connect(database_path):
+        pass
+    sidecars = [
+        database_path.with_name(database_path.name + suffix)
+        for suffix in ("-wal", "-shm", "-journal")
+    ]
+    for path in [database_path, *sidecars]:
+        path.touch()
+        os.chmod(path, 0o644)
+
+    import grounded_travel_planner.auth as auth_module
+
+    original_connect = auth_module.sqlite3.connect
+
+    def assert_private_connect(*args, **kwargs):
+        assert stat.S_IMODE(database_directory.stat().st_mode) == 0o755
+        for path in [database_path, *sidecars]:
+            assert stat.S_IMODE(path.stat().st_mode) == 0o600
+        return original_connect(*args, **kwargs)
+
+    monkeypatch.setattr(auth_module.sqlite3, "connect", assert_private_connect)
+    AuthRepository(database_path).migrate()
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX permissions are required")
+def test_auth_sqlite_creates_missing_storage_directories_privately(tmp_path) -> None:
+    storage_directory = tmp_path / "private" / "auth"
+    AuthRepository(storage_directory / "auth.sqlite").migrate()
+
+    assert stat.S_IMODE((tmp_path / "private").stat().st_mode) == 0o700
+    assert stat.S_IMODE(storage_directory.stat().st_mode) == 0o700
+
+
 def test_auth_callback_validates_state_and_expiry_before_creating_session(
     tmp_path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -221,6 +293,58 @@ def test_live_planner_endpoints_require_a_verified_account(
     assert client.get("/api/visuals?revision=1").status_code == 401
 
 
+def test_authenticated_planner_mutations_require_csrf_before_state_changes(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    provider = FakeOidcProvider("auth0|a", "a@example.test")
+    client, _, _ = _client(tmp_path, provider, monkeypatch)
+    csrf = _sign_in(client, provider)
+    original_session = client.cookies.get("gtp_session")
+    assert original_session
+
+    assert client.post("/api/session").status_code == 403
+    assert client.post("/api/session/reset").status_code == 403
+    assert client.cookies.get("gtp_session") == original_session
+
+    before_language = client.get("/api/session").json()["language"]
+    assert (
+        client.put("/api/session/language", json={"language": "en"}).status_code == 403
+    )
+    assert client.get("/api/session").json()["language"] == before_language
+
+    turn = {"message": "Create an offline plan"}
+    assert client.post("/api/turns", json=turn).status_code == 403
+    invalid_headers = {"X-CSRF-Token": csrf + "invalid"}
+    assert client.post("/api/session/reset", headers=invalid_headers).status_code == 403
+    assert (
+        client.put(
+            "/api/session/language",
+            json={"language": "en"},
+            headers=invalid_headers,
+        ).status_code
+        == 403
+    )
+    assert (
+        client.post("/api/turns", json=turn, headers=invalid_headers).status_code == 403
+    )
+    unchanged = client.get("/api/session").json()
+    assert unchanged["pending"] is False
+    assert unchanged["conversation"] == []
+
+    headers = {"X-CSRF-Token": csrf}
+    assert client.post("/api/session", headers=headers).status_code == 201
+    assert client.post("/api/session/reset", headers=headers).status_code == 200
+    assert (
+        client.put(
+            "/api/session/language",
+            json={"language": "en"},
+            headers=headers,
+        ).status_code
+        == 200
+    )
+    assert client.post("/api/turns", json=turn, headers=headers).status_code == 202
+
+
 def test_live_session_isolated_by_authenticated_account(
     tmp_path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -232,13 +356,17 @@ def test_live_session_isolated_by_authenticated_account(
 
     second_provider = FakeOidcProvider("auth0|second", "second@example.test")
     second, _, _ = _client(tmp_path, second_provider, monkeypatch)
-    _sign_in(second, second_provider)
+    csrf = _sign_in(second, second_provider)
     second.cookies.set(
         "gtp_session", first_session, domain="planner.example.test", path="/"
     )
     assert second.get("/api/session").status_code == 401
-    assert second.post("/api/session/reset").status_code == 401
-    assert second.post("/api/turns", json={"message": "plan"}).status_code == 401
+    headers = {"X-CSRF-Token": csrf}
+    assert second.post("/api/session/reset", headers=headers).status_code == 401
+    assert (
+        second.post("/api/turns", json={"message": "plan"}, headers=headers).status_code
+        == 401
+    )
 
 
 def test_login_binds_an_existing_unowned_browser_session(
