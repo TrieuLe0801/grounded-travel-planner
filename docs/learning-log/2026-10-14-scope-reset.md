@@ -21,6 +21,9 @@
 - The old ngrok callback and logout entries still need removal in the Auth0
   dashboard, which is not connected in this session. Do not treat the hosted
   login-page response as a completed OTP sign-in.
+- The recovery command uses the companion named-tunnel overlay in the Visual
+  Assistant repository; its durable configuration is tracked in
+  [Visual Assistant PR #3](https://github.com/TrieuLe0801/visual-assistant/pull/3).
 
 ## Cloudflare Custom-Domain Deployment — 2026-11-12
 

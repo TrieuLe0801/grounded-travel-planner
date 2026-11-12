@@ -44,13 +44,19 @@ published application route. Keep the connector and app on the dedicated
 ingress network, with PostgreSQL only on the planner's default network.
 
 The connector belongs to the Visual Assistant Compose project's `publish`
-profile. A full Compose shutdown stops it and temporarily takes all routes on
-the shared Tunnel offline. After such a shutdown, restore it from that project
-with:
+profile. Use its `compose.grounded-travel-planner.yaml` overlay to run the
+remotely managed named Tunnel and attach the connector to the shared ingress
+network. A full Compose shutdown stops it and temporarily takes all routes on
+the shared Tunnel offline. After such a shutdown, restore it from the Visual
+Assistant repository root with:
 
 ```sh
-docker compose --profile publish up -d cloudflared
+docker compose -f compose.yaml -f compose.grounded-travel-planner.yaml --profile publish up -d cloudflared
 ```
+
+The companion [Visual Assistant PR](https://github.com/TrieuLe0801/visual-assistant/pull/3)
+adds this durable overlay. Keep the tunnel token in its existing ignored
+`.secrets/cloudflare_tunnel_token` file.
 
 ## Verification
 

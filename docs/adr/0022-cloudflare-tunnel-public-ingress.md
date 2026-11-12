@@ -15,8 +15,9 @@ reachable can break login flows already in progress.
 
 - Reuse the existing remotely managed `cloudeflared-tunnel` for
   `citedtrip.app`; add a published application route to `http://app:8000`.
-  Keep the existing connector in its current Compose project. Connect that
-  connector and the planner app through the dedicated external
+  Keep the existing connector in its current Compose project and run it with
+  that project's `compose.grounded-travel-planner.yaml` overlay. Connect the
+  connector and planner app through the dedicated external
   `grounded-travel-planner_public-ingress` network. Do not attach the connector
   to the planner's default network, which also contains PostgreSQL.
 - Keep the tunnel token in the existing Cloudflare connector's file-backed
