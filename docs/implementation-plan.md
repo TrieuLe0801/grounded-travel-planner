@@ -1,9 +1,38 @@
 # Implementation Plan
 
 Status: Active
-Last updated: 2026-11-08
+Last updated: 2026-11-12
 
-## Mandatory Sign-In And Public Landing — Offline Verified; Live Rollout Pending — 2026-11-08
+## Cloudflare Custom Domain — Live; ngrok Retired — 2026-11-12
+
+The user selected `https://citedtrip.app` and approved reusing the existing
+remotely managed `cloudeflared-tunnel`. ADR 0022 records the decision. The
+existing Cloudflare connector and planner app share a dedicated external
+ingress network; PostgreSQL stays on the planner's default network. The
+connector keeps its file-backed Tunnel token in the Visual Assistant
+deployment. The Cloudflare route now serves `citedtrip.app` at `http://app:8000`.
+
+The Auth0 BFF uses only `GTP_AUTH_PUBLIC_ORIGIN` and requires an exact request
+`Host` match. It does not trust forwarded host headers. Auth0 callback, code
+exchange, and logout use `https://citedtrip.app`; the temporary second-origin
+setting was removed.
+
+Browser-like requests to `https://citedtrip.app/` and `/api/health` return
+HTTP 200. Auth0 login redirects with
+`https://citedtrip.app/api/auth/callback` and reaches the hosted login page with
+HTTP 200. A generic Python User-Agent receives Cloudflare error 1010; a Chrome
+User-Agent succeeds. The ngrok container and Compose service, token setting,
+and Traffic Policy were removed. The ignored deployment `.env` remains mode
+`0600`; only the app container was recreated, clearing session-only itinerary,
+conversation, and pending-turn state. PostgreSQL was not restarted.
+
+The Auth0 dashboard was not available here, so its old ngrok callback and
+logout entries still need manual removal. The new hostname's OTP callback,
+authenticated planner, and logout were not exercised. See
+[`deployment-cloudflare.md`](deployment-cloudflare.md) for the final Auth0
+allowlist cleanup and live sign-in check.
+
+## Mandatory Sign-In And Public Landing — Deployed; Live OTP Pending — Updated 2026-11-12
 
 The React root now shows a public bilingual introduction page and one Auth0
 email one-time-code sign-in action. It checks `/api/auth/me` before requesting
@@ -25,10 +54,11 @@ skipped. `npm run check`, `npm run build`, isort, Black, flake8, Ruff, and
 `git diff --check` passed. Mocked tests confirm unauthenticated rejection,
 account isolation, login binding/rotation, and logout invalidation.
 
-No browser QA, live Auth0 OTP/callback, Compose rebuild, or app restart ran. The
-running app image remains the prior deployment; live Auth0 and the controlled
-account/database rollout remain pending. Source verification does not establish
-deployed behavior.
+On 2026-11-12 the app was rebuilt and deployed on `citedtrip.app`. Browser-like
+requests to the public root and health endpoint returned HTTP 200; Auth0 login
+reached the hosted login page with the expected callback. Full OTP, callback
+exchange, authenticated planner access, logout, and browser account-flow QA
+remain pending. The offline evidence above does not establish those behaviors.
 
 ## Complete Day Coverage For New Trips — Compose Deployed; Provider QA Pending — 2026-11-06
 

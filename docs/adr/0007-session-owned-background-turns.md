@@ -77,3 +77,10 @@ client IP before forwarding. This protects the configured ngrok path only.
 Other public ingress deployments still need equivalent limits. Uvicorn access
 logging is disabled for the runtime so the Auth0 callback query is not written
 to its request log.
+
+### Retirement — 2026-11-12
+
+The ngrok Compose service and Traffic Policy were removed when Cloudflare Tunnel
+became the sole public ingress. The application's account and process-wide
+quotas remain active; this historical amendment no longer describes a deployed
+edge policy.

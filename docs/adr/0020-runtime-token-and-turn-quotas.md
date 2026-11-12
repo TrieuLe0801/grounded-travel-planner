@@ -13,7 +13,8 @@ that per-IP policy. Provider token usage was not surfaced as a redacted event.
 The app has no measured token-cost baseline yet. The user asked to keep actual
 budget values in runtime environment configuration and out of tracked files.
 The running app must read configured limits to enforce them; Codex must not
-display or record their values.
+display or record their values. The former ngrok ingress policy was retired
+after Cloudflare Tunnel became the public ingress.
 
 ## Decision
 
@@ -62,9 +63,9 @@ display or record their values.
 - The optional global limit is an hourly turn count, not a dollar limit. A
   monetary OpenAI spend ceiling remains a separate provider-project setting and
   is not configured by this repository change.
-- Per-client-IP ngrok protection remains useful for session allocation and
-  anonymous abuse. Volumetric DDoS protection still requires a managed edge and
-  origin lockdown.
+- The retired ngrok per-client-IP Traffic Policy no longer applies. Authenticated
+  account quotas remain enforced in the app. Custom Cloudflare WAF or rate-limit
+  rules were not part of this change and have not been verified.
 - Compose runtime image was rebuilt and the app container recreated. The
   container is healthy, the app root returns HTTP 200, and the configured
   process-wide quota parses in the running container. No request exercised

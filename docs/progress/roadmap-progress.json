@@ -1,6 +1,6 @@
 {
-  "version": 94,
-  "updated": "2026-11-10T10:42:00+07:00",
+  "version": 99,
+  "updated": "2026-11-12T22:25:53+07:00",
   "active_scope": "city-place-sightseeing-webapp",
   "current_milestone": "Milestone 1: executable city/place sightseeing vertical slice",
   "completed": {
@@ -55,9 +55,9 @@
     "home_starts_new_trip": true,
     "account_actions_dropdown": true,
     "bidirectional_chat_trip_length": true,
-    "ngrok_compose_profile_prepared": true,
+    "ngrok_compose_profile_prepared": false,
     "ngrok_public_tunnel_verified": true,
-    "ngrok_tunnel_running": true,
+    "ngrok_tunnel_running": false,
     "model_authentication_diagnostic": true,
     "openai_ollama_automatic_fallback": true,
     "apple_m1_ollama_gpu_routing": true,
@@ -83,9 +83,9 @@
     "security_pre_push_review": true,
     "auth0_account_offline": true,
     "auth0_account_live": false,
-    "auth0_account_deployed": false,
+    "auth0_account_deployed": true,
     "macos_ci_cd_configured": true,
-    "ngrok_session_rate_limit": true,
+    "ngrok_session_rate_limit": false,
     "auth_callback_access_logging_disabled": true,
     "runtime_output_token_caps": true,
     "http_principal_turn_quota": true,
@@ -93,7 +93,13 @@
     "runtime_global_quota_compose": true,
     "create_trip_day_coverage": true,
     "mandatory_auth_entry_offline": true,
-    "security_audit_2026_11_10_offline": true
+    "security_audit_2026_11_10_offline": true,
+    "cloudflare_tunnel_compose_prepared": true,
+    "auth0_multi_origin_transition_offline": true,
+    "cloudflare_tunnel_live": true,
+    "auth0_custom_domain_live": false,
+    "ngrok_removed": true,
+    "cloudflare_single_origin_app_deployed": true
   },
   "evidence": {
     "scope_reset_docs": [
@@ -773,7 +779,8 @@
       "docker compose --profile ngrok config --quiet passed",
       "full host pytest 155 passed, 1 optional PostgreSQL test skipped",
       "Docker test target: 155 passed, 1 optional PostgreSQL test skipped",
-      "2026-11-06: app image rebuilt and full Compose stack recreated with ngrok profile; policy loaded read-only; live 429 enforcement not tested"
+      "2026-11-06: app image rebuilt and full Compose stack recreated with ngrok profile; policy loaded read-only; live 429 enforcement not tested",
+      "Retired 2026-11-12 with the ngrok service; app account quotas remain"
     ],
     "auth_callback_access_logging_disabled": [
       "Dockerfile: runtime Uvicorn starts with --no-access-log",
@@ -841,7 +848,53 @@
       "Full uv run pytest: 185 passed, 1 optional PostgreSQL test skipped",
       "Frontend npm run check/build, isort, Black, flake8, Ruff and git diff --check passed",
       "No live provider, browser, deployed endpoint, real local database or Compose image was checked"
+    ],
+    "cloudflare_tunnel_compose_prepared": [
+      "docs/adr/0022-cloudflare-tunnel-public-ingress.md",
+      "docs/deployment-cloudflare.md",
+      "compose.yaml: planner app uses dedicated external public-ingress network; database remains on default network",
+      "Visual Assistant compose.yaml: existing cloudflared connector joins the planner public-ingress network",
+      ".env.example: Auth0 migration-origin placeholder; existing Tunnel token stays in its file-backed secret",
+      "Existing connector and planner app share grounded-travel-planner_public-ingress; PostgreSQL stays isolated; Compose config passed"
+    ],
+    "auth0_multi_origin_transition_offline": [
+      "src/grounded_travel_planner/web/api.py: login, callback exchange and logout match request Host to configured origins; forwarded host headers are not trusted",
+      "tests/test_auth_integration.py: both allowed origins and unlisted-host rejection",
+      "Focused Auth0 suite: 27 passed",
+      "Existing ngrok root HTTP 200; cookie-preserving Auth0 login redirect reached login page HTTP 200; OTP/callback exchange not exercised"
+    ],
+    "cloudflare_tunnel_live": [
+      "Existing cloudeflared-tunnel publishes citedtrip.app to http://app:8000",
+      "Browser-like requests to / and /api/health returned HTTP 200",
+      "Auth0 login reached the hosted page with HTTP 200 and the citedtrip.app callback URI",
+      "Generic Python User-Agent received Cloudflare 1010; Chrome User-Agent succeeded",
+      "After the app recreation and connector restart, citedtrip.app root and /api/health again returned HTTP 200 with a Chrome User-Agent",
+      "Auth0 login reached the hosted page over citedtrip.app after the final image was deployed"
+    ],
+    "auth0_custom_domain_live": [
+      "Pending Auth0 callback/logout allowlist update and citedtrip.app OTP/login/logout smoke"
+    ],
+    "cloudflare_single_origin_app_deployed": [
+      "docs/adr/0022-cloudflare-tunnel-public-ingress.md",
+      "docs/deployment-cloudflare.md",
+      "docs/implementation-plan.md and PROJECT_STATUS.md",
+      "GTP_AUTH_PUBLIC_ORIGIN is https://citedtrip.app; temporary additional origin removed from mode-0600 runtime .env",
+      "App only was recreated; PostgreSQL was not restarted; session-only plans, conversations and pending turns were cleared",
+      "Auth0 OTP callback, planner access and logout remain unverified",
+      "Built grounded-travel-planner:local from the single-origin source and recreated only the app",
+      "Focused Auth0 suite: 26 passed; full uv run pytest: 185 passed, 1 optional PostgreSQL test skipped",
+      "isort, Black, flake8, Ruff, frontend npm run check/build, GTP and Visual Assistant Compose validation, JSON parse, and git diff --check passed"
+    ],
+    "ngrok_removed": [
+      "compose.yaml: ngrok service removed",
+      "Dockerfile and tests/test_deployment_security.py: Traffic Policy packaging/tests removed",
+      "deploy/ngrok-traffic-policy.json deleted",
+      "grounded-travel-planner-ngrok-1 stopped and removed",
+      "NGROK_AUTHTOKEN and temporary GTP_AUTH_ADDITIONAL_PUBLIC_ORIGINS removed from ignored runtime .env",
+      "Old ngrok callback/logout entries still need removal in Auth0 Dashboard",
+      "Ignored runtime .env mode 0600; only citedtrip.app is configured as the public auth origin",
+      "Unused local ngrok/ngrok:latest image removed after confirming no remaining containers referenced it"
     ]
   },
-  "notes": "Compose now runs saved tours in PostgreSQL 17 on a sibling host directory outside Git. Three saved rows and indexes survived the move from the old named volume, which remains for recovery. One earlier SQLite tour was backed up and copied exactly to PostgreSQL. A disposable 2M-row PostgreSQL benchmark measured keyset page 1/deep p50 0.729/0.373 ms with tiny snapshots and no concurrent traffic; its volume was removed. Focused pre-push review fixed Secure cookie handling behind TLS proxies. Network-disabled read-only container suite: 132 passed, 1 optional PostgreSQL test skipped; Python quality gates passed. Browser/live-provider checks were not run; the running app image predates the cookie fix. Old SQLite volume and ignored backups remain for recovery. Auth0 account ownership is implemented and verified offline (145 passed, 1 skipped); an isolated five-row PostgreSQL restore survived two migration runs unchanged. Live database/app remain on browser-cookie ownership pending tenant setup, migration and browser QA. A disposable PostgreSQL smoke mapped 16 concurrent logins to one account and verified persisted session, CSRF and revocation. Follow-up: a disposable PG smoke caught and fixed an invalid NUL advisory-lock key; 16 concurrent identity lookups now map to one account. Live DB checksum and running app stayed unchanged; rebuilt image was not deployed. GitHub Actions CI and a local five-minute macOS launchd poller are configured. The poller waits for a successful push CI run and uses no GitHub token. Automatic Mac deployment stays disabled until the explicit Auth0 database migration and rollout; no app restart or migration ran for CI/CD setup. 2026-11-05 security follow-up: optional ngrok ingress limits session create/reset and planning turns to 20 requests per client IP per sliding hour; Uvicorn access logs are disabled. Host suite 155 passed, 1 optional test skipped. On 2026-11-06 the runtime image was rebuilt and Compose recreated app, PostgreSQL and ngrok. App and database are healthy; ngrok loads the read-only policy. Local and public root returned HTTP 200, and the tunnel URL matches GTP_AUTH_PUBLIC_ORIGIN. App recreation cleared session-only plans; database volumes were not removed. Docker test target also passed 155 tests with one optional PostgreSQL test skipped for the security follow-up. 2026-11-06: added per-role output ceilings, authenticated/session HTTP turn quotas and redacted LangSmith token-usage events. Full host suite 168 passed with one optional PostgreSQL test skipped; Python quality gates passed with dotenv disabled. Compose image rebuilt and app container recreated after environment configuration. App and PostgreSQL are healthy; local root returned HTTP 200; global cap parsed in the app. The numeric environment value was not displayed or recorded. App recreation cleared session-only plans; saved tours remained in PostgreSQL. The optional global cap is a process-local hourly turn count, not USD; provider-project spend controls and managed DDoS edge remain separate. 2026-11-06: new-trip candidate validation now requires at least one grounded stop on every selected day. Missing middle days trigger one repair; a still-incomplete candidate is rejected and the previous plan stays intact. Full offline suite 170 passed, 1 optional PostgreSQL test skipped; Python quality gates passed. Compose image sha256:133f4f2471e7c81c74ce0fffdb9f39c9e14fb8ebd06c60ad73d520027b55da22 now includes this fix; app is healthy and root returns HTTP 200. Recreating app cleared session-only plans; PostgreSQL remained healthy and ngrok stayed running. The app resolves Planner output cap to 8,192 tokens with no override; no usage trace established token exhaustion. 2026-11-08: mandatory Auth0 sign-in and a bilingual public landing are implemented in source. The FastAPI planner API requires a valid account and owner-matched volatile session; login binds or rotates sessions, logout revokes and discards session state, and focus rechecks clear stale browser state. Full offline suite 176 passed with one optional PostgreSQL skip; frontend check/build and Python gates passed. No browser/live Auth0 or Compose deployment ran; the running image is unchanged. 2026-11-10: source-scoped security audit fixed CSRF gaps on planner mutations, removed Mermaid API rendering from graph diagnostics, rejected non-HTTPS Auth0 issuers and restricted SQLite fallback file permissions. Full offline suite 185 passed, one optional PostgreSQL test skipped; frontend and Python quality gates passed. Browser, live provider, real database permissions and deployment were not checked."
+  "notes": "Compose now runs saved tours in PostgreSQL 17 on a sibling host directory outside Git. Three saved rows and indexes survived the move from the old named volume, which remains for recovery. One earlier SQLite tour was backed up and copied exactly to PostgreSQL. A disposable 2M-row PostgreSQL benchmark measured keyset page 1/deep p50 0.729/0.373 ms with tiny snapshots and no concurrent traffic; its volume was removed. Focused pre-push review fixed Secure cookie handling behind TLS proxies. Network-disabled read-only container suite: 132 passed, 1 optional PostgreSQL test skipped; Python quality gates passed. Browser/live-provider checks were not run; the running app image predates the cookie fix. Old SQLite volume and ignored backups remain for recovery. Auth0 account ownership is implemented and verified offline (145 passed, 1 skipped); an isolated five-row PostgreSQL restore survived two migration runs unchanged. Live database/app remain on browser-cookie ownership pending tenant setup, migration and browser QA. A disposable PostgreSQL smoke mapped 16 concurrent logins to one account and verified persisted session, CSRF and revocation. Follow-up: a disposable PG smoke caught and fixed an invalid NUL advisory-lock key; 16 concurrent identity lookups now map to one account. Live DB checksum and running app stayed unchanged; rebuilt image was not deployed. GitHub Actions CI and a local five-minute macOS launchd poller are configured. The poller waits for a successful push CI run and uses no GitHub token. Automatic Mac deployment stays disabled until the explicit Auth0 database migration and rollout; no app restart or migration ran for CI/CD setup. 2026-11-05 security follow-up: optional ngrok ingress limits session create/reset and planning turns to 20 requests per client IP per sliding hour; Uvicorn access logs are disabled. Host suite 155 passed, 1 optional test skipped. On 2026-11-06 the runtime image was rebuilt and Compose recreated app, PostgreSQL and ngrok. App and database are healthy; ngrok loads the read-only policy. Local and public root returned HTTP 200, and the tunnel URL matches GTP_AUTH_PUBLIC_ORIGIN. App recreation cleared session-only plans; database volumes were not removed. Docker test target also passed 155 tests with one optional PostgreSQL test skipped for the security follow-up. 2026-11-06: added per-role output ceilings, authenticated/session HTTP turn quotas and redacted LangSmith token-usage events. Full host suite 168 passed with one optional PostgreSQL test skipped; Python quality gates passed with dotenv disabled. Compose image rebuilt and app container recreated after environment configuration. App and PostgreSQL are healthy; local root returned HTTP 200; global cap parsed in the app. The numeric environment value was not displayed or recorded. App recreation cleared session-only plans; saved tours remained in PostgreSQL. The optional global cap is a process-local hourly turn count, not USD; provider-project spend controls and managed DDoS edge remain separate. 2026-11-06: new-trip candidate validation now requires at least one grounded stop on every selected day. Missing middle days trigger one repair; a still-incomplete candidate is rejected and the previous plan stays intact. Full offline suite 170 passed, 1 optional PostgreSQL test skipped; Python quality gates passed. Compose image sha256:133f4f2471e7c81c74ce0fffdb9f39c9e14fb8ebd06c60ad73d520027b55da22 now includes this fix; app is healthy and root returns HTTP 200. Recreating app cleared session-only plans; PostgreSQL remained healthy and ngrok stayed running. The app resolves Planner output cap to 8,192 tokens with no override; no usage trace established token exhaustion. 2026-11-08: mandatory Auth0 sign-in and a bilingual public landing are implemented in source. The FastAPI planner API requires a valid account and owner-matched volatile session; login binds or rotates sessions, logout revokes and discards session state, and focus rechecks clear stale browser state. Full offline suite 176 passed with one optional PostgreSQL skip; frontend check/build and Python gates passed. No browser/live Auth0 or Compose deployment ran; the running image is unchanged. 2026-11-10: source-scoped security audit fixed CSRF gaps on planner mutations, removed Mermaid API rendering from graph diagnostics, rejected non-HTTPS Auth0 issuers and restricted SQLite fallback file permissions. Full offline suite 185 passed, one optional PostgreSQL test skipped; frontend and Python quality gates passed. Browser, live provider, real database permissions and deployment were not checked.\n2026-11-12: deployed dual-origin Auth0 routing on the app and attached the existing Cloudflare connector to the isolated planner ingress network. Both configured hosts generate matching callback redirects; ngrok login still reaches Auth0 HTTP 200. Auth0 allowlist and Cloudflare hostname route were not changed; apex/www DNS unresolved, OTP/callback/planner/logout checks pending. App-only recreation cleared volatile session state; PostgreSQL/ngrok stayed running.\n2026-11-12: Cloudflare route for citedtrip.app is live; browser-like root/health and Auth0 hosted-login checks returned HTTP 200. Removed ngrok container, Compose service, token, and per-IP policy; removed temporary auth origin and recreated only app. App restart cleared volatile plans/chat/pending turns; PostgreSQL stayed up. Auth0 OTP/callback/planner/logout and removal of old callback/logout allowlist entries remain pending. Generic Python User-Agent receives Cloudflare error 1010; Chrome User-Agent succeeds.\n2026-11-12: final verification after single-origin app deployment: 185 pytest passed, one optional PostgreSQL test skipped; Auth0-focused tests 26 passed; isort, Black, flake8, Ruff, frontend check/build, Compose configs, JSON and diff checks passed. Cloudflare connector received SIGTERM during a Visual Assistant Compose lifecycle and briefly caused HTTP 530; restarting the existing connector restored citedtrip.app root/health to HTTP 200. Auth0 old redirect URL cleanup and OTP/browser sign-in remain pending.\n2026-11-12: removed the unused ngrok/ngrok:latest image after confirming no containers referenced it."
 }
