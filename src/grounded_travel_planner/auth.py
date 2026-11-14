@@ -244,6 +244,7 @@ class Auth0OidcProvider:
     def authorization_url(
         self, *, state: str, nonce: str, code_verifier: str, redirect_uri: str
     ) -> str:
+        # Let Auth0 reuse an existing tenant session for SSO.
         query = urlencode(
             {
                 "response_type": "code",
@@ -254,7 +255,6 @@ class Auth0OidcProvider:
                 "nonce": nonce,
                 "code_challenge": code_challenge(code_verifier),
                 "code_challenge_method": "S256",
-                "connection": "email",
             }
         )
         return f"{self._endpoint}/authorize?{query}"

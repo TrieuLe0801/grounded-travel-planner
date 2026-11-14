@@ -26,8 +26,9 @@ Apple Silicon macOS launchd poller. Database migrations remain explicit.
 ADR 0020 defines per-role output ceilings, process-local HTTP turn quotas and
 redacted model-usage telemetry; actual monetary values remain in the runtime
 environment and provider-project spend limits remain separately configured.
-ADR 0021 makes Auth0 sign-in mandatory before React planner use and binds each
-volatile planner session to its verified account owner.
+ADR 0021 makes Auth0 sign-in mandatory before React planner use, reuses active
+Auth0 sessions for SSO with the existing email-code flow as fallback, and binds
+each volatile planner session to its verified account owner.
 ADR 0022 selects Cloudflare Tunnel for the `citedtrip.app` public ingress and
 records the completed single-origin cutover; temporary ngrok ingress is retired.
 ADR 0023 adds application administrator access and account-scoped LangSmith

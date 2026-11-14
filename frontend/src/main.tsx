@@ -2033,7 +2033,7 @@ function App() {
             <h2 id="sign-in-title" className="mt-5 font-heading text-2xl font-bold">{labels.signIn}</h2>
             <p className="mt-3 leading-7 text-slate-700">{auth === null ? labels.authChecking : labels.landingAccess}</p>
             {authError && <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-800" role="alert">{labels[authError]}</p>}
-            {auth !== null && <button type="button" onClick={() => signIn("/")} className="mt-7 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 font-bold text-white shadow-lg shadow-blue-500/25 transition hover:bg-blue-500 focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300"><LogIn size={18} aria-hidden="true" />{labels.signInWithEmail}</button>}
+            {auth !== null && <button type="button" onClick={() => signIn("/")} className="mt-7 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 font-bold text-white shadow-lg shadow-blue-500/25 transition hover:bg-blue-500 focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300"><LogIn size={18} aria-hidden="true" />{labels.signInWithAuth0}</button>}
           </section>
         </main>
       </div>

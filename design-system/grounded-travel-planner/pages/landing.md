@@ -7,7 +7,8 @@ verified sign-in.
 
 - Keep the first screen short and calm: brand, language control, headline,
   grounded-planning benefits, and one prominent sign-in action.
-- State that Auth0 sends a one-time code by email. Do not add a local password
+- State that an active Auth0 session enables SSO. Users without one continue
+  through the existing email one-time-code flow. Do not add a local password
   form or collect profile fields before sign-in.
 - Explain that a live trip stays in the browser session and only an explicit
   save stores a read-only tour snapshot.

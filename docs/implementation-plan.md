@@ -3,6 +3,26 @@
 Status: Active
 Last updated: 2026-11-14
 
+## Auth0 Session SSO — Source Updated; Live SSO/OTP Pending — 2026-11-14
+
+The Auth0 authorization request no longer pins the `email` connection. Auth0
+can reuse an active tenant session for SSO. Users without an active session
+continue through the tenant's existing email one-time-code flow; no new Auth0
+connection or application-managed identity lookup was added. Account ownership
+still uses the verified Auth0 issuer and subject, never email matching.
+
+The bilingual landing describes both paths and labels its sign-in action as
+Auth0. The Auth0 tenant must keep its email passwordless connection enabled for
+the existing fallback. On 2026-11-14 the Compose app image was rebuilt and only
+the app container was recreated as image
+`sha256:07e93379edc0efcf157dca5d28af79d7f91e96321b9911e1a0d323de25342b71`.
+The app is healthy; local `/` and `/api/health` return HTTP 200. The local login
+route returns HTTP 307 without a `connection` parameter and with the expected
+callback; the served frontend bundle contains the updated SSO copy. PostgreSQL
+remained healthy and its container was unchanged. No automated tests were added
+or run. Live Auth0 session reuse, email OTP, callback exchange, planner access
+and logout remain unverified.
+
 ## Admin Access and Account Usage — Source Implemented; Deployment Pending — 2026-11-14
 
 ADR 0023 adds account access states and an administrator role to the existing
@@ -67,10 +87,10 @@ authenticated planner, and logout were not exercised. See
 [`deployment-cloudflare.md`](deployment-cloudflare.md) for the final Auth0
 allowlist cleanup and live sign-in check.
 
-## Mandatory Sign-In And Public Landing — Deployed; Live OTP Pending — Updated 2026-11-12
+## Mandatory Sign-In And Public Landing — Deployed Before SSO Source Update; Live Auth0 Pending — Updated 2026-11-14
 
 The React root now shows a public bilingual introduction page and one Auth0
-email one-time-code sign-in action. It checks `/api/auth/me` before requesting
+sign-in action. It checks `/api/auth/me` before requesting
 planner state. Focus and tab-visibility changes recheck authentication; an
 invalid account or planner session clears cached itinerary, chat, drafts, and
 archive view state before the app can appear again.

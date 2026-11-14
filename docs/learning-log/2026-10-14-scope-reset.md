@@ -1,5 +1,28 @@
 # Learning Log - 2026-10-14 Scope Reset
 
+## Auth0 Session SSO With Email-Code Fallback — 2026-11-14
+
+- The user requested SSO for accounts registered with Auth0 and asked to keep
+  the current flow for accounts without registration. The user selected the
+  existing Auth0 setup and declined adding a connection.
+- The BFF now omits the forced `connection=email` parameter so Auth0 can reuse
+  an active tenant session. Users without an active session continue through
+  the existing email one-time-code flow. The callback, PKCE, state, nonce,
+  issuer/subject ownership, account gates and cookies are unchanged.
+- Updated bilingual landing copy and the project UI guidance. ADR 0021 and the
+  charter record the session-based SSO behavior and OTP fallback.
+- Frontend typecheck/build, isort, Black, flake8, Ruff, JSON validation and
+  `git diff --check` passed. Automated tests were not run.
+- Rebuilt and recreated only the Compose app as image
+  `sha256:07e93379edc0efcf157dca5d28af79d7f91e96321b9911e1a0d323de25342b71`.
+  App health is healthy; local root and health return HTTP 200. The login route
+  returns HTTP 307 without a forced connection and with the expected callback;
+  the served frontend bundle includes updated SSO copy. PostgreSQL stayed
+  healthy and its container was unchanged. A temporary mode-`0600` environment
+  link was removed after Compose completed.
+- Live Auth0 session reuse, email OTP, callback exchange and browser QA remain
+  unverified.
+
 ## Admin Access and Account Usage — 2026-11-14
 
 - The user approved implementation of the proposed admin page, then specified
