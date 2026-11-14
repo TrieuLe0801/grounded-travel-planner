@@ -1,6 +1,6 @@
 {
-  "version": 104,
-  "updated": "2026-11-14T22:23:30+07:00",
+  "version": 105,
+  "updated": "2026-11-15T00:00:23+07:00",
   "active_scope": "city-place-sightseeing-webapp",
   "current_milestone": "Milestone 1: executable city/place sightseeing vertical slice",
   "completed": {
@@ -502,7 +502,12 @@
       "No shortcut: markers or measured before/after baseline exist in this repository",
       "2026-11-01 prior refresh: TOML parsing and git diff --check passed",
       "2026-11-01 refresh: four agents, delivery/evaluation skills and UI overlay aligned with PostgreSQL Compose, session-only state, model fallback, cookie and capacity decisions",
-      "2026-11-01 refresh checks: two skill validators passed, four TOML files parsed with tomli, git diff --check passed"
+      "2026-11-01 refresh checks: two skill validators passed, four TOML files parsed with tomli, git diff --check passed",
+      "2026-11-15: replaced manager/coding/testing roles with researcher/coordinator/tester, retained planner, and added deployer; primary Coordinator routes implementation goals through Goal Card, ordered plan, implementation, verification, and requested PR/release stages",
+      "Tester requires contract-based expectations, prohibits hardcoded pass outcomes or weakened assertions, and reports each failed check with its error and cause",
+      "Removed duplicate project-change-verification skill; retained codex-workflow-transfer and delivery/UI/security skills for separate needs",
+      "Deployer opens requested PRs against main and preserves current CI, branch-protection, migration, backup, and deployment gates",
+      "Configuration, skill metadata, documentation, progress JSON, and diff checks recorded in the current workflow learning-log entry; no application or live-provider checks run"
     ],
     "codex_project_token_guidance_configured": [
       "AGENTS.md: local @RTK.md reference and Vietnamese caveman full default",

@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-11-14
+Last updated: 2026-11-15
 
 ## Current Milestone
 
@@ -53,12 +53,20 @@ background only.
 | Pre-push security review | Focused source review and regression passed | Session and saved-tour owner cookies default to Secure; Compose forces Secure; local data excluded from Git and Docker context; isolated full suite 132 passed, 1 skipped |
 | Auth callback and public ingress hardening | Deployed; smoke checked | App runs Uvicorn with `--no-access-log`; Cloudflare Tunnel is the only public ingress. The app and connector share the isolated ingress network, PostgreSQL stays off it. Auth0 login reaches the hosted page on `citedtrip.app`; full OTP and logout checks remain pending |
 | Cloudflare custom domain | Live; ngrok retired | Existing `cloudeflared-tunnel` serves `citedtrip.app` to `http://app:8000`; browser-like root and health requests return HTTP 200. Ngrok service, token setting, and Traffic Policy were removed. Remove the old ngrok callback/logout entries from Auth0; OTP, planner, and logout checks remain pending |
-| Codex development workflow | Project-authored skills, minimal-change discipline and portable setup documented | Development agents inherit session models; portable transfer/verification guides supplement project-specific `.codex` skills. Adapted Ponytail's smallest-complete-change ideas into local guidance. No Ponytail files copied. Skill validation, agent TOML, delivery YAML, roadmap JSON and diff checks passed. RTK hook activation still needs a new trusted session |
+| Codex development workflow | Five-role delivery pipeline configured | Researcher proposes Goal Card; Planner plans; Coordinator implements; Tester verifies without hardcoded pass outcomes; Deployer opens requested PRs to `main` and follows existing release gates. Duplicate verification skill removed; transfer, delivery, UI, and security skills retained. Configuration and documentation checks recorded in the 2026-11-15 workflow log. |
 
 Planning progress is not implementation progress. Only executable artifacts and
 actual checks count as completion evidence.
 
 ## Done
+
+- Replaced the four development roles with Researcher, Planner, Coordinator,
+  Tester, and Deployer. Removed the duplicate routine-verification skill while
+  retaining portable transfer and project delivery/UI/security guidance.
+  Deployer opens requested PRs to `main`; deployment and release remain subject
+  to the accepted goal and existing CI, migration, backup, and runtime gates.
+  Runtime agents and app behavior are unchanged. See the 2026-11-15 Codex
+  workflow learning-log entry for checks and PR evidence.
 
 - Updated the Auth0 authorize request to allow SSO through an active existing
   Auth0 session and preserve email OTP for users without one. Updated the

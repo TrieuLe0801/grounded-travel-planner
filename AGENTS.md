@@ -105,20 +105,28 @@ Read these records in order:
   local design system.
 - Use `delivery-orchestrator` for development delivery, `travel-planner-ui`
   for interface work, and `travel-planner-security-review` for explicit
-  security reviews. Routine verification guidance stays in the testing agent.
+  security reviews. Routine verification belongs in the tester agent.
 - Portable workflow assets under `.agents/skills/` support cross-repository
   transfer; they do not replace this file or project-specific `.codex/skills`.
   See `docs/codex-workflow.md` for setup boundaries.
 
-- The primary Codex session manages development requests. Assign bounded work to
-  project-scoped `planner`, `coding` and `testing` roles when needed, wait for
-  results and coordinate shared-file edits.
+- For implementation goals, use project roles in sequence: `researcher` studies
+  requirements and returns a Goal Card; `planner` creates an ordered plan;
+  `coordinator` implements the plan and resolves bounded choices it assigns;
+  `tester` verifies code against the Goal Card; `deployer` opens requested PRs
+  to `main` and deploys/releases only when the goal and project gates allow.
+  Keep file ownership clear and preserve unrelated dirty work. Skip roles only
+  when the task does not need that stage.
 - Codex development agents/configuration are separate from the webapp runtime
   Coordinator/Planner/Chat. Preserve the tooling decision in ADR 0001.
 - Retain Python `>=3.10`, `uv`, `pytest`, isort, Black, flake8 and Ruff.
   Runtime dependencies and an application package remain implementation work.
 - Keep modules small, typed and testable. Automated unit tests use mocked
   providers and never call live models/search/tracing services.
+- Derive test expectations from product contracts or independent inputs. Never
+  hardcode passing results, weaken assertions, or alter fixtures only to clear
+  failures. Report each required check as passed, failed, skipped, or not run;
+  include the relevant error and reason for every non-pass result.
 - Verify live model, Tavily and LangSmith integration separately when credentials
   and an executable flow are available; do not report it as tested beforehand.
 - Use ignored environment files for credentials; `.env.example` contains
@@ -126,6 +134,9 @@ Read these records in order:
 - Update status, the current log, progress JSON and the roadmap summary when
   their recorded state changes. Do not carry over old POC completion counts.
 - Add/update an ADR when changing an accepted architectural decision.
+- Do not push directly to `main` or merge a PR unless the user explicitly asks.
+  Deployer must preserve CI, branch protection, migration, backup, and deployment
+  gates and report failures with their exact cause.
 - Do not claim application code, test results, traces or metrics exist without
   executable artifacts and verification evidence.
 - Run the narrowest relevant checks, then the full existing suite as applicable:

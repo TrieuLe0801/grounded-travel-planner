@@ -1,4 +1,4 @@
 interface:
   display_name: "Delivery Orchestrator"
   short_description: "Coordinate project agents from goal to verified delivery."
-  default_prompt: "Use $delivery-orchestrator. Goal Card: objective; acceptance; scope/exclusions; verification; commit/push. Select smallest lane: direct, scoped coding, coding + testing, or planner + coding + testing. Commit and push default to no. Example: $delivery-orchestrator Objective: fix graph image layout; acceptance: image fits page; scope: frontend only; verify: typecheck/build; commit: no; push: no."
+  default_prompt: "Use $delivery-orchestrator. Follow Researcher Goal Card, Planner plan, Coordinator implementation, Tester verification, then requested Deployer PR to main and gated release. Goal Card: objective; acceptance; scope/exclusions; verification; PR/deploy/release intent. Do not hardcode passing tests or hide failures. Example: $delivery-orchestrator Objective: fix graph image layout; acceptance: image fits page; scope: frontend only; verify: typecheck/build; PR: no; deploy: no."

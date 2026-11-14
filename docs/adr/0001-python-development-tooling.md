@@ -135,3 +135,21 @@ instructions and skills under `.codex/`. Portable workflow skills under
 and skill selection remain governed by `AGENTS.md`. The tracked
 `.codex/config.toml` contains only shared agent concurrency settings, no
 personal model or account configuration.
+
+## Amendment — 2026-11-15 — Five-role delivery workflow
+
+Replace the project development roles with `researcher`, `planner`,
+`coordinator`, `tester`, and `deployer`. Researcher examines requirements
+and returns a Goal Card. Planner turns it into an ordered plan. Coordinator
+implements the plan and resolves bounded implementation choices. Tester checks
+the result against the Goal Card using contract-based expectations; no
+hardcoded pass outcomes, weakened assertions, or fixture edits made only to
+clear failures are allowed. Deployer opens requested pull requests to `main`
+and performs deployment or release only when the goal and project gates allow.
+
+Remove the duplicate `project-change-verification` skill because routine
+verification belongs to `AGENTS.md` and Tester. Retain
+`codex-workflow-transfer` because it supports the maintained cross-repository
+and cross-machine setup workflow. Retain delivery, UI, and security-review
+skills for distinct responsibilities. Runtime agent architecture and
+application behavior do not change.
