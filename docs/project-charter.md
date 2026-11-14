@@ -30,12 +30,14 @@ The current interface uses JavaScript and Tailwind on the same origin as a thin
 Python HTTP adapter. The earlier Streamlit interface remains available during
 migration; the Coordinator/Planner/Chat runtime and validation rules are shared.
 
-The public React entry is a bilingual introduction page. Visitors with an active
-Auth0 browser session use SSO; visitors without one continue through the
-existing Auth0 email one-time-code flow before the planner, chat, visuals, or
-saved tours appear. FastAPI enforces sign-in on private API routes; the landing
-page and static assets remain public. Each live planner session is bound to its
-verified internal account UUID. See ADR 0021.
+The public React entry is a bilingual introduction page. Its app description
+explains sightseeing planning and its purpose without describing sign-in
+mechanics. It provides separate SSO sign-in and registration actions. Visitors
+with an active Auth0 browser session use SSO; visitors without one continue
+through the existing Auth0 email one-time-code flow before the planner, chat,
+visuals, or saved tours appear. FastAPI enforces sign-in on private API routes;
+the landing page and static assets remain public. Each live planner session is
+bound to its verified internal account UUID. See ADR 0021.
 
 ADR 0023 adds application administrator access. Existing accounts remain active
 after the explicit migration; new Auth0 identities wait for administrator

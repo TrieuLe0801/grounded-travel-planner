@@ -929,7 +929,9 @@ def create_app(
 
     @app.get("/api/auth/login")
     def auth_login(
-        request: Request, return_to: str | None = Query(default=None)
+        request: Request,
+        return_to: str | None = Query(default=None),
+        intent: Literal["login", "signup"] = Query(default="login"),
     ) -> Response:
         nonlocal provider
         if provider is None:
@@ -947,6 +949,7 @@ def create_app(
                 nonce=fields["nonce"],
                 code_verifier=fields["verifier"],
                 redirect_uri=callback_uri(request),
+                screen_hint="signup" if intent == "signup" else None,
             )
         except AuthError as error:
             raise HTTPException(
