@@ -358,6 +358,7 @@ def test_turn_quota_shares_verified_account_across_sessions(
     user_id, email = auth.find_or_create_user(
         VerifiedIdentity("https://tenant.example.test/", "auth0|shared")
     )
+    auth.bootstrap_admin(user_id)
     token, csrf = auth.issue_session(user_id, email)
     service = FakeTravelPlannerService()
     app = create_app(

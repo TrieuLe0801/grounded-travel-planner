@@ -1,5 +1,28 @@
 # Learning Log - 2026-10-14 Scope Reset
 
+## Admin Access and Account Usage — 2026-11-14
+
+- The user approved implementation of the proposed admin page, then specified
+  LangSmith as the source for account token and cost figures. ADR 0023 records
+  access states, admin bootstrap, session revocation and LangSmith usage.
+- Source implementation adds an explicit account-access migration, a React admin view
+  and backend authorization. Existing accounts remain active through migration;
+  new Auth0 identities wait for approval. Blocking revokes auth sessions and
+  drops retained live sessions without deleting saved tours or traces.
+- LangSmith LLM runs carry a stable one-way account reference. Admin totals read
+  LangSmith tokens and cost, with unknown cost preserved. Historical traces
+  without the reference, sampling and retention limit coverage. The figures
+  do not claim to be provider invoices.
+- Production migration, first-admin bootstrap, browser checks and live provider
+  checks remain pending. No deployment or restart occurred in this change.
+- Host `.env` does not configure a LangSmith key or project. Only presence was
+  checked; no secret was printed. Live account-query verification remains pending.
+- The user selected the first administrator by email. The maintenance script
+  now resolves a unique existing Auth0-backed account before bootstrap. The
+  email value stays out of tracked files and public PR text.
+- Full offline suite: 197 passed, one optional PostgreSQL test skipped. React
+  check/build, isort, Black, flake8, Ruff and diff checks passed.
+
 ## Cloudflare Live; ngrok Retired — 2026-11-12
 
 - Verified the live `citedtrip.app` root and `/api/health` return HTTP 200 with a

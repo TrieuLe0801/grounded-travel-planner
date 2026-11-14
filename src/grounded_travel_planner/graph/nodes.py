@@ -25,15 +25,20 @@ from grounded_travel_planner.providers import (
     PlaceSearchProvider,
     TraceSink,
 )
+from grounded_travel_planner.usage import current_account_trace_ref
 from utils.redaction import sanitize_error
 
 
 def _metadata(state: PlannerState, role: str) -> dict[str, str]:
-    return {
+    metadata = {
         "thread_id": state["thread_id"],
         "turn_id": state["turn_id"],
         "agent_role": role,
     }
+    account_ref = current_account_trace_ref()
+    if account_ref:
+        metadata["account_ref"] = account_ref
+    return metadata
 
 
 def _step(state: PlannerState) -> int:

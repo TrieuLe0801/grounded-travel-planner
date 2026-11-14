@@ -34,6 +34,7 @@ import {
   Sparkles,
   Trash2,
   UserRound,
+  UsersRound,
   X,
 } from "lucide-react";
 import "./index.css";
@@ -120,17 +121,52 @@ type AuthState = {
   authenticated: boolean;
   email?: string;
   csrf_token?: string;
+  is_admin?: boolean;
+  access_status?: "active" | "blocked" | "pending";
+};
+type AdminUser = {
+  id: string;
+  email: string | null;
+  created_at: string;
+  access_status: "active" | "blocked" | "pending";
+  is_admin: boolean;
+  input_tokens: number | null;
+  output_tokens: number | null;
+  estimated_cost_usd: number | string | null;
+};
+type AdminUsersPage = {
+  items: AdminUser[];
+  usage_available: boolean;
+  has_more: boolean;
+  next_cursor: string | null;
+};
+type AdminUsageModel = {
+  provider: string;
+  model: string;
+  role: string;
+  input_tokens: number;
+  output_tokens: number;
+  estimated_cost_usd: number | string | null;
+  unpriced_calls: number;
+};
+type AdminUsage = {
+  input_tokens: number;
+  output_tokens: number;
+  estimated_cost_usd: number | string | null;
+  unpriced_calls: number;
+  by_model: AdminUsageModel[];
 };
 type ClaimResult = {
   claimed_count: number;
   already_claimed_count: number;
   conflicts: unknown[];
 };
-type View = "itinerary" | "graph" | "saved";
+type View = "itinerary" | "graph" | "saved" | "admin";
 type LocalizedMessage = TextMessageKey | "";
 type FormErrorField = "destination" | "startDate" | "days" | "chat";
 type FormErrors = Partial<Record<FormErrorField, TextMessageKey>>;
 const savedToursPageSize = 50;
+const adminUsersPageSize = 50;
 const dateLocale = (language: Language) =>
   language === "vi" ? "vi-VN" : "en-US";
 
@@ -148,6 +184,7 @@ const today = (() => {
   const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
   return local.toISOString().slice(0, 10);
 })();
+const currentMonthStart = `${today.slice(0, 7)}-01`;
 
 type DatePickerLabels = {
   startDate: string;
@@ -1249,6 +1286,145 @@ function SavedToursView({
   );
 }
 
+function AdminUsersView({
+  users,
+  loading,
+  hasMore,
+  error,
+  usageAvailable,
+  status,
+  updatingId,
+  selectedUserId,
+  usage,
+  usageLoading,
+  usageError,
+  usageStart,
+  usageEnd,
+  language,
+  onBack,
+  onLoadMore,
+  onChangeAccess,
+  onSelectUser,
+  onUsageStartChange,
+  onUsageEndChange,
+}: {
+  users: AdminUser[];
+  loading: boolean;
+  hasMore: boolean;
+  error: LocalizedMessage;
+  usageAvailable: boolean;
+  status: LocalizedMessage;
+  updatingId: string | null;
+  selectedUserId: string | null;
+  usage: AdminUsage | null;
+  usageLoading: boolean;
+  usageError: LocalizedMessage;
+  usageStart: string;
+  usageEnd: string;
+  language: Language;
+  onBack: () => void;
+  onLoadMore: () => void;
+  onChangeAccess: (user: AdminUser) => void;
+  onSelectUser: (id: string) => void;
+  onUsageStartChange: (date: string) => void;
+  onUsageEndChange: (date: string) => void;
+}) {
+  const labels = text(language);
+  const numbers = new Intl.NumberFormat(dateLocale(language));
+  const dollars = new Intl.NumberFormat(dateLocale(language), {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 4,
+    maximumFractionDigits: 6,
+  });
+  const cost = (value: number | string | null) => {
+    if (value === null) return labels.adminCostUnknown;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed >= 0
+      ? dollars.format(parsed)
+      : labels.adminCostUnknown;
+  };
+  return (
+    <section className="rise" aria-labelledby="admin-title">
+      <button type="button" onClick={onBack} className="inline-flex min-h-11 items-center gap-2 rounded-xl px-3 font-semibold text-slate-700 hover:bg-blue-100 focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300">
+        <ArrowLeft size={18} aria-hidden="true" />{labels.back}
+      </button>
+      <div className="mt-5 rounded-3xl border border-blue-100 bg-white p-5 shadow-sm sm:p-8">
+        <h1 id="admin-title" className="font-heading text-2xl font-bold">{labels.adminUsers}</h1>
+        <p className="mt-2 text-sm leading-6 text-slate-600">{labels.adminUsageNote}</p>
+        {error && <p className="mt-4 rounded-xl bg-red-50 p-4 text-red-800" role="alert">{labels[error]}</p>}
+        {!usageAvailable && <p className="mt-4 rounded-xl bg-amber-50 p-4 text-amber-900" role="status">{labels.adminUsageUnavailable}</p>}
+        {status && <p className="mt-4 rounded-xl bg-green-50 p-4 text-green-800" role="status">{labels[status]}</p>}
+        {loading && users.length === 0 && <p className="mt-5 text-slate-600" role="status">{labels.adminLoading}</p>}
+        {!loading && users.length === 0 && !error && <p className="mt-5 text-slate-600">{labels.adminEmpty}</p>}
+        <ul className="mt-5 grid gap-4" aria-busy={loading}>
+          {users.map((user) => (
+            <li key={user.id} className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-5">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h2 className="break-all font-semibold text-slate-900">{user.email || user.id}</h2>
+                  {user.email && <p className="mt-1 break-all text-xs text-slate-500">{user.id}</p>}
+                  <p className="mt-1 text-sm text-slate-600">{labels.adminCreated}: {new Date(user.created_at).toLocaleDateString(dateLocale(language))}</p>
+                </div>
+                <span className={`rounded-full px-3 py-1 text-sm font-semibold ${user.access_status === "active" ? "bg-green-100 text-green-800" : user.access_status === "pending" ? "bg-amber-100 text-amber-900" : "bg-red-100 text-red-800"}`}>
+                  {user.access_status === "active" ? labels.adminActive : user.access_status === "pending" ? labels.adminPending : labels.adminBlocked}
+                </span>
+              </div>
+              <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
+                <div><dt className="text-slate-600">{labels.adminInputTokens}</dt><dd className="mt-1 font-semibold">{user.input_tokens === null ? "—" : numbers.format(user.input_tokens)}</dd></div>
+                <div><dt className="text-slate-600">{labels.adminOutputTokens}</dt><dd className="mt-1 font-semibold">{user.output_tokens === null ? "—" : numbers.format(user.output_tokens)}</dd></div>
+                <div><dt className="text-slate-600">{labels.adminEstimatedCost}</dt><dd className="mt-1 font-semibold">{cost(user.estimated_cost_usd)}</dd></div>
+              </dl>
+              <div className="mt-4 flex flex-wrap items-center gap-3">
+                {user.is_admin && <span className="text-sm font-semibold text-blue-700">{labels.adminRole}</span>}
+                <button
+                  type="button"
+                  onClick={() => onChangeAccess(user)}
+                  disabled={updatingId !== null || user.is_admin}
+                  className={`inline-flex min-h-11 items-center rounded-xl px-4 text-sm font-bold focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300 disabled:cursor-not-allowed disabled:opacity-50 ${user.access_status === "active" ? "border border-red-200 bg-white text-red-800 hover:bg-red-50" : "bg-primary text-white hover:bg-blue-500"}`}
+                >
+                  {updatingId === user.id ? labels.adminUpdating : user.access_status === "active" ? labels.adminBlock : labels.adminGrant}
+                </button>
+                <button type="button" onClick={() => onSelectUser(user.id)} aria-expanded={selectedUserId === user.id} className="inline-flex min-h-11 items-center rounded-xl px-4 text-sm font-semibold text-blue-800 hover:bg-blue-100 focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300">
+                  {labels.adminUsageDetail}
+                </button>
+              </div>
+              {selectedUserId === user.id && <section className="mt-5 rounded-2xl border border-blue-100 bg-white p-4" aria-label={labels.adminUsageDetail}>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="text-sm font-semibold text-slate-700">{labels.adminFromDate}
+                    <input type="date" value={usageStart} max={usageEnd} onChange={(event) => onUsageStartChange(event.target.value)} className="mt-1 block min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3" />
+                  </label>
+                  <label className="text-sm font-semibold text-slate-700">{labels.adminToDate}
+                    <input type="date" value={usageEnd} min={usageStart} max={today} onChange={(event) => onUsageEndChange(event.target.value)} className="mt-1 block min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3" />
+                  </label>
+                </div>
+                {usageError && <p className="mt-3 text-sm text-red-800" role="alert">{labels[usageError]}</p>}
+                {usageLoading && <p className="mt-3 text-sm text-slate-600" role="status">{labels.adminLoadingUsage}</p>}
+                {usage && !usageLoading && <>
+                  <dl className="mt-4 grid gap-3 border-b border-slate-200 pb-4 text-sm sm:grid-cols-4">
+                    <div><dt className="text-slate-600">{labels.adminInputTokens}</dt><dd className="font-semibold">{numbers.format(usage.input_tokens)}</dd></div>
+                    <div><dt className="text-slate-600">{labels.adminOutputTokens}</dt><dd className="font-semibold">{numbers.format(usage.output_tokens)}</dd></div>
+                    <div><dt className="text-slate-600">{labels.adminEstimatedCost}</dt><dd className="font-semibold">{cost(usage.estimated_cost_usd)}</dd></div>
+                    <div><dt className="text-slate-600">{labels.adminUnpricedCalls}</dt><dd className="font-semibold">{numbers.format(usage.unpriced_calls)}</dd></div>
+                  </dl>
+                  {usage.by_model.length === 0 ? <p className="mt-4 text-sm text-slate-600">{labels.adminNoUsage}</p> : <ul className="mt-4 grid gap-3">
+                    {usage.by_model.map((model) => <li key={`${model.provider}:${model.model}:${model.role}`} className="min-w-0 rounded-xl bg-slate-50 p-3 text-sm">
+                      <p className="break-all font-semibold">{model.provider} · {model.model} · {model.role}</p>
+                      <p className="mt-1 text-slate-700">{labels.adminInputTokens}: {numbers.format(model.input_tokens)} · {labels.adminOutputTokens}: {numbers.format(model.output_tokens)}</p>
+                      <p className="mt-1 text-slate-700">{labels.adminEstimatedCost}: {cost(model.estimated_cost_usd)} · {labels.adminUnpricedCalls}: {numbers.format(model.unpriced_calls)}</p>
+                    </li>)}
+                  </ul>}
+                </>}
+              </section>}
+            </li>
+          ))}
+        </ul>
+        {hasMore && <button type="button" onClick={onLoadMore} disabled={loading} className="mt-6 inline-flex min-h-11 items-center rounded-xl border border-blue-200 px-4 font-semibold text-blue-800 hover:bg-blue-50 disabled:opacity-50">{loading ? labels.adminLoading : labels.adminLoadMore}</button>}
+      </div>
+    </section>
+  );
+}
+
 function App() {
   const [landingLanguage, setLandingLanguage] = useState<Language>(() =>
     new URLSearchParams(window.location.search).get("lang") === "en" ? "en" : "vi",
@@ -1281,6 +1457,22 @@ function App() {
   const [graphFallbackLoading, setGraphFallbackLoading] = useState(false);
   const [graphError, setGraphError] = useState<LocalizedMessage>("");
   const [savedTours, setSavedTours] = useState<SavedTourSummary[]>([]);
+  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
+  const [adminUsersLoading, setAdminUsersLoading] = useState(false);
+  const [adminUsersHasMore, setAdminUsersHasMore] = useState(false);
+  const [adminUsersCursor, setAdminUsersCursor] = useState<string | null>(null);
+  const [adminUsersError, setAdminUsersError] = useState<LocalizedMessage>("");
+  const [adminUsageAvailable, setAdminUsageAvailable] = useState(true);
+  const [adminUsersStatus, setAdminUsersStatus] = useState<LocalizedMessage>("");
+  const [adminUserUpdatingId, setAdminUserUpdatingId] = useState<string | null>(null);
+  const adminUsersRequest = useRef(0);
+  const [selectedAdminUserId, setSelectedAdminUserId] = useState<string | null>(null);
+  const [adminUsage, setAdminUsage] = useState<AdminUsage | null>(null);
+  const [adminUsageLoading, setAdminUsageLoading] = useState(false);
+  const [adminUsageError, setAdminUsageError] = useState<LocalizedMessage>("");
+  const [adminUsageStart, setAdminUsageStart] = useState(currentMonthStart);
+  const [adminUsageEnd, setAdminUsageEnd] = useState(today);
+  const adminUsageRequest = useRef(0);
   const [savedToursLoading, setSavedToursLoading] = useState(false);
   const [savedToursHasMore, setSavedToursHasMore] = useState(false);
   const [savedToursCursor, setSavedToursCursor] = useState<string | null>(null);
@@ -1297,7 +1489,8 @@ function App() {
   const accountTriggerRef = useRef<HTMLButtonElement>(null);
   const authRecheckInFlight = useRef(false);
   const currentSessionLanguage = useRef<Language>("vi");
-  const activeLanguage = auth?.authenticated ? state.language : landingLanguage;
+  const activeLanguage = auth?.authenticated && auth.access_status === "active"
+    ? state.language : landingLanguage;
   const labels = text(activeLanguage);
   const accountName = auth?.authenticated
     ? auth.email?.split("@")[0]?.trim() || labels.account
@@ -1348,6 +1541,20 @@ function App() {
     setSavedToursCursor(null);
     setSavedToursHasMore(false);
     savedToursRequest.current += 1;
+    setAdminUsers([]);
+    setAdminUsersCursor(null);
+    setAdminUsersHasMore(false);
+    setAdminUsersLoading(false);
+    setAdminUsersError("");
+    setAdminUsageAvailable(true);
+    setAdminUsersStatus("");
+    setAdminUserUpdatingId(null);
+    adminUsersRequest.current += 1;
+    setSelectedAdminUserId(null);
+    setAdminUsage(null);
+    setAdminUsageLoading(false);
+    setAdminUsageError("");
+    adminUsageRequest.current += 1;
   };
   const recheckAuth = async (readDeepLink: boolean) => {
     if (authRecheckInFlight.current) return;
@@ -1361,6 +1568,12 @@ function App() {
         setAuth(current);
         return;
       }
+      if (current.access_status === "pending") {
+        clearPrivateWorkspace();
+        setAuth(current);
+        return;
+      }
+      if (!current.is_admin && view === "admin") setView("itinerary");
       await load(current.csrf_token);
       const parameters = new URLSearchParams(window.location.search);
       const requestedLanguage = parameters.get("lang");
@@ -1378,6 +1591,9 @@ function App() {
       }
       if (readDeepLink && parameters.get("view") === "saved") {
         setView("saved");
+      }
+      if (readDeepLink && parameters.get("view") === "admin" && current.is_admin) {
+        setView("admin");
       }
       if (readDeepLink && (parameters.has("view") || parameters.has("lang"))) {
         window.history.replaceState(null, "", "/");
@@ -1539,6 +1755,76 @@ function App() {
   useEffect(() => {
     if (view === "saved" && auth?.authenticated) void loadSavedTours(false);
   }, [view, auth?.authenticated]);
+  const loadAdminUsers = async (append = false) => {
+    if (!auth?.is_admin || auth.access_status !== "active") return;
+    if (append && (!adminUsersCursor || adminUsersLoading)) return;
+    const request = ++adminUsersRequest.current;
+    const cursor = append ? `&cursor=${encodeURIComponent(adminUsersCursor!)}` : "";
+    if (!append) {
+      setAdminUsersCursor(null);
+      setAdminUsersHasMore(false);
+      setAdminUsageAvailable(true);
+    }
+    setAdminUsersLoading(true);
+    setAdminUsersError("");
+    try {
+      const result = await api<AdminUsersPage>(`/api/admin/users?limit=${adminUsersPageSize}${cursor}`);
+      if (request !== adminUsersRequest.current) return;
+      setAdminUsers((current) => append
+        ? [...current, ...result.items.filter((user) => !current.some((item) => item.id === user.id))]
+        : result.items);
+      setAdminUsersCursor(result.next_cursor);
+      setAdminUsageAvailable((current) => append ? current && result.usage_available : result.usage_available);
+      setAdminUsersHasMore(result.has_more && result.next_cursor !== null);
+    } catch {
+      if (request === adminUsersRequest.current) setAdminUsersError("adminLoadError");
+    } finally {
+      if (request === adminUsersRequest.current) setAdminUsersLoading(false);
+    }
+  };
+  useEffect(() => {
+    if (view === "admin" && auth?.is_admin) void loadAdminUsers(false);
+  }, [view, auth?.is_admin]);
+  useEffect(() => {
+    if (view !== "admin" || !auth?.is_admin || !selectedAdminUserId) return;
+    const request = ++adminUsageRequest.current;
+    setAdminUsage(null);
+    if (!adminUsageStart || !adminUsageEnd || adminUsageStart > adminUsageEnd) {
+      setAdminUsageLoading(false);
+      setAdminUsageError("adminDateError");
+      return;
+    }
+    setAdminUsageLoading(true);
+    setAdminUsageError("");
+    void api<AdminUsage>(`/api/admin/users/${encodeURIComponent(selectedAdminUserId)}/usage?start=${encodeURIComponent(adminUsageStart)}&end=${encodeURIComponent(adminUsageEnd)}`)
+      .then((result) => { if (request === adminUsageRequest.current) setAdminUsage(result); })
+      .catch(() => { if (request === adminUsageRequest.current) setAdminUsageError("adminUsageError"); })
+      .finally(() => { if (request === adminUsageRequest.current) setAdminUsageLoading(false); });
+  }, [view, auth?.is_admin, selectedAdminUserId, adminUsageStart, adminUsageEnd]);
+  const changeAdminAccess = async (user: AdminUser) => {
+    if (!auth?.csrf_token || adminUserUpdatingId) return;
+    const access_status = user.access_status === "active" ? "blocked" : "active";
+    const confirmation = access_status === "blocked" ? labels.adminConfirmBlock : labels.adminConfirmGrant;
+    if (!window.confirm(confirmation)) return;
+    const request = adminUsersRequest.current;
+    setAdminUserUpdatingId(user.id);
+    setAdminUsersError("");
+    setAdminUsersStatus("");
+    try {
+      await api<unknown>(`/api/admin/users/${encodeURIComponent(user.id)}/access`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": auth.csrf_token },
+        body: JSON.stringify({ access_status }),
+      });
+      if (request !== adminUsersRequest.current) return;
+      setAdminUsers((current) => current.map((item) => item.id === user.id ? { ...item, access_status } : item));
+      setAdminUsersStatus("adminAccessUpdated");
+    } catch {
+      if (request === adminUsersRequest.current) setAdminUsersError("adminUpdateError");
+    } finally {
+      if (request === adminUsersRequest.current) setAdminUserUpdatingId(null);
+    }
+  };
   const signIn = (returnTo = "/") => {
     setAccountOpen(false);
     const separator = returnTo.includes("?") ? "&" : "?";
@@ -1560,6 +1846,10 @@ function App() {
       setSavedToursCursor(null);
       setSavedToursHasMore(false);
       savedToursRequest.current += 1;
+      setAdminUsers([]);
+      setAdminUsersCursor(null);
+      setAdminUsersHasMore(false);
+      adminUsersRequest.current += 1;
       window.location.assign(result.logout_url);
     } catch {
       setAuthError("signOutError");
@@ -1690,7 +1980,7 @@ function App() {
     }
   };
   const changeLanguage = async (language: Language) => {
-    if (!auth?.authenticated) {
+    if (!auth?.authenticated || auth.access_status === "pending") {
       setLandingLanguage(language);
       return;
     }
@@ -1744,6 +2034,32 @@ function App() {
             <p className="mt-3 leading-7 text-slate-700">{auth === null ? labels.authChecking : labels.landingAccess}</p>
             {authError && <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-800" role="alert">{labels[authError]}</p>}
             {auth !== null && <button type="button" onClick={() => signIn("/")} className="mt-7 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 font-bold text-white shadow-lg shadow-blue-500/25 transition hover:bg-blue-500 focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300"><LogIn size={18} aria-hidden="true" />{labels.signInWithEmail}</button>}
+          </section>
+        </main>
+      </div>
+    );
+  }
+  if (auth.access_status === "pending") {
+    return (
+      <div className="min-h-dvh bg-gradient-to-b from-blue-50 via-white to-white text-slate-900">
+        <header className="border-b border-blue-100 bg-white/90">
+          <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6">
+            <span className="font-heading font-bold">{labels.brand}</span>
+            <div className="inline-flex gap-2" role="group" aria-label={labels.language}>
+              <button type="button" onClick={() => setLandingLanguage("vi")} aria-pressed={landingLanguage === "vi"} className="min-h-11 min-w-11 rounded-lg border border-blue-100 px-2 font-bold focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300">VI</button>
+              <button type="button" onClick={() => setLandingLanguage("en")} aria-pressed={landingLanguage === "en"} className="min-h-11 min-w-11 rounded-lg border border-blue-100 px-2 font-bold focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300">EN</button>
+            </div>
+          </div>
+        </header>
+        <main className="mx-auto max-w-xl px-4 py-16 sm:px-6">
+          <section className="rounded-3xl border border-blue-100 bg-white p-7 shadow-sm" aria-labelledby="approval-title">
+            <ShieldCheck className="text-primary" aria-hidden="true" />
+            <h1 id="approval-title" className="mt-4 font-heading text-2xl font-bold">{labels.adminPending}</h1>
+            <p className="mt-3 text-slate-700">{labels.approvalPending}</p>
+            <p className="mt-2 break-all text-sm text-slate-600">{auth.email}</p>
+            {authError && <p className="mt-4 text-red-800" role="alert">{labels[authError]}</p>}
+            <button type="button" onClick={() => window.location.assign(`/?lang=${landingLanguage}`)} className="mt-6 inline-flex min-h-11 items-center rounded-xl bg-primary px-4 font-semibold text-white hover:bg-blue-500 focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300">{labels.approvalRefresh}</button>
+            <button type="button" onClick={() => void signOut()} disabled={signingOut} className="ml-2 mt-3 inline-flex min-h-11 items-center rounded-xl border border-blue-200 px-4 font-semibold text-slate-700 hover:bg-blue-50 disabled:opacity-50">{signingOut ? labels.signingOut : labels.signOut}</button>
           </section>
         </main>
       </div>
@@ -1851,6 +2167,15 @@ function App() {
                       <Save size={17} aria-hidden="true" />
                       {labels.savedTours}
                     </button>
+                    {auth.is_admin && <button
+                      type="button"
+                      onClick={() => { setAccountOpen(false); setView("admin"); }}
+                      disabled={signingOut}
+                      className="flex min-h-11 w-full items-center gap-2 rounded-xl px-3 text-left text-sm font-semibold text-slate-700 hover:bg-blue-50 focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300 disabled:opacity-50"
+                    >
+                      <UsersRound size={17} aria-hidden="true" />
+                      {labels.adminUsers}
+                    </button>}
                     {auth?.authenticated ? (
                       <button
                         type="button"
@@ -1893,7 +2218,30 @@ function App() {
       </header>
       <main id="main" className="mx-auto max-w-7xl px-4 pb-32 pt-8 sm:px-6 lg:pb-36 lg:pt-12">
         {authError && <p className="mb-5 rounded-xl bg-red-50 p-4 text-red-800" role="alert">{labels[authError]}</p>}
-        {view === "graph" ? (
+        {view === "admin" && auth.is_admin ? (
+          <AdminUsersView
+            users={adminUsers}
+            loading={adminUsersLoading}
+            hasMore={adminUsersHasMore}
+            error={adminUsersError}
+            usageAvailable={adminUsageAvailable}
+            status={adminUsersStatus}
+            updatingId={adminUserUpdatingId}
+            selectedUserId={selectedAdminUserId}
+            usage={adminUsage}
+            usageLoading={adminUsageLoading}
+            usageError={adminUsageError}
+            usageStart={adminUsageStart}
+            usageEnd={adminUsageEnd}
+            onBack={() => setView("itinerary")}
+            onLoadMore={() => void loadAdminUsers(true)}
+            onChangeAccess={(user) => void changeAdminAccess(user)}
+            onSelectUser={(id) => setSelectedAdminUserId((current) => current === id ? null : id)}
+            onUsageStartChange={setAdminUsageStart}
+            onUsageEndChange={setAdminUsageEnd}
+            language={state.language}
+          />
+        ) : view === "graph" ? (
           <GraphView
             svg={graphSvg}
             imageLoading={graphImageLoading}
@@ -2101,7 +2449,7 @@ function App() {
           </>
         )}
       </main>
-      <ChatWidget
+      {view !== "admin" && <ChatWidget
         open={chatOpen}
         onOpenChange={setChatOpen}
         state={state}
@@ -2113,7 +2461,7 @@ function App() {
         requestError={requestError}
         onSend={(sent) => submit({ message: sent })}
         language={state.language}
-      />
+      />}
       <footer className="mx-auto flex max-w-7xl flex-wrap gap-4 px-4 py-8 text-sm text-slate-500 sm:px-6">
         <span className="inline-flex items-center gap-1">
           <MapPin size={15} />

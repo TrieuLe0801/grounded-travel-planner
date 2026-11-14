@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-11-12
+Last updated: 2026-11-14
 
 ## Current Milestone
 
@@ -17,7 +17,7 @@ background only.
 | Scope reset | Complete | Charter, implementation plan, current log and ADR 0004/0009/0011/0012 |
 | Runtime package | Complete | Coordinator/Planner/Chat graph, typed providers and validators |
 | Streamlit app | Complete | Session-only itinerary/chat; graph page hidden from navigation |
-| Tests | 185 passed, 1 skipped on host | Current full offline suite; one optional PostgreSQL test skipped |
+| Tests | 197 passed, 1 skipped on host | Current full offline suite; one optional PostgreSQL test skipped |
 | Live integration | Passed | OpenAI/Tavily/LangSmith smoke recorded under `docs/experiments/` |
 | Local container | Passed | Test/runtime images, health, non-root and live provider checks |
 | Chat editing | Passed | Trip extension plus eight prior offline eval cases and live two-turn smoke |
@@ -45,6 +45,7 @@ background only.
 | Request and model-cost guards | Compose image rebuilt; app healthy | Per-role completion ceilings, 28 itinerary-entry cap, Auth0-user/session sliding-hour quota, configured process-wide hourly quota, and redacted LangSmith token-usage events. Offline suite 168 passed, one optional PostgreSQL test skipped; Python quality gates passed. App root HTTP 200; quota configuration parsed in the running container. Live 429/event behavior was not exercised. Limiter is process-local; no USD spend limit or custom Cloudflare WAF/rate-limit rules are configured |
 | Saved tours | PostgreSQL Compose app healthy; browser QA pending | Database now uses a sibling host directory outside Git; three saved rows and checksum survived the move; former named volume retained; root 200, session creation 201 |
 | Auth0 account ownership | Deployed; live OTP pending | PostgreSQL has account-owner column, indexes and auth tables. The app is deployed on `citedtrip.app`; login reaches Auth0's hosted page. OTP callback and browser account-flow QA remain pending. |
+| Admin access and account usage | Source implemented; migration and live QA pending | New accounts await approval; admin API/UI can grant, block and regrant. Token and cost figures read account-linked LangSmith LLM runs; unavailable LangSmith does not block access management. Email-based bootstrap resolves one existing account; the selected email is not tracked. Offline suite 197 passed, 1 skipped; frontend check/build and Python quality gates passed. Host `.env` lacks LangSmith key/project; production migration, admin bootstrap, browser and live LangSmith query QA have not run. |
 | Mandatory sign-in and landing | Deployed; live OTP pending | Auth0 email OTP gate, bilingual public landing, account-owned live sessions, cross-tab auth recheck and logout cleanup. `citedtrip.app` root and health return HTTP 200; Auth0 login reaches hosted page. OTP callback and planner browser QA remain pending. |
 | Security audit | Source fixes deployed; live account-flow QA pending | CSRF on authenticated planner writes, local graph SVG rendering, HTTPS-only Auth0 issuer and private SQLite file modes. Domain root/health smoke passed; full OTP, owner isolation and logout not exercised live. |
 | Mac CI/CD | CI passed; automatic deployment gated | Run `42471059065` first hit HTTP 504 downloading CPython 3.10.22 on `ubuntu-26.04`; rerunning SHA `27a17e7` passed Python tests/lint, frontend checks/build and Compose validation. `GTP_DEPLOY_ENABLED=false`; app was not deployed. |

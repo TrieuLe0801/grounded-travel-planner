@@ -37,7 +37,9 @@ after Cloudflare Tunnel became the public ingress.
 - Record OpenAI input/output token counts as a `model.usage` LangSmith event
   only when tracing is enabled and usage metadata is available. Include the
   model, role, token counts and turn ID; use the existing thread ID metadata.
-  Never include prompts, completions, account IDs, cookies or API keys. Missing
+  Never include prompts, completions, raw account IDs, cookies or API keys. ADR
+  0023 later adds a one-way account reference to model-run metadata for
+  administrator usage reports. Missing
   usage metadata or trace failure must not change planning behavior.
 - Keep actual environment values outside tracked files. `.env.example` has
   blank placeholders; the application reads configured values at runtime.

@@ -179,6 +179,16 @@
       </ul>
     </section>
     <section class="card active">
+      <span class="badge">Source implemented · migration pending</span>
+      <h3>Admin access and account usage</h3>
+      <ul>
+        <li>New accounts await admin approval; grant, block and regrant use the internal account UUID</li>
+        <li>Blocking revokes account sessions; saved tours and LangSmith traces remain intact</li>
+        <li>Admin view reads account token counts and USD cost from LangSmith LLM runs, with model and date detail</li>
+        <li>Offline suite: 197 passed, 1 skipped; frontend build passes. LangSmith outage leaves access management available. Production migration, bootstrap, browser and live query QA remain pending</li>
+      </ul>
+    </section>
+    <section class="card active">
       <span class="badge">CI configured · automatic deploy gated</span>
       <h3>Mac CI/CD</h3>
       <ul>

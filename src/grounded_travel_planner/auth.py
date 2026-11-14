@@ -40,6 +40,14 @@ class AuthError(RuntimeError):
     """Authentication could not be completed safely."""
 
 
+class AccountNotFound(AuthError):
+    """Requested application account does not exist."""
+
+
+class AccessChangeConflict(AuthError):
+    """Requested access change would violate administrator safeguards."""
+
+
 class OidcProvider(Protocol):
     """Small boundary for the external identity provider."""
 
@@ -72,6 +80,27 @@ class AuthenticatedUser:
     user_id: str
     email: str | None
     csrf_token: str
+    access_status: str = "active"
+    is_admin: bool = False
+
+
+@dataclass(frozen=True)
+class AccountRecord:
+    id: str
+    email: str | None
+    created_at: str
+    access_status: str
+    is_admin: bool
+
+
+def _account_record(row: Any) -> AccountRecord:
+    return AccountRecord(
+        id=str(row["id"]),
+        email=row["email"],
+        created_at=str(row["created_at"]),
+        access_status=str(row["access_status"]),
+        is_admin=bool(row["is_admin"]),
+    )
 
 
 @dataclass(frozen=True)
@@ -298,7 +327,9 @@ class AuthRepository:
         with self._connection() as connection:
             connection.executescript("""
                 CREATE TABLE IF NOT EXISTS app_users (
-                    id TEXT PRIMARY KEY, email TEXT, created_at TEXT NOT NULL
+                    id TEXT PRIMARY KEY, email TEXT, created_at TEXT NOT NULL,
+                    access_status TEXT NOT NULL DEFAULT 'pending',
+                    is_admin INTEGER NOT NULL DEFAULT 0
                 );
                 CREATE TABLE IF NOT EXISTS auth_identities (
                     issuer TEXT NOT NULL, subject TEXT NOT NULL, user_id TEXT NOT NULL,
@@ -311,7 +342,37 @@ class AuthRepository:
                     FOREIGN KEY(user_id) REFERENCES app_users(id)
                 );
                 CREATE INDEX IF NOT EXISTS auth_sessions_expiry ON auth_sessions (idle_expires_at);
+                CREATE TABLE IF NOT EXISTS account_access_events (
+                    id TEXT PRIMARY KEY, user_id TEXT NOT NULL,
+                    actor_user_id TEXT, action TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    FOREIGN KEY(user_id) REFERENCES app_users(id)
+                );
                 """)
+
+    def migrate_admin(self) -> None:
+        """Upgrade an existing auth database during an explicit write pause."""
+
+        with self._connection() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            columns = {
+                str(row["name"])
+                for row in connection.execute("PRAGMA table_info(app_users)")
+            }
+            if not columns:
+                raise AuthError("Authentication schema is missing.")
+            if "access_status" not in columns:
+                connection.execute(
+                    "ALTER TABLE app_users ADD COLUMN access_status TEXT NOT NULL DEFAULT 'active'"
+                )
+            if "is_admin" not in columns:
+                connection.execute(
+                    "ALTER TABLE app_users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0"
+                )
+            connection.execute("""CREATE TABLE IF NOT EXISTS account_access_events (
+                id TEXT PRIMARY KEY, user_id TEXT NOT NULL, actor_user_id TEXT,
+                action TEXT NOT NULL, created_at TEXT NOT NULL,
+                FOREIGN KEY(user_id) REFERENCES app_users(id))""")
 
     def find_or_create_user(self, identity: VerifiedIdentity) -> tuple[str, str | None]:
         try:
@@ -327,7 +388,9 @@ class AuthRepository:
                     return str(row["id"]), row["email"]
                 user_id = str(uuid4())
                 connection.execute(
-                    "INSERT INTO app_users (id, email, created_at) VALUES (?, ?, ?)",
+                    """INSERT INTO app_users
+                    (id, email, created_at, access_status, is_admin)
+                    VALUES (?, ?, ?, 'pending', 0)""",
                     (user_id, identity.email, datetime.now(timezone.utc).isoformat()),
                 )
                 connection.execute(
@@ -344,6 +407,12 @@ class AuthRepository:
         now = _now()
         try:
             with self._connection() as connection:
+                row = connection.execute(
+                    "SELECT access_status FROM app_users WHERE id = ?",
+                    (user_id,),
+                ).fetchone()
+                if row is None or row["access_status"] == "blocked":
+                    raise AuthError("Account access is blocked.")
                 connection.execute(
                     """INSERT INTO auth_sessions
                     (verifier_hash, user_id, csrf_hash, idle_expires_at, absolute_expires_at, created_at)
@@ -368,7 +437,8 @@ class AuthRepository:
         try:
             with self._connection() as connection:
                 row = connection.execute(
-                    """SELECT auth_sessions.user_id, app_users.email, auth_sessions.csrf_hash,
+                    """SELECT auth_sessions.user_id, app_users.email, app_users.access_status,
+                    app_users.is_admin, auth_sessions.csrf_hash,
                     auth_sessions.idle_expires_at, auth_sessions.absolute_expires_at,
                     auth_sessions.revoked_at FROM auth_sessions JOIN app_users
                     ON app_users.id = auth_sessions.user_id WHERE verifier_hash = ?""",
@@ -377,6 +447,7 @@ class AuthRepository:
                 if (
                     row is None
                     or row["revoked_at"] is not None
+                    or row["access_status"] == "blocked"
                     or now > min(row["idle_expires_at"], row["absolute_expires_at"])
                 ):
                     return None
@@ -388,7 +459,11 @@ class AuthRepository:
                     ),
                 )
                 return AuthenticatedUser(
-                    str(row["user_id"]), row["email"], _csrf_for(token)
+                    str(row["user_id"]),
+                    row["email"],
+                    _csrf_for(token),
+                    str(row["access_status"]),
+                    bool(row["is_admin"]),
                 )
         except sqlite3.Error as error:
             raise AuthError("Authentication storage is unavailable.") from error
@@ -403,7 +478,8 @@ class AuthRepository:
         try:
             with self._connection() as connection:
                 row = connection.execute(
-                    """SELECT auth_sessions.user_id, app_users.email, csrf_hash, idle_expires_at,
+                    """SELECT auth_sessions.user_id, app_users.email,
+                    app_users.access_status, app_users.is_admin, csrf_hash, idle_expires_at,
                     absolute_expires_at, revoked_at FROM auth_sessions JOIN app_users
                     ON app_users.id = auth_sessions.user_id WHERE verifier_hash = ?""",
                     (_hash(token),),
@@ -411,12 +487,159 @@ class AuthRepository:
                 if (
                     row is None
                     or row["revoked_at"] is not None
+                    or row["access_status"] == "blocked"
                     or now > min(row["idle_expires_at"], row["absolute_expires_at"])
                 ):
                     return None
                 if not hmac.compare_digest(str(row["csrf_hash"]), _hash(csrf)):
                     return None
-                return AuthenticatedUser(str(row["user_id"]), row["email"], csrf)
+                return AuthenticatedUser(
+                    str(row["user_id"]),
+                    row["email"],
+                    csrf,
+                    str(row["access_status"]),
+                    bool(row["is_admin"]),
+                )
+        except sqlite3.Error as error:
+            raise AuthError("Authentication storage is unavailable.") from error
+
+    def list_users(self, limit: int = 50, offset: int = 0) -> list[AccountRecord]:
+        if not 1 <= limit <= 100 or offset < 0:
+            raise ValueError("Invalid account page.")
+        try:
+            with self._connection() as connection:
+                rows = connection.execute(
+                    """SELECT id, email, created_at, access_status, is_admin
+                    FROM app_users ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?""",
+                    (limit, offset),
+                ).fetchall()
+                return [_account_record(row) for row in rows]
+        except sqlite3.Error as error:
+            raise AuthError("Authentication storage is unavailable.") from error
+
+    def get_user(self, user_id: str) -> AccountRecord | None:
+        try:
+            with self._connection() as connection:
+                row = connection.execute(
+                    """SELECT id, email, created_at, access_status, is_admin
+                    FROM app_users WHERE id = ?""",
+                    (user_id,),
+                ).fetchone()
+                return _account_record(row) if row else None
+        except sqlite3.Error as error:
+            raise AuthError("Authentication storage is unavailable.") from error
+
+    def set_access(
+        self, user_id: str, active: bool, actor_user_id: str
+    ) -> AccountRecord:
+        """Change access and revoke sessions atomically with an audit entry."""
+
+        try:
+            with self._connection() as connection:
+                connection.execute("BEGIN IMMEDIATE")
+                actor = connection.execute(
+                    "SELECT is_admin, access_status FROM app_users WHERE id = ?",
+                    (actor_user_id,),
+                ).fetchone()
+                if (
+                    not actor
+                    or not actor["is_admin"]
+                    or actor["access_status"] != "active"
+                ):
+                    raise AccessChangeConflict("An active administrator is required.")
+                target = connection.execute(
+                    """SELECT id, email, created_at, access_status, is_admin
+                    FROM app_users WHERE id = ?""",
+                    (user_id,),
+                ).fetchone()
+                if target is None:
+                    raise AccountNotFound("Account does not exist.")
+                if not active and user_id == actor_user_id:
+                    raise AccessChangeConflict(
+                        "Administrators cannot block themselves."
+                    )
+                if not active and target["is_admin"]:
+                    count = connection.execute("""SELECT COUNT(*) FROM app_users
+                        WHERE is_admin = 1 AND access_status = 'active'""").fetchone()[
+                        0
+                    ]
+                    if count <= 1:
+                        raise AccessChangeConflict(
+                            "The last active administrator cannot be blocked."
+                        )
+                status = "active" if active else "blocked"
+                if target["access_status"] != status:
+                    connection.execute(
+                        "UPDATE app_users SET access_status = ? WHERE id = ?",
+                        (status, user_id),
+                    )
+                    if not active:
+                        connection.execute(
+                            "UPDATE auth_sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL",
+                            (_now(), user_id),
+                        )
+                    connection.execute(
+                        """INSERT INTO account_access_events
+                        (id, user_id, actor_user_id, action, created_at)
+                        VALUES (?, ?, ?, ?, ?)""",
+                        (
+                            str(uuid4()),
+                            user_id,
+                            actor_user_id,
+                            status,
+                            datetime.now(timezone.utc).isoformat(),
+                        ),
+                    )
+                return AccountRecord(
+                    user_id,
+                    target["email"],
+                    str(target["created_at"]),
+                    status,
+                    bool(target["is_admin"]),
+                )
+        except sqlite3.Error as error:
+            raise AuthError("Authentication storage is unavailable.") from error
+
+    def bootstrap_admin(self, user_id: str) -> AccountRecord:
+        """Activate the first admin only from an explicit maintenance command."""
+
+        try:
+            with self._connection() as connection:
+                connection.execute("BEGIN IMMEDIATE")
+                if connection.execute(
+                    "SELECT 1 FROM app_users WHERE is_admin = 1 LIMIT 1"
+                ).fetchone():
+                    raise AccessChangeConflict("An administrator already exists.")
+                target = connection.execute(
+                    """SELECT id, email, created_at, access_status, is_admin
+                    FROM app_users WHERE id = ?""",
+                    (user_id,),
+                ).fetchone()
+                if target is None:
+                    raise AccountNotFound("Account does not exist.")
+                connection.execute(
+                    "UPDATE app_users SET is_admin = 1, access_status = 'active' WHERE id = ?",
+                    (user_id,),
+                )
+                connection.execute(
+                    """INSERT INTO account_access_events
+                    (id, user_id, actor_user_id, action, created_at)
+                    VALUES (?, ?, NULL, 'bootstrap_admin', ?)""",
+                    (str(uuid4()), user_id, datetime.now(timezone.utc).isoformat()),
+                )
+                return AccountRecord(
+                    user_id, target["email"], str(target["created_at"]), "active", True
+                )
+        except sqlite3.Error as error:
+            raise AuthError("Authentication storage is unavailable.") from error
+
+    def revoke_user_sessions(self, user_id: str) -> None:
+        try:
+            with self._connection() as connection:
+                connection.execute(
+                    "UPDATE auth_sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL",
+                    (_now(), user_id),
+                )
         except sqlite3.Error as error:
             raise AuthError("Authentication storage is unavailable.") from error
 
@@ -492,7 +715,9 @@ class PostgresAuthRepository:
                     return str(row["id"]), row["email"]
                 user_id = str(uuid4())
                 cursor.execute(
-                    "INSERT INTO app_users (id, email, created_at) VALUES (%s, %s, %s)",
+                    """INSERT INTO app_users
+                    (id, email, created_at, access_status, is_admin)
+                    VALUES (%s, %s, %s, 'pending', FALSE)""",
                     (user_id, identity.email, datetime.now(timezone.utc).isoformat()),
                 )
                 cursor.execute(
@@ -509,6 +734,13 @@ class PostgresAuthRepository:
         csrf = _csrf_for(token)
         try:
             with self._pool.connection() as connection, connection.cursor() as cursor:
+                cursor.execute(
+                    "SELECT access_status FROM app_users WHERE id = %s FOR UPDATE",
+                    (user_id,),
+                )
+                row = cursor.fetchone()
+                if row is None or row["access_status"] == "blocked":
+                    raise AuthError("Account access is blocked.")
                 cursor.execute(
                     """INSERT INTO auth_sessions (verifier_hash, user_id, csrf_hash,
                     idle_expires_at, absolute_expires_at, created_at) VALUES (%s, %s, %s, %s, %s, %s)""",
@@ -534,7 +766,8 @@ class PostgresAuthRepository:
         try:
             with self._pool.connection() as connection, connection.cursor() as cursor:
                 cursor.execute(
-                    """SELECT auth_sessions.user_id, app_users.email, auth_sessions.csrf_hash,
+                    """SELECT auth_sessions.user_id, app_users.email,
+                    app_users.access_status, app_users.is_admin, auth_sessions.csrf_hash,
                     auth_sessions.idle_expires_at, auth_sessions.absolute_expires_at, auth_sessions.revoked_at
                     FROM auth_sessions JOIN app_users ON app_users.id = auth_sessions.user_id
                     WHERE verifier_hash = %s""",
@@ -544,6 +777,7 @@ class PostgresAuthRepository:
                 if (
                     row is None
                     or row["revoked_at"] is not None
+                    or row["access_status"] == "blocked"
                     or now > min(row["idle_expires_at"], row["absolute_expires_at"])
                 ):
                     return None
@@ -560,7 +794,11 @@ class PostgresAuthRepository:
                         ),
                     )
                 return AuthenticatedUser(
-                    str(row["user_id"]), row["email"], _csrf_for(token)
+                    str(row["user_id"]),
+                    row["email"],
+                    _csrf_for(token),
+                    str(row["access_status"]),
+                    bool(row["is_admin"]),
                 )
         except (psycopg.Error, PoolClosed, PoolTimeout) as error:
             raise AuthError("Authentication storage is unavailable.") from error
@@ -572,6 +810,152 @@ class PostgresAuthRepository:
         self, token: str | None, csrf: str | None
     ) -> AuthenticatedUser | None:
         return self._record(token, csrf)
+
+    def list_users(self, limit: int = 50, offset: int = 0) -> list[AccountRecord]:
+        if not 1 <= limit <= 100 or offset < 0:
+            raise ValueError("Invalid account page.")
+        try:
+            with self._pool.connection() as connection, connection.cursor() as cursor:
+                cursor.execute(
+                    """SELECT id, email, created_at, access_status, is_admin
+                    FROM app_users ORDER BY created_at DESC, id DESC LIMIT %s OFFSET %s""",
+                    (limit, offset),
+                )
+                return [_account_record(row) for row in cursor.fetchall()]
+        except (psycopg.Error, PoolClosed, PoolTimeout) as error:
+            raise AuthError("Authentication storage is unavailable.") from error
+
+    def get_user(self, user_id: str) -> AccountRecord | None:
+        try:
+            with self._pool.connection() as connection, connection.cursor() as cursor:
+                cursor.execute(
+                    """SELECT id, email, created_at, access_status, is_admin
+                    FROM app_users WHERE id = %s""",
+                    (user_id,),
+                )
+                row = cursor.fetchone()
+                return _account_record(row) if row else None
+        except (psycopg.Error, PoolClosed, PoolTimeout) as error:
+            raise AuthError("Authentication storage is unavailable.") from error
+
+    def set_access(
+        self, user_id: str, active: bool, actor_user_id: str
+    ) -> AccountRecord:
+        try:
+            with self._pool.connection() as connection, connection.cursor() as cursor:
+                cursor.execute(
+                    "SELECT pg_advisory_xact_lock(hashtextextended('app_user_admin_access', 0))"
+                )
+                cursor.execute(
+                    "SELECT is_admin, access_status FROM app_users WHERE id = %s",
+                    (actor_user_id,),
+                )
+                actor = cursor.fetchone()
+                if (
+                    not actor
+                    or not actor["is_admin"]
+                    or actor["access_status"] != "active"
+                ):
+                    raise AccessChangeConflict("An active administrator is required.")
+                cursor.execute(
+                    """SELECT id, email, created_at, access_status, is_admin
+                    FROM app_users WHERE id = %s FOR UPDATE""",
+                    (user_id,),
+                )
+                target = cursor.fetchone()
+                if target is None:
+                    raise AccountNotFound("Account does not exist.")
+                if not active and user_id == actor_user_id:
+                    raise AccessChangeConflict(
+                        "Administrators cannot block themselves."
+                    )
+                if not active and target["is_admin"]:
+                    cursor.execute("""SELECT COUNT(*) FROM app_users
+                        WHERE is_admin = TRUE AND access_status = 'active'""")
+                    if cursor.fetchone()["count"] <= 1:
+                        raise AccessChangeConflict(
+                            "The last active administrator cannot be blocked."
+                        )
+                status = "active" if active else "blocked"
+                if target["access_status"] != status:
+                    cursor.execute(
+                        "UPDATE app_users SET access_status = %s WHERE id = %s",
+                        (status, user_id),
+                    )
+                    if not active:
+                        cursor.execute(
+                            """UPDATE auth_sessions SET revoked_at = %s
+                            WHERE user_id = %s AND revoked_at IS NULL""",
+                            (_now(), user_id),
+                        )
+                    cursor.execute(
+                        """INSERT INTO account_access_events
+                        (id, user_id, actor_user_id, action, created_at)
+                        VALUES (%s, %s, %s, %s, %s)""",
+                        (
+                            str(uuid4()),
+                            user_id,
+                            actor_user_id,
+                            status,
+                            datetime.now(timezone.utc).isoformat(),
+                        ),
+                    )
+                return AccountRecord(
+                    user_id,
+                    target["email"],
+                    str(target["created_at"]),
+                    status,
+                    bool(target["is_admin"]),
+                )
+        except (psycopg.Error, PoolClosed, PoolTimeout) as error:
+            raise AuthError("Authentication storage is unavailable.") from error
+
+    def bootstrap_admin(self, user_id: str) -> AccountRecord:
+        """Activate the first admin only from an explicit maintenance command."""
+
+        try:
+            with self._pool.connection() as connection, connection.cursor() as cursor:
+                cursor.execute(
+                    "SELECT pg_advisory_xact_lock(hashtextextended('app_user_admin_access', 0))"
+                )
+                cursor.execute("SELECT 1 FROM app_users WHERE is_admin = TRUE LIMIT 1")
+                if cursor.fetchone():
+                    raise AccessChangeConflict("An administrator already exists.")
+                cursor.execute(
+                    """SELECT id, email, created_at FROM app_users
+                    WHERE id = %s FOR UPDATE""",
+                    (user_id,),
+                )
+                target = cursor.fetchone()
+                if target is None:
+                    raise AccountNotFound("Account does not exist.")
+                cursor.execute(
+                    """UPDATE app_users SET is_admin = TRUE,
+                    access_status = 'active' WHERE id = %s""",
+                    (user_id,),
+                )
+                cursor.execute(
+                    """INSERT INTO account_access_events
+                    (id, user_id, actor_user_id, action, created_at)
+                    VALUES (%s, %s, NULL, 'bootstrap_admin', %s)""",
+                    (str(uuid4()), user_id, datetime.now(timezone.utc).isoformat()),
+                )
+                return AccountRecord(
+                    user_id, target["email"], str(target["created_at"]), "active", True
+                )
+        except (psycopg.Error, PoolClosed, PoolTimeout) as error:
+            raise AuthError("Authentication storage is unavailable.") from error
+
+    def revoke_user_sessions(self, user_id: str) -> None:
+        try:
+            with self._pool.connection() as connection, connection.cursor() as cursor:
+                cursor.execute(
+                    """UPDATE auth_sessions SET revoked_at = %s
+                    WHERE user_id = %s AND revoked_at IS NULL""",
+                    (_now(), user_id),
+                )
+        except (psycopg.Error, PoolClosed, PoolTimeout) as error:
+            raise AuthError("Authentication storage is unavailable.") from error
 
     def revoke(self, token: str | None) -> None:
         if not token:
@@ -593,7 +977,9 @@ def create_postgres_auth_schema(
 
     with connection.cursor() as cursor:
         cursor.execute("""CREATE TABLE IF NOT EXISTS app_users (
-            id TEXT PRIMARY KEY, email TEXT, created_at TEXT NOT NULL)""")
+            id TEXT PRIMARY KEY, email TEXT, created_at TEXT NOT NULL,
+            access_status TEXT NOT NULL DEFAULT 'pending',
+            is_admin BOOLEAN NOT NULL DEFAULT FALSE)""")
         cursor.execute("""CREATE TABLE IF NOT EXISTS auth_identities (
             issuer TEXT NOT NULL, subject TEXT NOT NULL, user_id TEXT NOT NULL REFERENCES app_users(id),
             PRIMARY KEY (issuer, subject))""")
@@ -604,3 +990,27 @@ def create_postgres_auth_schema(
         cursor.execute(
             "CREATE INDEX IF NOT EXISTS auth_sessions_expiry ON auth_sessions (idle_expires_at)"
         )
+        cursor.execute("""CREATE TABLE IF NOT EXISTS account_access_events (
+            id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES app_users(id),
+            actor_user_id TEXT, action TEXT NOT NULL, created_at TEXT NOT NULL)""")
+
+
+def migrate_postgres_admin_schema(
+    connection: psycopg.Connection[dict[str, Any]],
+) -> None:
+    """Upgrade existing users as active, then default new users to pending."""
+
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT to_regclass('app_users')")
+        if cursor.fetchone()[0] is None:
+            raise AuthError("Authentication schema is missing.")
+        cursor.execute("""ALTER TABLE app_users ADD COLUMN IF NOT EXISTS
+            access_status TEXT NOT NULL DEFAULT 'active'""")
+        cursor.execute("""ALTER TABLE app_users ADD COLUMN IF NOT EXISTS
+            is_admin BOOLEAN NOT NULL DEFAULT FALSE""")
+        cursor.execute(
+            "ALTER TABLE app_users ALTER COLUMN access_status SET DEFAULT 'pending'"
+        )
+        cursor.execute("""CREATE TABLE IF NOT EXISTS account_access_events (
+            id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES app_users(id),
+            actor_user_id TEXT, action TEXT NOT NULL, created_at TEXT NOT NULL)""")

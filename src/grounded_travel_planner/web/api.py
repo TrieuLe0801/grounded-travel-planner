@@ -7,6 +7,7 @@ import json
 import os
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
 from threading import Lock
 from time import monotonic
@@ -14,6 +15,7 @@ from typing import Literal, Protocol
 from urllib.parse import urlsplit
 from uuid import uuid4
 
+from dotenv import load_dotenv
 from fastapi import Cookie, FastAPI, Header, HTTPException, Query, Request, Response
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -23,6 +25,8 @@ from grounded_travel_planner.auth import (
     AUTH_ABSOLUTE_SECONDS,
     AUTH_COOKIE_NAME,
     AUTH_PENDING_COOKIE_NAME,
+    AccessChangeConflict,
+    AccountNotFound,
     Auth0OidcProvider,
     AuthenticatedUser,
     AuthError,
@@ -58,6 +62,7 @@ from grounded_travel_planner.ui.turn_runner import (
     TurnCapacityExceeded,
     TurnRunner,
 )
+from grounded_travel_planner.usage import UsageError, UsageRepository
 from grounded_travel_planner.visuals import VisualEnrichmentService
 from grounded_travel_planner.web.turn_rate_limit import (
     TurnQuotaReservation,
@@ -90,6 +95,10 @@ class TurnInput(BaseModel):
 
 class LanguageInput(BaseModel):
     language: Literal["vi", "en"]
+
+
+class AccessInput(BaseModel):
+    access_status: Literal["active", "blocked"]
 
 
 @dataclass
@@ -227,6 +236,15 @@ class SessionStore:
             with session.lock:
                 if session.owner_user_id == owner_user_id:
                     self._sessions.pop(session_id, None)
+
+    def discard_owner(self, owner_user_id: str) -> None:
+        """Discard all volatile sessions owned by a blocked account."""
+
+        with self._lock:
+            for session_id, session in list(self._sessions.items()):
+                with session.lock:
+                    if session.owner_user_id == owner_user_id:
+                        self._sessions.pop(session_id, None)
 
     def get(self, session_id: str | None) -> WebSession:
         if not session_id:
@@ -385,10 +403,13 @@ def create_app(
     auth_provider: OidcProvider | None = None,
     auth_repository: AuthRepository | PostgresAuthRepository | None = None,
     turn_rate_limiter: TurnRateLimiter | None = None,
+    usage_repository: UsageRepository | None = None,
     require_auth: bool = True,
 ) -> FastAPI:
     """Create an injectable app so endpoint tests need no live provider calls."""
 
+    load_dotenv()
+    usage = usage_repository or UsageRepository.from_environment()
     planner_service = service or TravelPlannerService.from_environment()
     visuals = visual_service or VisualEnrichmentService.from_environment()
     runner = turn_runner or TurnRunner()
@@ -408,6 +429,10 @@ def create_app(
             ) from error
         if user is None:
             raise HTTPException(status_code=401, detail="Bạn cần đăng nhập.")
+        if user.access_status != "active":
+            raise HTTPException(
+                status_code=403, detail="Tài khoản chưa được cấp quyền."
+            )
         return user
 
     def current_session(session_id: str | None, auth_token: str | None) -> WebSession:
@@ -456,11 +481,16 @@ def create_app(
             raise HTTPException(
                 status_code=503, detail="Không thể xác thực lúc này."
             ) from error
-        if user is not None:
+        if user is not None and user.access_status == "active":
             return f"account:{user.user_id}"
         return f"session:{session.thread_id}"
 
-    def csrf_user(auth_token: str | None, csrf_token: str | None) -> AuthenticatedUser:
+    def csrf_user(
+        auth_token: str | None,
+        csrf_token: str | None,
+        *,
+        require_active: bool = True,
+    ) -> AuthenticatedUser:
         try:
             user = auth.verify_csrf(auth_token, csrf_token)
         except AuthError as error:
@@ -471,6 +501,10 @@ def create_app(
             if not auth_token:
                 raise HTTPException(status_code=401, detail="Bạn cần đăng nhập.")
             raise HTTPException(status_code=403, detail="Yêu cầu bảo mật không hợp lệ.")
+        if require_active and user.access_status != "active":
+            raise HTTPException(
+                status_code=403, detail="Tài khoản chưa được cấp quyền."
+            )
         return user
 
     def auth_public_origin(request: Request) -> str:
@@ -647,6 +681,7 @@ def create_app(
                         -(MAX_CONVERSATION_TURNS - 1) :
                     ],
                     language=session.language,
+                    account_id=session.owner_user_id,
                 )
             except TurnCapacityExceeded as error:
                 rate_limiter.refund(quota)
@@ -726,6 +761,170 @@ def create_app(
             "authenticated": True,
             "email": user.email,
             "csrf_token": user.csrf_token,
+            "access_status": user.access_status,
+            "is_admin": user.is_admin,
+        }
+
+    def admin_user(auth_token: str | None) -> AuthenticatedUser:
+        user = current_user(auth_token)
+        if not user.is_admin:
+            raise HTTPException(status_code=403, detail="Cần quyền quản trị.")
+        return user
+
+    @app.get("/api/admin/users")
+    def admin_list_users(
+        limit: int = Query(default=50, ge=1, le=50),
+        cursor: str | None = Query(default=None),
+        gtp_auth: str | None = Cookie(default=None),
+    ) -> dict[str, object]:
+        admin_user(gtp_auth)
+        try:
+            offset = int(cursor) if cursor is not None else 0
+            if offset < 0:
+                raise ValueError("negative offset")
+        except ValueError as error:
+            raise HTTPException(
+                status_code=400, detail="Trang không hợp lệ."
+            ) from error
+        try:
+            accounts = auth.list_users(limit=limit + 1, offset=offset)
+            visible = accounts[:limit]
+        except AuthError as error:
+            raise HTTPException(
+                status_code=503, detail="Không thể tải tài khoản."
+            ) from error
+        try:
+            summaries = usage.summary_for_users([account.id for account in visible])
+            usage_available = True
+        except UsageError:
+            summaries = {}
+            usage_available = False
+        items = []
+        for account in visible:
+            summary = summaries.get(account.id)
+            items.append(
+                {
+                    "id": account.id,
+                    "email": account.email,
+                    "created_at": account.created_at,
+                    "access_status": account.access_status,
+                    "is_admin": account.is_admin,
+                    "input_tokens": (
+                        (summary.input_tokens if summary else 0)
+                        if usage_available
+                        else None
+                    ),
+                    "output_tokens": (
+                        (summary.output_tokens if summary else 0)
+                        if usage_available
+                        else None
+                    ),
+                    "estimated_cost_usd": (
+                        float(summary.estimated_cost_usd)
+                        if summary and summary.estimated_cost_usd is not None
+                        else None
+                    ),
+                    "unpriced_calls": (
+                        (summary.unpriced_calls if summary else 0)
+                        if usage_available
+                        else None
+                    ),
+                }
+            )
+        has_more = len(accounts) > limit
+        return {
+            "items": items,
+            "usage_available": usage_available,
+            "has_more": has_more,
+            "next_cursor": str(offset + limit) if has_more else None,
+        }
+
+    @app.post("/api/admin/users/{user_id}/access")
+    def admin_set_user_access(
+        user_id: str,
+        payload: AccessInput,
+        gtp_auth: str | None = Cookie(default=None),
+        x_csrf_token: str | None = Header(default=None),
+    ) -> dict[str, object]:
+        actor = csrf_user(gtp_auth, x_csrf_token)
+        if not actor.is_admin:
+            raise HTTPException(status_code=403, detail="Cần quyền quản trị.")
+        try:
+            account = auth.set_access(
+                user_id,
+                active=payload.access_status == "active",
+                actor_user_id=actor.user_id,
+            )
+        except AccountNotFound as error:
+            raise HTTPException(
+                status_code=404, detail="Không tìm thấy tài khoản."
+            ) from error
+        except AccessChangeConflict as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+        except AuthError as error:
+            raise HTTPException(
+                status_code=503, detail="Không thể đổi quyền."
+            ) from error
+        if payload.access_status == "blocked":
+            sessions.discard_owner(user_id)
+        return {
+            "id": account.id,
+            "access_status": account.access_status,
+            "is_admin": account.is_admin,
+        }
+
+    @app.get("/api/admin/users/{user_id}/usage")
+    def admin_user_usage(
+        user_id: str,
+        start: date | None = None,
+        end: date | None = None,
+        gtp_auth: str | None = Cookie(default=None),
+    ) -> dict[str, object]:
+        admin_user(gtp_auth)
+        if start is not None and end is not None and end < start:
+            raise HTTPException(status_code=422, detail="Khoảng ngày không hợp lệ.")
+        try:
+            if auth.get_user(user_id) is None:
+                raise HTTPException(status_code=404, detail="Không tìm thấy tài khoản.")
+            from_time = (
+                datetime.combine(start, time.min, tzinfo=timezone.utc).isoformat()
+                if start is not None
+                else None
+            )
+            through_time = (
+                datetime.combine(
+                    end + timedelta(days=1), time.min, tzinfo=timezone.utc
+                ).isoformat()
+                if end is not None and end < date.max
+                else None
+            )
+            summary, details = usage.usage_for_user(
+                user_id, start=from_time, end=through_time
+            )
+        except (AuthError, UsageError) as error:
+            raise HTTPException(
+                status_code=503, detail="Không thể tải usage."
+            ) from error
+        return {
+            "input_tokens": summary.input_tokens if summary else 0,
+            "output_tokens": summary.output_tokens if summary else 0,
+            "estimated_cost_usd": (
+                float(summary.estimated_cost_usd)
+                if summary and summary.estimated_cost_usd is not None
+                else None
+            ),
+            "unpriced_calls": summary.unpriced_calls if summary else 0,
+            "by_model": [
+                {
+                    **detail,
+                    "estimated_cost_usd": (
+                        float(detail["estimated_cost_usd"])
+                        if detail["estimated_cost_usd"] is not None
+                        else None
+                    ),
+                }
+                for detail in details
+            ],
         }
 
     @app.get("/api/auth/login")
@@ -835,7 +1034,7 @@ def create_app(
         x_csrf_token: str | None = Header(default=None),
     ) -> Response:
         nonlocal provider
-        user = csrf_user(gtp_auth, x_csrf_token)
+        user = csrf_user(gtp_auth, x_csrf_token, require_active=False)
         # Revoke first so a provider outage cannot leave an app session usable.
         auth.revoke(gtp_auth)
         sessions.discard(gtp_session, user.user_id)
