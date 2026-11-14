@@ -30,4 +30,7 @@ ADR 0021 makes Auth0 sign-in mandatory before React planner use and binds each
 volatile planner session to its verified account owner.
 ADR 0022 selects Cloudflare Tunnel for the `citedtrip.app` public ingress and
 records the completed single-origin cutover; temporary ngrok ingress is retired.
+ADR 0023 adds application administrator access and account-scoped LangSmith
+token/cost reporting; deployment awaits the account-access migration and
+first-admin bootstrap.
 

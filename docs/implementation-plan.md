@@ -1,7 +1,42 @@
 # Implementation Plan
 
 Status: Active
-Last updated: 2026-11-12
+Last updated: 2026-11-14
+
+## Admin Access and Account Usage — Source Implemented; Deployment Pending — 2026-11-14
+
+ADR 0023 adds account access states and an administrator role to the existing
+Auth0-backed application account. New identities await approval. Explicit
+migration keeps existing accounts active. The admin API and bilingual React
+page list accounts, grant or block access, revoke sessions on block, and show
+account-scoped model usage. A regrant preserves the internal account UUID and
+saved tours; available LangSmith history remains attributable to that account.
+The person must sign in again. Access changes are
+audited. An administrator cannot block themselves or the last active admin.
+
+LangSmith is the source for model input/output tokens and USD cost. A stable
+one-way reference to the random account UUID is attached to model run metadata;
+the raw UUID stays out of traces. The admin detail view groups LLM runs by
+model and supports UTC date bounds. Missing LangSmith cost stays unknown.
+Earlier traces without that reference, sampled-out runs, missing usage and
+expired traces cannot be reconstructed into account totals. Configure custom
+model prices in LangSmith where needed; no local usage ledger or price catalog
+is used. Configure `LANGSMITH_TRACING`, `LANGSMITH_PROJECT` and a read-capable
+`LANGSMITH_API_KEY` in the deployment environment. Account access management
+continues if LangSmith usage is unavailable.
+
+Before deployment, back up the auth database, pause writes, run the explicit
+admin access migration, resolve the selected email to exactly one existing
+Auth0-backed account, bootstrap that account as the first admin, and verify
+account counts and saved-tour checksums. Keep the email outside Git. Rebuild and
+restart only after those steps. App restart clears session-only plans. Source
+tests do not prove live OTP, LangSmith account queries, browser interaction or
+production database migration.
+
+Verification: full offline suite 197 passed, one optional PostgreSQL test
+skipped. React typecheck/build, isort, Black, flake8, Ruff and diff checks
+passed. The current host `.env` has no LangSmith key or project; no live account
+query, migration, app restart or deployment occurred.
 
 ## Cloudflare Custom Domain — Live; ngrok Retired — 2026-11-12
 

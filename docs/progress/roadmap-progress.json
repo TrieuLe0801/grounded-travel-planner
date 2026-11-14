@@ -1,6 +1,6 @@
 {
-  "version": 99,
-  "updated": "2026-11-12T22:25:53+07:00",
+  "version": 102,
+  "updated": "2026-11-14T16:45:03+07:00",
   "active_scope": "city-place-sightseeing-webapp",
   "current_milestone": "Milestone 1: executable city/place sightseeing vertical slice",
   "completed": {
@@ -84,6 +84,8 @@
     "auth0_account_offline": true,
     "auth0_account_live": false,
     "auth0_account_deployed": true,
+    "admin_access_usage_offline": true,
+    "admin_access_usage_deployed": false,
     "macos_ci_cd_configured": true,
     "ngrok_session_rate_limit": false,
     "auth_callback_access_logging_disabled": true,
@@ -102,6 +104,20 @@
     "cloudflare_single_origin_app_deployed": true
   },
   "evidence": {
+    "admin_access_usage_offline": [
+      "docs/project-charter.md",
+      "docs/adr/0023-admin-access-and-account-usage.md",
+      "src/grounded_travel_planner/auth.py",
+      "src/grounded_travel_planner/usage.py",
+      "src/grounded_travel_planner/web/api.py",
+      "frontend/src/main.tsx",
+      "tests/test_admin_access.py",
+      "tests/test_usage_accounting.py",
+      "Offline pytest: 197 passed, 1 optional PostgreSQL test skipped; frontend check/build and Python quality gates passed. Usage reads account-linked LangSmith LLM runs; outage leaves access management available. Email bootstrap requires exactly one existing account. Live LangSmith query, production migration and browser QA pending"
+    ],
+    "admin_access_usage_deployed": [
+      "Not deployed; explicit account-access database migration and first-admin bootstrap pending"
+    ],
     "scope_reset_docs": [
       "docs/project-charter.md",
       "docs/implementation-plan.md",

@@ -133,18 +133,27 @@ def _client(
     monkeypatch.setenv("GTP_AUTH_PUBLIC_ORIGIN", "https://planner.example.test")
     auth = AuthRepository(tmp_path / "auth.sqlite")
     auth.migrate()
+    admin_id, _ = auth.find_or_create_user(
+        VerifiedIdentity(
+            issuer="https://tenant.example.test/",
+            subject="fixture-admin",
+            email="admin@example.test",
+        )
+    )
+    if not auth.get_user(admin_id).is_admin:
+        auth.bootstrap_admin(admin_id)
     tours = SavedTourRepository(tmp_path / "saved-tours.sqlite")
+    app = create_app(
+        FakeService(),
+        FakeVisuals(),
+        saved_tour_repository=tours,
+        auth_provider=provider,
+        auth_repository=auth,
+    )
+    app.state.test_auth_repository = auth
+    app.state.test_admin_id = admin_id
     return (
-        TestClient(
-            create_app(
-                FakeService(),
-                FakeVisuals(),
-                saved_tour_repository=tours,
-                auth_provider=provider,
-                auth_repository=auth,
-            ),
-            base_url=base_url,
-        ),
+        TestClient(app, base_url=base_url),
         auth,
         tours,
     )
@@ -166,6 +175,12 @@ def _sign_in(client: TestClient, provider: FakeOidcProvider) -> str:
     )
     assert callback.status_code == 303
     assert callback.headers["location"] == "/?view=saved"
+    user_id, _ = client.app.state.test_auth_repository.find_or_create_user(
+        provider.identity
+    )
+    client.app.state.test_auth_repository.set_access(
+        user_id, active=True, actor_user_id=client.app.state.test_admin_id
+    )
     assert (
         provider.callback_calls[0]["nonce"] == provider.authorization_calls[0]["nonce"]
     )
@@ -174,6 +189,23 @@ def _sign_in(client: TestClient, provider: FakeOidcProvider) -> str:
         == provider.authorization_calls[0]["code_verifier"]
     )
     return client.get("/api/auth/me").json()["csrf_token"]
+
+
+def test_admin_migration_keeps_existing_accounts_active(tmp_path) -> None:
+    database = tmp_path / "legacy-auth.sqlite"
+    with sqlite3.connect(database) as connection:
+        connection.execute(
+            "CREATE TABLE app_users (id TEXT PRIMARY KEY, email TEXT, created_at TEXT NOT NULL)"
+        )
+        connection.execute(
+            "INSERT INTO app_users (id, email, created_at) VALUES (?, ?, ?)",
+            ("existing-user", "existing@example.test", "2026-11-01T00:00:00+00:00"),
+        )
+    auth = AuthRepository(database)
+    auth.migrate_admin()
+    auth.migrate_admin()
+    assert auth.get_user("existing-user").access_status == "active"
+    assert auth.get_user("existing-user").is_admin is False
 
 
 def test_auth0_uses_the_configured_public_origin_for_callback_and_logout(
@@ -417,17 +449,28 @@ def test_login_binds_an_existing_unowned_browser_session(
     provider = FakeOidcProvider("auth0|a", "a@example.test")
     auth = AuthRepository(tmp_path / "auth.sqlite")
     auth.migrate()
+    admin_id, _ = auth.find_or_create_user(
+        VerifiedIdentity(
+            issuer="https://tenant.example.test/",
+            subject="fixture-admin",
+            email="admin@example.test",
+        )
+    )
+    auth.bootstrap_admin(admin_id)
     sessions = SessionStore()
     session_id, _ = sessions.create(FakeService())
+    app = create_app(
+        FakeService(),
+        FakeVisuals(),
+        saved_tour_repository=SavedTourRepository(tmp_path / "saved-tours.sqlite"),
+        auth_provider=provider,
+        auth_repository=auth,
+        session_store=sessions,
+    )
+    app.state.test_auth_repository = auth
+    app.state.test_admin_id = admin_id
     client = TestClient(
-        create_app(
-            FakeService(),
-            FakeVisuals(),
-            saved_tour_repository=SavedTourRepository(tmp_path / "saved-tours.sqlite"),
-            auth_provider=provider,
-            auth_repository=auth,
-            session_store=sessions,
-        ),
+        app,
         base_url="https://planner.example.test",
     )
     client.cookies.set(

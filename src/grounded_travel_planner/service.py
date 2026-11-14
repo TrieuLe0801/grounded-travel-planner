@@ -28,6 +28,7 @@ from grounded_travel_planner.conversation import bounded_history, bounded_summar
 from grounded_travel_planner.graph import build_travel_planner_graph
 from grounded_travel_planner.i18n import Language, localized
 from grounded_travel_planner.providers import PlaceSearchProvider, TraceSink
+from grounded_travel_planner.usage import current_account_trace_ref
 from utils.ids import new_id
 from utils.redaction import sanitize_error
 
@@ -221,11 +222,15 @@ class TravelPlannerService:
             "validation_issues": [],
         }
         try:
+            trace_metadata = {"thread_id": thread_id, "turn_id": turn_id}
+            account_ref = current_account_trace_ref()
+            if account_ref:
+                trace_metadata["account_ref"] = account_ref
             result = self.graph.invoke(
                 initial_state,
                 config={
                     "recursion_limit": self.config.graph_step_limit + 2,
-                    "metadata": {"thread_id": thread_id, "turn_id": turn_id},
+                    "metadata": trace_metadata,
                 },
             )
             response = result.get("response")

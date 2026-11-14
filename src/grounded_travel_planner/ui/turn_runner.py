@@ -18,6 +18,7 @@ from grounded_travel_planner.contracts import (
 from grounded_travel_planner.conversation import bounded_history, bounded_summary
 from grounded_travel_planner.i18n import Language, localized
 from grounded_travel_planner.service import TravelPlannerService
+from grounded_travel_planner.usage import account_usage_context
 
 
 @dataclass(frozen=True)
@@ -64,6 +65,7 @@ class TurnRunner:
         session_summary: str = "",
         conversation_history: list[ConversationTurn] | None = None,
         language: Language = "vi",
+        account_id: str | None = None,
     ) -> PendingTurn:
         """Capture a turn before scheduling it on the shared bounded executor."""
 
@@ -87,6 +89,7 @@ class TurnRunner:
                 captured_summary,
                 captured_history,
                 language,
+                account_id,
             )
         except Exception:
             self._pending_slots.release()
@@ -128,19 +131,21 @@ class TurnRunner:
         session_summary: str,
         conversation_history: list[ConversationTurn],
         language: Language,
+        account_id: str | None,
     ) -> AgentResponse:
         """Invoke the service from a worker with captured data only."""
 
         try:
-            return service.handle_turn(
-                thread_id=thread_id,
-                message=message,
-                current_plan=current_plan,
-                request=request,
-                session_summary=session_summary,
-                conversation_history=conversation_history,
-                language=language,
-            )
+            with account_usage_context(account_id):
+                return service.handle_turn(
+                    thread_id=thread_id,
+                    message=message,
+                    current_plan=current_plan,
+                    request=request,
+                    session_summary=session_summary,
+                    conversation_history=conversation_history,
+                    language=language,
+                )
         except Exception:  # noqa: BLE001 - the UI must remain responsive
             return TurnRunner._provider_error(current_plan, language)
 

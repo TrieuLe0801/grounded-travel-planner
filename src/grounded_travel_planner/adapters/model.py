@@ -6,6 +6,7 @@ from typing import TypeVar
 from pydantic import BaseModel
 
 from grounded_travel_planner.providers import StructuredChatModel, TraceSink
+from grounded_travel_planner.usage import current_account_trace_ref
 
 T = TypeVar("T", bound=BaseModel)
 OPENAI_MAX_RETRIES = 0
@@ -65,6 +66,11 @@ class ChatOpenAIStructuredModel(StructuredChatModel):
             include_raw=True,
             **({"strict": False} if structured_output_method == "json_schema" else {}),
         )
+        trace_metadata = dict(metadata or {})
+        account_ref = current_account_trace_ref()
+        if account_ref:
+            trace_metadata["account_ref"] = account_ref
+        trace_metadata.update(ls_provider="openai", ls_model_name=self._model_name)
         result = model.invoke(
             [
                 SystemMessage(
@@ -76,7 +82,7 @@ class ChatOpenAIStructuredModel(StructuredChatModel):
                 ),
                 HumanMessage(content=prompt),
             ],
-            config={"metadata": dict(metadata or {})},
+            config={"metadata": trace_metadata},
         )
         if not isinstance(result, Mapping) or "parsed" not in result:
             if isinstance(result, schema):
@@ -95,7 +101,7 @@ class ChatOpenAIStructuredModel(StructuredChatModel):
     def _record_usage(self, raw: object, metadata: Mapping[str, str] | None) -> None:
         """Record only provider usage counters; telemetry cannot affect a turn."""
 
-        if self._trace_sink is None or metadata is None:
+        if metadata is None:
             return
         thread_id = metadata.get("thread_id")
         turn_id = metadata.get("turn_id")
@@ -112,6 +118,8 @@ class ChatOpenAIStructuredModel(StructuredChatModel):
             or isinstance(output_tokens, bool)
             or output_tokens < 0
         ):
+            return
+        if self._trace_sink is None:
             return
         try:
             self._trace_sink.record_event(
@@ -162,10 +170,12 @@ class OllamaStructuredChatModel(StructuredChatModel):
         base_url: str | None = None,
         *,
         max_completion_tokens: int = 2048,
+        role: str = "unknown",
     ) -> None:
         self._model_name = model_name
         self._base_url = base_url.strip() if base_url else None
         self._max_completion_tokens = max_completion_tokens
+        self._role = role
 
     @property
     def model_name(self) -> str:
@@ -189,6 +199,11 @@ class OllamaStructuredChatModel(StructuredChatModel):
         if self._base_url:
             model_options["base_url"] = self._base_url
         model = ChatOllama(**model_options).with_structured_output(schema)
+        trace_metadata = dict(metadata or {})
+        account_ref = current_account_trace_ref()
+        if account_ref:
+            trace_metadata["account_ref"] = account_ref
+        trace_metadata.update(ls_provider="ollama", ls_model_name=self._model_name)
         result = model.invoke(
             [
                 SystemMessage(
@@ -200,8 +215,13 @@ class OllamaStructuredChatModel(StructuredChatModel):
                 ),
                 HumanMessage(content=prompt),
             ],
-            config={"metadata": dict(metadata or {})},
+            config={"metadata": trace_metadata},
         )
+        if isinstance(result, Mapping) and "parsed" in result:
+            parsing_error = result.get("parsing_error")
+            if isinstance(parsing_error, Exception):
+                raise parsing_error
+            result = result["parsed"]
         if isinstance(result, schema):
             return result
         return schema.model_validate(result)

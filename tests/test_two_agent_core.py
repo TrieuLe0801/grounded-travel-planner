@@ -591,7 +591,11 @@ def test_openai_adapter_uses_function_calling_for_pydantic_schema(
         "schema": ChatResponse,
         "method": "function_calling",
         "include_raw": True,
-        "metadata": {"thread_id": "thread-adapter"},
+        "metadata": {
+            "thread_id": "thread-adapter",
+            "ls_provider": "openai",
+            "ls_model_name": COORDINATOR_TEST_MODEL,
+        },
     }
 
 
@@ -764,7 +768,11 @@ def test_ollama_adapter_uses_structured_output_without_network(
     assert observed["base_url"] == "http://localhost:11434"
     assert observed["num_predict"] == 2048
     assert observed["schema"] is ChatResponse
-    assert observed["metadata"] == {"thread_id": "thread-adapter"}
+    assert observed["metadata"] == {
+        "thread_id": "thread-adapter",
+        "ls_provider": "ollama",
+        "ls_model_name": "ollama-planner-test-model",
+    }
     assert [message.content for message in observed["messages"]] == [
         (
             "You are a bounded travel-planner runtime component. Return only "

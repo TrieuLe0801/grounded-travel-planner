@@ -216,6 +216,12 @@ def _client(
         follow_redirects=False,
     )
     assert completed.status_code == 303
+    user_id, _ = auth.find_or_create_user(provider.identity)
+    admins = [account for account in auth.list_users() if account.is_admin]
+    if admins:
+        auth.set_access(user_id, active=True, actor_user_id=admins[0].id)
+    else:
+        auth.bootstrap_admin(user_id)
     client.headers["X-CSRF-Token"] = client.get("/api/auth/me").json()["csrf_token"]
     return client
 

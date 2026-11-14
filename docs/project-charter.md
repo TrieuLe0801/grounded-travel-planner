@@ -1,7 +1,7 @@
 # Project Charter
 
 Status: Active
-Last updated: 2026-11-08
+Last updated: 2026-11-14
 
 ## Product
 
@@ -35,6 +35,13 @@ Auth0 email one-time-code sign-in before the planner, chat, visuals, or saved
 tours appear. FastAPI enforces the same requirement on private API routes; the
 landing page and static assets remain public. Each live planner session is
 bound to its verified internal account UUID. See ADR 0021.
+
+ADR 0023 adds application administrator access. Existing accounts remain active
+after the explicit migration; new Auth0 identities wait for administrator
+approval. An administrator can grant, block and regrant application access,
+inspect LangSmith model token usage and cost by account. Blocking revokes account
+sessions but does not delete saved tours or LangSmith traces. Auth0 still owns
+credentials; live trip/chat state remains session-only.
 
 The user can explicitly save a validated current tour and later review that
 snapshot from the same browser. Saved tours use a separate database and owner
@@ -129,11 +136,14 @@ integrates its result exactly once when the chat page polls or is reopened.
   invent photos; show image creator, license and source-page credit.
 - Only an explicit save action on a validated canonical plan creates a saved
   tour. Archive reads do not run agents/search or mutate the live plan. Every
-  archive operation is scoped to a verified owner. The running app still uses
-  its earlier image until the controlled Auth0 account migration and rollout.
+  archive operation is scoped to a verified owner.
 - The React planner requires a verified Auth0 account. FastAPI checks account
   ownership on every live planner session and session-backed operation; a
   missing or mismatched account cannot read or change another account's state.
+- Private planner and saved-tour routes require active account access. Only an
+  active administrator can manage account access or read account usage; changes
+  require CSRF and leave an audit event. Missing LangSmith cost must not show
+  zero; trace token/cost totals are observed figures, not provider invoices.
 
 ## Non-Goals
 
