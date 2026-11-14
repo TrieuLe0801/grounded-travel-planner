@@ -1402,3 +1402,7 @@ three-role runtime and role-specific model policy.
   Resolved one `PROJECT_STATUS.md` conflict by preserving both the workflow
   entry and the landing-signup entry. All other files merged without conflicts;
   staged diff checks and roadmap JSON parsing passed.
+- After the sync, GitHub reports PR #7 head `7cc66eb`, mergeable, and zero
+  commits behind `main`. Workflow-run and combined-status queries still return
+  no runs or checks because the base branch has not yet received the trigger
+  change. No deployment ran.

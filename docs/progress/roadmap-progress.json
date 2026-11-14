@@ -1,6 +1,6 @@
 {
   "version": 105,
-  "updated": "2026-11-15T00:17:58+07:00",
+  "updated": "2026-11-15T00:19:20+07:00",
   "active_scope": "city-place-sightseeing-webapp",
   "current_milestone": "Milestone 1: executable city/place sightseeing vertical slice",
   "completed": {
@@ -827,7 +827,7 @@
       "GitHub Actions run 42471059065 failed at setup-python on three HTTP 504 responses while downloading CPython 3.10.22 on ubuntu-26.04",
       "Rerun at SHA 27a17e7 passed Python setup/tests/lint, frontend check/build and Compose validation; GTP_DEPLOY_ENABLED=false, so no app deployment ran",
       "2026-11-15: added main to pull_request targets; push CI remains on feature/travel-ground-planner for the existing gated Mac poller; no deployment is triggered by a PR",
-      "PR #7 to main has no workflow run/status because the base branch still contains the old trigger; the PR change enables main-targeted PR CI after merge, with no deployment"
+      "PR #7 is synced to main at 9ee06e8 and reports mergeable with zero commits behind; no workflow run/status is present because base main still contains the old trigger; the PR change enables main-targeted PR CI after merge, with no deployment"
     ],
     "ngrok_session_rate_limit": [
       "deploy/ngrok-traffic-policy.json: per-client-IP sliding-hour limits for POST /api/session, POST /api/session/reset and POST /api/turns",
