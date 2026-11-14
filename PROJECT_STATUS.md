@@ -17,7 +17,7 @@ background only.
 | Scope reset | Complete | Charter, implementation plan, current log and ADR 0004/0009/0011/0012 |
 | Runtime package | Complete | Coordinator/Planner/Chat graph, typed providers and validators |
 | Streamlit app | Complete | Session-only itinerary/chat; graph page hidden from navigation |
-| Tests | 197 passed, 1 skipped on host | Current full offline suite; one optional PostgreSQL test skipped |
+| Tests | 197 passed, 1 skipped on last verified source | One optional PostgreSQL test skipped; later Auth0 SSO source change has not been tested |
 | Live integration | Passed | OpenAI/Tavily/LangSmith smoke recorded under `docs/experiments/` |
 | Local container | Passed | Test/runtime images, health, non-root and live provider checks |
 | Chat editing | Passed | Trip extension plus eight prior offline eval cases and live two-turn smoke |
@@ -46,7 +46,7 @@ background only.
 | Saved tours | PostgreSQL Compose app healthy; browser QA pending | Database now uses a sibling host directory outside Git; three saved rows and checksum survived the move; former named volume retained; root 200, session creation 201 |
 | Auth0 account ownership | Deployed; live OTP pending | PostgreSQL has account-owner column, indexes and auth tables. The app is deployed on `citedtrip.app`; login reaches Auth0's hosted page. OTP callback and browser account-flow QA remain pending. |
 | Admin access and account usage | Source implemented; migration and live QA pending | New accounts await approval; admin API/UI can grant, block and regrant. Token and cost figures read account-linked LangSmith LLM runs; unavailable LangSmith does not block access management. Email-based bootstrap resolves one existing account; the selected email is not tracked. Offline suite 197 passed, 1 skipped; frontend check/build and Python quality gates passed. Host `.env` lacks LangSmith key/project; production migration, admin bootstrap, browser and live LangSmith query QA have not run. |
-| Mandatory sign-in and landing | Deployed; live OTP pending | Auth0 email OTP gate, bilingual public landing, account-owned live sessions, cross-tab auth recheck and logout cleanup. `citedtrip.app` root and health return HTTP 200; Auth0 login reaches hosted page. OTP callback and planner browser QA remain pending. |
+| Auth0 SSO and mandatory sign-in | Compose image rebuilt; live SSO/OTP pending | Image `sha256:07e93379edc0efcf157dca5d28af79d7f91e96321b9911e1a0d323de25342b71` is running healthy. Local root/health return HTTP 200; login redirect is HTTP 307 with no forced connection and the expected callback; served bundle includes updated landing copy. PostgreSQL remained healthy and unchanged. Live Auth0 session SSO, OTP, callback exchange and browser account QA remain pending; automated tests were not run. |
 | Security audit | Source fixes deployed; live account-flow QA pending | CSRF on authenticated planner writes, local graph SVG rendering, HTTPS-only Auth0 issuer and private SQLite file modes. Domain root/health smoke passed; full OTP, owner isolation and logout not exercised live. |
 | Mac CI/CD | CI passed; automatic deployment gated | Run `42471059065` first hit HTTP 504 downloading CPython 3.10.22 on `ubuntu-26.04`; rerunning SHA `27a17e7` passed Python tests/lint, frontend checks/build and Compose validation. `GTP_DEPLOY_ENABLED=false`; app was not deployed. |
 | Large saved-tour archive | PostgreSQL 2M-row isolated benchmark passed | Owner/time/ID index and keyset pages; 10-sample page 1 p50/p95 0.729/13.898 ms, page 20,000 0.373/21.557 ms; tiny synthetic snapshots, no concurrent traffic |
@@ -59,6 +59,14 @@ Planning progress is not implementation progress. Only executable artifacts and
 actual checks count as completion evidence.
 
 ## Done
+
+- Updated the Auth0 authorize request to allow SSO through an active existing
+  Auth0 session and preserve email OTP for users without one. Updated the
+  bilingual landing, UI guidance, charter and ADR 0021. Frontend typecheck/build,
+  Python quality checks and `git diff --check` passed. Rebuilt and recreated only
+  the app container; health and login-redirect smoke checks passed. PostgreSQL
+  stayed healthy and unchanged. No automated tests or live Auth0 SSO/OTP checks
+  ran. See the 2026-11-14 Auth0 session SSO learning-log entry.
 
 - Completed a source-scoped security audit of planner mutations, Auth0 issuer
   handling, graph rendering and SQLite fallback storage. Added CSRF checks to

@@ -30,11 +30,12 @@ The current interface uses JavaScript and Tailwind on the same origin as a thin
 Python HTTP adapter. The earlier Streamlit interface remains available during
 migration; the Coordinator/Planner/Chat runtime and validation rules are shared.
 
-The public React entry is a bilingual introduction page. Visitors must complete
-Auth0 email one-time-code sign-in before the planner, chat, visuals, or saved
-tours appear. FastAPI enforces the same requirement on private API routes; the
-landing page and static assets remain public. Each live planner session is
-bound to its verified internal account UUID. See ADR 0021.
+The public React entry is a bilingual introduction page. Visitors with an active
+Auth0 browser session use SSO; visitors without one continue through the
+existing Auth0 email one-time-code flow before the planner, chat, visuals, or
+saved tours appear. FastAPI enforces sign-in on private API routes; the landing
+page and static assets remain public. Each live planner session is bound to its
+verified internal account UUID. See ADR 0021.
 
 ADR 0023 adds application administrator access. Existing accounts remain active
 after the explicit migration; new Auth0 identities wait for administrator
@@ -54,7 +55,8 @@ It clears the live plan, conversation and trip-form draft while preserving the
 selected language, account and saved-tour archive.
 
 ADR 0016 selects account-owned saved tours through Auth0 email OTP; ADR 0021
-requires sign-in for planner use. The prior account-ownership implementation
+adds Auth0 session SSO with that email-code flow as fallback and requires
+sign-in for planner use. The prior account-ownership implementation
 and isolated migrations have offline evidence. The mandatory entry and
 session-owner changes remain subject to current verification. The running
 application remains on its earlier image until controlled rollout. Account

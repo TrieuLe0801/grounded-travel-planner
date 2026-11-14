@@ -164,17 +164,17 @@
       </ul>
     </section>
     <section class="card active">
-      <span class="badge">App deployed · Auth0 OTP verification pending</span>
+      <span class="badge">Compose image updated · Live SSO/OTP verification pending</span>
       <h3>1L · Auth0 accounts and planner entry</h3>
       <ul>
-        <li>Auth0 OIDC email OTP BFF and persistent account sessions implemented</li>
+        <li>Auth0 OIDC BFF reuses an active Auth0 session for SSO; users without one retain the existing email one-time-code flow</li>
         <li>Account-scoped save, list, detail, delete and lossless legacy-cookie claim</li>
         <li>Public bilingual landing is the only unauthenticated React view; FastAPI gates planner APIs and binds live sessions to the verified account</li>
         <li>React account dropdown shows signed-in email, Saved tours and sign-out; login/logout rotate or discard live state safely</li>
         <li>Five restored snapshots retained their checksum after two migration runs</li>
-        <li>Full offline suite: 185 passed, 1 optional PostgreSQL test skipped; frontend build and Python quality gates pass</li>
+        <li>Last verified full offline suite: 197 passed, 1 optional PostgreSQL test skipped; this SSO source update has not been tested</li>
         <li>Security fixes verified offline: CSRF on planner writes, local graph SVG, HTTPS-only Auth0 issuer and private SQLite fallback files</li>
-        <li>Cloudflare serves the public app root and health endpoint with HTTP 200; login reaches the Auth0 hosted page. OTP callback, planner and logout browser QA remain pending</li>
+        <li>App image rebuilt and healthy; local root/health HTTP 200 and Auth0 redirect uses the expected callback without a forced connection. Live SSO, OTP, callback exchange, planner and logout QA remain pending</li>
         <li>The existing Tunnel is the only public ingress; app and connector share a dedicated network, PostgreSQL stays isolated. Remove the old ngrok callback/logout entries from Auth0</li>
       </ul>
     </section>

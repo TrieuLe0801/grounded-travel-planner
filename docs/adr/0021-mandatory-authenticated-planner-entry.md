@@ -2,21 +2,28 @@
 
 Status: Accepted
 Date: 2026-11-08
+Amended: 2026-11-14
 
 ## Context
 
 ADR 0016 selected Auth0 Universal Login with email OTP for saved-tour ownership,
 but retained anonymous itinerary planning. The user now requires sign-in before
 using the planner and requested a public introduction page with account entry.
+The user also requested SSO for existing Auth0 accounts while preserving the
+current email-code flow for users without an Auth0 session, using the existing
+Auth0 tenant without adding another connection.
 The React frontend and FastAPI adapter already implement an Auth0 BFF, while
 planner sessions and live trip state remain in process memory.
 
 ## Decision
 
-- Keep Auth0 Universal Login with the configured email passwordless connection.
-  Use Authorization Code with PKCE, `state`, `nonce`, signed ID-token validation,
-  and the opaque server-side account session defined by ADR 0016. Do not add
-  app-owned passwords or expose provider tokens to browser JavaScript.
+- Keep Auth0 Universal Login and the existing email passwordless flow. Omit the
+  `connection` parameter from `/authorize` so Auth0 can reuse an active tenant
+  session for SSO. Users without an active Auth0 session continue through the
+  existing email one-time-code flow. Use Authorization Code with PKCE, `state`,
+  `nonce`, signed ID-token validation, and the opaque server-side account session
+  defined by ADR 0016. Do not add an Auth0 connection, app-owned passwords, or
+  provider tokens in browser JavaScript.
 - Make the public React landing page the only unauthenticated product view.
   Check `/api/auth/me` before requesting planner state. Carry the selected UI
   language through the safe local Auth0 return target and store it in the
@@ -61,6 +68,10 @@ planner sessions and live trip state remain in process memory.
   itinerary or transcript.
 - First-time sign-in creates the Auth0 identity and local internal account
   mapping. Email is display data, not the saved-tour owner key.
+- SSO requires an active Auth0 browser session. Users without one use the
+  existing email-code flow; the tenant must keep that passwordless connection
+  enabled. The application does not classify accounts by email or link new
+  Auth0 subjects to existing accounts.
 - Auth0 tenant setup, production email delivery, callback/logout allowlists,
   live OTP, cross-browser QA, and controlled database rollout remain explicit
   deployment checks. Offline tests do not prove those live behaviors.
