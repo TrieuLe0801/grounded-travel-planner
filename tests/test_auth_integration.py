@@ -51,7 +51,13 @@ class FakeOidcProvider:
         self.callback_calls: list[dict[str, str]] = []
 
     def authorization_url(
-        self, *, state: str, nonce: str, code_verifier: str, redirect_uri: str
+        self,
+        *,
+        state: str,
+        nonce: str,
+        code_verifier: str,
+        redirect_uri: str,
+        screen_hint: str | None = None,
     ) -> str:
         self.authorization_calls.append(
             {
@@ -59,9 +65,11 @@ class FakeOidcProvider:
                 "nonce": nonce,
                 "code_verifier": code_verifier,
                 "redirect_uri": redirect_uri,
+                "screen_hint": screen_hint or "",
             }
         )
-        return f"https://auth0.example.test/authorize?state={state}"
+        signup_hint = "&screen_hint=signup" if screen_hint else ""
+        return f"https://auth0.example.test/authorize?state={state}{signup_hint}"
 
     def verify_callback(
         self, *, code: str, nonce: str, code_verifier: str, redirect_uri: str
@@ -189,6 +197,25 @@ def _sign_in(client: TestClient, provider: FakeOidcProvider) -> str:
         == provider.authorization_calls[0]["code_verifier"]
     )
     return client.get("/api/auth/me").json()["csrf_token"]
+
+
+@pytest.mark.parametrize(
+    ("intent", "expected_hint"), [("login", ""), ("signup", "signup")]
+)
+def test_auth_login_intent_controls_signup_screen_hint(
+    tmp_path, monkeypatch: pytest.MonkeyPatch, intent: str, expected_hint: str
+) -> None:
+    provider = FakeOidcProvider("auth0|signup-test", "signup@example.test")
+    client, _, _ = _client(tmp_path, provider, monkeypatch)
+
+    response = client.get(
+        "/api/auth/login", params={"intent": intent}, follow_redirects=False
+    )
+
+    assert response.status_code == 307
+    query = parse_qs(urlparse(response.headers["location"]).query)
+    assert query.get("screen_hint", [""])[0] == expected_hint
+    assert provider.authorization_calls[0]["screen_hint"] == expected_hint
 
 
 def test_admin_migration_keeps_existing_accounts_active(tmp_path) -> None:

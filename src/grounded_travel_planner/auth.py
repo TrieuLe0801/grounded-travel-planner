@@ -16,7 +16,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any, Literal, Protocol
 from urllib.parse import urlencode, urlsplit
 from urllib.request import urlopen
 from uuid import uuid4
@@ -52,7 +52,13 @@ class OidcProvider(Protocol):
     """Small boundary for the external identity provider."""
 
     def authorization_url(
-        self, *, state: str, nonce: str, code_verifier: str, redirect_uri: str
+        self,
+        *,
+        state: str,
+        nonce: str,
+        code_verifier: str,
+        redirect_uri: str,
+        screen_hint: Literal["signup"] | None = None,
     ) -> str: ...
 
     def verify_callback(
@@ -242,21 +248,28 @@ class Auth0OidcProvider:
         )
 
     def authorization_url(
-        self, *, state: str, nonce: str, code_verifier: str, redirect_uri: str
+        self,
+        *,
+        state: str,
+        nonce: str,
+        code_verifier: str,
+        redirect_uri: str,
+        screen_hint: Literal["signup"] | None = None,
     ) -> str:
         # Let Auth0 reuse an existing tenant session for SSO.
-        query = urlencode(
-            {
-                "response_type": "code",
-                "client_id": self._client_id,
-                "redirect_uri": redirect_uri,
-                "scope": "openid profile email",
-                "state": state,
-                "nonce": nonce,
-                "code_challenge": code_challenge(code_verifier),
-                "code_challenge_method": "S256",
-            }
-        )
+        parameters = {
+            "response_type": "code",
+            "client_id": self._client_id,
+            "redirect_uri": redirect_uri,
+            "scope": "openid profile email",
+            "state": state,
+            "nonce": nonce,
+            "code_challenge": code_challenge(code_verifier),
+            "code_challenge_method": "S256",
+        }
+        if screen_hint is not None:
+            parameters["screen_hint"] = screen_hint
+        query = urlencode(parameters)
         return f"{self._endpoint}/authorize?{query}"
 
     def verify_callback(

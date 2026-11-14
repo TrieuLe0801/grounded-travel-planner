@@ -176,7 +176,13 @@ class FakeOidcProvider:
         self.state = ""
 
     def authorization_url(
-        self, *, state: str, nonce: str, code_verifier: str, redirect_uri: str
+        self,
+        *,
+        state: str,
+        nonce: str,
+        code_verifier: str,
+        redirect_uri: str,
+        screen_hint: str | None = None,
     ) -> str:
         self.state = state
         return f"https://auth0.example.test/authorize?state={state}"
