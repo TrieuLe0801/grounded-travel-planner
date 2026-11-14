@@ -33,6 +33,7 @@ import {
   ShieldCheck,
   Sparkles,
   Trash2,
+  UserPlus,
   UserRound,
   UsersRound,
   X,
@@ -1825,11 +1826,13 @@ function App() {
       if (request === adminUsersRequest.current) setAdminUserUpdatingId(null);
     }
   };
-  const signIn = (returnTo = "/") => {
+  const signIn = (returnTo = "/", intent: "login" | "signup" = "login") => {
     setAccountOpen(false);
     const separator = returnTo.includes("?") ? "&" : "?";
     const localizedReturnTo = `${returnTo}${separator}lang=${landingLanguage}`;
-    window.location.assign(`/api/auth/login?return_to=${encodeURIComponent(localizedReturnTo)}`);
+    const query = new URLSearchParams({ return_to: localizedReturnTo });
+    if (intent === "signup") query.set("intent", "signup");
+    window.location.assign(`/api/auth/login?${query.toString()}`);
   };
   const signOut = async () => {
     if (!auth?.csrf_token || signingOut) return;
@@ -2025,15 +2028,18 @@ function App() {
             <p className="mt-6 max-w-xl text-lg leading-8 text-slate-700">{labels.landingDescription}</p>
             <ul className="mt-8 grid gap-3 text-slate-700" aria-label={labels.landingEyebrow}>
               <li className="flex items-start gap-3"><CheckCircle2 className="mt-0.5 shrink-0 text-primary" size={20} aria-hidden="true" />{labels.landingEvidence}</li>
-              <li className="flex items-start gap-3"><CalendarDays className="mt-0.5 shrink-0 text-primary" size={20} aria-hidden="true" />{labels.landingSession}</li>
+              <li className="flex items-start gap-3"><MessageCircle className="mt-0.5 shrink-0 text-primary" size={20} aria-hidden="true" />{labels.landingChat}</li>
             </ul>
           </section>
-          <section className="rise rounded-3xl bg-white p-7 shadow-xl shadow-blue-900/10 ring-1 ring-blue-100 sm:p-9" aria-labelledby="sign-in-title">
-            <LogIn className="size-9 text-primary" aria-hidden="true" />
-            <h2 id="sign-in-title" className="mt-5 font-heading text-2xl font-bold">{labels.signIn}</h2>
+          <section className="rise rounded-3xl bg-white p-7 shadow-xl shadow-blue-900/10 ring-1 ring-blue-100 sm:p-9" aria-labelledby="landing-action-title">
+            <Compass className="size-9 text-primary" aria-hidden="true" />
+            <h2 id="landing-action-title" className="mt-5 font-heading text-2xl font-bold">{labels.landingActionTitle}</h2>
             <p className="mt-3 leading-7 text-slate-700">{auth === null ? labels.authChecking : labels.landingAccess}</p>
             {authError && <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-800" role="alert">{labels[authError]}</p>}
-            {auth !== null && <button type="button" onClick={() => signIn("/")} className="mt-7 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 font-bold text-white shadow-lg shadow-blue-500/25 transition hover:bg-blue-500 focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300"><LogIn size={18} aria-hidden="true" />{labels.signInWithAuth0}</button>}
+            {auth !== null && <div className="mt-7 grid gap-3">
+              <button type="button" onClick={() => signIn("/", "login")} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 font-bold text-white shadow-lg shadow-blue-500/25 transition hover:bg-blue-500 focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300"><LogIn size={18} aria-hidden="true" />{labels.signInWithSso}</button>
+              <button type="button" onClick={() => signIn("/", "signup")} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-blue-200 bg-white px-5 font-bold text-blue-800 transition hover:bg-blue-50 focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300"><UserPlus size={18} aria-hidden="true" />{labels.register}</button>
+            </div>}
           </section>
         </main>
       </div>

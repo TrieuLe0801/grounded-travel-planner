@@ -164,15 +164,16 @@
       </ul>
     </section>
     <section class="card active">
-      <span class="badge">Compose image updated · Live SSO/OTP verification pending</span>
+      <span class="badge">Source, build and offline tests passed · Live signup pending</span>
       <h3>1L · Auth0 accounts and planner entry</h3>
       <ul>
         <li>Auth0 OIDC BFF reuses an active Auth0 session for SSO; users without one retain the existing email one-time-code flow</li>
         <li>Account-scoped save, list, detail, delete and lossless legacy-cookie claim</li>
         <li>Public bilingual landing is the only unauthenticated React view; FastAPI gates planner APIs and binds live sessions to the verified account</li>
+        <li>Latest source describes the sightseeing app and purpose, with separate SSO sign-in and Auth0 registration actions; frontend build and offline tests pass, while browser/Auth0 checks and deployment remain pending</li>
         <li>React account dropdown shows signed-in email, Saved tours and sign-out; login/logout rotate or discard live state safely</li>
         <li>Five restored snapshots retained their checksum after two migration runs</li>
-        <li>Last verified full offline suite: 197 passed, 1 optional PostgreSQL test skipped; this SSO source update has not been tested</li>
+        <li>Current full offline suite: 199 passed, 1 optional PostgreSQL test skipped; focused Auth0 tests: 29 passed</li>
         <li>Security fixes verified offline: CSRF on planner writes, local graph SVG, HTTPS-only Auth0 issuer and private SQLite fallback files</li>
         <li>App image rebuilt and healthy; local root/health HTTP 200 and Auth0 redirect uses the expected callback without a forced connection. Live SSO, OTP, callback exchange, planner and logout QA remain pending</li>
         <li>The existing Tunnel is the only public ingress; app and connector share a dedicated network, PostgreSQL stays isolated. Remove the old ngrok callback/logout entries from Auth0</li>

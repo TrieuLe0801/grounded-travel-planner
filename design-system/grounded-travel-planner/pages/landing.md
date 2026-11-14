@@ -5,13 +5,13 @@ verified sign-in.
 
 ## Layout
 
-- Keep the first screen short and calm: brand, language control, headline,
-  grounded-planning benefits, and one prominent sign-in action.
-- State that an active Auth0 session enables SSO. Users without one continue
-  through the existing email one-time-code flow. Do not add a local password
-  form or collect profile fields before sign-in.
-- Explain that a live trip stays in the browser session and only an explicit
-  save stores a read-only tour snapshot.
+- Keep the first screen short and calm: brand, language control, a concise
+  description of the sightseeing app and its purpose, product benefits, and
+  separate sign-in and registration actions.
+- Keep SSO, email-code, and other authentication mechanics out of the app
+  description. Use Auth0 for both actions; the registration action requests
+  Auth0's signup screen. Do not add a local password form or collect profile
+  fields in the app.
 - Use the existing blue palette, Lexend headings, Source Sans 3 body, and Lucide
   icons. Do not add scroll-triggered storytelling or unsourced travel photos.
 - Keep Vietnamese default and English selectable. Carry the selected locale
@@ -25,5 +25,6 @@ verified sign-in.
   the account endpoint fails.
 - After sign-in, display the verified email, saved tours, and sign-out in the
   account menu.
-- Use one primary CTA, visible focus, keyboard-accessible controls, and a
-  responsive layout without horizontal overflow.
+- Give sign-in the primary visual treatment and registration a clear secondary
+  treatment. Keep visible focus, keyboard access, and a responsive layout
+  without horizontal overflow.

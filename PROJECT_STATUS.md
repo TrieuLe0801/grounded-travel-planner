@@ -17,7 +17,7 @@ background only.
 | Scope reset | Complete | Charter, implementation plan, current log and ADR 0004/0009/0011/0012 |
 | Runtime package | Complete | Coordinator/Planner/Chat graph, typed providers and validators |
 | Streamlit app | Complete | Session-only itinerary/chat; graph page hidden from navigation |
-| Tests | 197 passed, 1 skipped on last verified source | One optional PostgreSQL test skipped; later Auth0 SSO source change has not been tested |
+| Tests | 199 passed, 1 skipped on current source | One optional PostgreSQL test skipped; frontend typecheck/build and Python quality checks passed. Browser and live Auth0 signup remain unverified |
 | Live integration | Passed | OpenAI/Tavily/LangSmith smoke recorded under `docs/experiments/` |
 | Local container | Passed | Test/runtime images, health, non-root and live provider checks |
 | Chat editing | Passed | Trip extension plus eight prior offline eval cases and live two-turn smoke |
@@ -27,7 +27,7 @@ background only.
 | Visual itinerary | Complete | Source-backed photos; route map removed by user request |
 | Graph inspection | Hidden from UI; local SVG diagnostics retained | HTTP and Streamlit render locally; no external Mermaid renderer call |
 | Async page navigation | Implemented | Background Future, exact-once session integration; browser QA pending |
-| JavaScript/Tailwind UI | Existing UI deployed; mandatory-login source offline verified | React itinerary/chat/saved tours, Home reset and Account dropdown remain in current image `051c5fc`; new landing/auth gate is source-only, browser QA pending |
+| JavaScript/Tailwind UI | Latest landing source built and offline-tested; browser/deployment pending | React itinerary/chat/saved tours remain deployed; landing registration and app-purpose copy pass frontend check/build and offline tests, but are not browser-checked or deployed |
 | Configurable model provider | Passed on host and Compose app | Active mixed routing and an HTTP Compose-app Hue plan committed with OpenAI `gpt-5.5` Coordinator and Ollama `qwen2.5:3b` Planner/Chat |
 | No-local API defaults | Historical Compose verification | Earlier container resolved to OpenAI `gpt-5.5` / `gpt-5.4-mini` / `gpt-4.1`; root and graph image returned HTTP 200 |
 | Current Planner OpenAI default | Local app verified | `gpt-6.1-terra` with 60-second per-call timeout and JSON Schema URL validation; live full graph turn committed four sourced Huế entries in 41.3 seconds; 113 tests passed; app healthy, root/graph HTTP 200 |
@@ -46,7 +46,7 @@ background only.
 | Saved tours | PostgreSQL Compose app healthy; browser QA pending | Database now uses a sibling host directory outside Git; three saved rows and checksum survived the move; former named volume retained; root 200, session creation 201 |
 | Auth0 account ownership | Deployed; live OTP pending | PostgreSQL has account-owner column, indexes and auth tables. The app is deployed on `citedtrip.app`; login reaches Auth0's hosted page. OTP callback and browser account-flow QA remain pending. |
 | Admin access and account usage | Source implemented; migration and live QA pending | New accounts await approval; admin API/UI can grant, block and regrant. Token and cost figures read account-linked LangSmith LLM runs; unavailable LangSmith does not block access management. Email-based bootstrap resolves one existing account; the selected email is not tracked. Offline suite 197 passed, 1 skipped; frontend check/build and Python quality gates passed. Host `.env` lacks LangSmith key/project; production migration, admin bootstrap, browser and live LangSmith query QA have not run. |
-| Auth0 SSO and mandatory sign-in | Compose image rebuilt; live SSO/OTP pending | Image `sha256:07e93379edc0efcf157dca5d28af79d7f91e96321b9911e1a0d323de25342b71` is running healthy. Local root/health return HTTP 200; login redirect is HTTP 307 with no forced connection and the expected callback; served bundle includes updated landing copy. PostgreSQL remained healthy and unchanged. Live Auth0 session SSO, OTP, callback exchange and browser account QA remain pending; automated tests were not run. |
+| Auth0 SSO and mandatory sign-in | Latest source built and offline-tested; browser/deployment pending | Image `sha256:07e93379edc0efcf157dca5d28af79d7f91e96321b9911e1a0d323de25342b71` was healthy at last check. Latest source adds an Auth0 signup hint and separates SSO sign-in from registration. Full suite 199 passed, one optional PostgreSQL test skipped; frontend check/build and Python quality checks passed. Live Auth0 signup, SSO, OTP, callback exchange, browser QA and deployment remain pending. |
 | Security audit | Source fixes deployed; live account-flow QA pending | CSRF on authenticated planner writes, local graph SVG rendering, HTTPS-only Auth0 issuer and private SQLite file modes. Domain root/health smoke passed; full OTP, owner isolation and logout not exercised live. |
 | Mac CI/CD | CI passed; automatic deployment gated | Run `42471059065` first hit HTTP 504 downloading CPython 3.10.22 on `ubuntu-26.04`; rerunning SHA `27a17e7` passed Python tests/lint, frontend checks/build and Compose validation. `GTP_DEPLOY_ENABLED=false`; app was not deployed. |
 | Large saved-tour archive | PostgreSQL 2M-row isolated benchmark passed | Owner/time/ID index and keyset pages; 10-sample page 1 p50/p95 0.729/13.898 ms, page 20,000 0.373/21.557 ms; tiny synthetic snapshots, no concurrent traffic |
@@ -59,6 +59,14 @@ Planning progress is not implementation progress. Only executable artifacts and
 actual checks count as completion evidence.
 
 ## Done
+
+- Updated the bilingual landing to describe sightseeing planning and its purpose,
+  with separate SSO sign-in and registration buttons. Registration requests the
+  Auth0 signup screen through the existing BFF. Focused auth tests passed 29;
+  full suite passed 199 tests with one optional PostgreSQL test skipped.
+  Frontend typecheck/build, isort, Black, flake8 and Ruff passed. Browser QA,
+  live Auth0 flow and deployment remain pending; the running image still serves
+  the previous landing. See the 2026-11-14 landing-entry learning-log entry.
 
 - Updated the Auth0 authorize request to allow SSO through an active existing
   Auth0 session and preserve email OTP for users without one. Updated the

@@ -104,7 +104,10 @@
     "cloudflare_single_origin_app_deployed": true,
     "auth0_sso_session_reuse_source": true,
     "auth0_sso_app_container_recreated": true,
-    "auth0_sso_session_reuse_live": false
+    "auth0_sso_session_reuse_live": false,
+    "auth0_signup_cta_source": true,
+    "auth0_signup_cta_offline_verified": true,
+    "auth0_signup_cta_browser_verified": false
   },
   "evidence": {
     "auth0_sso_session_reuse_source": [
@@ -122,6 +125,18 @@
     ],
     "auth0_sso_session_reuse_live": [
       "Not checked: active Auth0 browser-session SSO, configured tenant email OTP, callback exchange and planner browser flow require live Auth0 interaction"
+    ],
+    "auth0_signup_cta_source": [
+      "frontend/src/i18n.ts and frontend/src/main.tsx: bilingual app-purpose copy, SSO sign-in action, and registration action",
+      "src/grounded_travel_planner/web/api.py and src/grounded_travel_planner/auth.py: registration requests Auth0 screen_hint=signup through the existing BFF"
+    ],
+    "auth0_signup_cta_offline_verified": [
+      "Focused auth tests: 29 passed; full uv run pytest: 199 passed, 1 optional PostgreSQL test skipped",
+      "Frontend npm run check/build, isort, Black, flake8 and Ruff passed; dummy model names and disabled dotenv prevented provider calls"
+    ],
+    "auth0_signup_cta_browser_verified": [
+      "Not checked: live Auth0 signup/SSO, callback exchange, browser behavior and deployment remain pending",
+      "Auth0 direct signup screen requires New Universal Login; Classic Universal Login needs custom page logic"
     ],
     "admin_access_usage_offline": [
       "docs/project-charter.md",

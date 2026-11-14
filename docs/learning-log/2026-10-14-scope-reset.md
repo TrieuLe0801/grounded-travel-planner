@@ -1,5 +1,25 @@
 # Learning Log - 2026-10-14 Scope Reset
 
+## Landing Copy and Auth0 Registration Action — 2026-11-14
+
+- The user requested separate registration and SSO sign-in buttons. The user
+  also directed that the webapp description cover the app and its purpose,
+  without explaining SSO.
+- The bilingual landing now describes sightseeing planning, sourced places,
+  schedules, and chat edits. It has a primary SSO sign-in button and a
+  secondary registration button. Registration uses Auth0's
+  `screen_hint=signup` through the existing server-side BFF. The app does not
+  collect credentials or add another identity system.
+- Auth0 documents `screen_hint=signup` for New Universal Login. Classic
+  Universal Login requires custom page logic for a direct signup screen. See
+  [Auth0 guidance](https://support.auth0.com/center/s/article/How-to-Redirect-Users-directly-to-the-Hosted-Signup-Page).
+- Focused auth tests passed 29 cases; full `uv run pytest` passed 199 cases
+  with one optional PostgreSQL test skipped. Frontend `npm run check` and
+  `npm run build`, isort, Black, flake8, and Ruff passed. Model names were dummy
+  values and dotenv loading was disabled; no live provider was called.
+- Browser interaction, live Auth0 signup/SSO, callback exchange, and deployment
+  were not checked. The running image still has the prior landing UI.
+
 ## Auth0 Session SSO With Email-Code Fallback — 2026-11-14
 
 - The user requested SSO for accounts registered with Auth0 and asked to keep

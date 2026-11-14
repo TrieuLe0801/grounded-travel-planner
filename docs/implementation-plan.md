@@ -3,6 +3,22 @@
 Status: Active
 Last updated: 2026-11-14
 
+## Landing Registration and SSO Entry Buttons — Source Updated — 2026-11-14
+
+The public landing description now covers the sightseeing app, its purpose,
+grounded place research, itinerary scheduling, and chat edits. It does not
+explain SSO or other sign-in mechanics. The landing shows separate SSO sign-in
+and registration actions. Registration passes `screen_hint=signup` through the
+existing Auth0 BFF; the app still does not collect or manage credentials.
+
+Auth0's New Universal Login supports `screen_hint=signup`. Classic Universal
+Login needs custom page logic for a direct signup screen ([Auth0 guidance](https://support.auth0.com/center/s/article/How-to-Redirect-Users-directly-to-the-Hosted-Signup-Page)).
+The focused auth tests passed 29 cases; full `uv run pytest` passed 199 cases
+with one optional PostgreSQL test skipped. Frontend `npm run check` and
+`npm run build`, isort, Black, flake8, and Ruff passed. Browser interaction,
+live Auth0 signup/SSO and deployment remain pending; the running image still
+serves the prior landing.
+
 ## Auth0 Session SSO — Source Updated; Live SSO/OTP Pending — 2026-11-14
 
 The Auth0 authorization request no longer pins the `email` connection. Auth0
@@ -11,9 +27,10 @@ continue through the tenant's existing email one-time-code flow; no new Auth0
 connection or application-managed identity lookup was added. Account ownership
 still uses the verified Auth0 issuer and subject, never email matching.
 
-The bilingual landing describes both paths and labels its sign-in action as
-Auth0. The Auth0 tenant must keep its email passwordless connection enabled for
-the existing fallback. On 2026-11-14 the Compose app image was rebuilt and only
+The prior landing described both paths and labelled its sign-in action as
+Auth0. The current landing copy and actions are recorded in the section above.
+The Auth0 tenant must keep its email passwordless connection enabled for the
+existing fallback. On 2026-11-14 the Compose app image was rebuilt and only
 the app container was recreated as image
 `sha256:07e93379edc0efcf157dca5d28af79d7f91e96321b9911e1a0d323de25342b71`.
 The app is healthy; local `/` and `/api/health` return HTTP 200. The local login
