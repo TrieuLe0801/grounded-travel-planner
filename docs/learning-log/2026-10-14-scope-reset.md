@@ -1369,8 +1369,10 @@ three-role runtime and role-specific model policy.
   from `feature/codex-agent-workflow-20261114` to `main`. Its initial combined
   status was empty because the existing `pull_request` filter only targeted
   `feature/travel-ground-planner`; added `main` while preserving the feature
-  target and push/deployment behavior. PR CI will be checked after this workflow
-  update is pushed.
+  target and push/deployment behavior. After pushing the filter update,
+  GitHub still reported no workflow run or status check because the base branch
+  still contains the old trigger. This PR configures future main-targeted PR CI
+  after merge; the PR itself has local static verification only.
 - System `python3` could not import PyYAML
   (`ModuleNotFoundError: No module named 'yaml'`). The locked project
   environment parsed the updated workflow and confirmed the `main` PR trigger.
