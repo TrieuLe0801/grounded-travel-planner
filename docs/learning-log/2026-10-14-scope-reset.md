@@ -1,5 +1,62 @@
 # Learning Log - 2026-10-14 Scope Reset
 
+## Cloudflare Live; ngrok Retired — 2026-11-12
+
+- Verified the live `citedtrip.app` root and `/api/health` return HTTP 200 with a
+  browser User-Agent. Auth0 login redirects to the configured callback and
+  reaches the hosted login page with HTTP 200. A generic Python User-Agent gets
+  Cloudflare error 1010; the browser-like request succeeds. OTP, callback
+  exchange, planner access and logout were not completed.
+- Removed the ngrok Compose service, token setting, Traffic Policy, running
+  container and unused local image. Removed the temporary Auth0 origin from the mode-`0600` deployment
+  `.env`; the app now uses only `https://citedtrip.app`. Recreating the app
+  clears in-memory plans, conversations and pending turns; PostgreSQL was not
+  restarted.
+- Rebuilt and recreated only the app. Focused Auth0 tests: 26 passed; full
+  suite: 185 passed, 1 optional PostgreSQL test skipped. isort, Black, flake8,
+  Ruff, frontend check/build, both Compose config checks, JSON validation and
+  `git diff --check` passed. Cloudflare's connector exited after a graceful
+  SIGTERM during the same interval its Visual Assistant app/frontend containers
+  were recreated; starting the existing connector restored root/health HTTP 200.
+- The old ngrok callback and logout entries still need removal in the Auth0
+  dashboard, which is not connected in this session. Do not treat the hosted
+  login-page response as a completed OTP sign-in.
+- The recovery command uses the companion named-tunnel overlay in the Visual
+  Assistant repository; its durable configuration is tracked in
+  [Visual Assistant PR #3](https://github.com/TrieuLe0801/visual-assistant/pull/3).
+
+## Cloudflare Custom-Domain Deployment — 2026-11-12
+
+- The user selected `citedtrip.app`, approved reusing the existing named
+  Cloudflare Tunnel, and asked to preserve Auth0 login. ADR 0022 records the
+  ingress decision. The planner app and existing connector use a dedicated
+  external network; PostgreSQL stays off that network. The existing tunnel
+  secret remains in the Visual Assistant deployment; ngrok stays available for
+  rollback.
+- Auth0 callback exchange and logout now select the origin matching the exact
+  request `Host` from the primary and temporary additional-origin settings.
+  Unknown hosts fail closed; forwarded host headers do not select redirects.
+  Tests cover both hosts and an unlisted-host rejection.
+- Focused Auth0 tests passed 27 cases; the full suite passed 188 with one
+  optional PostgreSQL test skipped, plus Python quality gates. Compose
+  validation and `git diff --check` passed. The app image was rebuilt and only
+  `grounded-travel-planner-app-1` was recreated. Its ignored deployment `.env`
+  now sets `citedtrip.app` as primary and the ngrok host as the additional
+  origin; file mode remains `0600`.
+- The existing connector and app are attached to
+  `grounded-travel-planner_public-ingress`; PostgreSQL is not. Connector-to-app
+  health returned HTTP 200. Both Host values returned HTTP 307 with the
+  corresponding callback URI. The old ngrok root returned HTTP 200 and a
+  cookie-preserving login reached the Auth0 hosted page with HTTP 200. The app
+  restart cleared session-only plans, conversations, and pending turns; the
+  database and ngrok services were not restarted.
+- Cloudflare nameservers are active, but apex and `www` DNS did not resolve in
+  this check. No Tunnel route or Auth0 allowlist was changed because those
+  dashboards are unavailable in this session. OTP, callback exchange, planner
+  access through the new host, logout, and final ngrok shutdown remain pending.
+  Add the exact callback/logout values and route `citedtrip.app` through the
+  existing Tunnel before running the remaining checks.
+
 ## Application Security Audit — 2026-11-10
 
 - Reviewed the Auth0-protected planner session and turn mutations, Auth0 issuer

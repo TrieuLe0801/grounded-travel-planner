@@ -11,6 +11,7 @@ from pathlib import Path
 from threading import Lock
 from time import monotonic
 from typing import Literal, Protocol
+from urllib.parse import urlsplit
 from uuid import uuid4
 
 from fastapi import Cookie, FastAPI, Header, HTTPException, Query, Request, Response
@@ -472,19 +473,34 @@ def create_app(
             raise HTTPException(status_code=403, detail="Yêu cầu bảo mật không hợp lệ.")
         return user
 
-    def callback_uri(request: Request) -> str:
-        origin = os.getenv("GTP_AUTH_PUBLIC_ORIGIN", "").rstrip("/")
+    def auth_public_origin(request: Request) -> str:
+        origin = os.getenv("GTP_AUTH_PUBLIC_ORIGIN", "").strip().rstrip("/")
         if not origin:
             if isinstance(provider, Auth0OidcProvider):
                 raise AuthError("The public auth origin is not configured.")
-            origin = str(request.base_url).rstrip("/")
-        return f"{origin}/api/auth/callback"
+            return str(request.base_url).rstrip("/")
 
-    def logout_return_to() -> str:
-        origin = os.getenv("GTP_AUTH_PUBLIC_ORIGIN", "").rstrip("/")
-        if not origin:
-            raise AuthError("The public auth origin is not configured.")
-        return f"{origin}/"
+        parsed = urlsplit(origin)
+        if (
+            parsed.scheme not in {"http", "https"}
+            or not parsed.netloc
+            or parsed.hostname is None
+            or parsed.username is not None
+            or parsed.password is not None
+            or parsed.path
+            or parsed.query
+            or parsed.fragment
+        ):
+            raise AuthError("The public auth origin is invalid.")
+        if parsed.netloc.casefold() != request.headers.get("host", "").casefold():
+            raise AuthError("The request host is not the configured auth origin.")
+        return origin
+
+    def callback_uri(request: Request) -> str:
+        return f"{auth_public_origin(request)}/api/auth/callback"
+
+    def logout_return_to(request: Request) -> str:
+        return f"{auth_public_origin(request)}/"
 
     def pending_codec() -> PendingLoginCodec:
         secret = os.getenv("GTP_AUTH_SESSION_SECRET", "")
@@ -813,6 +829,7 @@ def create_app(
 
     @app.post("/api/auth/logout")
     def auth_logout(
+        request: Request,
         gtp_auth: str | None = Cookie(default=None),
         gtp_session: str | None = Cookie(default=None),
         x_csrf_token: str | None = Header(default=None),
@@ -825,7 +842,7 @@ def create_app(
         try:
             if provider is None:
                 provider = Auth0OidcProvider.from_environment()
-            logout_url = provider.logout_url(return_to=logout_return_to())
+            logout_url = provider.logout_url(return_to=logout_return_to(request))
         except AuthError as error:
             raise HTTPException(
                 status_code=503, detail="Không thể đăng xuất lúc này."

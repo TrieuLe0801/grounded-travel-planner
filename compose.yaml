@@ -39,6 +39,9 @@ services:
     restart: "no"
     ports:
       - "127.0.0.1:${GTP_PORT:-8503}:8000"
+    networks:
+      - default
+      - public-ingress
     stop_grace_period: 10s
 
   migrate-saved-tours:
@@ -57,28 +60,6 @@ services:
       - saved-tours-data:/legacy:ro
     command:
       ["python", "/app/scripts/migrate_saved_tours_to_postgres.py", "--sqlite", "/legacy/saved_tours.sqlite"]
-    restart: "no"
-
-  ngrok:
-    image: ngrok/ngrok:latest
-    profiles: ["ngrok"]
-    environment:
-      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN:-}
-    command:
-      [
-        "http",
-        "app:8000",
-        "--log",
-        "stdout",
-        "--inspect=false",
-        "--traffic-policy-file",
-        "/etc/ngrok/traffic-policy.json",
-      ]
-    volumes:
-      - ./deploy/ngrok-traffic-policy.json:/etc/ngrok/traffic-policy.json:ro
-    depends_on:
-      app:
-        condition: service_started
     restart: "no"
 
   ollama:
@@ -111,3 +92,8 @@ services:
 volumes:
   ollama-models:
   saved-tours-data:
+
+networks:
+  public-ingress:
+    external: true
+    name: grounded-travel-planner_public-ingress

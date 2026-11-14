@@ -9,6 +9,7 @@ The active product/runtime scope is defined by ADR 0004 and the current
 | [0002 — Three-week POC](0002-three-week-poc-scope.md) | Superseded by 0004 |
 | [0003 — Previous POC UI](0003-streamlit-poc-ui.md) | Superseded by 0004 |
 | [0004 — City sightseeing runtime](0004-city-sightseeing-two-agent-runtime.md) | Accepted; partial updates in ADR 0009 |
+| [0022 — Cloudflare Tunnel public ingress](0022-cloudflare-tunnel-public-ingress.md) | Accepted; live cutover pending |
 
 Use sequential filenames. Include status, context, decision, alternatives,
 consequences and review triggers in each new record.
@@ -27,4 +28,6 @@ redacted model-usage telemetry; actual monetary values remain in the runtime
 environment and provider-project spend limits remain separately configured.
 ADR 0021 makes Auth0 sign-in mandatory before React planner use and binds each
 volatile planner session to its verified account owner.
+ADR 0022 selects Cloudflare Tunnel for the `citedtrip.app` public ingress and
+records the completed single-origin cutover; temporary ngrok ingress is retired.
 

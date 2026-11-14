@@ -164,7 +164,7 @@
       </ul>
     </section>
     <section class="card active">
-      <span class="badge">Mandatory gate offline verified · live rollout pending</span>
+      <span class="badge">App deployed · Auth0 OTP verification pending</span>
       <h3>1L · Auth0 accounts and planner entry</h3>
       <ul>
         <li>Auth0 OIDC email OTP BFF and persistent account sessions implemented</li>
@@ -174,7 +174,8 @@
         <li>Five restored snapshots retained their checksum after two migration runs</li>
         <li>Full offline suite: 185 passed, 1 optional PostgreSQL test skipped; frontend build and Python quality gates pass</li>
         <li>Security fixes verified offline: CSRF on planner writes, local graph SVG, HTTPS-only Auth0 issuer and private SQLite fallback files</li>
-        <li>Browser QA, live Auth0 OTP/callback and deployment remain pending; running app image is unchanged</li>
+        <li>Cloudflare serves the public app root and health endpoint with HTTP 200; login reaches the Auth0 hosted page. OTP callback, planner and logout browser QA remain pending</li>
+        <li>The existing Tunnel is the only public ingress; app and connector share a dedicated network, PostgreSQL stays isolated. Remove the old ngrok callback/logout entries from Auth0</li>
       </ul>
     </section>
     <section class="card active">
@@ -195,7 +196,7 @@
         <li>Bounded background worker pool</li>
         <li>Eight running or queued turns maximum per process; overload returns HTTP 429 before changing a session</li>
         <li>HTTP sessions capped at 1,024 with one-hour idle expiry, including completed uncollected turns; full capacity returns HTTP 503</li>
-        <li>Deployed: ngrok policy limits session create/reset and planning turns by client IP; runtime Uvicorn disables callback access logs</li>
+        <li>Deployed: account and process-wide app quotas; runtime Uvicorn disables callback access logs</li>
         <li>One pending turn per browser session</li>
         <li>Exact-once result integration after page return</li>
         <li>50/50 host and Docker tests passed</li>
@@ -243,7 +244,7 @@
         <li>Same-origin FastAPI session adapter</li>
         <li>Transcript rehydrates from the session API and resets with a new session</li>
         <li>Home and New Trip start a fresh session and clear live trip/chat drafts; language, account and saved tours remain</li>
-        <li>Current image serves Home and Account UI locally and through ngrok; roots return HTTP 200; browser interaction QA pending</li>
+        <li>Current image serves Home and Account UI; Cloudflare root returns HTTP 200; browser interaction QA pending</li>
         <li>Chat search citations render in conversation bubbles</li>
         <li>Tool node appears in the compiled graph image with requester return paths</li>
         <li>Lower-right floating chat panel with keyboard focus/close</li>
@@ -260,8 +261,9 @@
   <h2>Later</h2>
   <div class="grid">
     <section class="card pending"><span class="badge">Next</span><h3>Live quality evaluation</h3><p>Measure Chat answer accuracy and source relevance across more factual questions; label source diversity and extend edit coverage to reorder and replace.</p></section>
-    <section class="card done"><span class="badge">Verified, stopped</span><h3>Temporary sharing</h3><p>Ngrok HTTPS tunnel passed app, graph and session checks, then was stopped on request; the local app remains healthy.</p></section>
-    <section class="card pending"><span class="badge">Deferred</span><h3>Production concerns</h3><p>Auth0 production rollout, cross-device archive recovery, non-ngrok ingress limits, log retention and operational security.</p></section>
+    <section class="card done"><span class="badge">Retired</span><h3>Temporary sharing</h3><p>The ngrok service, token setting and Traffic Policy were removed after Cloudflare became the public ingress. Historical tunnel checks remain in the learning log.</p></section>
+    <section class="card done"><span class="badge">Live · Auth0 OTP pending</span><h3>Cloudflare custom domain</h3><p>The existing Tunnel serves citedtrip.app and browser-like root/health checks pass. Remove the former ngrok callback/logout URLs from Auth0; complete OTP, planner and logout checks.</p></section>
+    <section class="card pending"><span class="badge">Deferred</span><h3>Production concerns</h3><p>Auth0 production rollout, cross-device archive recovery, log retention and operational security.</p></section>
   </div>
 
   <p>Durable detail: <a href="project-charter.md">charter</a>,

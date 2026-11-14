@@ -123,7 +123,11 @@ def _plan(destination: str) -> SightseeingPlan:
 
 
 def _client(
-    tmp_path, provider: FakeOidcProvider, monkeypatch: pytest.MonkeyPatch
+    tmp_path,
+    provider: FakeOidcProvider,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    base_url: str = "https://planner.example.test",
 ) -> tuple[TestClient, AuthRepository, SavedTourRepository]:
     monkeypatch.setenv("GTP_AUTH_SESSION_SECRET", "s" * 32)
     monkeypatch.setenv("GTP_AUTH_PUBLIC_ORIGIN", "https://planner.example.test")
@@ -139,7 +143,7 @@ def _client(
                 auth_provider=provider,
                 auth_repository=auth,
             ),
-            base_url="https://planner.example.test",
+            base_url=base_url,
         ),
         auth,
         tours,
@@ -170,6 +174,42 @@ def _sign_in(client: TestClient, provider: FakeOidcProvider) -> str:
         == provider.authorization_calls[0]["code_verifier"]
     )
     return client.get("/api/auth/me").json()["csrf_token"]
+
+
+def test_auth0_uses_the_configured_public_origin_for_callback_and_logout(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    provider = FakeOidcProvider("auth0|migration", "migration@example.test")
+    origin = "https://citedtrip.app"
+    client, _, _ = _client(tmp_path, provider, monkeypatch, base_url=origin)
+    monkeypatch.setenv("GTP_AUTH_PUBLIC_ORIGIN", origin)
+
+    csrf = _sign_in(client, provider)
+
+    expected_callback = f"{origin}/api/auth/callback"
+    assert provider.authorization_calls[0]["redirect_uri"] == expected_callback
+    assert provider.callback_calls[0]["redirect_uri"] == expected_callback
+
+    logout = client.post("/api/auth/logout", headers={"X-CSRF-Token": csrf})
+    assert logout.status_code == 200
+    assert f"returnTo={origin}/" in logout.json()["logout_url"]
+
+
+def test_auth0_rejects_login_from_unconfigured_host(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    provider = FakeOidcProvider("auth0|migration", "migration@example.test")
+    client, _, _ = _client(tmp_path, provider, monkeypatch)
+    monkeypatch.setenv("GTP_AUTH_PUBLIC_ORIGIN", "https://citedtrip.app")
+
+    response = client.get(
+        "/api/auth/login",
+        headers={"Host": "attacker.example.test"},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 503
+    assert provider.authorization_calls == []
 
 
 @pytest.mark.parametrize(
