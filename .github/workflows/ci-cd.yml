@@ -6,6 +6,7 @@ on:
       - feature/travel-ground-planner
   pull_request:
     branches:
+      - main
       - feature/travel-ground-planner
 
 permissions:

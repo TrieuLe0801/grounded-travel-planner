@@ -1365,3 +1365,12 @@ three-role runtime and role-specific model policy.
   provider checks were not run because this change only updates Codex
   configuration and documentation. A PR to `main` is requested; record its
   URL and CI result after creation.
+- Opened [PR #7](https://github.com/TrieuLe0801/grounded-travel-planner/pull/7)
+  from `feature/codex-agent-workflow-20261114` to `main`. Its initial combined
+  status was empty because the existing `pull_request` filter only targeted
+  `feature/travel-ground-planner`; added `main` while preserving the feature
+  target and push/deployment behavior. PR CI will be checked after this workflow
+  update is pushed.
+- System `python3` could not import PyYAML
+  (`ModuleNotFoundError: No module named 'yaml'`). The locked project
+  environment parsed the updated workflow and confirmed the `main` PR trigger.
