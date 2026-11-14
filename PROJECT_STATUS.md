@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-11-14
+Last updated: 2026-11-15
 
 ## Current Milestone
 
@@ -48,17 +48,25 @@ background only.
 | Admin access and account usage | Source implemented; migration and live QA pending | New accounts await approval; admin API/UI can grant, block and regrant. Token and cost figures read account-linked LangSmith LLM runs; unavailable LangSmith does not block access management. Email-based bootstrap resolves one existing account; the selected email is not tracked. Offline suite 197 passed, 1 skipped; frontend check/build and Python quality gates passed. Host `.env` lacks LangSmith key/project; production migration, admin bootstrap, browser and live LangSmith query QA have not run. |
 | Auth0 SSO and mandatory sign-in | Latest source built and offline-tested; browser/deployment pending | Image `sha256:07e93379edc0efcf157dca5d28af79d7f91e96321b9911e1a0d323de25342b71` was healthy at last check. Latest source adds an Auth0 signup hint and separates SSO sign-in from registration. Full suite 199 passed, one optional PostgreSQL test skipped; frontend check/build and Python quality checks passed. Live Auth0 signup, SSO, OTP, callback exchange, browser QA and deployment remain pending. |
 | Security audit | Source fixes deployed; live account-flow QA pending | CSRF on authenticated planner writes, local graph SVG rendering, HTTPS-only Auth0 issuer and private SQLite file modes. Domain root/health smoke passed; full OTP, owner isolation and logout not exercised live. |
-| Mac CI/CD | CI passed; automatic deployment gated | Run `42471059065` first hit HTTP 504 downloading CPython 3.10.22 on `ubuntu-26.04`; rerunning SHA `27a17e7` passed Python tests/lint, frontend checks/build and Compose validation. `GTP_DEPLOY_ENABLED=false`; app was not deployed. |
+| Mac CI/CD | Main-targeted PR CI configured; automatic deployment gated | Added `main` to GitHub Actions PR targets while keeping push CI on `feature/travel-ground-planner` for the Mac poller. PR #7 is synced to main and mergeable but has no workflow run/status because the base branch still has the old trigger; the change enables future main-targeted PR checks after merge. Existing run `42471059065` passed on rerun SHA `27a17e7`. `GTP_DEPLOY_ENABLED=false`; no app deployment. |
 | Large saved-tour archive | PostgreSQL 2M-row isolated benchmark passed | Owner/time/ID index and keyset pages; 10-sample page 1 p50/p95 0.729/13.898 ms, page 20,000 0.373/21.557 ms; tiny synthetic snapshots, no concurrent traffic |
 | Pre-push security review | Focused source review and regression passed | Session and saved-tour owner cookies default to Secure; Compose forces Secure; local data excluded from Git and Docker context; isolated full suite 132 passed, 1 skipped |
 | Auth callback and public ingress hardening | Deployed; smoke checked | App runs Uvicorn with `--no-access-log`; Cloudflare Tunnel is the only public ingress. The app and connector share the isolated ingress network, PostgreSQL stays off it. Auth0 login reaches the hosted page on `citedtrip.app`; full OTP and logout checks remain pending |
 | Cloudflare custom domain | Live; ngrok retired | Existing `cloudeflared-tunnel` serves `citedtrip.app` to `http://app:8000`; browser-like root and health requests return HTTP 200. Ngrok service, token setting, and Traffic Policy were removed. Remove the old ngrok callback/logout entries from Auth0; OTP, planner, and logout checks remain pending |
-| Codex development workflow | Project-authored skills, minimal-change discipline and portable setup documented | Development agents inherit session models; portable transfer/verification guides supplement project-specific `.codex` skills. Adapted Ponytail's smallest-complete-change ideas into local guidance. No Ponytail files copied. Skill validation, agent TOML, delivery YAML, roadmap JSON and diff checks passed. RTK hook activation still needs a new trusted session |
+| Codex development workflow | Five-role delivery pipeline configured | Researcher proposes Goal Card; Planner plans; Coordinator implements; Tester verifies without hardcoded pass outcomes; Deployer opens requested PRs to `main` and follows existing release gates. Duplicate verification skill removed; transfer, delivery, UI, and security skills retained. Configuration and documentation checks recorded in the 2026-11-15 workflow log. |
 
 Planning progress is not implementation progress. Only executable artifacts and
 actual checks count as completion evidence.
 
 ## Done
+
+- Replaced the four development roles with Researcher, Planner, Coordinator,
+  Tester, and Deployer. Removed the duplicate routine-verification skill while
+  retaining portable transfer and project delivery/UI/security guidance.
+  Deployer opens requested PRs to `main`; deployment and release remain subject
+  to the accepted goal and existing CI, migration, backup, and runtime gates.
+  Runtime agents and app behavior are unchanged. See the 2026-11-15 Codex
+  workflow learning-log entry for checks and PR evidence.
 
 - Updated the bilingual landing to describe sightseeing planning and its purpose,
   with separate SSO sign-in and registration buttons. Registration requests the

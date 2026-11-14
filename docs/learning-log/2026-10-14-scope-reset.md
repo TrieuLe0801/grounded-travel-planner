@@ -1354,3 +1354,55 @@ three-role runtime and role-specific model policy.
   after baseline to support those additions.
 - Static skill, TOML, YAML, JSON and diff checks passed. No application tests or
   runtime checks ran for this workflow-only change.
+
+## Five-Role Codex Delivery Workflow — 2026-11-15
+
+- The user requested a Researcher who proposes a reasonable goal, Planner who
+  plans the goal, Coordinator who implements and resolves bounded plan choices,
+  Tester who verifies against the goal without hardcoding a pass, and Deployer
+  who opens PRs to `main` and handles gated deployment/release.
+- Replaced the manager, coding, and testing roles with researcher, coordinator,
+  and tester; retained planner; added deployer. Updated the primary Coordinator,
+  AGENTS.md, delivery skill, workflow guide, ADR 0001, status, progress JSON,
+  and roadmap summary.
+- Removed `.agents/skills/project-change-verification/` because routine checks
+  already belong to AGENTS.md and Tester. Kept the portable
+  `codex-workflow-transfer` skill because AGENTS.md still requires
+  cross-repository and cross-machine setup support. Kept delivery, UI, and
+  security-review skills for separate active work.
+- Deployer opens requested PRs to `main`, does not merge without a direct
+  request, and uses the existing CI and deployment gates. Current
+  `GTP_DEPLOY_ENABLED=false` and Auth0 migration requirements remain in force.
+  No app/runtime behavior changed.
+- Verification: five agent TOMLs and primary config TOML parsed; four skill
+  frontmatters, two skill manifests, and roadmap JSON parsed; staged
+  `git diff --cached --check` passed. The first sandboxed `uv run python -c`
+  attempt failed because uv could not access `/Users/trieule/.cache/uv`
+  (`Operation not permitted`); the same full parse check passed when rerun with
+  cache access. A later sandboxed recheck hit the same cache error;
+  `python3 -c` parsed the updated roadmap JSON and staged diff check passed.
+- Application pytest, frontend, browser, container, deployment, and live
+  provider checks were not run because this change only updates Codex
+  configuration, CI trigger, and documentation. The requested PR is open; see
+  below for its URL and CI status.
+- Opened [PR #7](https://github.com/TrieuLe0801/grounded-travel-planner/pull/7)
+  from `feature/codex-agent-workflow-20261114` to `main`. Its initial combined
+  status was empty because the existing `pull_request` filter only targeted
+  `feature/travel-ground-planner`; added `main` while preserving the feature
+  target and push/deployment behavior. After pushing the filter update,
+  GitHub still reported no workflow run or status check because the base branch
+  still contains the old trigger. This PR configures future main-targeted PR CI
+  after merge; the PR itself has local static verification only.
+- System `python3` could not import PyYAML
+  (`ModuleNotFoundError: No module named 'yaml'`). The locked project
+  environment parsed the updated workflow and confirmed the `main` PR trigger.
+- While PR #7 was open, `main` advanced from `adede8e` to `9ee06e8` through
+  PR #6. GitHub compare reported the PR branch two commits behind and
+  `mergeable=false`. Merged the latest `origin/main` into the feature branch.
+  Resolved one `PROJECT_STATUS.md` conflict by preserving both the workflow
+  entry and the landing-signup entry. All other files merged without conflicts;
+  staged diff checks and roadmap JSON parsing passed.
+- After the sync, GitHub reports PR #7 head `7cc66eb`, mergeable, and zero
+  commits behind `main`. Workflow-run and combined-status queries still return
+  no runs or checks because the base branch has not yet received the trigger
+  change. No deployment ran.

@@ -31,21 +31,26 @@ dependencies. Add an abstraction, option, layer or dependency only when
 acceptance needs it. Keep every required safety and product guard; do not
 optimize for line count alone.
 
-## Execution Lanes
+## Agent Handoffs
 
-Select the smallest lane that can meet the Goal Card:
+For implementation goals, use the project roles in order:
 
-1. **Direct:** read-only work or one-file administrative update; primary session
-   completes it with a relevant static check.
-2. **Scoped coding:** focused implementation, configuration, or documentation;
-   assign coding only when delegation saves work.
-3. **Coding + testing:** use when behavioral verification is requested or an
-   acceptance criterion requires proof.
-4. **Planner, coding, testing:** use for cross-layer, high-risk, or architectural
-   work. Planner supplies repository evidence before implementation.
+1. **Researcher** inspects requirements and repository evidence, then proposes
+   the Goal Card. Researcher does not edit files.
+2. **Planner** turns the Goal Card into an ordered plan with file ownership,
+   dependencies, acceptance evidence, and checks. Planner does not edit files.
+3. **Coordinator** implements the plan, resolves bounded implementation
+   choices, and integrates changes.
+4. **Tester** verifies the change against the Goal Card. Tester derives
+   expectations from contracts or independent inputs and reports every failed
+   check with its error and cause.
+5. **Deployer** opens a requested PR to `main`; deploys or releases only when
+   the Goal Card includes that outcome and project gates allow it.
 
-The primary session owns the Goal Card, integration, durable records, and final
-judgment. Development agents are helpers, not runtime travel-research roles.
+Skip a stage only when its work is outside the goal, such as deployment for a
+documentation-only change. Keep primary session responsible for integration,
+durable records, and final judgment. Development agents are separate from
+runtime travel-planner roles.
 
 ## Goal Lifecycle
 
@@ -86,9 +91,15 @@ blocker recurs for three consecutive goal turns without meaningful progress.
 ## Commit And Push Gates
 
 - Stage explicit files only after acceptance passes.
-- Commit only when acceptance passes and the user explicitly requested a commit.
+- Commit only when acceptance passes and the user explicitly requested a commit
+  or PR.
 - Push only when acceptance passes, a commit exists for this work, and the user
-  explicitly requested a push.
+  explicitly requested a push or PR. Push feature branches only; never push
+  directly to `main`.
+- Open requested PRs against `main` after required checks pass. Do not merge
+  unless the user explicitly asks.
+- Deploy or release only when the accepted Goal Card includes that outcome and
+  existing project gates allow it.
 - Do not use force push, amend, rebase, hook bypass, or broad staging.
 - If no upstream exists and push was explicitly requested, push the current
   branch to `origin` with `-u` only after confirming the branch name and remote

@@ -6,14 +6,18 @@ This repository keeps its Codex development workflow in Git:
 |---|---|
 | `AGENTS.md` | Project rules and required reading |
 | `.codex/config.toml` | Agent concurrency; models inherit from the session |
-| `.codex/agents/*.toml` | Manager, planner, coding, and testing roles |
-| `.agents/skills/*/SKILL.md` | Portable workflow-transfer and verification references |
+| `.codex/agents/*.toml` | Researcher, planner, coordinator, tester, and deployer roles |
+| `.agents/skills/*/SKILL.md` | Portable workflow-transfer reference |
+| `.codex/skills/*/SKILL.md` | Delivery, UI, and security-review guidance |
 | `.codex/hooks.json`, `.codex/hooks/format_python.py` | Python edit hook |
 | `pyproject.toml`, `uv.lock` | Development tools and locked dependencies |
 
-The Codex development agents are separate from the app's Coordinator, Planner
-and Chat runtime roles. Project-specific agent instructions and skills remain
-under `.codex/`; `AGENTS.md` and project records carry product decisions.
+For implementation goals, the development workflow passes requirements from
+Researcher to Planner, implementation to Coordinator, verification to Tester,
+and requested PR or release work to Deployer. The Codex roles are separate from
+the app's Coordinator, Planner, and Chat runtime roles. Project-specific agent
+instructions and skills remain under `.codex/`; `AGENTS.md` and project records
+carry product decisions.
 
 ## Another machine, same repository
 
@@ -24,7 +28,7 @@ under `.codex/`; `AGENTS.md` and project records carry product decisions.
    signed-in account; development subagents inherit it.
 3. Set up credentials in ignored local environment files. Do not transfer
    `.env`, personal Codex config, plugin cache, or credentials through Git.
-4. Check that Codex discovers the four agents and the project and portable
+4. Check that Codex discovers all five agents and the project and portable
    skills. Follow `AGENTS.md` for this repository's active workflow.
 
 Personal skills in `~/.agents/skills/` or `~/.codex/skills/`, including
@@ -47,8 +51,8 @@ result before committing it to the destination repository.
 
 ## Skill checks
 
-Use `skill-creator`'s `quick_validate.py` for each changed skill. SkillSpector
-checks security patterns; it does not measure whether an agent performs better
-with a skill. For performance, use a controlled with-skill/without-skill run
-through SkillEvaluator when an agent runtime and credentials are available.
-Record the exact tool versions, commands, findings, and limits with the change.
+Use the available skill manifest validator for each changed skill. Routine code
+verification belongs to Tester and `AGENTS.md`, so this repository has no
+separate project-change-verification skill. Keep the portable transfer skill
+only for cross-repository or cross-machine setup requests. Record commands,
+results, and limits with the change.

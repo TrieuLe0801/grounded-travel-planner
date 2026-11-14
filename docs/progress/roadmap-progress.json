@@ -1,6 +1,6 @@
 {
-  "version": 104,
-  "updated": "2026-11-14T22:23:30+07:00",
+  "version": 105,
+  "updated": "2026-11-15T00:19:20+07:00",
   "active_scope": "city-place-sightseeing-webapp",
   "current_milestone": "Milestone 1: executable city/place sightseeing vertical slice",
   "completed": {
@@ -517,7 +517,12 @@
       "No shortcut: markers or measured before/after baseline exist in this repository",
       "2026-11-01 prior refresh: TOML parsing and git diff --check passed",
       "2026-11-01 refresh: four agents, delivery/evaluation skills and UI overlay aligned with PostgreSQL Compose, session-only state, model fallback, cookie and capacity decisions",
-      "2026-11-01 refresh checks: two skill validators passed, four TOML files parsed with tomli, git diff --check passed"
+      "2026-11-01 refresh checks: two skill validators passed, four TOML files parsed with tomli, git diff --check passed",
+      "2026-11-15: replaced manager/coding/testing roles with researcher/coordinator/tester, retained planner, and added deployer; primary Coordinator routes implementation goals through Goal Card, ordered plan, implementation, verification, and requested PR/release stages",
+      "Tester requires contract-based expectations, prohibits hardcoded pass outcomes or weakened assertions, and reports each failed check with its error and cause",
+      "Removed duplicate project-change-verification skill; retained codex-workflow-transfer and delivery/UI/security skills for separate needs",
+      "Deployer opens requested PRs against main and preserves current CI, branch-protection, migration, backup, and deployment gates",
+      "Configuration, skill metadata, documentation, progress JSON, and diff checks recorded in the current workflow learning-log entry; no application or live-provider checks run"
     ],
     "codex_project_token_guidance_configured": [
       "AGENTS.md: local @RTK.md reference and Vietnamese caveman full default",
@@ -820,7 +825,9 @@
       "GTP_DEPLOY_ENABLED=false pending the explicit Auth0 database migration and rollout",
       "deployment preflight, shell syntax, YAML parsing, plist validation and diff checks passed; app not restarted",
       "GitHub Actions run 42471059065 failed at setup-python on three HTTP 504 responses while downloading CPython 3.10.22 on ubuntu-26.04",
-      "Rerun at SHA 27a17e7 passed Python setup/tests/lint, frontend check/build and Compose validation; GTP_DEPLOY_ENABLED=false, so no app deployment ran"
+      "Rerun at SHA 27a17e7 passed Python setup/tests/lint, frontend check/build and Compose validation; GTP_DEPLOY_ENABLED=false, so no app deployment ran",
+      "2026-11-15: added main to pull_request targets; push CI remains on feature/travel-ground-planner for the existing gated Mac poller; no deployment is triggered by a PR",
+      "PR #7 is synced to main at 9ee06e8 and reports mergeable with zero commits behind; no workflow run/status is present because base main still contains the old trigger; the PR change enables main-targeted PR CI after merge, with no deployment"
     ],
     "ngrok_session_rate_limit": [
       "deploy/ngrok-traffic-policy.json: per-client-IP sliding-hour limits for POST /api/session, POST /api/session/reset and POST /api/turns",

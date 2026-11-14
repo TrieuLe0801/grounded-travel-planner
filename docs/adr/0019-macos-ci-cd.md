@@ -60,3 +60,11 @@ under ADR 0016.
 - Change the active deployment branch or move the app off the local Mac.
 - Replace Docker Compose or the external PostgreSQL data directory.
 - Complete the Auth0 rollout and set local `GTP_DEPLOY_ENABLED=true`.
+
+## Amendment — 2026-11-15 — Pull requests targeting main
+
+Keep the push workflow on `feature/travel-ground-planner` for the existing Mac
+poller. Also run hosted verification for pull requests targeting `main`, while
+retaining the existing feature-branch PR trigger. A PR-targeted workflow does
+not deploy the app. Deployment still requires a passing push workflow and the
+local gate described above.
