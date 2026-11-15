@@ -2101,7 +2101,7 @@ function App() {
       >
         {labels.skip}
       </a>
-      <header className="border-b border-blue-100 bg-white/90 backdrop-blur">
+      <header className="relative z-10 border-b border-blue-100 bg-white/90 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6">
           <button
             type="button"
