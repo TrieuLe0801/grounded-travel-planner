@@ -1,10 +1,9 @@
 # The primary Codex session coordinates the development workflow.
 # Models come from the signed-in Codex session so this project works across accounts.
 
-[agents]
+[agents.coordinator]
 enabled = true
 max_concurrent_threads_per_session = 4
-name = "coordinator"
 description = "Coordinate research, planning, implementation, testing, and requested delivery."
 developer_instructions = """
 Act as primary Coordinator. Read AGENTS.md and its required records in order;
