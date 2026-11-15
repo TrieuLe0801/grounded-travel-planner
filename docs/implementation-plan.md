@@ -1,7 +1,29 @@
 # Implementation Plan
 
 Status: Active
-Last updated: 2026-11-14
+Last updated: 2026-11-15
+
+## Google Admin Sign-in Repair — Applied — 2026-11-15
+
+The user confirmed sign-in through “Continue with Google”. PostgreSQL had a
+Google identity in a separate pending account while the existing email identity
+owned the active admin account and five saved tours. A one-time maintenance
+transaction moved only the Google identity to the existing admin UUID, revoked
+and removed its old sessions, and recorded an audit event. Another pending
+Auth0 identity with the same email was left unchanged. Runtime email-based
+account linking was not added.
+
+Before the change, a 7.8 MB PostgreSQL custom-format backup was written to the
+ignored `.local/backups/2026-11-15-admin-google-link-pre.dump`; `pg_restore`
+read the full backup successfully. The transaction dry-run rolled back and
+reported five tours and two old sessions. Post-check confirmed both Google and
+email identities map to one active admin, all five tours remain, and one audit
+event exists. User must sign in again; browser callback was not exercised.
+
+The maintenance entry point is `scripts/link_admin_google_identity.py`. It
+defaults to rollback; `--apply` commits after validating account state and
+identity type. It is specific to this repair and is not a runtime linking
+policy.
 
 ## Landing Registration and SSO Entry Buttons — Source Updated — 2026-11-14
 

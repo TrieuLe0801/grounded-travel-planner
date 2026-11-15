@@ -4,6 +4,13 @@ Status: Accepted
 Date: 2026-11-08
 Amended: 2026-11-14
 
+User amendment — 2026-11-15: A verified Google identity may be linked manually
+to the matching existing administrator account when the user explicitly
+requests it. This is a one-time, operator-run repair with exact identity and
+account-state checks, a database backup, session revocation, and audit record.
+Runtime account lookup still uses issuer and subject; it never links accounts
+automatically by email. Do not generalize this repair to other identities.
+
 ## Context
 
 ADR 0016 selected Auth0 Universal Login with email OTP for saved-tour ownership,

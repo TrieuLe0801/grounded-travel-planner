@@ -1,5 +1,22 @@
 # Learning Log - 2026-10-14 Scope Reset
 
+## Google Admin Sign-in Repair — 2026-11-15
+
+- The user confirmed “Continue with Google”. Production PostgreSQL contained an
+  active email identity with admin access and five saved tours, plus a separate
+  pending Google identity with the same email. A third pending Auth0 identity
+  was not changed.
+- Backed up PostgreSQL to ignored
+  `.local/backups/2026-11-15-admin-google-link-pre.dump` (7.8 MB); `pg_restore`
+  successfully read the complete backup. The maintenance script dry-run rolled
+  back and reported five tours and two sessions.
+- Applied a one-time transaction that moved the Google issuer/subject to the
+  existing admin UUID, removed the pending account's sessions and account row,
+  and wrote an access audit event. Post-check confirmed both identities share
+  the active admin UUID and all five tours remain.
+- Added no automatic email linking. The user must sign in again; live browser
+  callback verification remains pending.
+
 ## Landing Copy and Auth0 Registration Action — 2026-11-14
 
 - The user requested separate registration and SSO sign-in buttons. The user
