@@ -189,7 +189,7 @@
         <li>Verified new accounts need no admin grant; admin controls still block and regrant by internal account UUID</li>
         <li>Blocking revokes account sessions; saved tours and LangSmith traces remain intact</li>
         <li>Admin view reads account token counts and USD cost from LangSmith LLM runs, with model and date detail</li>
-        <li>Offline suite: 218 passed, 1 skipped; Python quality checks pass. Live no-date query with a synthetic account ID passes after 400-day window fix. Production migration, bootstrap, browser QA and app restart remain pending</li>
+        <li>Offline suite: 219 passed, 1 skipped; Python quality checks pass. LangSmith returns lowercase <code>llm</code>; case-insensitive grouping now retains account runs. Safe live check found tagged traces with token and cost fields. Active container still has pre-fix code; migration, bootstrap and deployment remain pending</li>
       </ul>
     </section>
     <section class="card active">

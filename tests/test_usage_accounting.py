@@ -161,6 +161,19 @@ def test_langsmith_usage_filters_account_and_date_and_keeps_unknown_cost():
     assert len(client.runs.calls) == 2
 
 
+def test_langsmith_lowercase_run_type_counts_account_usage():
+    account = "account-one"
+    run = _run(account)
+    run.run_type = "llm"
+    usage = UsageRepository(client=_Client([run]), project_name="test-project")
+
+    summary = usage.summary_for_users([account])[account]
+
+    assert summary.input_tokens == 10
+    assert summary.output_tokens == 5
+    assert summary.estimated_cost_usd == Decimal("0.002")
+
+
 def test_langsmith_missing_usage_and_unknown_zero_price_are_not_fabricated():
     account = "account-one"
     usage = UsageRepository(

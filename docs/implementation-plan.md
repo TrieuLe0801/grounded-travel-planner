@@ -151,6 +151,23 @@ rerun with `PYTHON_DOTENV_DISABLED=1`. LangSmith settings are present in host
 environment; their values were not printed or recorded. Browser QA, app
 rebuild/restart, migration, admin bootstrap and deployment remain pending.
 
+### LangSmith Run-Type Case — Source Fix Verified — 2026-11-15
+
+A user reported no tokens after starting a new session. A safe live check found
+recent model traces with account references, token counts and cost fields. The
+exact account filter matched runs, but `UsageRepository` returned no summaries.
+The LangSmith SDK returns `run_type` as lowercase `llm`; the post-query account
+grouping compared it with uppercase `LLM` and discarded every matching run.
+The grouping now case-folds the returned value. A regression test covers the
+SDK casing. No prompt, account ID, email or individual usage amount was
+recorded.
+
+Verification: focused usage/admin tests passed 13 cases; full offline suite
+passed 219 tests with one optional PostgreSQL test skipped. Isort, Black,
+flake8, Ruff and `git diff --check` passed. The active container still runs the
+pre-fix package. No rebuild/restart, account-access migration or administrator
+bootstrap ran; deployment remains gated by those steps.
+
 ## Cloudflare Custom Domain — Live; ngrok Retired — 2026-11-12
 
 The user selected `https://citedtrip.app` and approved reusing the existing

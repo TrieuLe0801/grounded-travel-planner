@@ -1487,3 +1487,22 @@ three-role runtime and role-specific model policy.
   matching account runs. No account usage data was inspected. Browser QA,
   app rebuild/restart, migration, administrator bootstrap and deployment remain
   pending.
+
+## LangSmith Account Usage Run-Type Fix — 2026-11-15
+
+- The user reported that a new session still produced no token totals in the
+  admin page. A restricted live check read recent run metadata and aggregated
+  results in memory; it did not print prompts, account references, emails or
+  per-account amounts. Recent LLM runs had `account_ref`, token counts and cost
+  fields, and the exact account filter returned matching runs.
+- `UsageRepository._runs_for_users` then discarded every result because the
+  LangSmith SDK returns `run_type="llm"`, while the grouping check required
+  exact uppercase `"LLM"`. The code now compares a case-folded value. A focused
+  regression test uses the SDK's lowercase value.
+- Focused usage/admin tests passed 13 cases. Full offline suite passed 219 tests
+  with one optional PostgreSQL test skipped. Isort, Black, flake8, Ruff and
+  `git diff --check` passed. No account amounts or trace identifiers were
+  recorded.
+- The running container still has the pre-fix package. No deployment ran;
+  account-access migration and first-administrator bootstrap remain rollout
+  gates.
