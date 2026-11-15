@@ -1,6 +1,6 @@
 {
-  "version": 110,
-  "updated": "2026-11-15T15:06:37+07:00",
+  "version": 111,
+  "updated": "2026-11-15T21:51:23+07:00",
   "active_scope": "city-place-sightseeing-webapp",
   "current_milestone": "Milestone 1: executable city/place sightseeing vertical slice",
   "completed": {
@@ -85,7 +85,8 @@
     "auth0_account_live": false,
     "auth0_account_deployed": true,
     "admin_access_usage_offline": true,
-    "admin_access_usage_deployed": false,
+    "admin_access_usage_deployed": true,
+    "account_usage_alias_deployed": true,
     "macos_ci_cd_configured": true,
     "ngrok_session_rate_limit": false,
     "auth_callback_access_logging_disabled": true,
@@ -172,10 +173,16 @@
       "frontend/src/main.tsx",
       "tests/test_admin_access.py",
       "tests/test_usage_accounting.py",
-      "Focused usage/admin tests: 13 passed; full offline suite: 219 passed, 1 optional PostgreSQL test skipped with PYTHON_DOTENV_DISABLED=1; isort, Black, flake8 and Ruff passed. No-date account usage starts at project creation and splits longer history into adjacent 400-day windows. LangSmith returns run_type='llm'; case-insensitive grouping now retains matched traces. Safe live check confirmed recent traces had account_ref, token counts and cost fields, and exact account filtering matched; no identifiers or amounts recorded. Active container still has pre-fix code; migration, admin bootstrap and deployment remain pending"
+      "Focused usage/admin tests: 13 passed; full offline suite: 219 passed, 1 optional PostgreSQL test skipped with PYTHON_DOTENV_DISABLED=1; isort, Black, flake8 and Ruff passed. No-date account usage starts at project creation and splits longer history into adjacent 400-day windows. LangSmith returns run_type='llm'; case-insensitive grouping retains matched traces. A later alias follow-up passed 63 focused and 222 full offline tests, with one optional PostgreSQL skip."
     ],
     "admin_access_usage_deployed": [
-      "Not deployed; explicit account-access database migration and first-admin bootstrap pending"
+      "Running Compose app contains the lowercase LangSmith run-type fix and the account usage alias reader; PostgreSQL has one active administrator and one confirmed usage alias. The app is healthy and /api/health returned 200. Live repository aggregation matched the former account's LangSmith totals; browser administrator flow remains unchecked."
+    ],
+    "account_usage_alias_deployed": [
+      "docs/adr/0023-admin-access-and-account-usage.md: user-confirmed former UUID maps to retained UUID without email inference or rewriting LangSmith traces",
+      "src/grounded_travel_planner/auth.py, src/grounded_travel_planner/usage.py and src/grounded_travel_planner/web/api.py: persistent alias lookup and combined admin list/detail aggregation",
+      "Full offline suite: 222 passed, 1 optional PostgreSQL test skipped; isort, Black, flake8, Ruff and diff checks passed",
+      "PostgreSQL backup passed full pg_restore read; guarded migration passed rollback dry run and committed one alias while app writes were paused. Independent DB post-check: one retained account, three identities, five saved tours and one alias. Rebuilt app healthy; live LangSmith read returned 21,351 input tokens, 7,323 output tokens, USD 0.11587275, three model groups and nine calls. Browser QA not run."
     ],
     "scope_reset_docs": [
       "docs/project-charter.md",

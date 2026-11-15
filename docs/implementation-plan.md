@@ -3,6 +3,44 @@
 Status: Active
 Last updated: 2026-11-15
 
+## Merged Account LangSmith Usage — Compose Deployed — 2026-11-15
+
+The user requested that usage under a removed, user-confirmed duplicate UUID
+be counted under the retained account. Administrator list and detail queries
+now load an explicit persistent former-to-canonical UUID alias, query both
+LangSmith account references, and group the resulting model runs under the
+canonical account. Matching email cannot create an alias. Existing LangSmith
+traces remain unchanged. A missing alias table marks usage unavailable rather
+than reporting zero.
+
+Focused offline tests passed 63 cases; the full suite passed 222 with one
+optional PostgreSQL test skipped. Isort, Black, flake8, Ruff and diff checks
+passed. A live source query returned 21,351 input and 7,323 output tokens,
+USD 0.11587275 cost, all under the former reference before aliasing. After a
+full validated backup and rollback dry run, the guarded PostgreSQL migration
+stored one alias while the app was stopped. Recreated app image
+`sha256:4a42eb958dd519ebf3dd27374d46578dc0e7da3f589ccebbc150d54e63cc3b97`
+became healthy. Independent DB post-check found the alias, one retained
+account, three identities and five saved tours. The running app read the
+alias and returned the same totals from LangSmith; model detail had three
+groups and nine calls. `/api/health` returned 200. No browser administrator
+check ran. Recreating the app cleared session-only plans and chat.
+
+## Existing User Duplicate Account Repair — Applied — 2026-11-15
+
+The user identified two application rows for one email and chose the older
+2026-11-06 account as canonical. The older row owned five saved tours and an
+email OTP identity; the newer 2026-11-15 row held Auth0 password and Google
+identities, no tours, one application session, and one access event. A guarded
+PostgreSQL transaction moved the two identities and access event to the older
+UUID, revoked and removed the newer session and account row, and recorded a
+merge event. A full ignored PostgreSQL backup passed `pg_restore` validation;
+the transaction passed a rollback dry run before commit. Independent post-check
+found one account row, three identities, five tours, two events, and no newer
+row or sessions. No app restart or browser sign-in ran at that stage. LangSmith
+runs already tagged to the removed UUID retained their historic reference; the
+follow-up alias above now includes them in canonical account usage totals.
+
 ## Existing Accounts and Google SSO Linking — Offline Verified; Live QA Pending — 2026-11-15
 
 An existing user must be able to use Google SSO without registering again and

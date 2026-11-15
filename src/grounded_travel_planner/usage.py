@@ -200,10 +200,18 @@ class UsageRepository:
         *,
         start: str | None,
         end: str | None,
+        account_aliases: Mapping[str, Sequence[str]] | None = None,
     ) -> dict[str, list[Any]]:
         if not user_ids:
             return {}
-        refs = {account_trace_ref(user_id): user_id for user_id in user_ids}
+        refs: dict[str, str] = {}
+        for user_id in user_ids:
+            for source_id in (user_id, *(account_aliases or {}).get(user_id, ())):
+                ref = account_trace_ref(source_id)
+                owner = refs.get(ref)
+                if owner is not None and owner != user_id:
+                    raise UsageError("Conflicting account usage alias.")
+                refs[ref] = user_id
         lower, upper = self._bounds(start, end)
         if lower >= upper:
             return {user_id: [] for user_id in user_ids}
@@ -247,8 +255,11 @@ class UsageRepository:
         *,
         start: str | None = None,
         end: str | None = None,
+        account_aliases: Mapping[str, Sequence[str]] | None = None,
     ) -> dict[str, UsageSummary]:
-        grouped = self._runs_for_users(user_ids, start=start, end=end)
+        grouped = self._runs_for_users(
+            user_ids, start=start, end=end, account_aliases=account_aliases
+        )
         result: dict[str, UsageSummary] = {}
         for user_id, runs in grouped.items():
             totals = _Totals()
@@ -259,17 +270,31 @@ class UsageRepository:
         return result
 
     def detail_for_user(
-        self, user_id: str, *, start: str | None = None, end: str | None = None
+        self,
+        user_id: str,
+        *,
+        start: str | None = None,
+        end: str | None = None,
+        account_aliases: Mapping[str, Sequence[str]] | None = None,
     ) -> list[dict[str, object]]:
-        runs = self._runs_for_users([user_id], start=start, end=end)[user_id]
+        runs = self._runs_for_users(
+            [user_id], start=start, end=end, account_aliases=account_aliases
+        )[user_id]
         return self._details(runs)
 
     def usage_for_user(
-        self, user_id: str, *, start: str | None = None, end: str | None = None
+        self,
+        user_id: str,
+        *,
+        start: str | None = None,
+        end: str | None = None,
+        account_aliases: Mapping[str, Sequence[str]] | None = None,
     ) -> tuple[UsageSummary | None, list[dict[str, object]]]:
         """Return totals and model breakdown from the same LangSmith query."""
 
-        runs = self._runs_for_users([user_id], start=start, end=end)[user_id]
+        runs = self._runs_for_users(
+            [user_id], start=start, end=end, account_aliases=account_aliases
+        )[user_id]
         totals = _Totals()
         for run in runs:
             totals.add(run)

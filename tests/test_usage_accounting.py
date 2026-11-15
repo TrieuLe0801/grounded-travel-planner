@@ -174,6 +174,48 @@ def test_langsmith_lowercase_run_type_counts_account_usage():
     assert summary.estimated_cost_usd == Decimal("0.002")
 
 
+def test_confirmed_account_alias_adds_historical_usage_without_mixing_accounts():
+    canonical, former, other = "current-account", "merged-account", "other-account"
+    client = _Client(
+        [
+            _run(canonical, prompt=11, completion=4, cost=0.001),
+            _run(former, prompt=19, completion=7, cost=0.003),
+            _run(former, at="2026-10-31T23:59:59+00:00", cost=9),
+            _run(other, prompt=23, completion=8, cost=0.004),
+        ]
+    )
+    usage = UsageRepository(client=client, project_name="test-project")
+    window = {
+        "start": "2026-11-01T00:00:00+00:00",
+        "end": "2026-11-02T00:00:00+00:00",
+    }
+
+    summaries = usage.summary_for_users(
+        [canonical, other], account_aliases={canonical: [former]}, **window
+    )
+    assert summaries[canonical].input_tokens == 30
+    assert summaries[canonical].output_tokens == 11
+    assert summaries[canonical].estimated_cost_usd == Decimal("0.004")
+    assert summaries[other].input_tokens == 23
+    assert summaries[other].estimated_cost_usd == Decimal("0.004")
+    summary, details = usage.usage_for_user(
+        canonical, account_aliases={canonical: [former]}, **window
+    )
+    assert summary == summaries[canonical]
+    assert details[0]["calls"] == 2
+    assert details[0]["input_tokens"] == 30
+    assert details[0]["estimated_cost_usd"] == Decimal("0.004")
+    assert account_trace_ref(former) in client.runs.calls[0]["filter"]
+
+
+def test_account_alias_cannot_attribute_one_trace_to_two_accounts():
+    usage = UsageRepository(client=_Client([]), project_name="test-project")
+    with pytest.raises(UsageError, match="Conflicting account usage alias"):
+        usage.summary_for_users(
+            ["first", "second"], account_aliases={"first": ["second"]}
+        )
+
+
 def test_langsmith_missing_usage_and_unknown_zero_price_are_not_fabricated():
     account = "account-one"
     usage = UsageRepository(
