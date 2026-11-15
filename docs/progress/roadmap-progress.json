@@ -1,6 +1,6 @@
 {
-  "version": 108,
-  "updated": "2026-11-15T12:22:52+07:00",
+  "version": 109,
+  "updated": "2026-11-15T13:27:58+07:00",
   "active_scope": "city-place-sightseeing-webapp",
   "current_milestone": "Milestone 1: executable city/place sightseeing vertical slice",
   "completed": {
@@ -172,7 +172,7 @@
       "frontend/src/main.tsx",
       "tests/test_admin_access.py",
       "tests/test_usage_accounting.py",
-      "Offline pytest: 197 passed, 1 optional PostgreSQL test skipped; frontend check/build and Python quality gates passed. Usage reads account-linked LangSmith LLM runs; outage leaves access management available. Email bootstrap requires exactly one existing account. Live LangSmith query, production migration and browser QA pending"
+      "Focused usage/admin tests: 12 passed; full offline suite: 218 passed, 1 optional PostgreSQL test skipped with PYTHON_DOTENV_DISABLED=1; isort, Black, flake8 and Ruff passed. No-date account usage starts at project creation and splits longer history into adjacent 400-day windows. Live no-date query with a synthetic account ID passed with no matching account runs. Production migration, admin bootstrap, browser QA and app restart remain pending"
     ],
     "admin_access_usage_deployed": [
       "Not deployed; explicit account-access database migration and first-admin bootstrap pending"

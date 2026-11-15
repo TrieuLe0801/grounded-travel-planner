@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 from types import SimpleNamespace
 
 import pytest
@@ -47,13 +47,17 @@ class _FakeLangSmith:
         self.runs = self
         self.items = []
         self.error = None
+        self.queries = []
 
     def read_project(self, *, project_name):
         assert project_name == "admin-test"
-        return SimpleNamespace(id="project-id")
+        return SimpleNamespace(
+            id="project-id",
+            start_time=datetime.fromisoformat("2026-10-01T00:00:00+00:00"),
+        )
 
     def query(self, **kwargs):
-        del kwargs
+        self.queries.append(kwargs)
 
         async def rows():
             if self.error:
@@ -266,6 +270,11 @@ def test_admin_usage_page_shows_account_totals_and_unknown_cost(account_app):
     assert member.get("/api/admin/users").status_code == 403
     page = admin.get("/api/admin/users", params={"limit": 50})
     assert page.status_code == 200
+    assert page.json()["usage_available"] is True
+    assert all(
+        query["max_start_time"] - query["min_start_time"] <= timedelta(days=400)
+        for query in langsmith.queries
+    )
     row = next(item for item in page.json()["items"] if item["id"] == member_id)
     assert row["input_tokens"] == 32
     assert row["output_tokens"] == 11

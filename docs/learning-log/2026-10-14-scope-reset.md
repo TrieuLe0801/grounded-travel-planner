@@ -1464,3 +1464,26 @@ three-role runtime and role-specific model policy.
   commits behind `main`. Workflow-run and combined-status queries still return
   no runs or checks because the base branch has not yet received the trigger
   change. No deployment ran.
+
+## LangSmith Admin Usage Query Window — 2026-11-15
+
+- The admin account list queries LangSmith without date bounds. `UsageRepository`
+  sent a 1970-to-now interval, and LangSmith rejected the 20,772-day request
+  because one `runs.query` call can span at most 401 days. Project lookup and
+  host LangSmith configuration were available; missing credentials were not
+  the cause.
+- Usage queries now start at the LangSmith project creation time and divide
+  longer history into adjacent 400-day windows. Results are checked against
+  each half-open window before aggregation, so a run on a boundary is counted
+  once. Account scoping, token totals, unknown cost and access management
+  behavior remain unchanged.
+- Focused usage/admin tests passed 12 cases. Full offline suite passed 218
+  tests with one optional PostgreSQL test skipped; isort, Black, flake8 and
+  Ruff passed. The first full test run with dotenv enabled had 210 passes and
+  8 failures because host `GTP_AUTH_PUBLIC_ORIGIN=https://citedtrip.app` made
+  login tests return 503 instead of their expected localhost redirect 307. The
+  full suite passed with `PYTHON_DOTENV_DISABLED=1`.
+- A live no-date usage query with a synthetic account ID passed and returned no
+  matching account runs. No account usage data was inspected. Browser QA,
+  app rebuild/restart, migration, administrator bootstrap and deployment remain
+  pending.

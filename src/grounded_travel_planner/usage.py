@@ -10,12 +10,13 @@ from collections.abc import Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
 _account_ref: ContextVar[str | None] = ContextVar("account_trace_ref", default=None)
 _EARLIEST_TRACE = datetime(1970, 1, 1, tzinfo=timezone.utc)
+_MAX_QUERY_WINDOW = timedelta(days=400)
 _SELECTS = [
     "ID",
     "RUN_TYPE",
@@ -115,6 +116,7 @@ class UsageRepository:
         self._client = client
         self._project_name = project_name
         self._project_id: str | None = None
+        self._project_start_time: datetime | None = None
 
     @classmethod
     def from_environment(cls) -> UsageRepository:
@@ -137,6 +139,9 @@ class UsageRepository:
         if self._project_id is None:
             project = client.read_project(project_name=self._project_name)
             self._project_id = str(project.id)
+            start_time = getattr(project, "start_time", None)
+            if isinstance(start_time, datetime) and start_time.tzinfo is not None:
+                self._project_start_time = start_time
         return self._project_id
 
     @staticmethod
@@ -163,18 +168,31 @@ class UsageRepository:
             if len(refs) == 1
             else f"in(metadata_value, {json.dumps(list(refs))})"
         )
-        pager = client.runs.query(
-            project_ids=[project_id],
-            run_type="LLM",
-            filter=f'and(eq(metadata_key, "account_ref"), {filter_value})',
-            min_start_time=lower,
-            max_start_time=upper,
-            page_size=1000,
-            selects=_SELECTS,
-        )
-        if asyncio.iscoroutine(pager):
-            pager = await pager
-        return [run async for run in pager]
+        runs = []
+        window_start = lower
+        while window_start < upper:
+            window_end = min(window_start + _MAX_QUERY_WINDOW, upper)
+            pager = client.runs.query(
+                project_ids=[project_id],
+                run_type="LLM",
+                filter=f'and(eq(metadata_key, "account_ref"), {filter_value})',
+                min_start_time=window_start,
+                max_start_time=window_end,
+                page_size=1000,
+                selects=_SELECTS,
+            )
+            if asyncio.iscoroutine(pager):
+                pager = await pager
+            async for run in pager:
+                start_time = getattr(run, "start_time", None)
+                if (
+                    isinstance(start_time, datetime)
+                    and start_time.tzinfo is not None
+                    and window_start <= start_time < window_end
+                ):
+                    runs.append(run)
+            window_start = window_end
+        return runs
 
     def _runs_for_users(
         self,
@@ -193,6 +211,10 @@ class UsageRepository:
             client = self._client_or_raise()
             try:
                 project_id = self._project_id_or_raise(client)
+                if self._project_start_time is not None:
+                    lower = max(lower, self._project_start_time)
+                if lower >= upper:
+                    return {user_id: [] for user_id in user_ids}
                 queried = asyncio.run(
                     self._query(client, project_id, list(refs), lower, upper)
                 )

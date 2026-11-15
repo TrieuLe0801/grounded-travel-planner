@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from types import SimpleNamespace
 
@@ -64,20 +64,57 @@ class _Runs:
             for run in self.items:
                 if self.error:
                     raise self.error
-                yield run
+                if (
+                    kwargs["min_start_time"]
+                    <= run.start_time
+                    < kwargs["max_start_time"]
+                ):
+                    yield run
 
         return pages()
 
 
 class _Client:
-    def __init__(self, runs):
+    def __init__(self, runs, *, project_start_time=None):
         self.runs = _Runs(runs)
         self.read_project_calls = 0
+        self.project_start_time = project_start_time or datetime.fromisoformat(
+            "2026-10-01T00:00:00+00:00"
+        )
 
     def read_project(self, *, project_name):
         assert project_name == "test-project"
         self.read_project_calls += 1
-        return SimpleNamespace(id="project-id")
+        return SimpleNamespace(id="project-id", start_time=self.project_start_time)
+
+
+def test_langsmith_unbounded_usage_splits_all_history_into_safe_windows():
+    account = "account-one"
+    project_start = datetime.fromisoformat("2025-01-01T00:00:00+00:00")
+    boundary = datetime.fromisoformat("2026-02-05T00:00:00+00:00")
+    client = _Client(
+        [
+            _run(account, at=project_start.isoformat()),
+            _run(account, at=boundary.isoformat()),
+            _run(account, at="2026-11-01T12:00:00+00:00"),
+        ],
+        project_start_time=project_start,
+    )
+
+    summary = UsageRepository(
+        client=client, project_name="test-project"
+    ).summary_for_users([account])[account]
+
+    assert summary.input_tokens == 30
+    assert summary.output_tokens == 15
+    assert summary.estimated_cost_usd == Decimal("0.006")
+    assert len(client.runs.calls) == 2
+    windows = [
+        (call["min_start_time"], call["max_start_time"]) for call in client.runs.calls
+    ]
+    assert windows[0][0] == project_start
+    assert windows[0][1] == windows[1][0] == boundary
+    assert all(end - start <= timedelta(days=400) for start, end in windows)
 
 
 def test_langsmith_usage_filters_account_and_date_and_keeps_unknown_cost():
