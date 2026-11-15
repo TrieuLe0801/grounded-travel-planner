@@ -643,6 +643,15 @@ def test_admin_migration_keeps_existing_accounts_active(tmp_path) -> None:
     auth.migrate_admin()
     assert auth.get_user("existing-user").access_status == "active"
     assert auth.get_user("existing-user").is_admin is False
+    with sqlite3.connect(database) as connection:
+        connection.execute(
+            """INSERT INTO account_usage_aliases
+            (former_user_id, canonical_user_id) VALUES (?, ?)""",
+            ("removed-user", "existing-user"),
+        )
+    assert auth.usage_aliases_for_users(["existing-user"]) == {
+        "existing-user": ["removed-user"]
+    }
 
 
 def test_auth0_uses_the_configured_public_origin_for_callback_and_logout(

@@ -1,5 +1,57 @@
 # Learning Log - 2026-10-14 Scope Reset
 
+## Merged Account LangSmith Usage Alias — 2026-11-15
+
+- The user requested that LangSmith usage recorded under the removed account
+  UUID be included in the retained account. Before the change, a live
+  LangSmith query found 21,351 input tokens, 7,323 output tokens and
+  USD 0.11587275 of recorded cost under the former UUID; the canonical UUID
+  had no counted runs. The historical trace metadata was left intact.
+- The admin list and detail now read an explicit former-to-canonical UUID alias
+  from account storage, query both one-way LangSmith account references, and
+  group matching model runs under the canonical account. A matching email
+  never creates an alias. SQLite and PostgreSQL schemas support the mapping;
+  a missing alias table reports usage unavailable instead of zero.
+- Focused offline tests: 63 passed. Full offline suite: 222 passed, one optional
+  PostgreSQL test skipped. Isort, Black, flake8, Ruff and diff checks passed.
+  A live source query with the explicit alias returned the expected totals.
+- Built Compose image `sha256:4a42eb958dd519ebf3dd27374d46578dc0e7da3f589ccebbc150d54e63cc3b97`.
+  Stopped only the app to pause writes. A mode-`0600` PostgreSQL backup at
+  `.local/backups/2026-11-15-account-usage-alias-paused-pre.dump` passed a full
+  `pg_restore` read. The guarded SQL at
+  `.local/backups/2026-11-15-account-usage-alias.sql` passed a rollback dry run,
+  then committed one alias. Recreated only the app; it became healthy.
+- Independent DB post-check found one retained account, no removed account,
+  three identities, five saved tours and one exact alias. The running app
+  queried PostgreSQL and LangSmith and returned 21,351 input tokens, 7,323
+  output tokens, USD 0.11587275 and zero unpriced calls. Model detail returned
+  three groups and nine calls with matching totals. `/api/health` returned 200.
+  Browser administrator interaction was not exercised. Recreating the app
+  cleared session-only plans and chat.
+
+## Existing User Duplicate Account Repair — 2026-11-15
+
+- The user confirmed that two application rows with the same email
+  represent one person and selected the older, 2026-11-06 account as canonical.
+  Its UUID is retained. The newer, 2026-11-15 row had an Auth0 password identity
+  and a Google identity; the older row had an email OTP identity and five saved
+  tours. All three identities used the same issuer.
+- The newer row had no saved tours, one active application session and one
+  `link_google_identity` access event. A full PostgreSQL custom-format backup
+  was written to ignored mode-`0600`
+  `.local/backups/2026-11-15-account-merge-75985567-pre.dump` and read
+  completely with `pg_restore` before changes. The guarded SQL in
+  `.local/backups/2026-11-15-account-merge-75985567.sql` passed a dry run with
+  rollback, then committed. It moved both identities and the existing access
+  event to the older account, revoked and removed the newer row's sessions,
+  removed that row, and wrote a merge audit event. The application was not
+  restarted.
+- Independent PostgreSQL post-check: one account row for the email, three
+  identities, five saved tours, two access events, and no row or sessions for
+  the removed UUID. Browser sign-in was not exercised. Any historical
+  LangSmith runs keyed to the removed UUID kept their original account
+  reference. The follow-up above now includes them through an explicit alias.
+
 ## Existing Account Google SSO Linking — 2026-11-15
 
 - The user confirmed that an email already registered through OTP or password

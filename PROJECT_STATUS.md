@@ -45,10 +45,11 @@ background only.
 | Request and model-cost guards | Compose image rebuilt; app healthy | Per-role completion ceilings, 28 itinerary-entry cap, Auth0-user/session sliding-hour quota, configured process-wide hourly quota, and redacted LangSmith token-usage events. Offline suite 168 passed, one optional PostgreSQL test skipped; Python quality gates passed. App root HTTP 200; quota configuration parsed in the running container. Live 429/event behavior was not exercised. Limiter is process-local; no USD spend limit or custom Cloudflare WAF/rate-limit rules are configured |
 | Saved tours | PostgreSQL Compose app healthy; browser QA pending | Database now uses a sibling host directory outside Git; three saved rows and checksum survived the move; former named volume retained; root 200, session creation 201 |
 | Auth0 account ownership | Deployed; live OTP pending | PostgreSQL has account-owner column, indexes and auth tables. The app is deployed on `citedtrip.app`; login reaches Auth0's hosted page. OTP callback and browser account-flow QA remain pending. |
-| Admin access and account usage | Source fix verified; migration and deployment pending | LangSmith SDK returns `run_type='llm'`; the prior uppercase-only post-query check discarded matching runs. Case-insensitive check now retains them. Focused tests: 13 passed; full suite: 219 passed, 1 skipped; Python quality gates passed. Recent traces had account refs, tokens and cost; exact account filter matched. Running container still has old code. Migration, admin bootstrap and deployment remain pending. |
+| Admin access and account usage | Compose deployed; browser QA pending | The running app counts lowercase LangSmith `llm` runs and reads an explicit former-UUID usage alias from PostgreSQL. The confirmed merged account has 21,351 input tokens, 7,323 output tokens and USD 0.11587275 recorded cost across three model groups and nine calls. Full offline suite: 222 passed, 1 skipped; Python quality gates passed. App health 200; browser administrator flow not checked. |
 | Auth0 SSO and mandatory sign-in | Latest source built and offline-tested; browser/deployment pending | Image `sha256:07e93379edc0efcf157dca5d28af79d7f91e96321b9911e1a0d323de25342b71` was healthy at last check. Latest source adds an Auth0 signup hint and separates SSO sign-in from registration. Full suite 199 passed, one optional PostgreSQL test skipped; frontend check/build and Python quality checks passed. Live Auth0 signup, SSO, OTP, callback exchange, browser QA and deployment remain pending. |
 | Self-service registration and SSO access | Source updated; Auth0 tenant setup pending | Signed ID token must have `email_verified=true`; verified new and legacy pending identities become active without admin grant. Blocked accounts remain blocked. Prepared Auth0 confirm-password partial and tenant checklist; hosted form, password policy, verification email and live signup remain unverified. |
 | Existing account Google SSO linking | Offline verified; live QA pending | User links Google after recent sign-in to the existing account and fresh Google authentication. Matching verified email is required; identity maps to the original UUID and saved tours. Email alone never links. Google identity already bound to another account is rejected for controlled resolution. Auth integration: 47 passed; full offline suite: 217 passed, 1 skipped. |
+| Existing user duplicate account repair | Applied; browser sign-in pending | One user-confirmed duplicate was merged into its older UUID after a complete PostgreSQL backup and rollback dry run. Independent DB check: one account, three identities, five saved tours, two access events, no newer account or sessions. Historic LangSmith runs retain their original metadata; the new usage alias counts them under the retained account. |
 | Security audit | Source fixes deployed; live account-flow QA pending | CSRF on authenticated planner writes, local graph SVG rendering, HTTPS-only Auth0 issuer and private SQLite file modes. Domain root/health smoke passed; full OTP, owner isolation and logout not exercised live. |
 | Mac CI/CD | Main-targeted PR CI configured; automatic deployment gated | Added `main` to GitHub Actions PR targets while keeping push CI on `feature/travel-ground-planner` for the Mac poller. PR #7 is synced to main and mergeable but has no workflow run/status because the base branch still has the old trigger; the change enables future main-targeted PR checks after merge. Existing run `42471059065` passed on rerun SHA `27a17e7`. `GTP_DEPLOY_ENABLED=false`; no app deployment. |
 | Large saved-tour archive | PostgreSQL 2M-row isolated benchmark passed | Owner/time/ID index and keyset pages; 10-sample page 1 p50/p95 0.729/13.898 ms, page 20,000 0.373/21.557 ms; tiny synthetic snapshots, no concurrent traffic |
@@ -61,6 +62,27 @@ Planning progress is not implementation progress. Only executable artifacts and
 actual checks count as completion evidence.
 
 ## Done
+
+- Added a persistent former-UUID usage alias for the user-confirmed account
+  merge. Admin list and detail aggregate both LangSmith account references
+  without editing historical traces or matching emails at runtime. Focused
+  offline tests passed 63; full suite passed 222 with one optional PostgreSQL
+  skip; isort, Black, flake8 and Ruff passed. A guarded PostgreSQL migration
+  passed a rollback dry run after a validated backup. The rebuilt app is
+  healthy. Its live repository read returned 21,351 input and 7,323 output
+  tokens, USD 0.11587275 recorded cost, three model groups and nine calls.
+  Browser administrator interaction remains unchecked. App recreation cleared
+  session-only plans and chat.
+
+- Merged one user-confirmed duplicate application account into its older UUID.
+  The newer row had no tours; its Auth0 password and Google identities now map
+  to the older row with the email OTP identity and five saved tours. A complete
+  ignored PostgreSQL backup passed `pg_restore`; the guarded transaction passed
+  a rollback dry run before commit. An independent DB check found one account,
+  three identities, five tours, two access events, and no newer row or sessions.
+  The app was not restarted at that stage; browser sign-in remains unchecked.
+  Historic LangSmith runs retain their old tag and are now included through
+  the usage alias above.
 
 - Replaced the four development roles with Researcher, Planner, Coordinator,
   Tester, and Deployer. Removed the duplicate routine-verification skill while

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sqlite3
 from datetime import date, datetime, time, timedelta
 from types import SimpleNamespace
 
@@ -291,6 +292,59 @@ def test_admin_usage_page_shows_account_totals_and_unknown_cost(account_app):
     )
     assert outside.status_code == 200
     assert outside.json()["input_tokens"] == 0
+
+
+def test_admin_usage_includes_confirmed_former_account_alias(account_app, tmp_path):
+    auth, _, admin, _, _, member_id, _, _, langsmith = account_app
+    former_id = "removed-member-account"
+    with sqlite3.connect(tmp_path / "auth.sqlite") as connection:
+        connection.execute(
+            """INSERT INTO account_usage_aliases
+            (former_user_id, canonical_user_id) VALUES (?, ?)""",
+            (former_id, member_id),
+        )
+    assert auth.get_user(former_id) is None
+    for account_id, prompt, completion, cost, model in (
+        (member_id, 10, 2, 0.01, "current-model"),
+        (former_id, 40, 8, 0.02, "former-model"),
+    ):
+        langsmith.items.append(
+            SimpleNamespace(
+                metadata={
+                    "account_ref": account_trace_ref(account_id),
+                    "ls_provider": "openai",
+                    "ls_model_name": model,
+                    "agent_role": "chat",
+                },
+                run_type="llm",
+                name=model,
+                start_time=datetime.fromisoformat("2026-11-01T12:00:00+00:00"),
+                prompt_tokens=prompt,
+                completion_tokens=completion,
+                total_cost=cost,
+                price_model_id="price-id",
+            )
+        )
+
+    page = admin.get("/api/admin/users")
+    row = next(item for item in page.json()["items"] if item["id"] == member_id)
+    assert row["input_tokens"] == 50
+    assert row["output_tokens"] == 10
+    assert row["estimated_cost_usd"] == pytest.approx(0.03)
+    detail = admin.get(f"/api/admin/users/{member_id}/usage")
+    assert detail.status_code == 200
+    assert detail.json()["input_tokens"] == 50
+    assert {item["model"] for item in detail.json()["by_model"]} == {
+        "current-model",
+        "former-model",
+    }
+
+    with sqlite3.connect(tmp_path / "auth.sqlite") as connection:
+        connection.execute("DROP TABLE account_usage_aliases")
+    unavailable = admin.get("/api/admin/users")
+    assert unavailable.json()["usage_available"] is False
+    assert row["id"] in {item["id"] for item in unavailable.json()["items"]}
+    assert admin.get(f"/api/admin/users/{member_id}/usage").status_code == 503
 
 
 def test_langsmith_outage_does_not_block_account_access_management(account_app):

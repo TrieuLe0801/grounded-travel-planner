@@ -797,9 +797,13 @@ def create_app(
                 status_code=503, detail="Không thể tải tài khoản."
             ) from error
         try:
-            summaries = usage.summary_for_users([account.id for account in visible])
+            user_ids = [account.id for account in visible]
+            summaries = usage.summary_for_users(
+                user_ids,
+                account_aliases=auth.usage_aliases_for_users(user_ids),
+            )
             usage_available = True
-        except UsageError:
+        except (AuthError, UsageError):
             summaries = {}
             usage_available = False
         items = []
@@ -902,7 +906,10 @@ def create_app(
                 else None
             )
             summary, details = usage.usage_for_user(
-                user_id, start=from_time, end=through_time
+                user_id,
+                start=from_time,
+                end=through_time,
+                account_aliases=auth.usage_aliases_for_users([user_id]),
             )
         except (AuthError, UsageError) as error:
             raise HTTPException(

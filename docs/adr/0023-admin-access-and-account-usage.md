@@ -1,6 +1,6 @@
 # ADR 0023 - Administrator Access and Account Usage
 
-Status: Accepted for implementation; deployment pending
+Status: Accepted; Compose deployed, browser QA pending
 Date: 2026-11-14
 
 User amendment — 2026-11-15: Administrator approval is no longer required for
@@ -15,6 +15,14 @@ approval. The original account UUID, saved-tour ownership, access status and
 administrator flag remain authoritative. Matching email alone never transfers
 an account or grants its administrator role; a conflicting Google account with
 data or other identities needs separate resolution.
+
+User amendment — 2026-11-15: After a user-confirmed duplicate account merge,
+retain an explicit former-UUID-to-canonical-UUID usage alias in the account
+database. Administrator usage queries include both LangSmith `account_ref`
+values and group the returned model runs under the canonical account. LangSmith
+remains the source of token and cost data; existing trace metadata is not
+rewritten. Never infer a usage alias from a matching email. Add the alias only
+after verifying the exact merge and backing up the database.
 
 ## Context
 

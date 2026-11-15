@@ -392,6 +392,14 @@ class AuthRepository:
                     created_at TEXT NOT NULL,
                     FOREIGN KEY(user_id) REFERENCES app_users(id)
                 );
+                CREATE TABLE IF NOT EXISTS account_usage_aliases (
+                    former_user_id TEXT PRIMARY KEY,
+                    canonical_user_id TEXT NOT NULL,
+                    CHECK (former_user_id <> canonical_user_id),
+                    FOREIGN KEY(canonical_user_id) REFERENCES app_users(id)
+                );
+                CREATE INDEX IF NOT EXISTS account_usage_aliases_canonical
+                    ON account_usage_aliases(canonical_user_id);
                 """)
 
     def migrate_admin(self) -> None:
@@ -417,6 +425,14 @@ class AuthRepository:
                 id TEXT PRIMARY KEY, user_id TEXT NOT NULL, actor_user_id TEXT,
                 action TEXT NOT NULL, created_at TEXT NOT NULL,
                 FOREIGN KEY(user_id) REFERENCES app_users(id))""")
+            connection.execute("""CREATE TABLE IF NOT EXISTS account_usage_aliases (
+                former_user_id TEXT PRIMARY KEY, canonical_user_id TEXT NOT NULL,
+                CHECK (former_user_id <> canonical_user_id),
+                FOREIGN KEY(canonical_user_id) REFERENCES app_users(id))""")
+            connection.execute(
+                """CREATE INDEX IF NOT EXISTS account_usage_aliases_canonical
+                ON account_usage_aliases(canonical_user_id)"""
+            )
 
     def find_or_create_user(self, identity: VerifiedIdentity) -> tuple[str, str | None]:
         if not identity.email_verified:
@@ -684,6 +700,28 @@ class AuthRepository:
                 return _account_record(row) if row else None
         except sqlite3.Error as error:
             raise AuthError("Authentication storage is unavailable.") from error
+
+    def usage_aliases_for_users(self, user_ids: list[str]) -> dict[str, list[str]]:
+        if not user_ids:
+            return {}
+        placeholders = ",".join("?" for _ in user_ids)
+        try:
+            with self._connection() as connection:
+                rows = connection.execute(
+                    f"""SELECT canonical_user_id, former_user_id
+                    FROM account_usage_aliases
+                    WHERE canonical_user_id IN ({placeholders})
+                    ORDER BY canonical_user_id, former_user_id""",
+                    user_ids,
+                ).fetchall()
+        except sqlite3.Error as error:
+            raise AuthError("Authentication storage is unavailable.") from error
+        aliases: dict[str, list[str]] = {}
+        for row in rows:
+            aliases.setdefault(str(row["canonical_user_id"]), []).append(
+                str(row["former_user_id"])
+            )
+        return aliases
 
     def set_access(
         self, user_id: str, active: bool, actor_user_id: str
@@ -1117,6 +1155,28 @@ class PostgresAuthRepository:
         except (psycopg.Error, PoolClosed, PoolTimeout) as error:
             raise AuthError("Authentication storage is unavailable.") from error
 
+    def usage_aliases_for_users(self, user_ids: list[str]) -> dict[str, list[str]]:
+        if not user_ids:
+            return {}
+        try:
+            with self._pool.connection() as connection, connection.cursor() as cursor:
+                cursor.execute(
+                    """SELECT canonical_user_id, former_user_id
+                    FROM account_usage_aliases
+                    WHERE canonical_user_id = ANY(%s)
+                    ORDER BY canonical_user_id, former_user_id""",
+                    (user_ids,),
+                )
+                rows = cursor.fetchall()
+        except (psycopg.Error, PoolClosed, PoolTimeout) as error:
+            raise AuthError("Authentication storage is unavailable.") from error
+        aliases: dict[str, list[str]] = {}
+        for row in rows:
+            aliases.setdefault(str(row["canonical_user_id"]), []).append(
+                str(row["former_user_id"])
+            )
+        return aliases
+
     def set_access(
         self, user_id: str, active: bool, actor_user_id: str
     ) -> AccountRecord:
@@ -1272,6 +1332,12 @@ def create_postgres_auth_schema(
         cursor.execute("""CREATE TABLE IF NOT EXISTS account_access_events (
             id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES app_users(id),
             actor_user_id TEXT, action TEXT NOT NULL, created_at TEXT NOT NULL)""")
+        cursor.execute("""CREATE TABLE IF NOT EXISTS account_usage_aliases (
+            former_user_id TEXT PRIMARY KEY,
+            canonical_user_id TEXT NOT NULL REFERENCES app_users(id),
+            CHECK (former_user_id <> canonical_user_id))""")
+        cursor.execute("""CREATE INDEX IF NOT EXISTS account_usage_aliases_canonical
+            ON account_usage_aliases(canonical_user_id)""")
 
 
 def migrate_postgres_admin_schema(
@@ -1293,3 +1359,9 @@ def migrate_postgres_admin_schema(
         cursor.execute("""CREATE TABLE IF NOT EXISTS account_access_events (
             id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES app_users(id),
             actor_user_id TEXT, action TEXT NOT NULL, created_at TEXT NOT NULL)""")
+        cursor.execute("""CREATE TABLE IF NOT EXISTS account_usage_aliases (
+            former_user_id TEXT PRIMARY KEY,
+            canonical_user_id TEXT NOT NULL REFERENCES app_users(id),
+            CHECK (former_user_id <> canonical_user_id))""")
+        cursor.execute("""CREATE INDEX IF NOT EXISTS account_usage_aliases_canonical
+            ON account_usage_aliases(canonical_user_id)""")
