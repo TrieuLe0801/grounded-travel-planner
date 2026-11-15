@@ -3,6 +3,19 @@
 Status: Accepted for implementation; deployment pending
 Date: 2026-11-14
 
+User amendment — 2026-11-15: Administrator approval is no longer required for
+new accounts or SSO. New verified Auth0 identities start active. An existing
+pending identity becomes active on its next verified login; this transition is
+audited. Blocked accounts remain blocked. The admin page retains block and
+regrant controls and LangSmith usage reporting.
+
+User amendment — 2026-11-15: Existing registered users can link a newly
+authenticated Google identity to their existing account without administrator
+approval. The original account UUID, saved-tour ownership, access status and
+administrator flag remain authoritative. Matching email alone never transfers
+an account or grants its administrator role; a conflicting Google account with
+data or other identities needs separate resolution.
+
 ## Context
 
 ADR 0021 keeps Auth0 responsible for credentials and leaves account roles and
@@ -15,8 +28,8 @@ cost. The user then specified LangSmith as the source for both figures.
 
 - Keep Auth0 Universal Login and the internal account UUID. Store application
   access (`pending`, `active`, `blocked`) and the administrator flag in the
-  existing account database. Existing accounts migrate as active; new
-  identities start pending. Bootstrap the first administrator from an existing
+  existing account database. Existing accounts migrate as active; new verified
+  identities start active. Bootstrap the first administrator from an existing
   Auth0-backed account in an explicit maintenance step. A unique existing email
   may resolve the internal UUID; the target email stays outside tracked files.
 - Check active access on every private planner and archive request. A block

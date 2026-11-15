@@ -172,6 +172,7 @@ class FakeOidcProvider:
             issuer="https://tenant.example.test/",
             subject=subject,
             email=f"{subject}@example.test",
+            email_verified=True,
         )
         self.state = ""
 

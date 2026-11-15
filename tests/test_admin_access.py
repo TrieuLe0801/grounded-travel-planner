@@ -112,10 +112,14 @@ def account_app(tmp_path, monkeypatch: pytest.MonkeyPatch):
         usage_repository=usage,
     )
     admin_id, _ = auth.find_or_create_user(
-        VerifiedIdentity("https://id.example.test/", "admin", "admin@example.test")
+        VerifiedIdentity(
+            "https://id.example.test/", "admin", "admin@example.test", True
+        )
     )
     member_id, _ = auth.find_or_create_user(
-        VerifiedIdentity("https://id.example.test/", "member", "member@example.test")
+        VerifiedIdentity(
+            "https://id.example.test/", "member", "member@example.test", True
+        )
     )
     auth.bootstrap_admin(admin_id)
     admin_token, admin_csrf = auth.issue_session(admin_id, "admin@example.test")
@@ -137,19 +141,19 @@ def account_app(tmp_path, monkeypatch: pytest.MonkeyPatch):
     )
 
 
-def test_pending_account_needs_admin_grant_and_admin_routes_are_private(account_app):
-    auth, _, admin, member, admin_id, member_id, admin_csrf, member_csrf, _ = (
-        account_app
-    )
+def test_new_account_is_active_without_admin_grant_and_admin_routes_are_private(
+    account_app,
+):
+    auth, _, admin, member, admin_id, member_id, _, member_csrf, _ = account_app
 
-    pending = member.get("/api/auth/me").json()
-    assert pending["authenticated"] is True
-    assert pending["access_status"] == "pending"
+    account = member.get("/api/auth/me").json()
+    assert account["authenticated"] is True
+    assert account["access_status"] == "active"
     assert (
         member.post("/api/session", headers={"X-CSRF-Token": member_csrf}).status_code
-        == 403
+        == 201
     )
-    assert member.get("/api/saved-tours").status_code == 403
+    assert member.get("/api/saved-tours").status_code == 200
     assert member.get("/api/admin/users").status_code == 403
     assert (
         member.post(
@@ -169,19 +173,7 @@ def test_pending_account_needs_admin_grant_and_admin_routes_are_private(account_
         f"/api/admin/users/{member_id}/access", json={"access_status": "active"}
     )
     assert missing_csrf.status_code == 403
-    assert auth.get_user(member_id).access_status == "pending"
-
-    granted = admin.post(
-        f"/api/admin/users/{member_id}/access",
-        json={"access_status": "active"},
-        headers={"X-CSRF-Token": admin_csrf},
-    )
-    assert granted.status_code == 200
-    assert granted.json()["access_status"] == "active"
-    assert (
-        member.post("/api/session", headers={"X-CSRF-Token": member_csrf}).status_code
-        == 201
-    )
+    assert auth.get_user(member_id).access_status == "active"
 
 
 def test_block_revokes_sessions_and_regrant_keeps_account_and_archive(account_app):
@@ -223,7 +215,7 @@ def test_block_revokes_sessions_and_regrant_keeps_account_and_archive(account_ap
     assert (
         auth.find_or_create_user(
             VerifiedIdentity(
-                "https://id.example.test/", "member", "member@example.test"
+                "https://id.example.test/", "member", "member@example.test", True
             )
         )[0]
         == member_id

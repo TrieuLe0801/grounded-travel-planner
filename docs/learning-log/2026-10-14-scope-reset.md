@@ -1,5 +1,46 @@
 # Learning Log - 2026-10-14 Scope Reset
 
+## Existing Account Google SSO Linking — 2026-11-15
+
+- The user confirmed that an email already registered through OTP or password
+  must be able to use Google SSO without registering again, while retaining the
+  original account and saved tours.
+- Auth0 can issue different subjects for the same email on different
+  connections. Existing issuer/subject mappings already reuse the same account.
+  A new Google subject requires explicit proof of the original account and
+  Google identity; matching email alone cannot grant access or merge ownership.
+- The flow starts from a recent original-account session, verifies Google
+  through Auth0, and links the Google subject to the original account UUID. A
+  Google subject already owned by a different app account is a conflict for
+  controlled resolution, with no tour deletion or silent merge.
+- After the normal-login compatibility fix, auth integration passed 47 tests and
+  the full offline suite passed 217 tests with one optional PostgreSQL test
+  skipped. The prior eight `prompt` fixture failures are resolved. Frontend
+  typecheck/build and changed-file Python lint passed in the implementation run.
+  Auth0 browser, live callback and deployment remain unverified.
+
+## Self-Service Auth0 Registration and SSO Access — 2026-11-15
+
+- The user requested an Auth0 registration form with password confirmation,
+  at least eight characters including uppercase, special and numeric characters,
+  a confirmation email, and app access after verification and another sign-in.
+  New SSO identities no longer need administrator approval.
+- The application now rejects ID tokens without `email_verified=true` before
+  local account or session creation. New verified identities start active;
+  existing pending identities activate on their next verified login with an
+  audit event. Blocked accounts stay blocked. The landing shows bilingual
+  verification instructions. Auth0 still owns credentials.
+- Prepared the Auth0 Signup Prompt Partial and tenant checklist in `auth0/`.
+  The tenant must enable a password database connection, Flexible Password
+  Policy, signup partial and verification email delivery. Auth0's legacy
+  `Good` strength does not enforce the exact character classes requested.
+- Focused offline auth/API tests passed 67 cases before the final blocked-login
+  regression. The full suite passed 205 cases, with one optional PostgreSQL
+  test skipped. Frontend check/build, isort, Black, flake8, Ruff and diff checks
+  passed. Dotenv was disabled and model names were dummy values; no live
+  provider calls ran. Auth0 tenant changes, browser signup, email delivery,
+  callback and deployment were not verified or applied.
+
 ## Google Admin Sign-in Repair — 2026-11-15
 
 - The user confirmed “Continue with Google”. Production PostgreSQL contained an

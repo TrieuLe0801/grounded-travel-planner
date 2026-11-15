@@ -17,7 +17,7 @@ background only.
 | Scope reset | Complete | Charter, implementation plan, current log and ADR 0004/0009/0011/0012 |
 | Runtime package | Complete | Coordinator/Planner/Chat graph, typed providers and validators |
 | Streamlit app | Complete | Session-only itinerary/chat; graph page hidden from navigation |
-| Tests | 199 passed, 1 skipped on current source | One optional PostgreSQL test skipped; frontend typecheck/build and Python quality checks passed. Browser and live Auth0 signup remain unverified |
+| Tests | Latest full run: 217 passed, 1 skipped | Auth integration: 47 passed; the full offline suite passed after normal login stopped receiving an unnecessary `prompt` argument. Frontend typecheck/build and changed-file lint passed in the implementation run. |
 | Live integration | Passed | OpenAI/Tavily/LangSmith smoke recorded under `docs/experiments/` |
 | Local container | Passed | Test/runtime images, health, non-root and live provider checks |
 | Chat editing | Passed | Trip extension plus eight prior offline eval cases and live two-turn smoke |
@@ -45,8 +45,10 @@ background only.
 | Request and model-cost guards | Compose image rebuilt; app healthy | Per-role completion ceilings, 28 itinerary-entry cap, Auth0-user/session sliding-hour quota, configured process-wide hourly quota, and redacted LangSmith token-usage events. Offline suite 168 passed, one optional PostgreSQL test skipped; Python quality gates passed. App root HTTP 200; quota configuration parsed in the running container. Live 429/event behavior was not exercised. Limiter is process-local; no USD spend limit or custom Cloudflare WAF/rate-limit rules are configured |
 | Saved tours | PostgreSQL Compose app healthy; browser QA pending | Database now uses a sibling host directory outside Git; three saved rows and checksum survived the move; former named volume retained; root 200, session creation 201 |
 | Auth0 account ownership | Deployed; live OTP pending | PostgreSQL has account-owner column, indexes and auth tables. The app is deployed on `citedtrip.app`; login reaches Auth0's hosted page. OTP callback and browser account-flow QA remain pending. |
-| Admin access and account usage | Source implemented; migration and live QA pending | New accounts await approval; admin API/UI can grant, block and regrant. Token and cost figures read account-linked LangSmith LLM runs; unavailable LangSmith does not block access management. Email-based bootstrap resolves one existing account; the selected email is not tracked. Offline suite 197 passed, 1 skipped; frontend check/build and Python quality gates passed. Host `.env` lacks LangSmith key/project; production migration, admin bootstrap, browser and live LangSmith query QA have not run. |
+| Admin access and account usage | Source implemented; migration and live QA pending | Verified new accounts no longer await approval; admin API/UI can block and regrant. Token and cost figures read account-linked LangSmith LLM runs; unavailable LangSmith does not block access management. Email-based bootstrap resolves one existing account; the selected email is not tracked. Current offline suite 205 passed, 1 skipped; frontend check/build and Python quality gates passed. Host `.env` lacks LangSmith key/project; production migration, admin bootstrap, browser and live LangSmith query QA have not run. |
 | Auth0 SSO and mandatory sign-in | Latest source built and offline-tested; browser/deployment pending | Image `sha256:07e93379edc0efcf157dca5d28af79d7f91e96321b9911e1a0d323de25342b71` was healthy at last check. Latest source adds an Auth0 signup hint and separates SSO sign-in from registration. Full suite 199 passed, one optional PostgreSQL test skipped; frontend check/build and Python quality checks passed. Live Auth0 signup, SSO, OTP, callback exchange, browser QA and deployment remain pending. |
+| Self-service registration and SSO access | Source updated; Auth0 tenant setup pending | Signed ID token must have `email_verified=true`; verified new and legacy pending identities become active without admin grant. Blocked accounts remain blocked. Prepared Auth0 confirm-password partial and tenant checklist; hosted form, password policy, verification email and live signup remain unverified. |
+| Existing account Google SSO linking | Offline verified; live QA pending | User links Google after recent sign-in to the existing account and fresh Google authentication. Matching verified email is required; identity maps to the original UUID and saved tours. Email alone never links. Google identity already bound to another account is rejected for controlled resolution. Auth integration: 47 passed; full offline suite: 217 passed, 1 skipped. |
 | Security audit | Source fixes deployed; live account-flow QA pending | CSRF on authenticated planner writes, local graph SVG rendering, HTTPS-only Auth0 issuer and private SQLite file modes. Domain root/health smoke passed; full OTP, owner isolation and logout not exercised live. |
 | Mac CI/CD | Main-targeted PR CI configured; automatic deployment gated | Added `main` to GitHub Actions PR targets while keeping push CI on `feature/travel-ground-planner` for the Mac poller. PR #7 is synced to main and mergeable but has no workflow run/status because the base branch still has the old trigger; the change enables future main-targeted PR checks after merge. Existing run `42471059065` passed on rerun SHA `27a17e7`. `GTP_DEPLOY_ENABLED=false`; no app deployment. |
 | Large saved-tour archive | PostgreSQL 2M-row isolated benchmark passed | Owner/time/ID index and keyset pages; 10-sample page 1 p50/p95 0.729/13.898 ms, page 20,000 0.373/21.557 ms; tiny synthetic snapshots, no concurrent traffic |
@@ -75,6 +77,24 @@ actual checks count as completion evidence.
   Frontend typecheck/build, isort, Black, flake8 and Ruff passed. Browser QA,
   live Auth0 flow and deployment remain pending; the running image still serves
   the previous landing. See the 2026-11-14 landing-entry learning-log entry.
+
+- Changed the account policy so verified Auth0 signups and SSO identities no
+  longer need administrator approval. Unverified email cannot create an app
+  account or session; an existing pending identity becomes active on verified
+  sign-in. Prepared a hosted Auth0 confirm-password partial and tenant setup
+  checklist. Auth0 configuration, email delivery, browser flow and deployment
+  remain pending. Full offline suite passed 205 tests with one optional
+  PostgreSQL test skipped; frontend check/build and Python quality gates passed.
+  See the 2026-11-15 self-service registration learning-log entry.
+
+- Added explicit Google linking for existing email/password or OTP accounts.
+  Users authenticate the original account, then complete a fresh Google login;
+  the verified identity maps to the same application UUID and saved tours. A new
+  Google identity matching an existing email is not auto-linked. Existing
+  Google identities already attached to a different app account need controlled
+  resolution. After the normal-login compatibility fix, auth integration passed
+  47 tests and the full offline suite passed 217 tests with one optional
+  PostgreSQL test skipped. Live Auth0 and browser QA remain pending.
 
 - Updated the Auth0 authorize request to allow SSO through an active existing
   Auth0 session and preserve email OTP for users without one. Updated the

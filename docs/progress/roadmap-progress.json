@@ -1,6 +1,6 @@
 {
-  "version": 105,
-  "updated": "2026-11-15T00:19:20+07:00",
+  "version": 108,
+  "updated": "2026-11-15T12:22:52+07:00",
   "active_scope": "city-place-sightseeing-webapp",
   "current_milestone": "Milestone 1: executable city/place sightseeing vertical slice",
   "completed": {
@@ -107,9 +107,34 @@
     "auth0_sso_session_reuse_live": false,
     "auth0_signup_cta_source": true,
     "auth0_signup_cta_offline_verified": true,
-    "auth0_signup_cta_browser_verified": false
+    "auth0_signup_cta_browser_verified": false,
+    "auth0_self_service_access_offline": true,
+    "auth0_password_signup_tenant_configured": false,
+    "auth0_email_verification_live": false,
+    "auth0_existing_account_google_link_source": true,
+    "auth0_existing_account_google_link_offline_verified": true
   },
   "evidence": {
+    "auth0_self_service_access_offline": [
+      "src/grounded_travel_planner/auth.py and src/grounded_travel_planner/web/api.py: verified Auth0 identity required before app account/session; new and legacy pending identities activate without administrator approval; blocked stays blocked",
+      "auth0/signup-password-partial.html and auth0/README.md: prepared hosted confirm-password partial and exact Auth0 policy/email setup checklist",
+      "Latest offline suite: 217 passed, 1 optional PostgreSQL test skipped; frontend check/build and Python quality gates passed; verified blocked-login callback regression included"
+    ],
+    "auth0_password_signup_tenant_configured": [
+      "Not applied: Auth0 tenant access is unavailable; database password connection, Flexible Password Policy and Signup Prompt Partial require tenant setup"
+    ],
+    "auth0_email_verification_live": [
+      "Not checked: Auth0 email delivery, verification link, browser sign-in and live callback require configured tenant and a real test address"
+    ],
+    "auth0_existing_account_google_link_source": [
+      "src/grounded_travel_planner/auth.py and src/grounded_travel_planner/web/api.py: recent authenticated account plus CSRF starts a short-lived signed link flow; Auth0 forces Google login; callback binds the verified Google subject to the original UUID",
+      "A matching email alone never links accounts. An identity already owned by another application account is rejected for controlled resolution; original saved-tour ownership remains unchanged",
+      "frontend/src/main.tsx and frontend/src/i18n.ts: account menu link action, recovery sign-in, bilingual success and error states"
+    ],
+    "auth0_existing_account_google_link_offline_verified": [
+      "Auth integration: 47 passed; latest full offline suite: 217 passed, 1 skipped after the normal-login compatibility adjustment removed an unnecessary prompt argument.",
+      "Frontend typecheck/build, changed-file isort, Black, flake8 and Ruff passed. Browser, live Auth0 callback and deployment not checked."
+    ],
     "auth0_sso_session_reuse_source": [
       "src/grounded_travel_planner/auth.py: Auth0 /authorize no longer pins connection=email, allowing Auth0 to reuse an active session",
       "frontend/src/main.tsx and frontend/src/i18n.ts: bilingual SSO/OTP explanation and Auth0 sign-in label",
