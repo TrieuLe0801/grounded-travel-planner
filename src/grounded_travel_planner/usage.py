@@ -231,7 +231,8 @@ class UsageRepository:
             if not isinstance(metadata, Mapping):
                 continue
             user_id = refs.get(metadata.get("account_ref"))
-            if user_id is None or getattr(run, "run_type", None) != "LLM":
+            run_type = str(getattr(run, "run_type", "")).casefold()
+            if user_id is None or run_type != "llm":
                 continue
             at = getattr(run, "start_time", None)
             if not isinstance(at, datetime) or at.tzinfo is None:

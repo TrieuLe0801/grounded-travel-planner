@@ -1,6 +1,6 @@
 {
-  "version": 109,
-  "updated": "2026-11-15T13:27:58+07:00",
+  "version": 110,
+  "updated": "2026-11-15T15:06:37+07:00",
   "active_scope": "city-place-sightseeing-webapp",
   "current_milestone": "Milestone 1: executable city/place sightseeing vertical slice",
   "completed": {
@@ -172,7 +172,7 @@
       "frontend/src/main.tsx",
       "tests/test_admin_access.py",
       "tests/test_usage_accounting.py",
-      "Focused usage/admin tests: 12 passed; full offline suite: 218 passed, 1 optional PostgreSQL test skipped with PYTHON_DOTENV_DISABLED=1; isort, Black, flake8 and Ruff passed. No-date account usage starts at project creation and splits longer history into adjacent 400-day windows. Live no-date query with a synthetic account ID passed with no matching account runs. Production migration, admin bootstrap, browser QA and app restart remain pending"
+      "Focused usage/admin tests: 13 passed; full offline suite: 219 passed, 1 optional PostgreSQL test skipped with PYTHON_DOTENV_DISABLED=1; isort, Black, flake8 and Ruff passed. No-date account usage starts at project creation and splits longer history into adjacent 400-day windows. LangSmith returns run_type='llm'; case-insensitive grouping now retains matched traces. Safe live check confirmed recent traces had account_ref, token counts and cost fields, and exact account filtering matched; no identifiers or amounts recorded. Active container still has pre-fix code; migration, admin bootstrap and deployment remain pending"
     ],
     "admin_access_usage_deployed": [
       "Not deployed; explicit account-access database migration and first-admin bootstrap pending"
