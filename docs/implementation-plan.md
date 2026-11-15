@@ -103,7 +103,7 @@ remained healthy and its container was unchanged. No automated tests were added
 or run. Live Auth0 session reuse, email OTP, callback exchange, planner access
 and logout remain unverified.
 
-## Admin Access and Account Usage — Source Implemented; Deployment Pending — 2026-11-14
+## Admin Access and Account Usage — Source Verified; Deployment Pending — 2026-11-15
 
 ADR 0023 adds account access states and an administrator role to the existing
 Auth0-backed application account. Its original new-account approval rule was
@@ -134,10 +134,22 @@ restart only after those steps. App restart clears session-only plans. Source
 tests do not prove live OTP, LangSmith account queries, browser interaction or
 production database migration.
 
-Verification: full offline suite 197 passed, one optional PostgreSQL test
-skipped. React typecheck/build, isort, Black, flake8, Ruff and diff checks
-passed. The current host `.env` has no LangSmith key or project; no live account
-query, migration, app restart or deployment occurred.
+The LangSmith v2 query accepts windows up to 401 days. The admin account list
+calls usage without date bounds, so the prior 1970-to-now query failed. Usage
+queries now start at the LangSmith project creation time and split longer
+history into adjacent 400-day windows. Each result is filtered to its own
+half-open window before aggregation so boundary runs are counted once.
+
+Verification: focused usage/admin tests passed 12 cases; full offline suite
+passed 218 tests with one optional PostgreSQL test skipped. Isort, Black,
+flake8 and Ruff passed. A live no-date usage query with a synthetic account ID
+passed and returned no matching account runs. The first full test run with
+dotenv enabled had 210 passes and 8 failures because host
+`GTP_AUTH_PUBLIC_ORIGIN=https://citedtrip.app` made login tests return 503
+instead of the expected localhost redirect 307. The full suite passed when
+rerun with `PYTHON_DOTENV_DISABLED=1`. LangSmith settings are present in host
+environment; their values were not printed or recorded. Browser QA, app
+rebuild/restart, migration, admin bootstrap and deployment remain pending.
 
 ## Cloudflare Custom Domain — Live; ngrok Retired — 2026-11-12
 

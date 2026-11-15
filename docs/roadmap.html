@@ -183,13 +183,13 @@
       </ul>
     </section>
     <section class="card active">
-      <span class="badge">Source implemented · migration pending</span>
+      <span class="badge">Source verified · migration pending</span>
       <h3>Admin access and account usage</h3>
       <ul>
         <li>Verified new accounts need no admin grant; admin controls still block and regrant by internal account UUID</li>
         <li>Blocking revokes account sessions; saved tours and LangSmith traces remain intact</li>
         <li>Admin view reads account token counts and USD cost from LangSmith LLM runs, with model and date detail</li>
-        <li>Offline suite: 197 passed, 1 skipped; frontend build passes. LangSmith outage leaves access management available. Production migration, bootstrap, browser and live query QA remain pending</li>
+        <li>Offline suite: 218 passed, 1 skipped; Python quality checks pass. Live no-date query with a synthetic account ID passes after 400-day window fix. Production migration, bootstrap, browser QA and app restart remain pending</li>
       </ul>
     </section>
     <section class="card active">
