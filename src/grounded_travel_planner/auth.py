@@ -48,6 +48,14 @@ class AccessChangeConflict(AuthError):
     """Requested access change would violate administrator safeguards."""
 
 
+class AccountLinkRequired(AuthError):
+    """An existing email account must authorize a new identity explicitly."""
+
+
+class AccountLinkConflict(AuthError):
+    """An identity cannot be linked without changing another account's data."""
+
+
 class OidcProvider(Protocol):
     """Small boundary for the external identity provider."""
 
@@ -59,6 +67,8 @@ class OidcProvider(Protocol):
         code_verifier: str,
         redirect_uri: str,
         screen_hint: Literal["signup"] | None = None,
+        connection: str | None = None,
+        prompt: str | None = None,
     ) -> str: ...
 
     def verify_callback(
@@ -73,6 +83,7 @@ class VerifiedIdentity:
     issuer: str
     subject: str
     email: str | None = None
+    email_verified: bool = False
 
 
 def _identity_lock_key(identity: VerifiedIdentity) -> str:
@@ -168,7 +179,13 @@ class PendingLoginCodec:
             )
         self._secret = secret.encode("utf-8")
 
-    def issue(self, *, return_to: str) -> tuple[str, dict[str, str]]:
+    def issue(
+        self,
+        *,
+        return_to: str,
+        link_user_id: str | None = None,
+        link_auth_hash: str | None = None,
+    ) -> tuple[str, dict[str, str]]:
         payload = {
             "state": secrets.token_urlsafe(32),
             "nonce": secrets.token_urlsafe(32),
@@ -176,6 +193,9 @@ class PendingLoginCodec:
             "return_to": safe_return_to(return_to),
             "expires_at": _now() + AUTH_PENDING_SECONDS,
         }
+        if link_user_id is not None and link_auth_hash is not None:
+            payload["link_user_id"] = link_user_id
+            payload["link_auth_hash"] = link_auth_hash
         encoded = _b64(json.dumps(payload, separators=(",", ":")).encode("utf-8"))
         signature = _b64(
             hmac.new(self._secret, encoded.encode("ascii"), hashlib.sha256).digest()
@@ -194,7 +214,11 @@ class PendingLoginCodec:
                 base64.urlsafe_b64decode(encoded + "=" * (-len(encoded) % 4))
             )
             required = {"state", "nonce", "verifier", "return_to", "expires_at"}
-            if set(raw) != required or int(raw["expires_at"]) < _now():
+            link_fields = {"link_user_id", "link_auth_hash"}
+            if (
+                set(raw) not in (required, required | link_fields)
+                or int(raw["expires_at"]) < _now()
+            ):
                 raise AuthError("Expired login state.")
             return {key: str(value) for key, value in raw.items()}
         except (ValueError, TypeError, json.JSONDecodeError, binascii.Error) as error:
@@ -255,6 +279,8 @@ class Auth0OidcProvider:
         code_verifier: str,
         redirect_uri: str,
         screen_hint: Literal["signup"] | None = None,
+        connection: str | None = None,
+        prompt: str | None = None,
     ) -> str:
         # Let Auth0 reuse an existing tenant session for SSO.
         parameters = {
@@ -269,6 +295,10 @@ class Auth0OidcProvider:
         }
         if screen_hint is not None:
             parameters["screen_hint"] = screen_hint
+        if connection is not None:
+            parameters["connection"] = connection
+        if prompt is not None:
+            parameters["prompt"] = prompt
         query = urlencode(parameters)
         return f"{self._endpoint}/authorize?{query}"
 
@@ -319,6 +349,7 @@ class Auth0OidcProvider:
             issuer=str(claims["iss"]),
             subject=str(claims["sub"]),
             email=claims.get("email"),
+            email_verified=claims.get("email_verified") is True,
         )
 
     def logout_url(self, *, return_to: str) -> str:
@@ -341,7 +372,7 @@ class AuthRepository:
             connection.executescript("""
                 CREATE TABLE IF NOT EXISTS app_users (
                     id TEXT PRIMARY KEY, email TEXT, created_at TEXT NOT NULL,
-                    access_status TEXT NOT NULL DEFAULT 'pending',
+                    access_status TEXT NOT NULL DEFAULT 'active',
                     is_admin INTEGER NOT NULL DEFAULT 0
                 );
                 CREATE TABLE IF NOT EXISTS auth_identities (
@@ -388,6 +419,8 @@ class AuthRepository:
                 FOREIGN KEY(user_id) REFERENCES app_users(id))""")
 
     def find_or_create_user(self, identity: VerifiedIdentity) -> tuple[str, str | None]:
+        if not identity.email_verified:
+            raise AuthError("Email is not verified.")
         try:
             with self._connection() as connection:
                 connection.execute("BEGIN IMMEDIATE")
@@ -398,12 +431,38 @@ class AuthRepository:
                     (identity.issuer, identity.subject),
                 ).fetchone()
                 if row is not None:
+                    updated = connection.execute(
+                        "UPDATE app_users SET access_status = 'active' WHERE id = ? AND access_status = 'pending'",
+                        (row["id"],),
+                    )
+                    if updated.rowcount:
+                        connection.execute(
+                            """INSERT INTO account_access_events
+                            (id, user_id, actor_user_id, action, created_at)
+                            VALUES (?, ?, NULL, 'verified_login', ?)""",
+                            (
+                                str(uuid4()),
+                                row["id"],
+                                datetime.now(timezone.utc).isoformat(),
+                            ),
+                        )
                     return str(row["id"]), row["email"]
+                if identity.subject.startswith("google-oauth2|") and not identity.email:
+                    raise AccountLinkConflict("Google identity has no email address.")
+                if identity.subject.startswith("google-oauth2|") and identity.email:
+                    match = connection.execute(
+                        "SELECT id FROM app_users WHERE lower(email) = lower(?) LIMIT 1",
+                        (identity.email,),
+                    ).fetchone()
+                    if match is not None:
+                        raise AccountLinkRequired(
+                            "Sign in to your existing account to link Google."
+                        )
                 user_id = str(uuid4())
                 connection.execute(
                     """INSERT INTO app_users
                     (id, email, created_at, access_status, is_admin)
-                    VALUES (?, ?, ?, 'pending', 0)""",
+                    VALUES (?, ?, ?, 'active', 0)""",
                     (user_id, identity.email, datetime.now(timezone.utc).isoformat()),
                 )
                 connection.execute(
@@ -411,6 +470,90 @@ class AuthRepository:
                     (identity.issuer, identity.subject, user_id),
                 )
                 return user_id, identity.email
+        except sqlite3.Error as error:
+            raise AuthError("Authentication storage is unavailable.") from error
+
+    def recent_session(self, token: str | None, max_age_seconds: int = 300) -> bool:
+        if not token or self.authenticated(token) is None:
+            return False
+        try:
+            with self._connection() as connection:
+                row = connection.execute(
+                    "SELECT created_at FROM auth_sessions WHERE verifier_hash = ?",
+                    (_hash(token),),
+                ).fetchone()
+            if row is None:
+                return False
+            created = datetime.fromisoformat(str(row["created_at"]))
+            return (
+                0
+                <= (datetime.now(timezone.utc) - created).total_seconds()
+                <= max_age_seconds
+            )
+        except (sqlite3.Error, ValueError, TypeError) as error:
+            if isinstance(error, sqlite3.Error):
+                raise AuthError("Authentication storage is unavailable.") from error
+            return False
+
+    def link_google_identity(
+        self,
+        identity: VerifiedIdentity,
+        primary_user_id: str,
+    ) -> None:
+        if not identity.email_verified or not identity.subject.startswith(
+            "google-oauth2|"
+        ):
+            raise AccountLinkConflict("A verified Google identity is required.")
+        try:
+            with self._connection() as connection:
+                connection.execute("BEGIN IMMEDIATE")
+                primary = connection.execute(
+                    "SELECT email, access_status FROM app_users WHERE id = ?",
+                    (primary_user_id,),
+                ).fetchone()
+                if (
+                    primary is None
+                    or primary["access_status"] != "active"
+                    or not primary["email"]
+                    or not identity.email
+                    or str(primary["email"]).casefold() != identity.email.casefold()
+                ):
+                    raise AccountLinkConflict(
+                        "Primary account and Google email do not match."
+                    )
+                issuer = connection.execute(
+                    "SELECT 1 FROM auth_identities WHERE user_id = ? AND issuer = ? LIMIT 1",
+                    (primary_user_id, identity.issuer),
+                ).fetchone()
+                if issuer is None:
+                    raise AccountLinkConflict(
+                        "Google and primary account use different issuers."
+                    )
+                current = connection.execute(
+                    "SELECT user_id FROM auth_identities WHERE issuer = ? AND subject = ?",
+                    (identity.issuer, identity.subject),
+                ).fetchone()
+                if current is not None and current["user_id"] == primary_user_id:
+                    return
+                if current is not None:
+                    raise AccountLinkConflict(
+                        "Google identity belongs to another account."
+                    )
+                connection.execute(
+                    "INSERT INTO auth_identities (issuer, subject, user_id) VALUES (?, ?, ?)",
+                    (identity.issuer, identity.subject, primary_user_id),
+                )
+                connection.execute(
+                    """INSERT INTO account_access_events
+                    (id, user_id, actor_user_id, action, created_at)
+                    VALUES (?, ?, ?, 'link_google_identity', ?)""",
+                    (
+                        str(uuid4()),
+                        primary_user_id,
+                        primary_user_id,
+                        datetime.now(timezone.utc).isoformat(),
+                    ),
+                )
         except sqlite3.Error as error:
             raise AuthError("Authentication storage is unavailable.") from error
 
@@ -712,6 +855,8 @@ class PostgresAuthRepository:
         self._pool.close()
 
     def find_or_create_user(self, identity: VerifiedIdentity) -> tuple[str, str | None]:
+        if not identity.email_verified:
+            raise AuthError("Email is not verified.")
         try:
             with self._pool.connection() as connection, connection.cursor() as cursor:
                 cursor.execute(
@@ -725,12 +870,43 @@ class PostgresAuthRepository:
                 )
                 row = cursor.fetchone()
                 if row is not None:
+                    cursor.execute(
+                        "UPDATE app_users SET access_status = 'active' WHERE id = %s AND access_status = 'pending'",
+                        (row["id"],),
+                    )
+                    if cursor.rowcount:
+                        cursor.execute(
+                            """INSERT INTO account_access_events
+                            (id, user_id, actor_user_id, action, created_at)
+                            VALUES (%s, %s, NULL, 'verified_login', %s)""",
+                            (
+                                str(uuid4()),
+                                row["id"],
+                                datetime.now(timezone.utc).isoformat(),
+                            ),
+                        )
                     return str(row["id"]), row["email"]
+                if identity.subject.startswith("google-oauth2|") and not identity.email:
+                    raise AccountLinkConflict("Google identity has no email address.")
+                if identity.email:
+                    cursor.execute(
+                        "SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))",
+                        (f"app_user_email:{identity.email.casefold()}",),
+                    )
+                if identity.subject.startswith("google-oauth2|") and identity.email:
+                    cursor.execute(
+                        "SELECT id FROM app_users WHERE lower(email) = lower(%s) LIMIT 1",
+                        (identity.email,),
+                    )
+                    if cursor.fetchone() is not None:
+                        raise AccountLinkRequired(
+                            "Sign in to your existing account to link Google."
+                        )
                 user_id = str(uuid4())
                 cursor.execute(
                     """INSERT INTO app_users
                     (id, email, created_at, access_status, is_admin)
-                    VALUES (%s, %s, %s, 'pending', FALSE)""",
+                    VALUES (%s, %s, %s, 'active', FALSE)""",
                     (user_id, identity.email, datetime.now(timezone.utc).isoformat()),
                 )
                 cursor.execute(
@@ -738,6 +914,96 @@ class PostgresAuthRepository:
                     (identity.issuer, identity.subject, user_id),
                 )
                 return user_id, identity.email
+        except (psycopg.Error, PoolClosed, PoolTimeout) as error:
+            raise AuthError("Authentication storage is unavailable.") from error
+
+    def recent_session(self, token: str | None, max_age_seconds: int = 300) -> bool:
+        if not token or self.authenticated(token) is None:
+            return False
+        try:
+            with self._pool.connection() as connection, connection.cursor() as cursor:
+                cursor.execute(
+                    "SELECT created_at FROM auth_sessions WHERE verifier_hash = %s",
+                    (_hash(token),),
+                )
+                row = cursor.fetchone()
+            if row is None:
+                return False
+            created = datetime.fromisoformat(str(row["created_at"]))
+            return (
+                0
+                <= (datetime.now(timezone.utc) - created).total_seconds()
+                <= max_age_seconds
+            )
+        except (psycopg.Error, PoolClosed, PoolTimeout) as error:
+            raise AuthError("Authentication storage is unavailable.") from error
+        except (ValueError, TypeError):
+            return False
+
+    def link_google_identity(
+        self,
+        identity: VerifiedIdentity,
+        primary_user_id: str,
+    ) -> None:
+        if not identity.email_verified or not identity.subject.startswith(
+            "google-oauth2|"
+        ):
+            raise AccountLinkConflict("A verified Google identity is required.")
+        try:
+            with self._pool.connection() as connection, connection.cursor() as cursor:
+                cursor.execute(
+                    "SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))",
+                    (_identity_lock_key(identity),),
+                )
+                cursor.execute(
+                    "SELECT email, access_status FROM app_users WHERE id = %s FOR UPDATE",
+                    (primary_user_id,),
+                )
+                primary = cursor.fetchone()
+                if (
+                    primary is None
+                    or primary["access_status"] != "active"
+                    or not primary["email"]
+                    or not identity.email
+                    or str(primary["email"]).casefold() != identity.email.casefold()
+                ):
+                    raise AccountLinkConflict(
+                        "Primary account and Google email do not match."
+                    )
+                cursor.execute(
+                    "SELECT 1 FROM auth_identities WHERE user_id = %s AND issuer = %s LIMIT 1",
+                    (primary_user_id, identity.issuer),
+                )
+                if cursor.fetchone() is None:
+                    raise AccountLinkConflict(
+                        "Google and primary account use different issuers."
+                    )
+                cursor.execute(
+                    "SELECT user_id FROM auth_identities WHERE issuer = %s AND subject = %s FOR UPDATE",
+                    (identity.issuer, identity.subject),
+                )
+                current = cursor.fetchone()
+                if current is not None and current["user_id"] == primary_user_id:
+                    return
+                if current is not None:
+                    raise AccountLinkConflict(
+                        "Google identity belongs to another account."
+                    )
+                cursor.execute(
+                    "INSERT INTO auth_identities (issuer, subject, user_id) VALUES (%s, %s, %s)",
+                    (identity.issuer, identity.subject, primary_user_id),
+                )
+                cursor.execute(
+                    """INSERT INTO account_access_events
+                    (id, user_id, actor_user_id, action, created_at)
+                    VALUES (%s, %s, %s, 'link_google_identity', %s)""",
+                    (
+                        str(uuid4()),
+                        primary_user_id,
+                        primary_user_id,
+                        datetime.now(timezone.utc).isoformat(),
+                    ),
+                )
         except (psycopg.Error, PoolClosed, PoolTimeout) as error:
             raise AuthError("Authentication storage is unavailable.") from error
 
@@ -991,7 +1257,7 @@ def create_postgres_auth_schema(
     with connection.cursor() as cursor:
         cursor.execute("""CREATE TABLE IF NOT EXISTS app_users (
             id TEXT PRIMARY KEY, email TEXT, created_at TEXT NOT NULL,
-            access_status TEXT NOT NULL DEFAULT 'pending',
+            access_status TEXT NOT NULL DEFAULT 'active',
             is_admin BOOLEAN NOT NULL DEFAULT FALSE)""")
         cursor.execute("""CREATE TABLE IF NOT EXISTS auth_identities (
             issuer TEXT NOT NULL, subject TEXT NOT NULL, user_id TEXT NOT NULL REFERENCES app_users(id),
@@ -1011,7 +1277,7 @@ def create_postgres_auth_schema(
 def migrate_postgres_admin_schema(
     connection: psycopg.Connection[dict[str, Any]],
 ) -> None:
-    """Upgrade existing users as active, then default new users to pending."""
+    """Upgrade existing users and default new users to active."""
 
     with connection.cursor() as cursor:
         cursor.execute("SELECT to_regclass('app_users')")
@@ -1022,7 +1288,7 @@ def migrate_postgres_admin_schema(
         cursor.execute("""ALTER TABLE app_users ADD COLUMN IF NOT EXISTS
             is_admin BOOLEAN NOT NULL DEFAULT FALSE""")
         cursor.execute(
-            "ALTER TABLE app_users ALTER COLUMN access_status SET DEFAULT 'pending'"
+            "ALTER TABLE app_users ALTER COLUMN access_status SET DEFAULT 'active'"
         )
         cursor.execute("""CREATE TABLE IF NOT EXISTS account_access_events (
             id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES app_users(id),

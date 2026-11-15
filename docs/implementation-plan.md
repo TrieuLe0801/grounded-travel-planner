@@ -3,6 +3,47 @@
 Status: Active
 Last updated: 2026-11-15
 
+## Existing Accounts and Google SSO Linking — Offline Verified; Live QA Pending — 2026-11-15
+
+An existing user must be able to use Google SSO without registering again and
+retain the original account UUID and saved tours. Signing in with an already
+mapped Auth0 issuer/subject reuses that account. For a new Google subject with
+the same verified email, ordinary sign-in directs the user to authenticate the
+original account and explicitly link Google. The link flow requires a recent
+original-account session, CSRF, a fresh Google login, signed OIDC state, and
+matching verified email. It must not grant access from email equality alone.
+The original account's tours and access role remain unchanged. A Google
+identity already tied to another account is a conflict requiring controlled
+resolution; neither account's tours may be discarded. Live Auth0 and browser
+checks remain required before calling this deployed.
+
+After the compatibility adjustment, auth integration passed 47 tests and the
+full offline suite passed 217 tests with one optional PostgreSQL test skipped.
+The normal-login flow omits the optional `prompt` argument unless requested.
+Frontend typecheck/build and changed-file Python lint checks passed in the
+implementation run. Live callback and browser checks remain pending.
+
+## Self-Service Auth0 Signup and SSO Access — Source Updated; Tenant Setup Pending — 2026-11-15
+
+The user replaced administrator approval for new accounts and SSO with
+self-service access after Auth0 verifies the email. New identities become
+active on their first verified login. A legacy pending identity becomes active
+on its next verified login, with an access audit event; a blocked account stays
+blocked. The application checks the signed ID token's `email_verified` claim
+before creating a local account or session. An unverified signup returns to the
+landing page with bilingual instructions to confirm the Auth0 email and sign
+in again. Passwords and confirmation values remain outside the application.
+
+The Auth0 hosted signup requires a password-capable database connection, New
+Universal Login, a Signup Prompt Partial for client-side password confirmation,
+the Flexible Password Policy set to at least eight characters with uppercase,
+number and special-character requirements, and a working verification email
+template/provider. `auth0/` contains the prepared partial and tenant checklist.
+Keep Google SSO and the existing email OTP connection. The tenant is not
+connected in this workspace, so signup display, password enforcement, email
+delivery and live callback remain unverified. No deployment or migration was
+performed. See ADR 0021 and the 2026-11-15 learning-log entry.
+
 ## Google Admin Sign-in Repair — Applied — 2026-11-15
 
 The user confirmed sign-in through “Continue with Google”. PostgreSQL had a
@@ -65,7 +106,8 @@ and logout remain unverified.
 ## Admin Access and Account Usage — Source Implemented; Deployment Pending — 2026-11-14
 
 ADR 0023 adds account access states and an administrator role to the existing
-Auth0-backed application account. New identities await approval. Explicit
+Auth0-backed application account. Its original new-account approval rule was
+superseded by the self-service decision above. Explicit
 migration keeps existing accounts active. The admin API and bilingual React
 page list accounts, grant or block access, revoke sessions on block, and show
 account-scoped model usage. A regrant preserves the internal account UUID and

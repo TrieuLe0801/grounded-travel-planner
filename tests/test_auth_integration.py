@@ -10,7 +10,7 @@ import stat
 import time as clock
 from datetime import date, time
 from types import SimpleNamespace
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, urlencode, urlparse
 
 import jwt
 import pytest
@@ -45,7 +45,10 @@ class FakeOidcProvider:
 
     def __init__(self, subject: str, email: str) -> None:
         self.identity = VerifiedIdentity(
-            issuer="https://tenant.example.test/", subject=subject, email=email
+            issuer="https://tenant.example.test/",
+            subject=subject,
+            email=email,
+            email_verified=True,
         )
         self.authorization_calls: list[dict[str, str]] = []
         self.callback_calls: list[dict[str, str]] = []
@@ -58,6 +61,8 @@ class FakeOidcProvider:
         code_verifier: str,
         redirect_uri: str,
         screen_hint: str | None = None,
+        connection: str | None = None,
+        prompt: str | None = None,
     ) -> str:
         self.authorization_calls.append(
             {
@@ -66,10 +71,18 @@ class FakeOidcProvider:
                 "code_verifier": code_verifier,
                 "redirect_uri": redirect_uri,
                 "screen_hint": screen_hint or "",
+                "connection": connection or "",
+                "prompt": prompt or "",
             }
         )
-        signup_hint = "&screen_hint=signup" if screen_hint else ""
-        return f"https://auth0.example.test/authorize?state={state}{signup_hint}"
+        parameters = {"state": state}
+        if screen_hint:
+            parameters["screen_hint"] = screen_hint
+        if connection:
+            parameters["connection"] = connection
+        if prompt:
+            parameters["prompt"] = prompt
+        return f"https://auth0.example.test/authorize?{urlencode(parameters)}"
 
     def verify_callback(
         self, *, code: str, nonce: str, code_verifier: str, redirect_uri: str
@@ -146,6 +159,7 @@ def _client(
             issuer="https://tenant.example.test/",
             subject="fixture-admin",
             email="admin@example.test",
+            email_verified=True,
         )
     )
     if not auth.get_user(admin_id).is_admin:
@@ -186,8 +200,9 @@ def _sign_in(client: TestClient, provider: FakeOidcProvider) -> str:
     user_id, _ = client.app.state.test_auth_repository.find_or_create_user(
         provider.identity
     )
-    client.app.state.test_auth_repository.set_access(
-        user_id, active=True, actor_user_id=client.app.state.test_admin_id
+    assert (
+        client.app.state.test_auth_repository.get_user(user_id).access_status
+        == "active"
     )
     assert (
         provider.callback_calls[0]["nonce"] == provider.authorization_calls[0]["nonce"]
@@ -197,6 +212,300 @@ def _sign_in(client: TestClient, provider: FakeOidcProvider) -> str:
         == provider.authorization_calls[0]["code_verifier"]
     )
     return client.get("/api/auth/me").json()["csrf_token"]
+
+
+def _start_google_link(client: TestClient, csrf_token: str) -> str:
+    started = client.post("/api/auth/link/google", headers={"X-CSRF-Token": csrf_token})
+    assert started.status_code == 200
+    authorization_url = started.json()["authorization_url"]
+    query = parse_qs(urlparse(authorization_url).query)
+    assert query["connection"] == ["google-oauth2"]
+    assert query["prompt"] == ["login"]
+    return query["state"][0]
+
+
+def _google_identity(
+    email: str, subject: str = "google-oauth2|new"
+) -> VerifiedIdentity:
+    return VerifiedIdentity(
+        issuer="https://tenant.example.test/",
+        subject=subject,
+        email=email,
+        email_verified=True,
+    )
+
+
+def test_google_same_email_does_not_link_on_normal_login(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    provider = FakeOidcProvider("auth0|primary", "person@example.test")
+    client, auth, _ = _client(tmp_path, provider, monkeypatch)
+    _sign_in(client, provider)
+    primary_id = auth.authenticated(client.cookies.get(AUTH_COOKIE_NAME)).user_id
+    provider.identity = _google_identity("person@example.test")
+
+    started = client.get("/api/auth/login", follow_redirects=False)
+    state = parse_qs(urlparse(started.headers["location"]).query)["state"][0]
+    callback = client.get(
+        "/api/auth/callback",
+        params={"code": "google-code", "state": state},
+        follow_redirects=False,
+    )
+
+    assert callback.status_code == 303
+    assert callback.headers["location"] == "/?auth_error=link_required"
+    with sqlite3.connect(tmp_path / "auth.sqlite") as connection:
+        linked = connection.execute(
+            "SELECT user_id FROM auth_identities WHERE subject = ?",
+            (provider.identity.subject,),
+        ).fetchone()
+    assert linked is None
+    assert auth.get_user(primary_id) is not None
+    assert len(auth.list_users(limit=10, offset=0)) == 2
+
+
+def test_explicit_google_link_preserves_primary_account_and_saved_tours(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    provider = FakeOidcProvider("auth0|primary", "person@example.test")
+    client, auth, tours = _client(tmp_path, provider, monkeypatch)
+    csrf = _sign_in(client, provider)
+    original_token = client.cookies.get(AUTH_COOKIE_NAME)
+    primary_id = auth.authenticated(original_token).user_id
+    saved = tours.save_for_user(primary_id, _plan("Hue"))
+    state = _start_google_link(client, csrf)
+    assert provider.authorization_calls[-1]["connection"] == "google-oauth2"
+    assert provider.authorization_calls[-1]["prompt"] == "login"
+    provider.identity = _google_identity("person@example.test")
+
+    callback = client.get(
+        "/api/auth/callback",
+        params={"code": "google-code", "state": state},
+        follow_redirects=False,
+    )
+
+    assert callback.status_code == 303
+    assert callback.headers["location"] == "/?auth_link=linked"
+    assert client.cookies.get(AUTH_COOKIE_NAME) == original_token
+    assert auth.authenticated(original_token).user_id == primary_id
+    with sqlite3.connect(tmp_path / "auth.sqlite") as connection:
+        linked = connection.execute(
+            "SELECT user_id FROM auth_identities WHERE subject = ?",
+            (provider.identity.subject,),
+        ).fetchone()
+    assert linked == (primary_id,)
+    assert tours.list_for_user(primary_id).items[0].id == saved.id
+    assert len(auth.list_users(limit=10, offset=0)) == 2
+
+    client.cookies.clear()
+    started = client.get("/api/auth/login", follow_redirects=False)
+    login_state = parse_qs(urlparse(started.headers["location"]).query)["state"][0]
+    signed_in = client.get(
+        "/api/auth/callback",
+        params={"code": "new-google-code", "state": login_state},
+        follow_redirects=False,
+    )
+    assert signed_in.status_code == 303
+    assert (
+        auth.authenticated(client.cookies.get(AUTH_COOKIE_NAME)).user_id == primary_id
+    )
+    assert client.get("/api/saved-tours").json()["items"][0]["id"] == saved.id
+
+
+def test_google_link_requires_csrf_and_recent_primary_login(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    provider = FakeOidcProvider("auth0|primary", "person@example.test")
+    client, _, _ = _client(tmp_path, provider, monkeypatch)
+    csrf = _sign_in(client, provider)
+    before = len(provider.authorization_calls)
+
+    assert client.post("/api/auth/link/google").status_code == 403
+    assert (
+        client.post(
+            "/api/auth/link/google", headers={"X-CSRF-Token": csrf + "wrong"}
+        ).status_code
+        == 403
+    )
+    assert len(provider.authorization_calls) == before
+
+    with sqlite3.connect(tmp_path / "auth.sqlite") as connection:
+        connection.execute(
+            "UPDATE auth_sessions SET created_at = '2000-01-01T00:00:00+00:00'"
+        )
+    stale = client.post("/api/auth/link/google", headers={"X-CSRF-Token": csrf})
+    assert stale.status_code == 409
+    assert len(provider.authorization_calls) == before
+
+
+@pytest.mark.parametrize("case", ["wrong_provider", "wrong_email", "unverified"])
+def test_google_link_rejects_wrong_or_unverified_identity(
+    tmp_path, monkeypatch: pytest.MonkeyPatch, case: str
+) -> None:
+    provider = FakeOidcProvider("auth0|primary", "person@example.test")
+    client, auth, _ = _client(tmp_path, provider, monkeypatch)
+    csrf = _sign_in(client, provider)
+    primary_token = client.cookies.get(AUTH_COOKIE_NAME)
+    primary_id = auth.authenticated(primary_token).user_id
+    state = _start_google_link(client, csrf)
+    if case == "wrong_provider":
+        provider.identity = _google_identity("person@example.test", "auth0|other")
+    elif case == "wrong_email":
+        provider.identity = _google_identity("other@example.test")
+    else:
+        provider.identity = VerifiedIdentity(
+            issuer="https://tenant.example.test/",
+            subject="google-oauth2|new",
+            email="person@example.test",
+            email_verified=False,
+        )
+
+    callback = client.get(
+        "/api/auth/callback",
+        params={"code": "google-code", "state": state},
+        follow_redirects=False,
+    )
+
+    assert callback.status_code == 303
+    assert callback.headers["location"] == "/?auth_error=link_failed"
+    assert auth.authenticated(primary_token).user_id == primary_id
+    with sqlite3.connect(tmp_path / "auth.sqlite") as connection:
+        linked = connection.execute(
+            "SELECT user_id FROM auth_identities WHERE subject = ?",
+            (provider.identity.subject,),
+        ).fetchone()
+    assert linked is None
+
+
+def test_blocked_primary_cannot_start_google_link(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    provider = FakeOidcProvider("auth0|primary", "person@example.test")
+    client, auth, _ = _client(tmp_path, provider, monkeypatch)
+    csrf = _sign_in(client, provider)
+    user_id = auth.authenticated(client.cookies.get(AUTH_COOKIE_NAME)).user_id
+    before = len(provider.authorization_calls)
+
+    auth.set_access(user_id, active=False, actor_user_id=client.app.state.test_admin_id)
+    blocked = client.post("/api/auth/link/google", headers={"X-CSRF-Token": csrf})
+
+    assert blocked.status_code in {401, 403}
+    assert len(provider.authorization_calls) == before
+
+
+@pytest.mark.parametrize("has_tour", [False, True])
+def test_google_link_rejects_existing_separate_account_without_data_loss(
+    tmp_path, monkeypatch: pytest.MonkeyPatch, has_tour: bool
+) -> None:
+    provider = FakeOidcProvider("auth0|primary", "person@example.test")
+    client, auth, tours = _client(tmp_path, provider, monkeypatch)
+    google = _google_identity("person@example.test", "google-oauth2|existing")
+    secondary_id, _ = auth.find_or_create_user(google)
+    secondary_token, _ = auth.issue_session(secondary_id, google.email)
+    saved = tours.save_for_user(secondary_id, _plan("Da Nang")) if has_tour else None
+    csrf = _sign_in(client, provider)
+    primary_id = auth.authenticated(client.cookies.get(AUTH_COOKIE_NAME)).user_id
+    state = _start_google_link(client, csrf)
+    provider.identity = google
+
+    callback = client.get(
+        "/api/auth/callback",
+        params={"code": "google-code", "state": state},
+        follow_redirects=False,
+    )
+
+    assert callback.status_code == 303
+    assert callback.headers["location"] == "/?auth_error=link_failed"
+    assert auth.get_user(primary_id) is not None
+    assert auth.get_user(secondary_id) is not None
+    assert auth.authenticated(secondary_token).user_id == secondary_id
+    with sqlite3.connect(tmp_path / "auth.sqlite") as connection:
+        linked = connection.execute(
+            "SELECT user_id FROM auth_identities WHERE subject = ?", (google.subject,)
+        ).fetchone()
+    assert linked == (secondary_id,)
+    if saved is not None:
+        assert tours.list_for_user(secondary_id).items[0].id == saved.id
+        assert tours.list_for_user(primary_id).items == []
+
+
+def test_google_link_state_cannot_be_forged_or_replayed(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    provider = FakeOidcProvider("auth0|primary", "person@example.test")
+    client, auth, _ = _client(tmp_path, provider, monkeypatch)
+    csrf = _sign_in(client, provider)
+    state = _start_google_link(client, csrf)
+    provider.identity = _google_identity("person@example.test")
+    before = len(provider.callback_calls)
+
+    forged = client.get(
+        "/api/auth/callback",
+        params={"code": "google-code", "state": state + "forged"},
+        follow_redirects=False,
+    )
+    assert forged.status_code == 400
+    assert len(provider.callback_calls) == before
+
+    linked = client.get(
+        "/api/auth/callback",
+        params={"code": "google-code", "state": state},
+        follow_redirects=False,
+    )
+    assert linked.status_code == 303
+    assert linked.headers["location"] == "/?auth_link=linked"
+    replayed = client.get(
+        "/api/auth/callback",
+        params={"code": "google-code", "state": state},
+        follow_redirects=False,
+    )
+    assert replayed.status_code == 400
+    with sqlite3.connect(tmp_path / "auth.sqlite") as connection:
+        events = connection.execute(
+            "SELECT action FROM account_access_events WHERE action = 'link_google_identity'"
+        ).fetchall()
+    assert events == [("link_google_identity",)]
+    assert len(auth.list_users(limit=10, offset=0)) == 2
+
+
+def test_google_link_rejects_expired_pending_state_and_revoked_primary_session(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    provider = FakeOidcProvider("auth0|primary", "person@example.test")
+    client, auth, _ = _client(tmp_path, provider, monkeypatch)
+    csrf = _sign_in(client, provider)
+    state = _start_google_link(client, csrf)
+    provider.identity = _google_identity("person@example.test")
+    before = len(provider.callback_calls)
+
+    with monkeypatch.context() as patch:
+        patch.setattr(
+            "grounded_travel_planner.auth._now", lambda: 2**31 + AUTH_PENDING_SECONDS
+        )
+        expired = client.get(
+            "/api/auth/callback",
+            params={"code": "google-code", "state": state},
+            follow_redirects=False,
+        )
+    assert expired.status_code == 303
+    assert expired.headers["location"] != "/?auth_link=linked"
+    assert len(provider.callback_calls) == before
+    state = _start_google_link(client, csrf)
+    token = client.cookies.get(AUTH_COOKIE_NAME)
+    auth.revoke(token)
+    revoked = client.get(
+        "/api/auth/callback",
+        params={"code": "google-code", "state": state},
+        follow_redirects=False,
+    )
+    assert revoked.status_code == 303
+    assert revoked.headers["location"] == "/?auth_error=link_failed"
+    with sqlite3.connect(tmp_path / "auth.sqlite") as connection:
+        linked = connection.execute(
+            "SELECT user_id FROM auth_identities WHERE subject = ?",
+            (provider.identity.subject,),
+        ).fetchone()
+    assert linked is None
 
 
 @pytest.mark.parametrize(
@@ -216,6 +525,107 @@ def test_auth_login_intent_controls_signup_screen_hint(
     query = parse_qs(urlparse(response.headers["location"]).query)
     assert query.get("screen_hint", [""])[0] == expected_hint
     assert provider.authorization_calls[0]["screen_hint"] == expected_hint
+    assert provider.authorization_calls[0]["prompt"] == ""
+
+
+def test_existing_account_login_forces_fresh_auth0_prompt(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    provider = FakeOidcProvider("auth0|primary", "person@example.test")
+    client, _, _ = _client(tmp_path, provider, monkeypatch)
+
+    response = client.get(
+        "/api/auth/login", params={"intent": "existing"}, follow_redirects=False
+    )
+
+    assert response.status_code == 307
+    assert provider.authorization_calls[0]["prompt"] == "login"
+    assert parse_qs(urlparse(response.headers["location"]).query)["prompt"] == ["login"]
+
+
+def test_unverified_email_cannot_create_an_app_account_or_session(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    provider = FakeOidcProvider("auth0|unverified", "new@example.test")
+    provider.identity = VerifiedIdentity(
+        issuer=provider.identity.issuer,
+        subject=provider.identity.subject,
+        email=provider.identity.email,
+        email_verified=False,
+    )
+    client, auth, _ = _client(tmp_path, provider, monkeypatch)
+    started = client.get("/api/auth/login", follow_redirects=False)
+    state = parse_qs(urlparse(started.headers["location"]).query)["state"][0]
+
+    callback = client.get(
+        "/api/auth/callback",
+        params={"code": "offline-code", "state": state},
+        follow_redirects=False,
+    )
+
+    assert callback.status_code == 303
+    assert callback.headers["location"] == "/?auth_error=email_unverified"
+    assert "gtp_auth=" not in callback.headers["set-cookie"]
+    assert client.get("/api/auth/me").json()["authenticated"] is False
+    assert len(auth.list_users(limit=10, offset=0)) == 1  # fixture admin only
+
+
+def test_verified_login_activates_an_existing_pending_identity(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    provider = FakeOidcProvider("auth0|pending", "pending@example.test")
+    client, auth, _ = _client(tmp_path, provider, monkeypatch)
+    user_id, _ = auth.find_or_create_user(provider.identity)
+    with sqlite3.connect(tmp_path / "auth.sqlite") as connection:
+        connection.execute(
+            "UPDATE app_users SET access_status = 'pending' WHERE id = ?", (user_id,)
+        )
+
+    _sign_in(client, provider)
+
+    assert auth.get_user(user_id).access_status == "active"
+    assert client.get("/api/auth/me").json()["access_status"] == "active"
+    assert len(auth.list_users(limit=10, offset=0)) == 2
+    with sqlite3.connect(tmp_path / "auth.sqlite") as connection:
+        actions = connection.execute(
+            "SELECT action FROM account_access_events WHERE user_id = ?", (user_id,)
+        ).fetchall()
+    assert actions == [("verified_login",)]
+
+
+def test_auth_repository_rejects_unverified_identity(tmp_path) -> None:
+    auth = AuthRepository(tmp_path / "auth.sqlite")
+    auth.migrate()
+
+    with pytest.raises(AuthError, match="Email is not verified"):
+        auth.find_or_create_user(
+            VerifiedIdentity(
+                "https://tenant.example.test/", "auth0|unverified", "new@example.test"
+            )
+        )
+    assert auth.list_users(limit=10, offset=0) == []
+
+
+def test_verified_login_does_not_reactivate_blocked_account(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    provider = FakeOidcProvider("auth0|blocked", "blocked@example.test")
+    client, auth, _ = _client(tmp_path, provider, monkeypatch)
+    user_id, _ = auth.find_or_create_user(provider.identity)
+    auth.set_access(user_id, active=False, actor_user_id=client.app.state.test_admin_id)
+    started = client.get("/api/auth/login", follow_redirects=False)
+    state = parse_qs(urlparse(started.headers["location"]).query)["state"][0]
+
+    callback = client.get(
+        "/api/auth/callback",
+        params={"code": "offline-code", "state": state},
+        follow_redirects=False,
+    )
+
+    assert callback.status_code == 303
+    assert callback.headers["location"] == "/?auth_error=login_failed"
+    assert auth.get_user(user_id).access_status == "blocked"
+    assert client.get("/api/auth/me").json()["authenticated"] is False
 
 
 def test_admin_migration_keeps_existing_accounts_active(tmp_path) -> None:
@@ -481,6 +891,7 @@ def test_login_binds_an_existing_unowned_browser_session(
             issuer="https://tenant.example.test/",
             subject="fixture-admin",
             email="admin@example.test",
+            email_verified=True,
         )
     )
     auth.bootstrap_admin(admin_id)
@@ -523,6 +934,7 @@ def test_login_rotates_other_account_session_and_logout_removes_it(
         issuer="https://tenant.example.test/",
         subject="auth0|second",
         email="second@example.test",
+        email_verified=True,
     )
     started = client.get("/api/auth/login", follow_redirects=False)
     state = parse_qs(urlparse(started.headers["location"]).query)["state"][0]
@@ -643,8 +1055,19 @@ def test_new_login_revokes_previous_account_session(
     assert auth.authenticated(previous_token) is None
 
 
-@pytest.mark.parametrize("invalid", ["valid", "issuer", "audience", "nonce", "expired"])
-def test_auth0_id_token_rejects_invalid_identity_claims(
+@pytest.mark.parametrize(
+    "invalid",
+    [
+        "valid",
+        "issuer",
+        "audience",
+        "nonce",
+        "expired",
+        "email_unverified",
+        "email_missing",
+    ],
+)
+def test_auth0_id_token_validates_identity_and_email_verification(
     invalid: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
@@ -660,14 +1083,19 @@ def test_auth0_id_token_rejects_invalid_identity_claims(
         "iat": int(clock.time()),
         "exp": int(clock.time()) + 300,
         "nonce": "expected-nonce",
+        "email": "verified@example.test",
+        "email_verified": True,
     }
     changed = {
         "issuer": ("iss", "https://other.example.test/"),
         "audience": ("aud", "other-client"),
         "nonce": ("nonce", "wrong-nonce"),
         "expired": ("exp", int(clock.time()) - 1),
+        "email_unverified": ("email_verified", False),
     }
-    if invalid != "valid":
+    if invalid == "email_missing":
+        claims.pop("email_verified")
+    elif invalid != "valid":
         key, value = changed[invalid]
         claims[key] = value
     token = jwt.encode(
@@ -695,7 +1123,9 @@ def test_auth0_id_token_rejects_invalid_identity_claims(
         )
 
     if invalid == "valid":
-        assert verify().subject == "email|subject"
+        assert verify().email_verified is True
+    elif invalid in {"email_unverified", "email_missing"}:
+        assert verify().email_verified is False
     else:
         with pytest.raises(AuthError):
             verify()

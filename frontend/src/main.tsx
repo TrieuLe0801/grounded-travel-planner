@@ -1449,7 +1449,9 @@ function App() {
   const [view, setView] = useState<View>("itinerary");
   const [auth, setAuth] = useState<AuthState | null>(null);
   const [authError, setAuthError] = useState<LocalizedMessage>("");
+  const [authNotice, setAuthNotice] = useState<LocalizedMessage>("");
   const [signingOut, setSigningOut] = useState(false);
+  const [linkingGoogle, setLinkingGoogle] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [graphSvg, setGraphSvg] = useState("");
@@ -1612,11 +1614,14 @@ function App() {
   useEffect(() => {
     const parameters = new URLSearchParams(window.location.search);
     if (parameters.has("auth_error")) {
-      setAuthError("authError");
+      const error = parameters.get("auth_error");
+      setAuthError(error === "email_unverified" ? "authVerifyEmail" : error === "link_required" ? "authLinkRequired" : error === "link_failed" ? "linkGoogleFailed" : "authError");
       parameters.delete("auth_error");
-      const query = parameters.toString();
-      window.history.replaceState(null, "", query ? `/?${query}` : "/");
     }
+    if (parameters.get("auth_link") === "linked") setAuthNotice("linkGoogleDone");
+    parameters.delete("auth_link");
+    const query = parameters.toString();
+    window.history.replaceState(null, "", query ? `/?${query}` : "/");
     void recheckAuth(true);
   }, []);
   useEffect(() => {
@@ -1826,13 +1831,29 @@ function App() {
       if (request === adminUsersRequest.current) setAdminUserUpdatingId(null);
     }
   };
-  const signIn = (returnTo = "/", intent: "login" | "signup" = "login") => {
+  const signIn = (returnTo = "/", intent: "login" | "signup" | "existing" = "login") => {
     setAccountOpen(false);
     const separator = returnTo.includes("?") ? "&" : "?";
     const localizedReturnTo = `${returnTo}${separator}lang=${landingLanguage}`;
     const query = new URLSearchParams({ return_to: localizedReturnTo });
-    if (intent === "signup") query.set("intent", "signup");
+    if (intent !== "login") query.set("intent", intent);
     window.location.assign(`/api/auth/login?${query.toString()}`);
+  };
+  const linkGoogle = async () => {
+    if (!auth?.csrf_token || linkingGoogle) return;
+    setAccountOpen(false);
+    setAuthError("");
+    setLinkingGoogle(true);
+    try {
+      const result = await api<{ authorization_url: string }>("/api/auth/link/google", {
+        method: "POST",
+        headers: { "X-CSRF-Token": auth.csrf_token },
+      });
+      window.location.assign(result.authorization_url);
+    } catch (error) {
+      setAuthError(error instanceof ApiError && error.status === 409 ? "linkGoogleRecent" : "linkGoogleFailed");
+      setLinkingGoogle(false);
+    }
   };
   const signOut = async () => {
     if (!auth?.csrf_token || signingOut) return;
@@ -2036,6 +2057,7 @@ function App() {
             <h2 id="landing-action-title" className="mt-5 font-heading text-2xl font-bold">{labels.landingActionTitle}</h2>
             <p className="mt-3 leading-7 text-slate-700">{auth === null ? labels.authChecking : labels.landingAccess}</p>
             {authError && <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-800" role="alert">{labels[authError]}</p>}
+            {authError === "authLinkRequired" && <button type="button" onClick={() => signIn("/", "existing")} className="mt-3 inline-flex min-h-11 items-center rounded-xl border border-blue-200 bg-white px-4 font-semibold text-blue-800 focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300">{labels.signInExisting}</button>}
             {auth !== null && <div className="mt-7 grid gap-3">
               <button type="button" onClick={() => signIn("/", "login")} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 font-bold text-white shadow-lg shadow-blue-500/25 transition hover:bg-blue-500 focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300"><LogIn size={18} aria-hidden="true" />{labels.signInWithSso}</button>
               <button type="button" onClick={() => signIn("/", "signup")} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-blue-200 bg-white px-5 font-bold text-blue-800 transition hover:bg-blue-50 focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300"><UserPlus size={18} aria-hidden="true" />{labels.register}</button>
@@ -2182,6 +2204,15 @@ function App() {
                       <UsersRound size={17} aria-hidden="true" />
                       {labels.adminUsers}
                     </button>}
+                    {auth?.authenticated && <button
+                      type="button"
+                      onClick={() => void linkGoogle()}
+                      disabled={signingOut || linkingGoogle}
+                      className="flex min-h-11 w-full items-center gap-2 rounded-xl px-3 text-left text-sm font-semibold text-slate-700 hover:bg-blue-50 focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <UserRound size={17} aria-hidden="true" />
+                      {linkingGoogle ? labels.linkingGoogle : labels.linkGoogle}
+                    </button>}
                     {auth?.authenticated ? (
                       <button
                         type="button"
@@ -2224,6 +2255,7 @@ function App() {
       </header>
       <main id="main" className="mx-auto max-w-7xl px-4 pb-32 pt-8 sm:px-6 lg:pb-36 lg:pt-12">
         {authError && <p className="mb-5 rounded-xl bg-red-50 p-4 text-red-800" role="alert">{labels[authError]}</p>}
+        {authNotice && <p className="mb-5 rounded-xl bg-green-50 p-4 text-green-800" role="status">{labels[authNotice]}</p>}
         {view === "admin" && auth.is_admin ? (
           <AdminUsersView
             users={adminUsers}

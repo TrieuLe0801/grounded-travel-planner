@@ -33,18 +33,33 @@ migration; the Coordinator/Planner/Chat runtime and validation rules are shared.
 The public React entry is a bilingual introduction page. Its app description
 explains sightseeing planning and its purpose without describing sign-in
 mechanics. It provides separate SSO sign-in and registration actions. Visitors
-with an active Auth0 browser session use SSO; visitors without one continue
-through the existing Auth0 email one-time-code flow before the planner, chat,
+with an active Auth0 browser session use SSO; visitors without one can use
+Auth0 email/password or the existing email one-time-code flow before the planner, chat,
 visuals, or saved tours appear. FastAPI enforces sign-in on private API routes;
 the landing page and static assets remain public. Each live planner session is
 bound to its verified internal account UUID. See ADR 0021.
 
 ADR 0023 adds application administrator access. Existing accounts remain active
-after the explicit migration; new Auth0 identities wait for administrator
-approval. An administrator can grant, block and regrant application access,
+after the explicit migration; new identities with Auth0-verified email can use
+the app without administrator approval. An existing pending identity activates
+on its next verified login. An administrator can block and regrant application access,
 inspect LangSmith model token usage and cost by account. Blocking revokes account
 sessions but does not delete saved tours or LangSmith traces. Auth0 still owns
 credentials; live trip/chat state remains session-only.
+
+Registration uses an Auth0-hosted password form with password confirmation.
+Auth0 must enforce at least eight characters with uppercase, number, and
+special-character requirements, then send a verification email. The user
+confirms that email and signs in again. The app rejects an ID token without
+`email_verified=true`. Google SSO and existing email OTP sign-in remain
+available. The hosted form, policy and email delivery require tenant setup and
+live verification.
+
+Existing registered users sign in without registering again. The same Auth0
+identity keeps its account and saved tours. To use a new Google identity for an
+existing email account, the user signs in to the original account and explicitly
+links Google after authenticating it. A matching email alone cannot transfer
+the account or its tours.
 
 An operator may manually link a user-confirmed Google identity to that user's
 existing admin account after exact identity checks and a database backup.

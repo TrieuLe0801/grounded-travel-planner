@@ -356,7 +356,7 @@ def test_turn_quota_shares_verified_account_across_sessions(
     auth = AuthRepository(tmp_path / "auth.sqlite")
     auth.migrate()
     user_id, email = auth.find_or_create_user(
-        VerifiedIdentity("https://tenant.example.test/", "auth0|shared")
+        VerifiedIdentity("https://tenant.example.test/", "auth0|shared", None, True)
     )
     auth.bootstrap_admin(user_id)
     token, csrf = auth.issue_session(user_id, email)

@@ -1,7 +1,7 @@
 """Explicit admin-access migration for a stopped authentication database.
 
 Back up the database and pause application writes before running. Existing
-accounts remain active; new Auth0 identities start pending approval. Optionally
+accounts remain active; new Auth0 identities start active after verified login. Optionally
 activate the first administrator by internal account UUID or by a unique email
 already associated with a verified Auth0 login after migration.
 """

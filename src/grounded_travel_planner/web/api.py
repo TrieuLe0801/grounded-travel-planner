@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import hmac
 import json
 import os
@@ -26,6 +27,8 @@ from grounded_travel_planner.auth import (
     AUTH_COOKIE_NAME,
     AUTH_PENDING_COOKIE_NAME,
     AccessChangeConflict,
+    AccountLinkConflict,
+    AccountLinkRequired,
     AccountNotFound,
     Auth0OidcProvider,
     AuthenticatedUser,
@@ -431,7 +434,7 @@ def create_app(
             raise HTTPException(status_code=401, detail="Bạn cần đăng nhập.")
         if user.access_status != "active":
             raise HTTPException(
-                status_code=403, detail="Tài khoản chưa được cấp quyền."
+                status_code=403, detail="Vui lòng đăng nhập lại để hoàn tất tài khoản."
             )
         return user
 
@@ -503,7 +506,7 @@ def create_app(
             raise HTTPException(status_code=403, detail="Yêu cầu bảo mật không hợp lệ.")
         if require_active and user.access_status != "active":
             raise HTTPException(
-                status_code=403, detail="Tài khoản chưa được cấp quyền."
+                status_code=403, detail="Vui lòng đăng nhập lại để hoàn tất tài khoản."
             )
         return user
 
@@ -931,7 +934,7 @@ def create_app(
     def auth_login(
         request: Request,
         return_to: str | None = Query(default=None),
-        intent: Literal["login", "signup"] = Query(default="login"),
+        intent: Literal["login", "signup", "existing"] = Query(default="login"),
     ) -> Response:
         nonlocal provider
         if provider is None:
@@ -944,18 +947,70 @@ def create_app(
         try:
             codec = pending_codec()
             pending, fields = codec.issue(return_to=safe_return_to(return_to))
-            redirect = provider.authorization_url(
-                state=fields["state"],
-                nonce=fields["nonce"],
-                code_verifier=fields["verifier"],
-                redirect_uri=callback_uri(request),
-                screen_hint="signup" if intent == "signup" else None,
-            )
+            authorization_parameters = {
+                "state": fields["state"],
+                "nonce": fields["nonce"],
+                "code_verifier": fields["verifier"],
+                "redirect_uri": callback_uri(request),
+            }
+            if intent == "signup":
+                authorization_parameters["screen_hint"] = "signup"
+            if intent == "existing":
+                authorization_parameters["prompt"] = "login"
+            redirect = provider.authorization_url(**authorization_parameters)
         except AuthError as error:
             raise HTTPException(
                 status_code=503, detail="Không thể bắt đầu đăng nhập."
             ) from error
         response = RedirectResponse(redirect, status_code=307)
+        response.set_cookie(
+            AUTH_PENDING_COOKIE_NAME,
+            pending,
+            max_age=10 * 60,
+            httponly=True,
+            samesite="lax",
+            secure=_secure_cookie(request),
+            path="/api/auth",
+        )
+        return response
+
+    @app.post("/api/auth/link/google")
+    def auth_link_google(
+        request: Request,
+        gtp_auth: str | None = Cookie(default=None),
+        x_csrf_token: str | None = Header(default=None),
+    ) -> Response:
+        nonlocal provider
+        user = csrf_user(gtp_auth, x_csrf_token)
+        try:
+            if not auth.recent_session(gtp_auth):
+                raise HTTPException(
+                    status_code=409, detail="Vui lòng đăng nhập lại tài khoản cũ."
+                )
+            if provider is None:
+                provider = Auth0OidcProvider.from_environment()
+            codec = pending_codec()
+            pending, fields = codec.issue(
+                return_to="/",
+                link_user_id=user.user_id,
+                link_auth_hash=hashlib.sha256((gtp_auth or "").encode()).hexdigest(),
+            )
+            redirect = provider.authorization_url(
+                state=fields["state"],
+                nonce=fields["nonce"],
+                code_verifier=fields["verifier"],
+                redirect_uri=callback_uri(request),
+                connection="google-oauth2",
+                prompt="login",
+            )
+        except AuthError as error:
+            raise HTTPException(
+                status_code=503, detail="Không thể bắt đầu liên kết Google."
+            ) from error
+        response = Response(
+            content=json.dumps({"authorization_url": redirect}),
+            media_type="application/json",
+        )
         response.set_cookie(
             AUTH_PENDING_COOKIE_NAME,
             pending,
@@ -996,14 +1051,41 @@ def create_app(
                 code_verifier=pending["verifier"],
                 redirect_uri=callback_uri(request),
             )
+            if "link_user_id" in pending:
+                user = auth.authenticated(gtp_auth)
+                fingerprint = hashlib.sha256((gtp_auth or "").encode()).hexdigest()
+                if (
+                    user is None
+                    or user.access_status != "active"
+                    or user.user_id != pending["link_user_id"]
+                    or not hmac.compare_digest(fingerprint, pending["link_auth_hash"])
+                    or not auth.recent_session(gtp_auth)
+                ):
+                    raise AccountLinkConflict("The original account session changed.")
+                auth.link_google_identity(identity, user.user_id)
+                completed_link = RedirectResponse("/?auth_link=linked", status_code=303)
+                completed_link.delete_cookie(AUTH_PENDING_COOKIE_NAME, path="/api/auth")
+                return completed_link
+            if not identity.email_verified:
+                unverified = RedirectResponse(
+                    "/?auth_error=email_unverified", status_code=303
+                )
+                unverified.delete_cookie(AUTH_PENDING_COOKIE_NAME, path="/api/auth")
+                return unverified
             user_id, email = auth.find_or_create_user(identity)
             auth.revoke(gtp_auth)
             auth_token, _ = auth.issue_session(user_id, email)
             session_id, _ = sessions.bind_or_replace(
                 gtp_session, planner_service, user_id
             )
-        except (AuthError, SessionCapacityExceeded):
-            failed = RedirectResponse("/?auth_error=login_failed", status_code=303)
+        except (AuthError, SessionCapacityExceeded) as error:
+            if "pending" in locals() and "link_user_id" in pending:
+                failure = "link_failed"
+            elif isinstance(error, AccountLinkRequired):
+                failure = "link_required"
+            else:
+                failure = "login_failed"
+            failed = RedirectResponse(f"/?auth_error={failure}", status_code=303)
             failed.delete_cookie(AUTH_PENDING_COOKIE_NAME, path="/api/auth")
             return failed
         completed = RedirectResponse(
