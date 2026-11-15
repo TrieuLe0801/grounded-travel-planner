@@ -46,6 +46,10 @@ inspect LangSmith model token usage and cost by account. Blocking revokes accoun
 sessions but does not delete saved tours or LangSmith traces. Auth0 still owns
 credentials; live trip/chat state remains session-only.
 
+An operator may manually link a user-confirmed Google identity to that user's
+existing admin account after exact identity checks and a database backup.
+Runtime sign-in never links accounts by email.
+
 The user can explicitly save a validated current tour and later review that
 snapshot from the same browser. Saved tours use a separate database and owner
 credential; they are read-only records of the plan and sources at save time.
