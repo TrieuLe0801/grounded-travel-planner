@@ -1756,17 +1756,17 @@ three-role runtime and role-specific model policy.
   read-only request to the public login route returned HTTP 503 for both
   `intent=email` and `intent=signup`; the body bytes decode as valid UTF-8.
   Google login reaches Auth0 Universal Login.
-- The running app container and ignored deployment `.env` do not define
-  `GTP_AUTH0_PASSWORD_CONNECTION`. This missing runtime setting causes the
-  password/signup route to fail before Auth0 receives an authorization request.
-  The tenant connection name is unknown, so no default or test placeholder was
-  guessed and no environment value was changed.
+- The running app container lacked `GTP_AUTH0_PASSWORD_CONNECTION`. The user
+  supplied `Username-Password-Authentication` as the connection name; the
+  ignored deployment `.env` now has that setting. The running container has not
+  been recreated, so its environment remains unchanged and the password/signup
+  route still fails before Auth0 receives an authorization request.
 - Source now redirects Auth start failures to a safe return target and shows a
   bilingual landing message. Host/origin validation retains its HTTP 503
   behavior. Auth tests pass 66 cases; the full offline suite passes 246 tests
   with one optional PostgreSQL test skipped. Python quality gates, frontend
   check/build, diff check, roadmap JSON parsing and conflict scan pass.
 - Browser automation was unavailable. No Auth0 credentials, signup, email
-  delivery, callback, database connection setting, app restart or deployment
-  were changed or verified. Password sign-in remains unavailable until the
-  exact enabled Auth0 database connection name is configured in deployment.
+  delivery or callback were tested. The connection's Application toggle remains
+  unconfirmed. No app restart or deployment was performed. Password sign-in
+  remains unavailable until the running app is recreated with the new setting.
