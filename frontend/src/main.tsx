@@ -1487,6 +1487,7 @@ function App() {
   const [adminUsersStatus, setAdminUsersStatus] = useState<LocalizedMessage>("");
   const [adminUserUpdatingId, setAdminUserUpdatingId] = useState<string | null>(null);
   const adminUsersRequest = useRef(0);
+  const adminUserDeleteRequest = useRef(0);
   const [selectedAdminUserId, setSelectedAdminUserId] = useState<string | null>(null);
   const [adminUsage, setAdminUsage] = useState<AdminUsage | null>(null);
   const [adminUsageLoading, setAdminUsageLoading] = useState(false);
@@ -1575,6 +1576,7 @@ function App() {
     setAdminUsersStatus("");
     setAdminUserUpdatingId(null);
     adminUsersRequest.current += 1;
+    adminUserDeleteRequest.current += 1;
     setSelectedAdminUserId(null);
     setAdminUsage(null);
     setAdminUsageLoading(false);
@@ -1801,7 +1803,10 @@ function App() {
     setAdminUsersLoading(true);
     setAdminUsersError("");
     try {
-      const result = await api<AdminUsersPage>(`/api/admin/users?limit=${adminUsersPageSize}${cursor}`);
+      const result = await api<AdminUsersPage>(
+        `/api/admin/users?limit=${adminUsersPageSize}${cursor}`,
+        { cache: "no-store" },
+      );
       if (request !== adminUsersRequest.current) return;
       setAdminUsers((current) => append
         ? [...current, ...result.items.filter((user) => !current.some((item) => item.id === user.id))]
@@ -1861,7 +1866,7 @@ function App() {
   const deleteAdminUser = async (user: AdminUser) => {
     if (!auth?.csrf_token || adminUserUpdatingId) return;
     if (!window.confirm(`${labels.adminConfirmDelete}\n\n${user.email || user.id}`)) return;
-    const request = adminUsersRequest.current;
+    const request = ++adminUserDeleteRequest.current;
     setAdminUserUpdatingId(user.id);
     setAdminUsersError("");
     setAdminUsersStatus("");
@@ -1870,19 +1875,24 @@ function App() {
         method: "POST",
         headers: { "X-CSRF-Token": auth.csrf_token },
       });
-      if (request !== adminUsersRequest.current) return;
+      if (request !== adminUserDeleteRequest.current) return;
+      setAdminUsers((current) => current.filter((item) => item.id !== user.id));
       setAdminUsersStatus("adminDeleteSuccess");
-      setAdminUserUpdatingId(null);
-      if (selectedAdminUserId === user.id) setSelectedAdminUserId(null);
-      void loadAdminUsers(false);
-    } catch {
-      if (request === adminUsersRequest.current) {
-        setAdminUsersStatus("adminDeleteError");
-        setAdminUserUpdatingId(null);
-        void loadAdminUsers(false);
+      if (selectedAdminUserId === user.id) {
+        setSelectedAdminUserId(null);
+        setAdminUsage(null);
+        setAdminUsageLoading(false);
+        setAdminUsageError("");
+        adminUsageRequest.current += 1;
       }
+    } catch {
+      if (request !== adminUserDeleteRequest.current) return;
+      setAdminUsersStatus("adminDeleteError");
     } finally {
-      if (request === adminUsersRequest.current) setAdminUserUpdatingId(null);
+      if (request === adminUserDeleteRequest.current) {
+        setAdminUserUpdatingId(null);
+        await loadAdminUsers(false);
+      }
     }
   };
   const signIn = (returnTo = "/", intent: "login" | "google" | "email" | "signup" | "otp" | "existing" = "login") => {
