@@ -81,6 +81,8 @@ class OidcProvider(Protocol):
 
     def logout_url(self, *, return_to: str) -> str: ...
 
+    def request_password_reset(self, *, email: str, connection: str) -> None: ...
+
 
 class Auth0UserDeleter(Protocol):
     """Server-side boundary for deleting Auth0 user profiles."""
@@ -100,6 +102,16 @@ def _identity_lock_key(identity: VerifiedIdentity) -> str:
     """Build an unambiguous PostgreSQL text key without forbidden NUL bytes."""
 
     return f"{len(identity.issuer)}:{identity.issuer}{identity.subject}"
+
+
+def _identity_method(subject: str) -> str | None:
+    if subject.startswith("google-oauth2|"):
+        return "google"
+    if subject.startswith("auth0|"):
+        return "password"
+    if subject.startswith("email|"):
+        return "email_otp"
+    return None
 
 
 @dataclass(frozen=True)
@@ -195,7 +207,14 @@ class PendingLoginCodec:
         return_to: str,
         link_user_id: str | None = None,
         link_auth_hash: str | None = None,
+        link_method: Literal["google", "password", "email_otp"] | None = None,
     ) -> tuple[str, dict[str, str]]:
+        if any(
+            value is not None for value in (link_user_id, link_auth_hash, link_method)
+        ) and not all(
+            value is not None for value in (link_user_id, link_auth_hash, link_method)
+        ):
+            raise AuthError("Incomplete account linking state.")
         payload = {
             "state": secrets.token_urlsafe(32),
             "nonce": secrets.token_urlsafe(32),
@@ -203,9 +222,10 @@ class PendingLoginCodec:
             "return_to": safe_return_to(return_to),
             "expires_at": _now() + AUTH_PENDING_SECONDS,
         }
-        if link_user_id is not None and link_auth_hash is not None:
+        if link_user_id is not None and link_auth_hash is not None and link_method:
             payload["link_user_id"] = link_user_id
             payload["link_auth_hash"] = link_auth_hash
+            payload["link_method"] = link_method
         encoded = _b64(json.dumps(payload, separators=(",", ":")).encode("utf-8"))
         signature = _b64(
             hmac.new(self._secret, encoded.encode("ascii"), hashlib.sha256).digest()
@@ -224,10 +244,14 @@ class PendingLoginCodec:
                 base64.urlsafe_b64decode(encoded + "=" * (-len(encoded) % 4))
             )
             required = {"state", "nonce", "verifier", "return_to", "expires_at"}
-            link_fields = {"link_user_id", "link_auth_hash"}
+            link_fields = {"link_user_id", "link_auth_hash", "link_method"}
             if (
                 set(raw) not in (required, required | link_fields)
                 or int(raw["expires_at"]) < _now()
+                or (
+                    "link_method" in raw
+                    and raw["link_method"] not in {"google", "password", "email_otp"}
+                )
             ):
                 raise AuthError("Expired login state.")
             return {key: str(value) for key, value in raw.items()}
@@ -367,6 +391,26 @@ class Auth0OidcProvider:
 
         query = urlencode({"client_id": self._client_id, "returnTo": return_to})
         return f"{self._endpoint}/v2/logout?{query}"
+
+    def request_password_reset(self, *, email: str, connection: str) -> None:
+        """Ask Auth0 to email its database-connection password reset form."""
+
+        from urllib.request import Request
+
+        body = json.dumps(
+            {"client_id": self._client_id, "email": email, "connection": connection}
+        ).encode("utf-8")
+        request = Request(
+            f"{self._endpoint}/dbconnections/change_password",
+            data=body,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with urlopen(request, timeout=10):
+                pass
+        except Exception as error:
+            raise AuthError("Auth0 could not send a password reset email.") from error
 
 
 class Auth0ManagementApi:
@@ -528,6 +572,18 @@ class AuthRepository:
                 );
                 CREATE INDEX IF NOT EXISTS account_usage_aliases_canonical
                     ON account_usage_aliases(canonical_user_id);
+                CREATE TABLE IF NOT EXISTS account_merges (
+                    secondary_user_id TEXT PRIMARY KEY,
+                    canonical_user_id TEXT NOT NULL,
+                    actor_user_id TEXT NOT NULL,
+                    reason TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    FOREIGN KEY(secondary_user_id) REFERENCES app_users(id),
+                    FOREIGN KEY(canonical_user_id) REFERENCES app_users(id),
+                    CHECK (secondary_user_id <> canonical_user_id)
+                );
+                CREATE INDEX IF NOT EXISTS account_merges_canonical
+                    ON account_merges (canonical_user_id);
                 """)
 
     def migrate_admin(self) -> None:
@@ -561,6 +617,18 @@ class AuthRepository:
                 """CREATE INDEX IF NOT EXISTS account_usage_aliases_canonical
                 ON account_usage_aliases(canonical_user_id)"""
             )
+            connection.execute("""CREATE TABLE IF NOT EXISTS account_merges (
+                secondary_user_id TEXT PRIMARY KEY,
+                canonical_user_id TEXT NOT NULL,
+                actor_user_id TEXT NOT NULL,
+                reason TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY(secondary_user_id) REFERENCES app_users(id),
+                FOREIGN KEY(canonical_user_id) REFERENCES app_users(id),
+                CHECK (secondary_user_id <> canonical_user_id))""")
+            connection.execute(
+                "CREATE INDEX IF NOT EXISTS account_merges_canonical ON account_merges (canonical_user_id)"
+            )
 
     def find_or_create_user(self, identity: VerifiedIdentity) -> tuple[str, str | None]:
         if not identity.email_verified:
@@ -593,14 +661,14 @@ class AuthRepository:
                     return str(row["id"]), row["email"]
                 if identity.subject.startswith("google-oauth2|") and not identity.email:
                     raise AccountLinkConflict("Google identity has no email address.")
-                if identity.subject.startswith("google-oauth2|") and identity.email:
+                if identity.email:
                     match = connection.execute(
                         "SELECT id FROM app_users WHERE lower(email) = lower(?) LIMIT 1",
                         (identity.email,),
                     ).fetchone()
                     if match is not None:
                         raise AccountLinkRequired(
-                            "Sign in to your existing account to link Google."
+                            "Sign in to your existing account to link this identity."
                         )
                 user_id = str(uuid4())
                 connection.execute(
@@ -616,6 +684,19 @@ class AuthRepository:
                 return user_id, identity.email
         except sqlite3.Error as error:
             raise AuthError("Authentication storage is unavailable.") from error
+
+    def login_methods(self, user_id: str) -> list[str]:
+        try:
+            with self._connection() as connection:
+                subjects = connection.execute(
+                    "SELECT subject FROM auth_identities WHERE user_id = ?",
+                    (user_id,),
+                ).fetchall()
+        except sqlite3.Error as error:
+            raise AuthError("Authentication storage is unavailable.") from error
+        return sorted(
+            {method for row in subjects if (method := _identity_method(row["subject"]))}
+        )
 
     def recent_session(self, token: str | None, max_age_seconds: int = 300) -> bool:
         if not token or self.authenticated(token) is None:
@@ -644,10 +725,33 @@ class AuthRepository:
         identity: VerifiedIdentity,
         primary_user_id: str,
     ) -> None:
-        if not identity.email_verified or not identity.subject.startswith(
-            "google-oauth2|"
-        ):
-            raise AccountLinkConflict("A verified Google identity is required.")
+        self._link_identity(identity, primary_user_id, method="google")
+
+    def link_password_identity(
+        self,
+        identity: VerifiedIdentity,
+        primary_user_id: str,
+    ) -> None:
+        self._link_identity(identity, primary_user_id, method="password")
+
+    def link_email_otp_identity(
+        self,
+        identity: VerifiedIdentity,
+        primary_user_id: str,
+    ) -> None:
+        self._link_identity(identity, primary_user_id, method="email_otp")
+
+    def _link_identity(
+        self,
+        identity: VerifiedIdentity,
+        primary_user_id: str,
+        *,
+        method: Literal["google", "password", "email_otp"],
+    ) -> None:
+        if not identity.email_verified or _identity_method(identity.subject) != method:
+            raise AccountLinkConflict(
+                "A verified identity of the requested type is required."
+            )
         try:
             with self._connection() as connection:
                 connection.execute("BEGIN IMMEDIATE")
@@ -663,7 +767,7 @@ class AuthRepository:
                     or str(primary["email"]).casefold() != identity.email.casefold()
                 ):
                     raise AccountLinkConflict(
-                        "Primary account and Google email do not match."
+                        "Primary account and identity email do not match."
                     )
                 issuer = connection.execute(
                     "SELECT 1 FROM auth_identities WHERE user_id = ? AND issuer = ? LIMIT 1",
@@ -671,7 +775,7 @@ class AuthRepository:
                 ).fetchone()
                 if issuer is None:
                     raise AccountLinkConflict(
-                        "Google and primary account use different issuers."
+                        "The new identity and primary account use different issuers."
                     )
                 current = connection.execute(
                     "SELECT user_id FROM auth_identities WHERE issuer = ? AND subject = ?",
@@ -681,7 +785,7 @@ class AuthRepository:
                     return
                 if current is not None:
                     raise AccountLinkConflict(
-                        "Google identity belongs to another account."
+                        "The identity belongs to another account."
                     )
                 connection.execute(
                     "INSERT INTO auth_identities (issuer, subject, user_id) VALUES (?, ?, ?)",
@@ -690,11 +794,12 @@ class AuthRepository:
                 connection.execute(
                     """INSERT INTO account_access_events
                     (id, user_id, actor_user_id, action, created_at)
-                    VALUES (?, ?, ?, 'link_google_identity', ?)""",
+                    VALUES (?, ?, ?, ?, ?)""",
                     (
                         str(uuid4()),
                         primary_user_id,
                         primary_user_id,
+                        f"link_{method}_identity",
                         datetime.now(timezone.utc).isoformat(),
                     ),
                 )
@@ -810,7 +915,7 @@ class AuthRepository:
             with self._connection() as connection:
                 rows = connection.execute(
                     """SELECT id, email, created_at, access_status, is_admin
-                    FROM app_users WHERE access_status <> 'deleted'
+                    FROM app_users WHERE access_status NOT IN ('merged', 'deleted')
                     ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?""",
                     (limit, offset),
                 ).fetchall()
@@ -858,6 +963,8 @@ class AuthRepository:
                 ).fetchone()
                 if target is None:
                     raise AccountNotFound("Account does not exist.")
+                if target["access_status"] == "merged":
+                    raise AccessChangeConflict("Merged accounts cannot be deleted.")
                 if user_id == actor_user_id:
                     raise AccessChangeConflict(
                         "Administrators cannot delete themselves."
@@ -948,6 +1055,8 @@ class AuthRepository:
                 ).fetchone()
                 if target is None:
                     raise AccountNotFound("Account does not exist.")
+                if target["access_status"] == "merged":
+                    raise AccessChangeConflict("Merged accounts cannot be deleted.")
                 if target["access_status"] == "deleted":
                     return _account_record(target)
                 if target["access_status"] != "deleting":
@@ -992,26 +1101,43 @@ class AuthRepository:
             raise AuthError("Authentication storage is unavailable.") from error
 
     def usage_aliases_for_users(self, user_ids: list[str]) -> dict[str, list[str]]:
-        if not user_ids:
+        canonical_ids = list(dict.fromkeys(user_ids))
+        if not canonical_ids:
             return {}
-        placeholders = ",".join("?" for _ in user_ids)
+        placeholders = ",".join("?" for _ in canonical_ids)
         try:
             with self._connection() as connection:
-                rows = connection.execute(
+                usage_rows = connection.execute(
+                    f"""SELECT canonical_user_id, secondary_user_id
+                    FROM account_merges
+                    WHERE canonical_user_id IN ({placeholders})
+                    ORDER BY canonical_user_id, secondary_user_id""",
+                    canonical_ids,
+                ).fetchall()
+                alias_rows = connection.execute(
                     f"""SELECT canonical_user_id, former_user_id
                     FROM account_usage_aliases
                     WHERE canonical_user_id IN ({placeholders})
                     ORDER BY canonical_user_id, former_user_id""",
-                    user_ids,
+                    canonical_ids,
                 ).fetchall()
         except sqlite3.Error as error:
             raise AuthError("Authentication storage is unavailable.") from error
-        aliases: dict[str, list[str]] = {}
-        for row in rows:
-            aliases.setdefault(str(row["canonical_user_id"]), []).append(
+        aliases: dict[str, set[str]] = {}
+        for row in usage_rows:
+            aliases.setdefault(str(row["canonical_user_id"]), set()).add(
+                str(row["secondary_user_id"])
+            )
+        for row in alias_rows:
+            aliases.setdefault(str(row["canonical_user_id"]), set()).add(
                 str(row["former_user_id"])
             )
-        return aliases
+        return {canonical_id: sorted(ids) for canonical_id, ids in aliases.items()}
+
+    def usage_aliases(self, user_ids: list[str]) -> dict[str, list[str]]:
+        """Compatibility name for merged account usage aliases."""
+
+        return self.usage_aliases_for_users(user_ids)
 
     def set_access(
         self, user_id: str, active: bool, actor_user_id: str
@@ -1036,8 +1162,12 @@ class AuthRepository:
                     FROM app_users WHERE id = ?""",
                     (user_id,),
                 ).fetchone()
-                if target is None or target["access_status"] in {"deleting", "deleted"}:
+                if target is None:
                     raise AccountNotFound("Account does not exist.")
+                if target["access_status"] in {"merged", "deleting", "deleted"}:
+                    raise AccessChangeConflict(
+                        "Merged or deleting accounts cannot change access."
+                    )
                 if not active and user_id == actor_user_id:
                     raise AccessChangeConflict(
                         "Administrators cannot block themselves."
@@ -1101,6 +1231,10 @@ class AuthRepository:
                 ).fetchone()
                 if target is None:
                     raise AccountNotFound("Account does not exist.")
+                if target["access_status"] in {"merged", "deleting", "deleted"}:
+                    raise AccessChangeConflict(
+                        "Merged or deleting accounts cannot be activated."
+                    )
                 connection.execute(
                     "UPDATE app_users SET is_admin = 1, access_status = 'active' WHERE id = ?",
                     (user_id,),
@@ -1221,14 +1355,14 @@ class PostgresAuthRepository:
                         "SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))",
                         (f"app_user_email:{identity.email.casefold()}",),
                     )
-                if identity.subject.startswith("google-oauth2|") and identity.email:
+                if identity.email:
                     cursor.execute(
                         "SELECT id FROM app_users WHERE lower(email) = lower(%s) LIMIT 1",
                         (identity.email,),
                     )
                     if cursor.fetchone() is not None:
                         raise AccountLinkRequired(
-                            "Sign in to your existing account to link Google."
+                            "Sign in to your existing account to link this identity."
                         )
                 user_id = str(uuid4())
                 cursor.execute(
@@ -1244,6 +1378,25 @@ class PostgresAuthRepository:
                 return user_id, identity.email
         except (psycopg.Error, PoolClosed, PoolTimeout) as error:
             raise AuthError("Authentication storage is unavailable.") from error
+
+    def login_methods(self, user_id: str) -> list[str]:
+        try:
+            with self._pool.connection() as connection, connection.cursor() as cursor:
+                cursor.execute(
+                    "SELECT subject FROM auth_identities WHERE user_id = %s",
+                    (user_id,),
+                )
+                subjects = cursor.fetchall()
+        except (psycopg.Error, PoolClosed, PoolTimeout) as error:
+            raise AuthError("Authentication storage is unavailable.") from error
+        return sorted(
+            {method for row in subjects if (method := _identity_method(row["subject"]))}
+        )
+
+    def usage_aliases(self, user_ids: list[str]) -> dict[str, list[str]]:
+        """Compatibility name for merged account usage aliases."""
+
+        return self.usage_aliases_for_users(user_ids)
 
     def recent_session(self, token: str | None, max_age_seconds: int = 300) -> bool:
         if not token or self.authenticated(token) is None:
@@ -1273,10 +1426,33 @@ class PostgresAuthRepository:
         identity: VerifiedIdentity,
         primary_user_id: str,
     ) -> None:
-        if not identity.email_verified or not identity.subject.startswith(
-            "google-oauth2|"
-        ):
-            raise AccountLinkConflict("A verified Google identity is required.")
+        self._link_identity(identity, primary_user_id, method="google")
+
+    def link_password_identity(
+        self,
+        identity: VerifiedIdentity,
+        primary_user_id: str,
+    ) -> None:
+        self._link_identity(identity, primary_user_id, method="password")
+
+    def link_email_otp_identity(
+        self,
+        identity: VerifiedIdentity,
+        primary_user_id: str,
+    ) -> None:
+        self._link_identity(identity, primary_user_id, method="email_otp")
+
+    def _link_identity(
+        self,
+        identity: VerifiedIdentity,
+        primary_user_id: str,
+        *,
+        method: Literal["google", "password", "email_otp"],
+    ) -> None:
+        if not identity.email_verified or _identity_method(identity.subject) != method:
+            raise AccountLinkConflict(
+                "A verified identity of the requested type is required."
+            )
         try:
             with self._pool.connection() as connection, connection.cursor() as cursor:
                 cursor.execute(
@@ -1296,7 +1472,7 @@ class PostgresAuthRepository:
                     or str(primary["email"]).casefold() != identity.email.casefold()
                 ):
                     raise AccountLinkConflict(
-                        "Primary account and Google email do not match."
+                        "Primary account and identity email do not match."
                     )
                 cursor.execute(
                     "SELECT 1 FROM auth_identities WHERE user_id = %s AND issuer = %s LIMIT 1",
@@ -1304,7 +1480,7 @@ class PostgresAuthRepository:
                 )
                 if cursor.fetchone() is None:
                     raise AccountLinkConflict(
-                        "Google and primary account use different issuers."
+                        "The new identity and primary account use different issuers."
                     )
                 cursor.execute(
                     "SELECT user_id FROM auth_identities WHERE issuer = %s AND subject = %s FOR UPDATE",
@@ -1315,7 +1491,7 @@ class PostgresAuthRepository:
                     return
                 if current is not None:
                     raise AccountLinkConflict(
-                        "Google identity belongs to another account."
+                        "The identity belongs to another account."
                     )
                 cursor.execute(
                     "INSERT INTO auth_identities (issuer, subject, user_id) VALUES (%s, %s, %s)",
@@ -1324,11 +1500,12 @@ class PostgresAuthRepository:
                 cursor.execute(
                     """INSERT INTO account_access_events
                     (id, user_id, actor_user_id, action, created_at)
-                    VALUES (%s, %s, %s, 'link_google_identity', %s)""",
+                    VALUES (%s, %s, %s, %s, %s)""",
                     (
                         str(uuid4()),
                         primary_user_id,
                         primary_user_id,
+                        f"link_{method}_identity",
                         datetime.now(timezone.utc).isoformat(),
                     ),
                 )
@@ -1425,7 +1602,7 @@ class PostgresAuthRepository:
             with self._pool.connection() as connection, connection.cursor() as cursor:
                 cursor.execute(
                     """SELECT id, email, created_at, access_status, is_admin
-                    FROM app_users WHERE access_status <> 'deleted'
+                    FROM app_users WHERE access_status NOT IN ('merged', 'deleted')
                     ORDER BY created_at DESC, id DESC LIMIT %s OFFSET %s""",
                     (limit, offset),
                 )
@@ -1478,6 +1655,8 @@ class PostgresAuthRepository:
                 target = cursor.fetchone()
                 if target is None:
                     raise AccountNotFound("Account does not exist.")
+                if target["access_status"] == "merged":
+                    raise AccessChangeConflict("Merged accounts cannot be deleted.")
                 if user_id == actor_user_id:
                     raise AccessChangeConflict(
                         "Administrators cannot delete themselves."
@@ -1569,6 +1748,8 @@ class PostgresAuthRepository:
                 target = cursor.fetchone()
                 if target is None:
                     raise AccountNotFound("Account does not exist.")
+                if target["access_status"] == "merged":
+                    raise AccessChangeConflict("Merged accounts cannot be deleted.")
                 if target["access_status"] == "deleted":
                     return _account_record(target)
                 if target["access_status"] != "deleting":
@@ -1613,16 +1794,23 @@ class PostgresAuthRepository:
             raise AuthError("Authentication storage is unavailable.") from error
 
     def usage_aliases_for_users(self, user_ids: list[str]) -> dict[str, list[str]]:
-        if not user_ids:
+        canonical_ids = list(dict.fromkeys(user_ids))
+        if not canonical_ids:
             return {}
         try:
             with self._pool.connection() as connection, connection.cursor() as cursor:
                 cursor.execute(
-                    """SELECT canonical_user_id, former_user_id
-                    FROM account_usage_aliases
-                    WHERE canonical_user_id = ANY(%s)
-                    ORDER BY canonical_user_id, former_user_id""",
-                    (user_ids,),
+                    """SELECT canonical_user_id, alias_user_id FROM (
+                        SELECT canonical_user_id, former_user_id AS alias_user_id
+                        FROM account_usage_aliases
+                        WHERE canonical_user_id = ANY(%s)
+                        UNION
+                        SELECT canonical_user_id, secondary_user_id AS alias_user_id
+                        FROM account_merges
+                        WHERE canonical_user_id = ANY(%s)
+                    ) AS aliases
+                    ORDER BY canonical_user_id, alias_user_id""",
+                    (canonical_ids, canonical_ids),
                 )
                 rows = cursor.fetchall()
         except (psycopg.Error, PoolClosed, PoolTimeout) as error:
@@ -1630,7 +1818,7 @@ class PostgresAuthRepository:
         aliases: dict[str, list[str]] = {}
         for row in rows:
             aliases.setdefault(str(row["canonical_user_id"]), []).append(
-                str(row["former_user_id"])
+                str(row["alias_user_id"])
             )
         return aliases
 
@@ -1659,8 +1847,12 @@ class PostgresAuthRepository:
                     (user_id,),
                 )
                 target = cursor.fetchone()
-                if target is None or target["access_status"] in {"deleting", "deleted"}:
+                if target is None:
                     raise AccountNotFound("Account does not exist.")
+                if target["access_status"] in {"merged", "deleting", "deleted"}:
+                    raise AccessChangeConflict(
+                        "Merged or deleting accounts cannot change access."
+                    )
                 if not active and user_id == actor_user_id:
                     raise AccessChangeConflict(
                         "Administrators cannot block themselves."
@@ -1718,13 +1910,17 @@ class PostgresAuthRepository:
                 if cursor.fetchone():
                     raise AccessChangeConflict("An administrator already exists.")
                 cursor.execute(
-                    """SELECT id, email, created_at FROM app_users
+                    """SELECT id, email, created_at, access_status FROM app_users
                     WHERE id = %s FOR UPDATE""",
                     (user_id,),
                 )
                 target = cursor.fetchone()
                 if target is None:
                     raise AccountNotFound("Account does not exist.")
+                if target["access_status"] in {"merged", "deleting", "deleted"}:
+                    raise AccessChangeConflict(
+                        "Merged or deleting accounts cannot be activated."
+                    )
                 cursor.execute(
                     """UPDATE app_users SET is_admin = TRUE,
                     access_status = 'active' WHERE id = %s""",
@@ -1769,7 +1965,7 @@ class PostgresAuthRepository:
 def create_postgres_auth_schema(
     connection: psycopg.Connection[dict[str, Any]],
 ) -> None:
-    """Explicit maintenance migration for the three auth tables."""
+    """Explicit maintenance migration for auth, session, and merge tables."""
 
     with connection.cursor() as cursor:
         cursor.execute("""CREATE TABLE IF NOT EXISTS app_users (
@@ -1795,6 +1991,16 @@ def create_postgres_auth_schema(
             CHECK (former_user_id <> canonical_user_id))""")
         cursor.execute("""CREATE INDEX IF NOT EXISTS account_usage_aliases_canonical
             ON account_usage_aliases(canonical_user_id)""")
+        cursor.execute("""CREATE TABLE IF NOT EXISTS account_merges (
+            secondary_user_id TEXT PRIMARY KEY REFERENCES app_users(id),
+            canonical_user_id TEXT NOT NULL REFERENCES app_users(id),
+            actor_user_id TEXT NOT NULL,
+            reason TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            CHECK (secondary_user_id <> canonical_user_id))""")
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS account_merges_canonical ON account_merges (canonical_user_id)"
+        )
 
 
 def migrate_postgres_admin_schema(
@@ -1822,3 +2028,13 @@ def migrate_postgres_admin_schema(
             CHECK (former_user_id <> canonical_user_id))""")
         cursor.execute("""CREATE INDEX IF NOT EXISTS account_usage_aliases_canonical
             ON account_usage_aliases(canonical_user_id)""")
+        cursor.execute("""CREATE TABLE IF NOT EXISTS account_merges (
+            secondary_user_id TEXT PRIMARY KEY REFERENCES app_users(id),
+            canonical_user_id TEXT NOT NULL REFERENCES app_users(id),
+            actor_user_id TEXT NOT NULL,
+            reason TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            CHECK (secondary_user_id <> canonical_user_id))""")
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS account_merges_canonical ON account_merges (canonical_user_id)"
+        )

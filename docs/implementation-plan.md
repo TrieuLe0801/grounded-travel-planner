@@ -1,7 +1,107 @@
 # Implementation Plan
 
 Status: Active
-Last updated: 2026-11-15
+Last updated: 2026-11-16
+
+## Public Auth0 Hostname Correction — 2026-11-15
+
+The user confirmed `https://www.citedtrip.app` as the current public app URL.
+The deployment Auth0 origin and Auth0 application allowlists must use that
+exact host: callback `https://www.citedtrip.app/api/auth/callback` and logout
+return `https://www.citedtrip.app/`. The BFF's exact Host check remains in place.
+Read-only public checks returned root/health HTTP 200 and login HTTP 307 with
+the `www` callback. Auth0 callback exchange, logout and browser QA are pending.
+ADR 0022 records the amendment; older apex-host checks remain historical.
+
+## PR #16/#17 Conflict Integration — 2026-11-16
+
+Integrated the three-method account-linking and duplicate-UUID reconciliation
+changes with PR #17 administrator deletion. Authentication, session creation,
+admin access changes and bootstrap reject merged, deleting and deleted
+accounts; merged secondary accounts cannot be deleted directly. Deleting
+accounts remain retryable, account-usage aliases include both legacy aliases
+and merge mappings, and canonical deletion preserves merge audit records.
+Administrator deletion continues to remove only exact stored Auth0 identities
+and owner-scoped saved tours. Offline verification passed 246 tests with one
+optional PostgreSQL test skipped; isort, Black, flake8, Ruff, frontend check
+and build, JSON parsing and diff checks passed. Auth0 live actions and
+interactive browser account flows remain pending; the browser automation host
+was unavailable. See the current learning log and ADRs 0021 and 0023.
+
+## Google, Password and Personal Information — Source Implemented; Tenant QA Pending — 2026-11-15
+
+The landing now offers explicit Google, database email/password, email signup
+and existing email-code entry. The React account menu opens Personal
+information, showing linked methods and actions to link Google, create or link
+an Auth0 database password, or request an Auth0 password-reset email. The app
+does not receive a Gmail or Auth0 password. A fixed
+`GTP_AUTH0_PASSWORD_CONNECTION` chooses the configured Auth0 database
+connection; it must be set in the deployment environment.
+
+Both SQLite and PostgreSQL now refuse a new verified issuer/subject with an
+email already present on another application account. This prevents the
+Google-first then password-second order from creating a second app UUID. The
+user proves the original account with a recent app session and CSRF, then
+proves the new identity with fresh Auth0 authentication. Verified matching
+email, issuer and unowned subject are checked before binding it to the old UUID.
+Linked login reuses that UUID, role and saved tours. If signup returns an
+unverified identity, the original app session stays intact. After email
+verification, the user starts a new link flow; the old 10-minute OIDC state is
+not reused. Existing distinct account UUIDs are never silently merged.
+
+Offline acceptance covers both registration orders, unverified email,
+wrong/owned identities, recent-session and CSRF checks, method display,
+password-reset request/rate limit and saved-tour integrity. The focused
+account/auth/archive suite passed 79 cases before the final added cases; the
+final full suite passed 231 cases with one optional PostgreSQL integration
+test skipped because `GTP_POSTGRES_TEST_DSN` and `GTP_POSTGRES_TEST` were not
+set. Frontend check/build, isort, Black, flake8, Ruff and diff checks passed.
+Auth0 tenant setup, verification email, hosted signup, reset email, real
+callback, browser interaction and deployment remain separate gates. See ADR
+0021 and the current learning log.
+
+## Three-Method Identity Linking and Duplicate-Account Reconciliation — Offline Verified; Auth0/Browser Pending — 2026-11-16
+
+Google, Auth0 database-password, and email OTP identities map to one internal
+UUID only after explicit linking. Every link requires a recent original-account
+session, CSRF, fresh authentication of the new identity, verified matching
+email, the same issuer, and an identity not already owned by another UUID.
+Email equality alone never links accounts.
+
+The operator reconciliation path handles already-duplicated application UUIDs
+only after an independent ownership check, database backup, and write pause. It
+requires explicit canonical and secondary UUIDs, preserves saved-tour snapshots
+and access-audit rows, revokes secondary sessions, records the old UUID as an
+alias for LangSmith usage, and hides the merged account from normal admin
+listing. An admin canonical may absorb a non-admin secondary after the operator
+selects that canonical UUID; its role stays unchanged, so both identities
+resolve to the canonical account. A non-admin canonical cannot absorb an admin
+secondary. A dry-run may use the canonical admin as a temporary actor because
+the transaction rolls back. If no independent active admin exists, applying
+may use the canonical admin as a self-audit actor only with explicit
+`--canonical-actor-confirmed`; the database locks and checks for another active
+admin. Ownership, backup, and paused-write acknowledgements remain required.
+Access-status conflicts remain fail-closed. The existing one-off repair script
+remains unchanged. Auth0-native profile linking, tenant changes and deployment
+are out of scope for this source change. Automated tests, lint, frontend build
+and Auth0/browser verification were not run. In the 2026-11-16 follow-up, the
+PostgreSQL schema migration and account reconciliation were applied after
+verified backups. The user selected the admin UUID as canonical and authorized
+self-audit. One identity moved, no tours moved, and two secondary sessions were
+revoked. Post-checks confirmed the merged tombstone, usage alias and two audit
+events; all six tours remain under the canonical account.
+
+PR-preflight verification on 2026-11-16: the offline suite passed 234 tests;
+one optional PostgreSQL test was skipped because its opt-in settings were
+unset. A prior run found a stale test expectation for the specific
+unverified-link redirect; the case-specific assertion now passes. Isort, Black,
+flake8, Ruff, frontend `npm run check`, `npm run build`, `git diff --check` and
+roadmap JSON parsing passed. A read-only public HTTP probe reached Auth0
+Universal Login: app login returned 307 and the hosted email/password page
+returned 200. Browser UI automation was unavailable, so no credentials, signup,
+OTP, callback exchange or account-link flow was tested. The running app
+container uses another checkout; these source changes are not deployed. See
+ADR 0021 and the current learning log.
 
 ## Merged Account LangSmith Usage — Compose Deployed — 2026-11-15
 

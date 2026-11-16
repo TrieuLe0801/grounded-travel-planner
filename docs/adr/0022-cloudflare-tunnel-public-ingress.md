@@ -55,3 +55,17 @@ reachable can break login flows already in progress.
 - Change the production hostname or move public ingress away from Cloudflare
   Tunnel.
 - Add another public app origin or change Auth0 callback/logout behavior.
+
+## Hostname Correction — 2026-11-15
+
+The user clarified that the public application is reached at
+`https://www.citedtrip.app`. This amends the single public Auth0 origin above:
+use `GTP_AUTH_PUBLIC_ORIGIN=https://www.citedtrip.app`, callback
+`https://www.citedtrip.app/api/auth/callback`, and logout return URL
+`https://www.citedtrip.app/`. The exact Host check remains in force.
+
+Read-only checks from the workspace returned HTTP 200 for the `www` root and
+health endpoint. The deployed login route returned HTTP 307 with the `www`
+callback in its Auth0 authorization URL. The apex hostname did not resolve from
+this workspace. These checks do not establish that the Auth0 callback/logout
+allowlists or full browser sign-in have passed.

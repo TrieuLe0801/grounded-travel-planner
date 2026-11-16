@@ -164,19 +164,24 @@
       </ul>
     </section>
     <section class="card active">
-      <span class="badge">Offline suite passed · Live signup pending</span>
+      <span class="badge">Offline checks passed · browser QA pending</span>
       <h3>1L · Auth0 accounts and planner entry</h3>
       <ul>
         <li>Auth0 OIDC BFF reuses an active Auth0 session for SSO; users without one can use password signup or the existing email one-time-code flow after tenant setup</li>
         <li>Account-scoped save, list, detail, delete and lossless legacy-cookie claim</li>
         <li>Public bilingual landing is the only unauthenticated React view; FastAPI gates planner APIs and binds live sessions to the verified account</li>
-        <li>Latest source describes the sightseeing app and purpose, with separate SSO sign-in and Auth0 registration actions; frontend build and offline tests pass, while browser/Auth0 checks and deployment remain pending</li>
-        <li>React account dropdown shows signed-in email, Saved tours and sign-out; login/logout rotate or discard live state safely</li>
+        <li>Latest source has direct Google, email/password, registration and email-code entry. Personal information shows linked methods and starts Google/password linking or Auth0 password reset; browser/Auth0 checks and deployment remain pending</li>
+        <li>React account dropdown opens Personal information and Saved tours; login/logout rotate or discard live state safely</li>
         <li>Five restored snapshots retained their checksum after two migration runs</li>
         <li>Verified Auth0 email activates new and legacy pending identities without admin approval; an unverified email cannot create an app account or session; blocked access stays blocked</li>
         <li>Auth0 confirm-password partial and setup checklist are prepared. Tenant password policy, verification email, hosted signup screen and live callback remain unverified</li>
         <li>Existing accounts can link Google after fresh authentication and keep the original UUID and saved tours; email-only linking is rejected. Existing Google identities already owned by another app account require controlled resolution</li>
-        <li>Latest full offline suite: 217 passed, 1 optional PostgreSQL test skipped; frontend and Python quality checks passed</li>
+        <li>Google-first users can create an Auth0 database password and explicitly link it after verification. New identities with the same verified email cannot create a second app UUID; conflicting existing accounts retain their data</li>
+        <li>Personal information now supports explicit Email OTP linking too. Linking requires recent original-account authentication, CSRF, fresh identity authentication, verified matching email, same issuer and an unowned subject; email alone never links accounts</li>
+        <li>Legacy duplicate UUIDs have a PostgreSQL operator reconciliation CLI with rollback-by-default, explicit ownership/backup/write-pause acknowledgements and `--apply`; snapshots and audit references are preserved, merged UUIDs become tombstones, and old usage follows aliases</li>
+        <li>2026-11-16 PR #16/#17 conflict integration: offline suite 246 passed and one optional PostgreSQL test skipped; isort, Black, flake8, Ruff, frontend check/build, diff check and roadmap JSON parsing passed</li>
+        <li>Read-only HTTP reached Auth0 Universal Login: app login returned 307 and hosted email/password page returned 200. Browser UI automation was unavailable; signup, OTP, callback exchange and account linking remain untested</li>
+        <li>PostgreSQL schema migration and merge ran after verified backups; user chose admin UUID as canonical and authorized self-audit. One identity moved, six canonical tours remained, two secondary sessions were removed, and merge/alias/audit rows were recorded. Current source is not deployed; active app container uses another checkout</li>
         <li>Security fixes verified offline: CSRF on planner writes, local graph SVG, HTTPS-only Auth0 issuer and private SQLite fallback files</li>
         <li>App image rebuilt and healthy; local root/health HTTP 200 and Auth0 redirect uses the expected callback without a forced connection. Live SSO, OTP, callback exchange, planner and logout QA remain pending</li>
         <li>The existing Tunnel is the only public ingress; app and connector share a dedicated network, PostgreSQL stays isolated. Remove the old ngrok callback/logout entries from Auth0</li>
@@ -190,7 +195,7 @@
         <li>Blocking revokes account sessions; saved tours and LangSmith traces remain intact</li>
         <li>Admin view reads account token counts and USD cost from LangSmith LLM runs, with model and date detail</li>
         <li>Offline suite: 222 passed, 1 skipped; Python quality checks pass. The running app counts lowercase <code>llm</code> runs and combines a confirmed former account reference through a PostgreSQL alias. Live totals: 21,351 input tokens, 7,323 output tokens, USD 0.11587275 across nine calls. The app is healthy; browser administrator interaction remains unchecked.</li>
-        <li>Admin deletion uses server-only Auth0 Management API credentials and <code>delete:users</code>; it removes account-owned tours and identity mappings, revokes sessions, and keeps an audit tombstone. Failed local cleanup remains retryable. Focused backend tests: 75 passed; full offline suite: 230 passed, 1 optional PostgreSQL test skipped. Frontend check/build and Python quality gates pass, including partial Auth0 delete retry. Compose config could not run because <code>GTP_SAVED_TOURS_POSTGRES_PASSWORD</code> is unset. Auth0 credentials, live call, browser QA and deployment remain pending.</li>
+        <li>Admin deletion uses server-only Auth0 Management API credentials and <code>delete:users</code>; it removes account-owned tours and identity mappings, revokes sessions, and keeps an audit tombstone. Failed local cleanup remains retryable. Integrated PR #16/#17 suite: 246 passed, 1 optional PostgreSQL test skipped. Merged/deleting/deleted accounts cannot authenticate or be reactivated, and merge audit/usage mappings survive canonical deletion. Frontend check/build and Python quality gates pass, including partial Auth0 delete retry. Auth0 live calls, browser account flows and deployment remain pending.</li>
       </ul>
     </section>
     <section class="card active">
@@ -277,7 +282,7 @@
   <div class="grid">
     <section class="card pending"><span class="badge">Next</span><h3>Live quality evaluation</h3><p>Measure Chat answer accuracy and source relevance across more factual questions; label source diversity and extend edit coverage to reorder and replace.</p></section>
     <section class="card done"><span class="badge">Retired</span><h3>Temporary sharing</h3><p>The ngrok service, token setting and Traffic Policy were removed after Cloudflare became the public ingress. Historical tunnel checks remain in the learning log.</p></section>
-    <section class="card done"><span class="badge">Live · Auth0 OTP pending</span><h3>Cloudflare custom domain</h3><p>The existing Tunnel serves citedtrip.app and browser-like root/health checks pass. Remove the former ngrok callback/logout URLs from Auth0; complete OTP, planner and logout checks.</p></section>
+    <section class="card done"><span class="badge">Live · Auth0 OTP pending</span><h3>Cloudflare custom domain</h3><p>The current public host is www.citedtrip.app. Read-only root/health checks return HTTP 200; login redirects with the www callback. Configure exact Auth0 callback/logout allowlists, then complete OTP, planner and logout checks.</p></section>
     <section class="card pending"><span class="badge">Deferred</span><h3>Production concerns</h3><p>Auth0 production rollout, cross-device archive recovery, log retention and operational security.</p></section>
   </div>
 

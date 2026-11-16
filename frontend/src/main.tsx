@@ -125,6 +125,7 @@ type AuthState = {
   csrf_token?: string;
   is_admin?: boolean;
   access_status?: "active" | "blocked" | "pending";
+  login_methods?: ("google" | "password" | "email_otp")[];
 };
 type AdminUser = {
   id: string;
@@ -163,7 +164,7 @@ type ClaimResult = {
   already_claimed_count: number;
   conflicts: unknown[];
 };
-type View = "itinerary" | "graph" | "saved" | "admin";
+type View = "itinerary" | "graph" | "saved" | "admin" | "profile";
 type LocalizedMessage = TextMessageKey | "";
 type FormErrorField = "destination" | "startDate" | "days" | "chat";
 type FormErrors = Partial<Record<FormErrorField, TextMessageKey>>;
@@ -1466,6 +1467,9 @@ function App() {
   const [authNotice, setAuthNotice] = useState<LocalizedMessage>("");
   const [signingOut, setSigningOut] = useState(false);
   const [linkingGoogle, setLinkingGoogle] = useState(false);
+  const [linkingPassword, setLinkingPassword] = useState(false);
+  const [linkingEmailCode, setLinkingEmailCode] = useState(false);
+  const [resettingPassword, setResettingPassword] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [graphSvg, setGraphSvg] = useState("");
@@ -1504,6 +1508,7 @@ function App() {
   const [claimStatus, setClaimStatus] = useState<LocalizedMessage>("");
   const accountMenuRef = useRef<HTMLDivElement>(null);
   const accountTriggerRef = useRef<HTMLButtonElement>(null);
+  const profileHeadingRef = useRef<HTMLHeadingElement>(null);
   const authRecheckInFlight = useRef(false);
   const currentSessionLanguage = useRef<Language>("vi");
   const activeLanguage = auth?.authenticated && auth.access_status === "active"
@@ -1522,6 +1527,9 @@ function App() {
   useEffect(() => {
     currentSessionLanguage.current = state.language;
   }, [state.language]);
+  useEffect(() => {
+    if (view === "profile") profileHeadingRef.current?.focus();
+  }, [view]);
   const load = async (csrfToken = auth?.csrf_token || "") => {
     try {
       setState(await api<ApiState>("/api/session"));
@@ -1612,6 +1620,9 @@ function App() {
       if (readDeepLink && parameters.get("view") === "admin" && current.is_admin) {
         setView("admin");
       }
+      if (readDeepLink && parameters.get("view") === "profile") {
+        setView("profile");
+      }
       if (readDeepLink && (parameters.has("view") || parameters.has("lang"))) {
         window.history.replaceState(null, "", "/");
       }
@@ -1629,10 +1640,12 @@ function App() {
     const parameters = new URLSearchParams(window.location.search);
     if (parameters.has("auth_error")) {
       const error = parameters.get("auth_error");
-      setAuthError(error === "email_unverified" ? "authVerifyEmail" : error === "link_required" ? "authLinkRequired" : error === "link_failed" ? "linkGoogleFailed" : "authError");
+      setAuthError(error === "email_unverified" ? "authVerifyEmail" : error === "link_required" ? "authLinkRequired" : error === "link_failed" ? "linkMethodFailed" : "authError");
       parameters.delete("auth_error");
     }
     if (parameters.get("auth_link") === "linked") setAuthNotice("linkGoogleDone");
+    if (parameters.get("auth_link") === "password") setAuthNotice("linkPasswordDone");
+    if (parameters.get("auth_link") === "email_otp") setAuthNotice("linkEmailCodeDone");
     parameters.delete("auth_link");
     const query = parameters.toString();
     window.history.replaceState(null, "", query ? `/?${query}` : "/");
@@ -1872,7 +1885,7 @@ function App() {
       if (request === adminUsersRequest.current) setAdminUserUpdatingId(null);
     }
   };
-  const signIn = (returnTo = "/", intent: "login" | "signup" | "existing" = "login") => {
+  const signIn = (returnTo = "/", intent: "login" | "google" | "email" | "signup" | "otp" | "existing" = "login") => {
     setAccountOpen(false);
     const separator = returnTo.includes("?") ? "&" : "?";
     const localizedReturnTo = `${returnTo}${separator}lang=${landingLanguage}`;
@@ -1894,6 +1907,55 @@ function App() {
     } catch (error) {
       setAuthError(error instanceof ApiError && error.status === 409 ? "linkGoogleRecent" : "linkGoogleFailed");
       setLinkingGoogle(false);
+    }
+  };
+  const linkEmailCode = async () => {
+    if (!auth?.csrf_token || linkingEmailCode) return;
+    setAuthError("");
+    setAuthNotice("");
+    setLinkingEmailCode(true);
+    try {
+      const result = await api<{ authorization_url: string }>("/api/auth/link/email-otp", {
+        method: "POST",
+        headers: { "X-CSRF-Token": auth.csrf_token },
+      });
+      window.location.assign(result.authorization_url);
+    } catch (error) {
+      setAuthError(error instanceof ApiError && error.status === 409 ? "linkEmailCodeRecent" : "linkEmailCodeFailed");
+      setLinkingEmailCode(false);
+    }
+  };
+  const startPasswordLink = async (mode: "signup" | "link") => {
+    if (!auth?.csrf_token || linkingPassword) return;
+    setAuthError("");
+    setAuthNotice("");
+    setLinkingPassword(true);
+    try {
+      const result = await api<{ authorization_url: string }>(`/api/auth/link/password?mode=${mode}`, {
+        method: "POST",
+        headers: { "X-CSRF-Token": auth.csrf_token },
+      });
+      window.location.assign(result.authorization_url);
+    } catch (error) {
+      setAuthError(error instanceof ApiError && error.status === 409 ? "passwordActionRecent" : "linkPasswordFailed");
+      setLinkingPassword(false);
+    }
+  };
+  const resetPassword = async () => {
+    if (!auth?.csrf_token || resettingPassword) return;
+    setAuthError("");
+    setAuthNotice("");
+    setResettingPassword(true);
+    try {
+      await api<unknown>("/api/auth/password/reset", {
+        method: "POST",
+        headers: { "X-CSRF-Token": auth.csrf_token },
+      });
+      setAuthNotice("passwordResetSent");
+    } catch (error) {
+      setAuthError(error instanceof ApiError && error.status === 429 ? "passwordRateLimited" : "passwordResetFailed");
+    } finally {
+      setResettingPassword(false);
     }
   };
   const signOut = async () => {
@@ -2100,8 +2162,10 @@ function App() {
             {authError && <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-800" role="alert">{labels[authError]}</p>}
             {authError === "authLinkRequired" && <button type="button" onClick={() => signIn("/", "existing")} className="mt-3 inline-flex min-h-11 items-center rounded-xl border border-blue-200 bg-white px-4 font-semibold text-blue-800 focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300">{labels.signInExisting}</button>}
             {auth !== null && <div className="mt-7 grid gap-3">
-              <button type="button" onClick={() => signIn("/", "login")} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 font-bold text-white shadow-lg shadow-blue-500/25 transition hover:bg-blue-500 focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300"><LogIn size={18} aria-hidden="true" />{labels.signIn}</button>
-              <button type="button" onClick={() => signIn("/", "signup")} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-blue-200 bg-white px-5 font-bold text-blue-800 transition hover:bg-blue-50 focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300"><UserPlus size={18} aria-hidden="true" />{labels.register}</button>
+              <button type="button" onClick={() => signIn("/", "google")} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 font-bold text-white shadow-lg shadow-blue-500/25 transition hover:bg-blue-500 focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300"><LogIn size={18} aria-hidden="true" />{labels.signInWithGoogle}</button>
+              <button type="button" onClick={() => signIn("/", "email")} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-blue-200 bg-white px-5 font-bold text-blue-800 transition hover:bg-blue-50 focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300"><LogIn size={18} aria-hidden="true" />{labels.signInWithEmail}</button>
+              <button type="button" onClick={() => signIn("/", "signup")} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-blue-200 bg-white px-5 font-bold text-blue-800 transition hover:bg-blue-50 focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300"><UserPlus size={18} aria-hidden="true" />{labels.registerWithEmail}</button>
+              <button type="button" onClick={() => signIn("/", "otp")} className="min-h-11 rounded-xl px-3 text-sm font-semibold text-blue-800 underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300">{labels.signInWithCode}</button>
             </div>}
           </section>
         </main>
@@ -2227,6 +2291,15 @@ function App() {
                   </div>
                 )}
                 <div className="pt-1">
+                    {auth?.authenticated && <button
+                      type="button"
+                      onClick={() => { setAccountOpen(false); setView("profile"); }}
+                      disabled={signingOut}
+                      className="flex min-h-11 w-full items-center gap-2 rounded-xl px-3 text-left text-sm font-semibold text-slate-700 hover:bg-blue-50 focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <UserRound size={17} aria-hidden="true" />
+                      {labels.profileTitle}
+                    </button>}
                     <button
                       type="button"
                       onClick={openSavedTours}
@@ -2244,15 +2317,6 @@ function App() {
                     >
                       <UsersRound size={17} aria-hidden="true" />
                       {labels.adminUsers}
-                    </button>}
-                    {auth?.authenticated && <button
-                      type="button"
-                      onClick={() => void linkGoogle()}
-                      disabled={signingOut || linkingGoogle}
-                      className="flex min-h-11 w-full items-center gap-2 rounded-xl px-3 text-left text-sm font-semibold text-slate-700 hover:bg-blue-50 focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      <UserRound size={17} aria-hidden="true" />
-                      {linkingGoogle ? labels.linkingGoogle : labels.linkGoogle}
                     </button>}
                     {auth?.authenticated ? (
                       <button
@@ -2297,7 +2361,42 @@ function App() {
       <main id="main" className="mx-auto max-w-7xl px-4 pb-32 pt-8 sm:px-6 lg:pb-36 lg:pt-12">
         {authError && <p className="mb-5 rounded-xl bg-red-50 p-4 text-red-800" role="alert">{labels[authError]}</p>}
         {authNotice && <p className="mb-5 rounded-xl bg-green-50 p-4 text-green-800" role="status">{labels[authNotice]}</p>}
-        {view === "admin" && auth.is_admin ? (
+        {view === "profile" ? (
+          <section className="rise mx-auto max-w-2xl rounded-3xl border border-blue-100 bg-white p-6 shadow-sm sm:p-8" aria-labelledby="profile-title">
+            <button type="button" onClick={() => { setView("itinerary"); accountTriggerRef.current?.focus(); }} className="inline-flex min-h-11 items-center gap-2 rounded-xl px-3 font-semibold text-slate-700 hover:bg-blue-50 focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300">
+              <ArrowLeft size={18} aria-hidden="true" />{labels.back}
+            </button>
+            <h1 ref={profileHeadingRef} id="profile-title" tabIndex={-1} className="mt-5 font-heading text-2xl font-bold text-slate-900 focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300">{labels.profileTitle}</h1>
+            <p className="mt-2 text-slate-600">{labels.profileDescription}</p>
+            <dl className="mt-6 divide-y divide-blue-100 rounded-2xl border border-blue-100">
+              <div className="px-4 py-3">
+                <dt className="text-sm font-semibold text-slate-600">{labels.profileEmail}</dt>
+                <dd className="mt-1 break-all text-slate-900">{auth.email}</dd>
+              </div>
+              <div className="flex items-center justify-between gap-3 px-4 py-3">
+                <dt className="font-semibold text-slate-900">Google</dt>
+                <dd className="text-sm text-slate-600">{auth.login_methods?.includes("google") ? labels.methodLinked : labels.methodNotLinked}</dd>
+              </div>
+              <div className="flex items-center justify-between gap-3 px-4 py-3">
+                <dt className="font-semibold text-slate-900">{labels.passwordMethod}</dt>
+                <dd className="text-sm text-slate-600">{auth.login_methods?.includes("password") ? labels.methodLinked : labels.methodNotLinked}</dd>
+              </div>
+              <div className="flex items-center justify-between gap-3 px-4 py-3">
+                <dt className="font-semibold text-slate-900">{labels.emailCodeMethod}</dt>
+                <dd className="text-sm text-slate-600">{auth.login_methods?.includes("email_otp") ? labels.methodLinked : labels.methodNotLinked}</dd>
+              </div>
+            </dl>
+            <div className="mt-6 grid gap-3">
+              {!auth.login_methods?.includes("google") && <button type="button" onClick={() => void linkGoogle()} disabled={linkingGoogle || linkingPassword || linkingEmailCode || resettingPassword} className="inline-flex min-h-11 items-center justify-center rounded-xl border border-blue-200 px-4 font-semibold text-blue-800 hover:bg-blue-50 focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300 disabled:opacity-50">{linkingGoogle ? labels.linkingGoogle : labels.linkGoogle}</button>}
+              {!auth.login_methods?.includes("email_otp") && <button type="button" onClick={() => void linkEmailCode()} disabled={linkingGoogle || linkingPassword || linkingEmailCode || resettingPassword} className="inline-flex min-h-11 items-center justify-center rounded-xl border border-blue-200 px-4 font-semibold text-blue-800 hover:bg-blue-50 focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300 disabled:opacity-50">{linkingEmailCode ? labels.linkingEmailCode : labels.linkEmailCode}</button>}
+              {!auth.login_methods?.includes("password") ? <>
+                <button type="button" onClick={() => void startPasswordLink("signup")} disabled={linkingPassword || linkingGoogle || linkingEmailCode || resettingPassword} className="inline-flex min-h-11 items-center justify-center rounded-xl bg-primary px-4 font-semibold text-white hover:bg-blue-500 focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300 disabled:opacity-50">{linkingPassword ? labels.openingPassword : labels.createPassword}</button>
+                <button type="button" onClick={() => void startPasswordLink("link")} disabled={linkingPassword || linkingGoogle || linkingEmailCode || resettingPassword} className="inline-flex min-h-11 items-center justify-center rounded-xl border border-blue-200 px-4 font-semibold text-blue-800 hover:bg-blue-50 focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300 disabled:opacity-50">{labels.linkExistingPassword}</button>
+                <p className="text-sm leading-6 text-slate-600">{labels.createPasswordHelp}</p>
+              </> : <button type="button" onClick={() => void resetPassword()} disabled={resettingPassword || linkingGoogle || linkingPassword || linkingEmailCode} className="inline-flex min-h-11 items-center justify-center rounded-xl border border-blue-200 px-4 font-semibold text-blue-800 hover:bg-blue-50 focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300 disabled:opacity-50">{resettingPassword ? labels.sendingPasswordReset : labels.changePassword}</button>}
+            </div>
+          </section>
+        ) : view === "admin" && auth.is_admin ? (
           <AdminUsersView
             users={adminUsers}
             loading={adminUsersLoading}

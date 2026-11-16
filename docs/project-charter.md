@@ -1,7 +1,7 @@
 # Project Charter
 
 Status: Active
-Last updated: 2026-11-14
+Last updated: 2026-11-16
 
 ## Product
 
@@ -32,10 +32,10 @@ migration; the Coordinator/Planner/Chat runtime and validation rules are shared.
 
 The public React entry is a bilingual introduction page. Its app description
 explains sightseeing planning and its purpose without describing sign-in
-mechanics. It provides separate SSO sign-in and registration actions. Visitors
-with an active Auth0 browser session use SSO; visitors without one can use
-Auth0 email/password or the existing email one-time-code flow before the planner, chat,
-visuals, or saved tours appear. FastAPI enforces sign-in on private API routes;
+mechanics. It provides direct Google, email/password and registration actions,
+with the existing email one-time-code flow available. Auth0 may reuse an active
+browser session; each direct action selects its connection. Sign-in completes before the planner,
+chat, visuals or saved tours appear. FastAPI requires sign-in on private API routes;
 the landing page and static assets remain public. Each live planner session is
 bound to its verified internal account UUID. See ADR 0021.
 
@@ -60,6 +60,21 @@ identity keeps its account and saved tours. To use a new Google identity for an
 existing email account, the user signs in to the original account and explicitly
 links Google after authenticating it. A matching email alone cannot transfer
 the account or its tours.
+
+Personal information shows the verified email and linked sign-in methods.
+Users can enter through Google or Auth0 email/password; the existing email-code
+flow remains available. A Google-first user can create a password on Auth0's
+hosted form, verify the email, then return to the original account and
+authenticate the new database identity to link it. Existing users can
+explicitly link Google, email-code, or password identities after proving the
+current account and the new identity. Each linked method resolves to the same
+application UUID and saved tours. An unmatched new identity with an email
+already used by an account is not given a second UUID; it must be explicitly
+linked after proof of both identities. Existing duplicate UUIDs require an
+operator-approved, data-preserving reconciliation. The operator selects both
+UUIDs, confirms identity ownership, and keeps tour snapshots and audit history;
+the app never merges by email alone. Auth0-native profile linking remains out
+of scope. Tenant and browser verification are pending.
 
 An operator may manually link a user-confirmed Google identity to that user's
 existing admin account after exact identity checks and a database backup.

@@ -17,7 +17,7 @@ background only.
 | Scope reset | Complete | Charter, implementation plan, current log and ADR 0004/0009/0011/0012 |
 | Runtime package | Complete | Coordinator/Planner/Chat graph, typed providers and validators |
 | Streamlit app | Complete | Session-only itinerary/chat; graph page hidden from navigation |
-| Tests | Latest full run: 230 passed, 1 skipped | Full offline suite passed with `PYTHON_DOTENV_DISABLED=1`; one optional PostgreSQL test skipped because `GTP_POSTGRES_TEST_DSN`/`GTP_POSTGRES_TEST` was not configured. Isort, Black, flake8, Ruff, frontend check/build, `git diff --check` and roadmap JSON parsing passed. |
+| Tests | PR #16/#17 conflict integration verified: 246 passed, 1 skipped | The optional PostgreSQL test was skipped because its opt-in settings were unset. Isort, Black, flake8, Ruff, frontend check/build, JSON parsing and diff checks passed on the integrated source. |
 | Live integration | Passed | OpenAI/Tavily/LangSmith smoke recorded under `docs/experiments/` |
 | Local container | Passed | Test/runtime images, health, non-root and live provider checks |
 | Chat editing | Passed | Trip extension plus eight prior offline eval cases and live two-turn smoke |
@@ -27,7 +27,7 @@ background only.
 | Visual itinerary | Complete | Source-backed photos; route map removed by user request |
 | Graph inspection | Hidden from UI; local SVG diagnostics retained | HTTP and Streamlit render locally; no external Mermaid renderer call |
 | Async page navigation | Implemented | Background Future, exact-once session integration; browser QA pending |
-| JavaScript/Tailwind UI | Latest landing source built and offline-tested; browser/deployment pending | React itinerary/chat/saved tours remain deployed; landing registration and app-purpose copy pass frontend check/build and offline tests, but are not browser-checked or deployed |
+| JavaScript/Tailwind UI | Frontend check/build passed; browser QA pending | `npm run check` and `npm run build` passed on 2026-11-16. Browser UI automation host was unavailable. The active app container uses a different checkout; current uncommitted source is not deployed. |
 | Configurable model provider | Passed on host and Compose app | Active mixed routing and an HTTP Compose-app Hue plan committed with OpenAI `gpt-5.5` Coordinator and Ollama `qwen2.5:3b` Planner/Chat |
 | No-local API defaults | Historical Compose verification | Earlier container resolved to OpenAI `gpt-5.5` / `gpt-5.4-mini` / `gpt-4.1`; root and graph image returned HTTP 200 |
 | Current Planner OpenAI default | Local app verified | `gpt-6.1-terra` with 60-second per-call timeout and JSON Schema URL validation; live full graph turn committed four sourced Huế entries in 41.3 seconds; 113 tests passed; app healthy, root/graph HTTP 200 |
@@ -44,19 +44,22 @@ background only.
 | Turn and session capacity | Offline verified; running app image unchanged | At most eight queued/running turns and 1,024 retained sessions per process; idle sessions expire after one hour, including uncollected completed turns. HTTP returns 429/503 without changing the rejected session. 15 focused and 122 full sandboxed tests passed |
 | Request and model-cost guards | Compose image rebuilt; app healthy | Per-role completion ceilings, 28 itinerary-entry cap, Auth0-user/session sliding-hour quota, configured process-wide hourly quota, and redacted LangSmith token-usage events. Offline suite 168 passed, one optional PostgreSQL test skipped; Python quality gates passed. App root HTTP 200; quota configuration parsed in the running container. Live 429/event behavior was not exercised. Limiter is process-local; no USD spend limit or custom Cloudflare WAF/rate-limit rules are configured |
 | Saved tours | PostgreSQL Compose app healthy; browser QA pending | Database now uses a sibling host directory outside Git; three saved rows and checksum survived the move; former named volume retained; root 200, session creation 201 |
-| Auth0 account ownership | Deployed; live OTP pending | PostgreSQL has account-owner column, indexes and auth tables. The app is deployed on `citedtrip.app`; login reaches Auth0's hosted page. OTP callback and browser account-flow QA remain pending. |
+| Auth0 account ownership | Deployed; live OTP pending | PostgreSQL has account-owner column, indexes and auth tables. The app is observed on `www.citedtrip.app`; login reaches Auth0's hosted page. OTP callback and browser account-flow QA remain pending. |
 | Admin access and account usage | Compose deployed; browser QA pending | The running app counts lowercase LangSmith `llm` runs and reads an explicit former-UUID usage alias from PostgreSQL. The confirmed merged account has 21,351 input tokens, 7,323 output tokens and USD 0.11587275 recorded cost across three model groups and nine calls. Full offline suite: 222 passed, 1 skipped; Python quality gates passed. App health 200; browser administrator flow not checked. |
-| Admin account deletion | Offline verified; Auth0/deployment pending | CSRF-protected admin API uses server-only M2M credentials and `delete:users`; local account enters retryable `deleting` after Auth0 succeeds, then owner tours are removed and an audit-preserving tombstone remains. Focused backend suite: 75 passed; full suite: 230 passed, 1 optional PostgreSQL test skipped. Frontend check/build and Python quality gates passed. Compose config check could not run because `GTP_SAVED_TOURS_POSTGRES_PASSWORD` is unset. No live Auth0 call or app deployment. |
+| Admin account deletion | Integrated offline verification passed; Auth0/deployment pending | CSRF-protected admin API uses server-only M2M credentials and `delete:users`; local account enters retryable `deleting` after Auth0 succeeds, then owner tours are removed and an audit-preserving tombstone remains. Integration suite: 246 passed, 1 optional PostgreSQL test skipped. Merged/deleting/deleted accounts cannot authenticate or be reactivated; merge aliases and audit rows survive canonical deletion. Frontend check/build and Python quality gates passed. No live Auth0 call or app deployment. |
 | Auth0 SSO and mandatory sign-in | Latest source built and offline-tested; browser/deployment pending | Image `sha256:07e93379edc0efcf157dca5d28af79d7f91e96321b9911e1a0d323de25342b71` was healthy at last check. Latest source adds an Auth0 signup hint and separates SSO sign-in from registration. Full suite 199 passed, one optional PostgreSQL test skipped; frontend check/build and Python quality checks passed. Live Auth0 signup, SSO, OTP, callback exchange, browser QA and deployment remain pending. |
 | Self-service registration and SSO access | Source updated; Auth0 tenant setup pending | Signed ID token must have `email_verified=true`; verified new and legacy pending identities become active without admin grant. Blocked accounts remain blocked. Prepared Auth0 confirm-password partial and tenant checklist; hosted form, password policy, verification email and live signup remain unverified. |
 | Existing account Google SSO linking | Offline verified; live QA pending | User links Google after recent sign-in to the existing account and fresh Google authentication. Matching verified email is required; identity maps to the original UUID and saved tours. Email alone never links. Google identity already bound to another account is rejected for controlled resolution. Auth integration: 47 passed; full offline suite: 217 passed, 1 skipped. |
 | Existing user duplicate account repair | Applied; browser sign-in pending | One user-confirmed duplicate was merged into its older UUID after a complete PostgreSQL backup and rollback dry run. Independent DB check: one account, three identities, five saved tours, two access events, no newer account or sessions. Historic LangSmith runs retain their original metadata; the new usage alias counts them under the retained account. |
+| Google/password/OTP entry and personal information | Offline verified; live browser QA pending | Integrated PR #16/#17 offline suite: 246 passed, 1 optional PostgreSQL test skipped; Python quality gates and frontend check/build passed. Auth0 Universal Login returned HTTP 200 after the app login route returned 307. Browser UI was unavailable; signup, OTP, callback exchange and account linking were not exercised. Current source is not deployed. |
+| Duplicate Auth0 account UUID reconciliation | Reconciled with canonical self-audit; runtime code deployment pending | Created a verified post-migration backup and applied the merge after the user authorized canonical self-audit. One Auth0 password identity moved; six canonical tours remained; two secondary sessions were removed. The secondary UUID is a merged tombstone with alias and audit rows. Post-check passed; app Docker health is healthy and root returns HTTP 200. New merge-aware auth and usage code is not deployed. |
+| Public Auth0 hostname | `www.citedtrip.app` and hosted login reachable; browser QA pending | Root and health returned HTTP 200; login returned HTTP 307 to the configured Auth0 tenant; cookie-preserving HTTP probe loaded the Universal Login page with email/password inputs (HTTP 200). Browser UI host was unavailable. No credentials, signup, callback exchange, OTP or logout were tested. |
 | Security audit | Source fixes deployed; live account-flow QA pending | CSRF on authenticated planner writes, local graph SVG rendering, HTTPS-only Auth0 issuer and private SQLite file modes. Domain root/health smoke passed; full OTP, owner isolation and logout not exercised live. |
 | Mac CI/CD | Main-targeted PR CI configured; automatic deployment gated | Added `main` to GitHub Actions PR targets while keeping push CI on `feature/travel-ground-planner` for the Mac poller. PR #7 is synced to main and mergeable but has no workflow run/status because the base branch still has the old trigger; the change enables future main-targeted PR checks after merge. Existing run `42471059065` passed on rerun SHA `27a17e7`. `GTP_DEPLOY_ENABLED=false`; no app deployment. |
 | Large saved-tour archive | PostgreSQL 2M-row isolated benchmark passed | Owner/time/ID index and keyset pages; 10-sample page 1 p50/p95 0.729/13.898 ms, page 20,000 0.373/21.557 ms; tiny synthetic snapshots, no concurrent traffic |
 | Pre-push security review | Focused source review and regression passed | Session and saved-tour owner cookies default to Secure; Compose forces Secure; local data excluded from Git and Docker context; isolated full suite 132 passed, 1 skipped |
-| Auth callback and public ingress hardening | Deployed; smoke checked | App runs Uvicorn with `--no-access-log`; Cloudflare Tunnel is the only public ingress. The app and connector share the isolated ingress network, PostgreSQL stays off it. Auth0 login reaches the hosted page on `citedtrip.app`; full OTP and logout checks remain pending |
-| Cloudflare custom domain | Live; ngrok retired | Existing `cloudeflared-tunnel` serves `citedtrip.app` to `http://app:8000`; browser-like root and health requests return HTTP 200. Ngrok service, token setting, and Traffic Policy were removed. Remove the old ngrok callback/logout entries from Auth0; OTP, planner, and logout checks remain pending |
+| Auth callback and public ingress hardening | Deployed; smoke checked | App runs Uvicorn with `--no-access-log`; Cloudflare Tunnel is the only public ingress. The app and connector share the isolated ingress network, PostgreSQL stays off it. Login on `www.citedtrip.app` redirects with the matching callback; full OTP and logout checks remain pending |
+| Cloudflare custom domain | Live; ngrok retired | Existing `cloudeflared-tunnel` serves the current public `www.citedtrip.app` host; root and health requests return HTTP 200. Ngrok service, token setting, and Traffic Policy were removed. Verify exact Auth0 allowlists and complete OTP, planner, and logout checks |
 | Codex development workflow | Five-role delivery pipeline configured | Researcher proposes Goal Card; Planner plans; Coordinator implements; Tester verifies without hardcoded pass outcomes; Deployer opens requested PRs to `main` and follows existing release gates. Duplicate verification skill removed; transfer, delivery, UI, and security skills retained. Configuration and documentation checks recorded in the 2026-11-15 workflow log. |
 
 Planning progress is not implementation progress. Only executable artifacts and
@@ -96,6 +99,33 @@ actual checks count as completion evidence.
   The app was not restarted at that stage; browser sign-in remains unchecked.
   Historic LangSmith runs retain their old tag and are now included through
   the usage alias above.
+
+- Extended account linking to Google, Auth0 email/password and email OTP, and
+  added a dry-run-first PostgreSQL reconciliation CLI for legacy duplicate
+  UUIDs. Merged UUIDs remain as tombstones; identities and saved tours move to
+  the chosen canonical UUID, sessions are revoked, and old LangSmith usage is
+  included through aliases. Initial implementation checks were deferred. The
+  PR-preflight offline suite later passed 234 tests with one optional
+  PostgreSQL test skipped; Python quality gates and frontend check/build passed.
+  Live Auth0/browser account flows and deployment remain pending.
+  See the 2026-11-16 identity-linking learning-log entry.
+
+- Applied the PostgreSQL account-merge schema after creating a verified
+  owner-only backup. User selected the admin UUID as canonical and authorized
+  self-audit because no independent active admin exists. The backed-up apply
+  moved one identity, preserved six canonical tours, removed two secondary
+  sessions and wrote a merged tombstone, usage alias and two audit events. The
+  app is healthy; merge-aware auth/usage source remains undeployed. No tests,
+  lint, frontend build or live Auth0/browser verification ran.
+
+- Added direct Google and email/password entry, personal information, Auth0
+  password creation/reset entry and symmetric identity linking. New subjects
+  with an existing verified email require explicit linking instead of creating
+  a second application UUID. The original UUID and saved tours stay intact
+  across successful links or rejected conflicts. Full offline suite passed 231
+  tests with one optional PostgreSQL integration test skipped; frontend
+  check/build and Python quality gates passed. No live Auth0, browser or
+  deployment check ran; tenant configuration remains pending.
 
 - Replaced the four development roles with Researcher, Planner, Coordinator,
   Tester, and Deployer. Removed the duplicate routine-verification skill while
@@ -634,15 +664,18 @@ actual checks count as completion evidence.
 
 ## Now
 
-1. Check the saved-tour save/list/delete flow in a browser on the new image.
-2. Manually verify the JavaScript UI at phone and desktop widths, including
+1. Configure and verify the Auth0 database connection, hosted signup/confirm
+   password prompt, verification/reset email and both sign-in methods in a real
+   browser before deploying the new account entry source.
+2. Check the saved-tour save/list/delete flow in a browser on the new image.
+3. Manually verify the JavaScript UI at phone and desktop widths, including
    Home reset/confirmation, Account dropdown/Auth0 flow and chat → graph → chat
    during a pending turn. Browser interaction QA remains pending.
-3. Label sources from representative live plans and measure relevance, place
+4. Label sources from representative live plans and measure relevance, place
    coverage and host diversity before a broad demo.
-4. Exercise additional live edit intents, especially reorder and replace, with
+5. Exercise additional live edit intents, especially reorder and replace, with
    separate evidence from the offline gate.
-5. Evaluate Chat answer accuracy and live source relevance across more than
+6. Evaluate Chat answer accuracy and live source relevance across more than
    one factual question; the current live smoke verifies plumbing only.
 
 ## Next

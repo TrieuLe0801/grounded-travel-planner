@@ -1,16 +1,18 @@
 # Cloudflare Tunnel Deployment
 
-## Current state — 2026-11-12
+## Current state — 2026-11-15
 
-`https://citedtrip.app` is the sole public app origin. The existing remotely
-managed `cloudeflared-tunnel` publishes it to `http://app:8000`. Its connector
+`https://www.citedtrip.app` is the current public app origin, as confirmed by
+the user. Read-only checks from this workspace returned HTTP 200 for its root
+and health endpoint; the login route returned an Auth0 authorization URL with
+the `www` callback. The existing remotely managed `cloudeflared-tunnel` serves
+the app through `http://app:8000`. Its connector
 and the planner app share `grounded-travel-planner_public-ingress`; PostgreSQL
 is not attached to that network. No additional connector or host port is used.
 
-The app uses `GTP_AUTH_PUBLIC_ORIGIN=https://citedtrip.app`. The temporary
+Set `GTP_AUTH_PUBLIC_ORIGIN=https://www.citedtrip.app`. The temporary
 additional-origin setting, ngrok Compose service, token setting, and Traffic
-Policy were removed. Auth0 login on the custom domain redirects to the expected
-callback and reaches the hosted login page. Full OTP, planner and logout checks
+Policy were removed. The full Auth0 callback, OTP, planner and logout checks
 still require a browser sign-in.
 
 ## Auth0 allowlist cleanup
@@ -18,23 +20,24 @@ still require a browser sign-in.
 In **Auth0 Dashboard → Applications → Applications → the current app → Settings
 → Application URIs**, keep these entries:
 
-- Allowed Callback URLs: `https://citedtrip.app/api/auth/callback`
-- Allowed Logout URLs: `https://citedtrip.app/`
+- Allowed Callback URLs: `https://www.citedtrip.app/api/auth/callback`
+- Allowed Logout URLs: `https://www.citedtrip.app/`
 
 Remove the former ngrok entries if present:
 
 - `https://inventionless-contortively-destinee.ngrok-free.dev/api/auth/callback`
 - `https://inventionless-contortively-destinee.ngrok-free.dev/`
 
-Keep any unrelated development entries. The Auth0 dashboard cleanup is pending
-because this session has no dashboard connection.
+Keep any unrelated development entries. Remove the older apex entries only
+after confirming no active flow uses them. The Auth0 dashboard allowlist and
+cleanup remain unverified from this workspace.
 
 ## Tunnel configuration
 
 Use the existing `cloudeflared-tunnel`; do not create another Tunnel or copy
 its token. Its published application route is:
 
-- Hostname: `citedtrip.app`
+- Hostname to confirm in Cloudflare Dashboard: `www.citedtrip.app`
 - Service: `http://app:8000`
 - HTTP Host Header override: empty
 - Cloudflare Access: not enabled; the app authenticates through Auth0
@@ -66,3 +69,9 @@ root and `/api/health`. `/api/auth/login` redirected with callback
 with HTTP 200. A generic Python User-Agent received Cloudflare error 1010 while
 a Chrome User-Agent succeeded. OTP callback, authenticated planner access and
 logout were not completed in this check.
+
+On 2026-11-15, read-only checks returned HTTP 200 for
+`https://www.citedtrip.app/` and `/api/health`. The login route returned HTTP
+307 with `https://www.citedtrip.app/api/auth/callback` in its Auth0 authorization
+URL. The apex host did not resolve from this workspace. Auth0 allowlist,
+callback exchange and logout were not checked.

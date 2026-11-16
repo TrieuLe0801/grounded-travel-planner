@@ -1,6 +1,6 @@
 {
-  "version": 112,
-  "updated": "2026-11-16T11:48:00+07:00",
+  "version": 117,
+  "updated": "2026-11-16T14:07:39+07:00",
   "active_scope": "city-place-sightseeing-webapp",
   "current_milestone": "Milestone 1: executable city/place sightseeing vertical slice",
   "completed": {
@@ -88,6 +88,7 @@
     "admin_access_usage_deployed": true,
     "admin_account_deletion_source": true,
     "admin_account_deletion_offline_verified": true,
+    "auth_linking_admin_deletion_conflict_integration": true,
     "admin_account_deletion_auth0_live": false,
     "admin_account_deletion_deployed": false,
     "account_usage_alias_deployed": true,
@@ -104,6 +105,7 @@
     "cloudflare_tunnel_compose_prepared": true,
     "auth0_multi_origin_transition_offline": true,
     "cloudflare_tunnel_live": true,
+    "public_www_origin_observed": true,
     "auth0_custom_domain_live": false,
     "ngrok_removed": true,
     "cloudflare_single_origin_app_deployed": true,
@@ -117,9 +119,85 @@
     "auth0_password_signup_tenant_configured": false,
     "auth0_email_verification_live": false,
     "auth0_existing_account_google_link_source": true,
-    "auth0_existing_account_google_link_offline_verified": true
+    "auth0_existing_account_google_link_offline_verified": true,
+    "auth0_google_password_profile_source": true,
+    "auth0_google_password_profile_offline_verified": true,
+    "auth0_google_password_profile_live": false,
+    "auth0_google_password_profile_deployed": false,
+    "auth0_three_method_linking_source": true,
+    "auth0_three_method_linking_verified": true,
+    "auth0_duplicate_uuid_reconciliation_source": true,
+    "auth0_duplicate_uuid_schema_migrated": true,
+    "auth0_duplicate_uuid_live_dry_run": true,
+    "auth0_duplicate_uuid_live_preflight_attempted": true,
+    "auth0_duplicate_uuid_live_preflight_blocked": false,
+    "auth0_duplicate_uuid_live_apply_actor_available": false,
+    "auth0_duplicate_uuid_self_audit_apply": true,
+    "auth0_duplicate_uuid_reconciled": true,
+    "auth0_hosted_login_http_reachable": true
   },
   "evidence": {
+    "public_www_origin_observed": [
+      "User confirmed https://www.citedtrip.app as the current public app URL; ADR 0022 records the hostname amendment",
+      "Read-only workspace checks: www root and /api/health HTTP 200; /api/auth/login HTTP 307 with https://www.citedtrip.app/api/auth/callback in the Auth0 authorization URL",
+      "Apex hostname did not resolve from this workspace; Auth0 allowlists, callback exchange and browser logout remain unverified"
+    ],
+    "auth0_google_password_profile_source": [
+      "src/grounded_travel_planner/auth.py and web/api.py: symmetric duplicate-email gate, explicit Google/password identity linking, method status and Auth0 password-reset request",
+      "frontend/src/main.tsx and i18n.ts: direct Google/email entry and bilingual Personal information actions; .env.example and auth0/README.md document the required fixed Auth0 database connection",
+      "ADR 0021 and the active charter record the new account controls; the existing session-only itinerary and owner-scoped saved tours remain unchanged"
+    ],
+    "auth0_google_password_profile_offline_verified": [
+      "Prior pre-OTP baseline: 231 passed and one optional PostgreSQL test skipped; frontend and Python quality checks passed.",
+      "The 2026-11-16 OTP-link extension is tracked separately because its latest full-suite run has one failing redirect expectation."
+    ],
+    "auth0_google_password_profile_live": [
+      "Read-only checks: public root and health HTTP 200; /api/auth/login HTTP 307 to the configured Auth0 tenant; cookie-preserving request reached Universal Login HTTP 200 with email/password inputs.",
+      "Browser UI host unavailable (browser access host unavailable; Safari control returned cgWindowNotFound). No credentials, signup, OTP, callback exchange, account linking or logout were tested."
+    ],
+    "auth0_google_password_profile_deployed": [
+      "Not deployed: no image/container recreation, database migration or public rollout was performed"
+    ],
+    "auth0_three_method_linking_source": [
+      "2026-11-16 source adds explicit Email OTP identity linking through signed pending state, BFF callback, SQLite/PostgreSQL repositories and the Personal information UI; Google and Auth0 password linking remain explicit",
+      "Linking requires recent primary session, CSRF, fresh identity authentication, verified matching email, the same issuer and an unowned subject; matching email alone never links"
+    ],
+    "auth0_three_method_linking_verified": [
+      "Integrated PR #16 with current origin/main PR #17 admin deletion behavior. Offline pytest passed 246 tests; one optional PostgreSQL integration test skipped because its opt-in settings were unset.",
+      "Merged/deleting/deleted accounts reject authentication and reactivation; merged secondary deletion is rejected; retryable deleting cleanup remains available. Legacy usage aliases and account_merges mappings are both included, and canonical deletion preserves merge audit rows.",
+      "Isort, Black, flake8, Ruff, frontend npm run check/build, git diff --check, roadmap JSON parsing and conflict-marker search passed.",
+      "Auth0 hosted login HTTP reachability passed earlier. Browser automation was unavailable; signup, OTP, callback exchange and interactive account linking remain unverified. Current source is not deployed."
+    ],
+    "auth0_duplicate_uuid_reconciliation_source": [
+      "scripts/reconcile_auth_accounts.py adds explicit PostgreSQL pair reconciliation, rollback-by-default and ownership/backup/write-pause acknowledgements plus --apply; a canonical self-audit exception requires explicit confirmation and an in-transaction check that no other active admin exists",
+      "Merged account tombstones are rejected by authentication/reactivation; admin lists omit them and usage reporting includes aliased UUIDs"
+    ],
+    "auth0_duplicate_uuid_schema_migrated": [
+      "Created .local/backups/2026-11-16-auth-account-merge-pre.dump (9,171,404 bytes, mode 0600); pg_restore -l read the custom archive. SHA-256: 5512332318249b59a4465ed685e45c4aa87e75546d5374c7b69d8450b30955bc",
+      "scripts/migrate_admin_accounts.py --postgres completed; account_merges exists. App was stopped only for migration and restarted; Docker health is healthy and local root returns HTTP 200. Session-only plans were cleared"
+    ],
+    "auth0_duplicate_uuid_live_dry_run": [
+      "After the user selected the active admin UUID as canonical, a live CLI dry-run completed and rolled back: 1 identity, 0 saved tours, 2 secondary sessions",
+      "Post-check: account_merges has 0 rows; both users remain active, with unchanged admin flags, identity counts, saved-tour counts and session counts"
+    ],
+    "auth0_duplicate_uuid_live_preflight_attempted": [
+      "Read-only inventory found one duplicate-email group: active admin with Google/email OTP and six tours; active non-admin Auth0 password identity with no tours. No email or user UUID recorded in this evidence",
+      "The first preflight rejected unequal roles; after the user confirmed the admin UUID as canonical, the code allows that direction while preserving the canonical role. A non-admin canonical still cannot absorb an admin secondary"
+    ],
+    "auth0_duplicate_uuid_live_preflight_blocked": [
+      "Dry-run passed. No independent active admin exists; user explicitly authorized canonical self-audit for apply"
+    ],
+    "auth0_duplicate_uuid_live_apply_actor_available": [
+      "False: the database had no independent active admin; user approved the guarded canonical self-audit exception"
+    ],
+    "auth0_duplicate_uuid_self_audit_apply": [
+      "Created a fresh pre-apply PostgreSQL backup at .local/backups/2026-11-16-auth-account-merge-apply-pre.dump (9,173,793 bytes, mode 0600); pg_restore -l succeeded. SHA-256: 4c2b8a6defc5bbf7db94a3e6b3bf3b7b39a2cb668daa0e0f08dd00f26bc9a039",
+      "Applied with --ownership-confirmed, --backup-complete, --writes-paused, --canonical-actor-confirmed and --apply. Moved one Auth0 password identity, moved zero tours, removed two secondary sessions; canonical remains active admin with three identities and six tours",
+      "Post-check: secondary status merged with zero identities/tours/sessions; one account_merges alias row names the canonical actor; one source and one received access-audit event exist. App restarted healthy; root HTTP 200. New merge-aware app source is not deployed"
+    ],
+    "auth0_duplicate_uuid_reconciled": [
+      "User-authorized canonical self-audit reconciliation completed after verified backup and paused app writes. No account data was lost; the pre-apply backup remains available for recovery"
+    ],
     "auth0_self_service_access_offline": [
       "src/grounded_travel_planner/auth.py and src/grounded_travel_planner/web/api.py: verified Auth0 identity required before app account/session; new and legacy pending identities activate without administrator approval; blocked stays blocked",
       "auth0/signup-password-partial.html and auth0/README.md: prepared hosted confirm-password partial and exact Auth0 policy/email setup checklist",
@@ -188,8 +266,8 @@
       "M2M client ID/secret, canonical Management API audience and delete:users scope are environment-configured; live Auth0 and deployment checks remain pending"
     ],
     "admin_account_deletion_offline_verified": [
-      "Focused admin/Auth0/saved-tour suite: 75 passed, including Auth0 partial-delete retry and owner-scoped tour cleanup.",
-      "Full offline suite: 230 passed, 1 optional PostgreSQL test skipped because GTP_POSTGRES_TEST_DSN/GTP_POSTGRES_TEST is not configured. Frontend npm run check/build, isort, Black, flake8, Ruff, JSON parsing and git diff --check passed. docker compose config --quiet could not run because GTP_SAVED_TOURS_POSTGRES_PASSWORD is unset in ignored .env."
+      "Integrated PR #16/#17 offline suite: 246 passed, 1 optional PostgreSQL test skipped because GTP_POSTGRES_TEST_DSN/GTP_POSTGRES_TEST is not configured. Includes Auth0 partial-delete retry, owner-scoped tour cleanup, merge tombstone and terminal-account access guards.",
+      "Frontend npm run check/build, isort, Black, flake8, Ruff, JSON parsing and git diff --check passed. No live Auth0 call, interactive browser account flow or deployment was performed."
     ],
     "admin_account_deletion_auth0_live": [
       "Not checked: no live Auth0 Management API credentials or destructive provider call were used."
