@@ -1749,3 +1749,24 @@ three-role runtime and role-specific model policy.
   preflight. Browser automation was unavailable, so signup, OTP, callback
   exchange and interactive account linking were not verified. No live Auth0
   deletion or deployment was performed.
+
+## Auth0 Email/Password Login Start Failure — 2026-11-17
+
+- The user reported mojibake JSON after choosing email/password sign-in. A
+  read-only request to the public login route returned HTTP 503 for both
+  `intent=email` and `intent=signup`; the body bytes decode as valid UTF-8.
+  Google login reaches Auth0 Universal Login.
+- The running app container lacked `GTP_AUTH0_PASSWORD_CONNECTION`. The user
+  supplied `Username-Password-Authentication` as the connection name; the
+  ignored deployment `.env` now has that setting. The running container has not
+  been recreated, so its environment remains unchanged and the password/signup
+  route still fails before Auth0 receives an authorization request.
+- Source now redirects Auth start failures to a safe return target and shows a
+  bilingual landing message. Host/origin validation retains its HTTP 503
+  behavior. Auth tests pass 66 cases; the full offline suite passes 246 tests
+  with one optional PostgreSQL test skipped. Python quality gates, frontend
+  check/build, diff check, roadmap JSON parsing and conflict scan pass.
+- Browser automation was unavailable. No Auth0 credentials, signup, email
+  delivery or callback were tested. The connection's Application toggle remains
+  unconfirmed. No app restart or deployment was performed. Password sign-in
+  remains unavailable until the running app is recreated with the new setting.

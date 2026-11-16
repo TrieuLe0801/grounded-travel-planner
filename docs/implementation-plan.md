@@ -13,6 +13,28 @@ Read-only public checks returned root/health HTTP 200 and login HTTP 307 with
 the `www` callback. Auth0 callback exchange, logout and browser QA are pending.
 ADR 0022 records the amendment; older apex-host checks remain historical.
 
+## Email/Password Login Start Failure — Source Fallback Added; Runtime Config Pending — 2026-11-17
+
+The public login endpoint returns HTTP 503 for `intent=email` and `intent=signup`.
+The running app container lacked `GTP_AUTH0_PASSWORD_CONNECTION`; Google login
+still reaches Auth0 Universal Login. The user supplied the connection name
+`Username-Password-Authentication`, and it is now set in the ignored deployment
+`.env`. The app container has not been recreated and still lacks the new
+setting, so email/password and signup remain unavailable. The 503 JSON body is
+valid UTF-8, although the browser displayed the Vietnamese detail as mojibake.
+Source now sends Auth start failures back to a safe `return_to` with a localized
+landing message. Host/origin validation still returns HTTP 503 and is not
+converted to a redirect.
+
+Focused Auth0 tests passed 66 cases; the full offline suite passed 246 tests
+with one optional PostgreSQL test skipped. Isort, Black, flake8, Ruff,
+frontend check/build, JSON parsing and diff checks passed. The exact enabled
+Auth0 database connection name is still unknown, so no connection value was
+guessed. No live Auth0 browser flow, container recreation or deployment was
+performed. Email/password and signup remain unavailable until the app is
+recreated with the new environment setting. Auth0 Application enablement still
+needs confirmation.
+
 ## PR #16/#17 Conflict Integration — 2026-11-16
 
 Integrated the three-method account-linking and duplicate-UUID reconciliation

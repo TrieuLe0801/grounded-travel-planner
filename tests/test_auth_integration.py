@@ -781,9 +781,16 @@ def test_email_login_requires_a_configured_password_connection(
     client, _, _ = _client(tmp_path, provider, monkeypatch)
     monkeypatch.delenv("GTP_AUTH0_PASSWORD_CONNECTION")
 
-    response = client.get("/api/auth/login?intent=email", follow_redirects=False)
+    response = client.get(
+        "/api/auth/login",
+        params={"intent": "email", "return_to": "/?lang=vi&view=saved"},
+        follow_redirects=False,
+    )
 
-    assert response.status_code == 503
+    assert response.status_code == 303
+    assert response.headers["location"] == (
+        "/?lang=vi&view=saved&auth_error=login_start_failed"
+    )
     assert provider.authorization_calls == []
 
 
