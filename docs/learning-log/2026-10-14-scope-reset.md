@@ -52,6 +52,102 @@
   LangSmith runs keyed to the removed UUID kept their original account
   reference. The follow-up above now includes them through an explicit alias.
 
+## Three-Method Identity Linking and Duplicate UUID Reconciliation — 2026-11-16
+
+- The user asked to implement the accepted approach: one application UUID can
+  own Google, Auth0 email/password and email OTP identities. The profile now
+  offers explicit Email OTP linking through the BFF and both identity stores.
+  Linking still requires a recent authenticated session, CSRF, fresh identity
+  authentication, a verified matching email, the same issuer and an unowned
+  subject; email matching alone never links accounts.
+- Added merged-account tombstones and canonical-to-legacy UUID aliases. Merged
+  accounts cannot authenticate or be reactivated; admin lists exclude them, and
+  LangSmith usage includes aliased UUIDs under the canonical account.
+- Added `scripts/reconcile_auth_accounts.py` for explicit PostgreSQL UUID pairs.
+  It preserves saved-tour snapshots and audit foreign keys, moves identities
+  and tour ownership in a transaction, revokes secondary sessions, and records
+  alias/audit rows. Default execution rolls back; applying requires explicit
+  ownership, backup and write-pause acknowledgements plus `--apply`. It reports
+  other accounts sharing the email for separate operator review.
+- An admin canonical may absorb a non-admin secondary while retaining its role;
+  a non-admin canonical cannot absorb an admin secondary. Dry-run may use the
+  canonical admin as its temporary actor. If no independent admin exists, an
+  apply may use canonical self-audit only with explicit confirmation; the
+  transaction checks and locks the active-admin set. Ownership, backup and
+  paused-write gates remain required.
+- SQLite/PostgreSQL schema migration support was added. At source implementation
+  time, tests, lint, frontend builds, migration, reconciliation, live Auth0/
+  browser checks and deployment were not run.
+- Read-only code review found no blocking issue. It prompted an explicit
+  allowlist for account access states, then confirmed that unsupported states
+  fail closed.
+
+### PostgreSQL schema migration and duplicate preflight — 2026-11-16
+
+- Created an owner-only (`0600`) PostgreSQL custom-format backup at
+  `.local/backups/2026-11-16-auth-account-merge-pre.dump` (9,171,404 bytes).
+  `pg_restore -l` read the archive successfully; SHA-256:
+  `5512332318249b59a4465ed685e45c4aa87e75546d5374c7b69d8450b30955bc`.
+- Paused the app, applied `scripts/migrate_admin_accounts.py --postgres`, then
+  restarted the app. The `account_merges` table exists; Docker health is healthy
+  and the local root returns HTTP 200. App restart cleared session-only plans.
+- Read-only inventory found one duplicate-email group: an active admin account
+  with Google and email-code identities and six saved tours, plus a separate
+  active non-admin Auth0 password identity with no saved tours. No email or UUID
+  was added to this log.
+- The user selected the existing admin UUID as canonical. The reconciler now
+  preserves that canonical role when it absorbs a non-admin secondary; the
+  reverse direction remains rejected. A second CLI dry-run succeeded and
+  rolled back: one identity, zero tours and two secondary sessions. Post-check
+  confirmed zero merge rows and unchanged identity, tour and session counts. No
+  account data was merged or otherwise changed.
+- No separate active admin actor exists in the database. The user authorized
+  canonical self-audit for apply. The CLI requires
+  `--canonical-actor-confirmed` and checks inside the transaction that no other
+  active administrator exists. Ownership, backup and paused-write flags remain
+  required.
+
+### Canonical self-audit account reconciliation — 2026-11-16
+
+- Created a fresh post-migration custom-format backup at
+  `.local/backups/2026-11-16-auth-account-merge-apply-pre.dump` (9,173,793
+  bytes, mode `0600`). `pg_restore -l` read it successfully; SHA-256:
+  `4c2b8a6defc5bbf7db94a3e6b3bf3b7b39a2cb668daa0e0f08dd00f26bc9a039`.
+- The user authorized canonical self-audit because no independent active admin
+  existed. The CLI applied the pair with ownership, backup, paused-write,
+  canonical-actor-confirmed and apply flags. One Auth0 password identity moved;
+  zero tours moved; two secondary sessions were removed. The canonical account
+  remains active admin with three identities and six saved tours. The secondary
+  is a merged tombstone with no identities, tours or sessions.
+- Post-check confirmed one alias row with the canonical UUID as actor, one
+  merge-received and one merge-source audit event, and no change to canonical
+  tour count. App restarted; Docker health is healthy and root returns HTTP 200.
+  Runtime identity-linking/usage code remains undeployed. Tests, lint, build and
+  live Auth0/browser verification were not run.
+
+## Public Auth0 Hostname Correction — 2026-11-15
+
+- The user clarified that the current app URL is `https://www.citedtrip.app`.
+  Use the exact `www` host for `GTP_AUTH_PUBLIC_ORIGIN`, the Auth0 callback and
+  logout allowlists. Earlier apex-host entries record the prior configuration.
+- Read-only checks from the workspace returned HTTP 200 for the `www` root and
+  `/api/health`. `/api/auth/login` returned HTTP 307 and its authorization URL
+  contained `https://www.citedtrip.app/api/auth/callback`. The apex host did
+  not resolve from this workspace. No tenant setting, `.env`, container or
+  application source was changed. Full browser callback/logout remain pending.
+
+## Google, Password and Personal Information Implementation — 2026-11-15
+
+- The user accepted implementation of the proposal below. The landing now offers explicit Google and email/password choices, email signup and the existing email OTP fallback. Personal information shows linked sign-in methods and starts Google linking, Auth0-hosted password creation/linking or an Auth0 password-reset email.
+- SQLite and PostgreSQL now require explicit linking for a new verified identity whose email already exists, regardless of whether Google or database password came first. A link requires CSRF, a recent original session, fresh second-identity authentication, matching verified email, same issuer and an unowned subject. It keeps the original UUID, role and saved tours; a conflicting owned identity is not merged. Auth0 receives passwords; the app does not.
+- `GTP_AUTH0_PASSWORD_CONNECTION` is required for email/password entry and reset; the tenant connection, confirm-password prompt, password policy and email delivery still require setup and live verification. No `.env` file or Auth0 credentials were present in the workspace. App, database and tunnel were not deployed or restarted.
+- Verification: focused auth/account/archive suite passed 79 cases before the final added cases. Final full offline suite passed 231 cases; one optional PostgreSQL integration test skipped because `GTP_POSTGRES_TEST_DSN` and `GTP_POSTGRES_TEST` were unset. Frontend typecheck/build, isort, Black, flake8, Ruff and `git diff --check` passed. A tester agent confirmed the initial full suite (230 passed, one skipped) and identified Ruff C408; the Coordinator fixed it and reran the final full checks. The tester could not finish its retest because its usage limit was reached. Auth0/browser and running-image behavior remain unverified.
+
+## Google and Password Account Entry Proposal — 2026-11-15
+
+- The user requested a review and optimization proposal for sign-up and sign-in using Google or a Gmail address with a separate password. A Google-first user should be able to set a password from personal information; a password-first user should be able to link Google when needed.
+- Current app linking covers password/OTP first, Google second. The reverse order can create a second app UUID because duplicate-email detection applies only to a new Google identity. The React app has no personal-information page or password action. Auth0 tenant signup and live account-flow checks remain pending.
+- `docs/proposals/2026-11-15-google-and-password-account-entry.md` records the proposed user flow, identity safeguards, ordered work and verification. It is a proposal, not an implemented or approved architecture change.
 ## Existing Account Google SSO Linking — 2026-11-15
 
 - The user confirmed that an email already registered through OTP or password
@@ -1558,3 +1654,43 @@ three-role runtime and role-specific model policy.
 - The running container still has the pre-fix package. No deployment ran;
   account-access migration and first-administrator bootstrap remain rollout
   gates.
+
+## Auth Identity Linking Verification — 2026-11-16
+
+- Ran the offline pytest suite with `PYTHON_DOTENV_DISABLED=1`, provider keys
+  unset and dummy required model names. Result: 230 passed, 1 failed, 1 skipped.
+  The optional PostgreSQL integration test skipped because its opt-in settings
+  were unset. Running without required model names first failed during
+  collection.
+- The failed case is
+  `test_google_link_rejects_wrong_or_unverified_identity[unverified]`. Its
+  assertion expects `/?auth_error=link_failed`; the callback returns the more
+  specific `/?view=profile&auth_error=email_unverified`. The following
+  assertion that the existing session remains intact was not reached.
+- Isort, Black, flake8, Ruff, frontend `npm run check`, and `npm run build`
+  passed. No source or test files changed during verification.
+- Read-only HTTP checks returned 200 for the public root and health endpoint,
+  and 307 for `/api/auth/login`. A cookie-preserving request reached the Auth0
+  Universal Login page (200, email and password fields). No credentials or
+  signup data were submitted.
+- Browser automation was unavailable: the browser host reported unavailable
+  and Safari control could not find a window. No browser interaction, OTP,
+  callback exchange or account-link flow was verified. The running app
+  container was launched from another checkout; current source remains
+  undeployed.
+
+## Auth Identity Linking PR Preflight — 2026-11-16
+
+- Fast-forwarded the feature branch to current `origin/main` before preparing
+  the PR. Preserved both existing LangSmith account-usage aliases and the new
+  merged-account tombstone aliases in the combined source.
+- Updated the unverified-link callback test to expect its specific profile
+  redirect while retaining generic failures for wrong provider/email and the
+  original-session and no-link assertions.
+- The final offline suite passed 234 tests; one optional PostgreSQL integration
+  test skipped because its opt-in settings were unset. Isort, Black, flake8,
+  Ruff, frontend `npm run check`/`npm run build`, `git diff --check origin/main`,
+  roadmap JSON parsing and a conflict-marker search passed.
+- Auth0 Universal Login HTTP reachability was checked earlier, but interactive
+  browser sign-in, OTP, callback exchange and account linking remain unverified.
+  Current source is not deployed.

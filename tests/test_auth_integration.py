@@ -20,6 +20,7 @@ from fastapi.testclient import TestClient
 from grounded_travel_planner.auth import (
     AUTH_COOKIE_NAME,
     AUTH_PENDING_SECONDS,
+    AccountLinkRequired,
     Auth0OidcProvider,
     AuthError,
     AuthRepository,
@@ -52,6 +53,7 @@ class FakeOidcProvider:
         )
         self.authorization_calls: list[dict[str, str]] = []
         self.callback_calls: list[dict[str, str]] = []
+        self.password_reset_calls: list[dict[str, str]] = []
 
     def authorization_url(
         self,
@@ -99,6 +101,9 @@ class FakeOidcProvider:
 
     def logout_url(self, *, return_to: str) -> str:
         return f"https://auth0.example.test/v2/logout?returnTo={return_to}"
+
+    def request_password_reset(self, *, email: str, connection: str) -> None:
+        self.password_reset_calls.append({"email": email, "connection": connection})
 
 
 class FakeService:
@@ -152,6 +157,7 @@ def _client(
 ) -> tuple[TestClient, AuthRepository, SavedTourRepository]:
     monkeypatch.setenv("GTP_AUTH_SESSION_SECRET", "s" * 32)
     monkeypatch.setenv("GTP_AUTH_PUBLIC_ORIGIN", "https://planner.example.test")
+    monkeypatch.setenv("GTP_AUTH0_PASSWORD_CONNECTION", "Users")
     auth = AuthRepository(tmp_path / "auth.sqlite")
     auth.migrate()
     admin_id, _ = auth.find_or_create_user(
@@ -222,6 +228,198 @@ def _start_google_link(client: TestClient, csrf_token: str) -> str:
     assert query["connection"] == ["google-oauth2"]
     assert query["prompt"] == ["login"]
     return query["state"][0]
+
+
+def _start_password_link(client: TestClient, csrf_token: str, mode: str) -> str:
+    started = client.post(
+        "/api/auth/link/password",
+        params={"mode": mode},
+        headers={"X-CSRF-Token": csrf_token},
+    )
+    assert started.status_code == 200
+    query = parse_qs(urlparse(started.json()["authorization_url"]).query)
+    assert query["connection"] == ["Users"]
+    assert query["prompt"] == ["login"]
+    assert query.get("screen_hint", [""])[0] == ("signup" if mode == "signup" else "")
+    return query["state"][0]
+
+
+@pytest.mark.parametrize("subject", ["auth0|password", "email|otp"])
+def test_new_email_identity_cannot_create_second_app_account(
+    tmp_path, subject: str
+) -> None:
+    auth = AuthRepository(tmp_path / "auth.sqlite")
+    auth.migrate()
+    google = _google_identity("person@example.test")
+    primary_id, _ = auth.find_or_create_user(google)
+
+    with pytest.raises(AccountLinkRequired):
+        auth.find_or_create_user(
+            VerifiedIdentity(google.issuer, subject, google.email, True)
+        )
+
+    assert [account.id for account in auth.list_users(limit=10, offset=0)] == [
+        primary_id
+    ]
+
+
+def test_google_first_password_signup_then_link_preserves_account_and_tour(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    google = _google_identity("person@example.test")
+    provider = FakeOidcProvider(google.subject, google.email)
+    client, auth, tours = _client(tmp_path, provider, monkeypatch)
+    csrf = _sign_in(client, provider)
+    original_token = client.cookies.get(AUTH_COOKIE_NAME)
+    primary_id = auth.authenticated(original_token).user_id
+    saved = tours.save_for_user(primary_id, _plan("Hue"))
+    assert client.get("/api/auth/me").json()["login_methods"] == ["google"]
+
+    signup_state = _start_password_link(client, csrf, "signup")
+    provider.identity = VerifiedIdentity(
+        google.issuer, "auth0|password", google.email, False
+    )
+    unverified = client.get(
+        "/api/auth/callback",
+        params={"code": "signup-code", "state": signup_state},
+        follow_redirects=False,
+    )
+    assert unverified.status_code == 303
+    assert (
+        unverified.headers["location"] == "/?view=profile&auth_error=email_unverified"
+    )
+    assert client.cookies.get(AUTH_COOKIE_NAME) == original_token
+    assert auth.login_methods(primary_id) == ["google"]
+
+    link_state = _start_password_link(client, csrf, "link")
+    provider.identity = VerifiedIdentity(
+        google.issuer, "auth0|password", google.email, True
+    )
+    linked = client.get(
+        "/api/auth/callback",
+        params={"code": "password-code", "state": link_state},
+        follow_redirects=False,
+    )
+    assert linked.status_code == 303
+    assert linked.headers["location"] == "/?view=profile&auth_link=password"
+    assert client.cookies.get(AUTH_COOKIE_NAME) == original_token
+    assert client.get("/api/auth/me").json()["login_methods"] == ["google", "password"]
+    assert tours.list_for_user(primary_id).items[0].id == saved.id
+    assert len(auth.list_users(limit=10, offset=0)) == 2  # admin and owner
+
+    client.cookies.clear()
+    _sign_in(client, provider)
+    assert (
+        auth.authenticated(client.cookies.get(AUTH_COOKIE_NAME)).user_id == primary_id
+    )
+    assert client.get("/api/saved-tours").json()["items"][0]["id"] == saved.id
+
+
+def test_password_link_rejects_wrong_identity_and_stale_original_session(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    google = _google_identity("person@example.test")
+    provider = FakeOidcProvider(google.subject, google.email)
+    client, auth, _ = _client(tmp_path, provider, monkeypatch)
+    csrf = _sign_in(client, provider)
+    primary_id = auth.authenticated(client.cookies.get(AUTH_COOKIE_NAME)).user_id
+    assert client.post("/api/auth/link/password?mode=link").status_code == 403
+
+    state = _start_password_link(client, csrf, "link")
+    provider.identity = VerifiedIdentity(
+        google.issuer, "auth0|other", "other@example.test", True
+    )
+    failed = client.get(
+        "/api/auth/callback",
+        params={"code": "password-code", "state": state},
+        follow_redirects=False,
+    )
+    assert failed.headers["location"] == "/?auth_error=link_failed"
+    assert auth.login_methods(primary_id) == ["google"]
+
+    with sqlite3.connect(tmp_path / "auth.sqlite") as connection:
+        connection.execute(
+            "UPDATE auth_sessions SET created_at = '2000-01-01T00:00:00+00:00'"
+        )
+    stale = client.post(
+        "/api/auth/link/password?mode=link", headers={"X-CSRF-Token": csrf}
+    )
+    assert stale.status_code == 409
+
+
+def test_password_link_rejects_identity_owned_by_another_account_with_tour(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    google = _google_identity("person@example.test")
+    provider = FakeOidcProvider(google.subject, google.email)
+    client, auth, tours = _client(tmp_path, provider, monkeypatch)
+    csrf = _sign_in(client, provider)
+    original_token = client.cookies.get(AUTH_COOKIE_NAME)
+    primary_id = auth.authenticated(original_token).user_id
+    secondary_id = "legacy-password-account"
+    password_subject = "auth0|legacy-password"
+    with sqlite3.connect(tmp_path / "auth.sqlite") as connection:
+        connection.execute(
+            "INSERT INTO app_users (id, email, created_at) VALUES (?, ?, ?)",
+            (secondary_id, google.email, "2026-11-01T00:00:00+00:00"),
+        )
+        connection.execute(
+            "INSERT INTO auth_identities (issuer, subject, user_id) VALUES (?, ?, ?)",
+            (google.issuer, password_subject, secondary_id),
+        )
+    saved = tours.save_for_user(secondary_id, _plan("Da Nang"))
+    state = _start_password_link(client, csrf, "link")
+    provider.identity = VerifiedIdentity(
+        google.issuer, password_subject, google.email, True
+    )
+
+    callback = client.get(
+        "/api/auth/callback",
+        params={"code": "password-code", "state": state},
+        follow_redirects=False,
+    )
+
+    assert callback.status_code == 303
+    assert callback.headers["location"] == "/?auth_error=link_failed"
+    assert client.cookies.get(AUTH_COOKIE_NAME) == original_token
+    assert auth.login_methods(primary_id) == ["google"]
+    assert auth.login_methods(secondary_id) == ["password"]
+    assert tours.list_for_user(secondary_id).items[0].id == saved.id
+    assert tours.list_for_user(primary_id).items == []
+
+
+def test_password_reset_requires_linked_method_and_rate_limits(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    provider = FakeOidcProvider("auth0|password", "person@example.test")
+    client, _, _ = _client(tmp_path, provider, monkeypatch)
+    csrf = _sign_in(client, provider)
+
+    assert client.post("/api/auth/password/reset").status_code == 403
+    sent = client.post("/api/auth/password/reset", headers={"X-CSRF-Token": csrf})
+    assert sent.status_code == 200
+    assert sent.json() == {"sent": True}
+    assert provider.password_reset_calls == [
+        {"email": "person@example.test", "connection": "Users"}
+    ]
+    repeated = client.post("/api/auth/password/reset", headers={"X-CSRF-Token": csrf})
+    assert repeated.status_code == 429
+    assert repeated.headers["Retry-After"]
+    assert len(provider.password_reset_calls) == 1
+
+
+def test_google_only_account_cannot_request_database_password_reset(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    google = _google_identity("person@example.test")
+    provider = FakeOidcProvider(google.subject, google.email)
+    client, _, _ = _client(tmp_path, provider, monkeypatch)
+    csrf = _sign_in(client, provider)
+
+    response = client.post("/api/auth/password/reset", headers={"X-CSRF-Token": csrf})
+
+    assert response.status_code == 409
+    assert provider.password_reset_calls == []
 
 
 def _google_identity(
@@ -367,7 +565,13 @@ def test_google_link_rejects_wrong_or_unverified_identity(
     )
 
     assert callback.status_code == 303
-    assert callback.headers["location"] == "/?auth_error=link_failed"
+    expected_error = "email_unverified" if case == "unverified" else "link_failed"
+    expected_location = (
+        f"/?view=profile&auth_error={expected_error}"
+        if case == "unverified"
+        else f"/?auth_error={expected_error}"
+    )
+    assert callback.headers["location"] == expected_location
     assert auth.authenticated(primary_token).user_id == primary_id
     with sqlite3.connect(tmp_path / "auth.sqlite") as connection:
         linked = connection.execute(
@@ -400,11 +604,21 @@ def test_google_link_rejects_existing_separate_account_without_data_loss(
     provider = FakeOidcProvider("auth0|primary", "person@example.test")
     client, auth, tours = _client(tmp_path, provider, monkeypatch)
     google = _google_identity("person@example.test", "google-oauth2|existing")
-    secondary_id, _ = auth.find_or_create_user(google)
-    secondary_token, _ = auth.issue_session(secondary_id, google.email)
-    saved = tours.save_for_user(secondary_id, _plan("Da Nang")) if has_tour else None
     csrf = _sign_in(client, provider)
     primary_id = auth.authenticated(client.cookies.get(AUTH_COOKIE_NAME)).user_id
+    # Simulate a duplicate identity created before the new email-conflict gate.
+    secondary_id = "legacy-google-account"
+    with sqlite3.connect(tmp_path / "auth.sqlite") as connection:
+        connection.execute(
+            "INSERT INTO app_users (id, email, created_at) VALUES (?, ?, ?)",
+            (secondary_id, google.email, "2026-11-01T00:00:00+00:00"),
+        )
+        connection.execute(
+            "INSERT INTO auth_identities (issuer, subject, user_id) VALUES (?, ?, ?)",
+            (google.issuer, google.subject, secondary_id),
+        )
+    secondary_token, _ = auth.issue_session(secondary_id, google.email)
+    saved = tours.save_for_user(secondary_id, _plan("Da Nang")) if has_tour else None
     state = _start_google_link(client, csrf)
     provider.identity = google
 
@@ -509,10 +723,22 @@ def test_google_link_rejects_expired_pending_state_and_revoked_primary_session(
 
 
 @pytest.mark.parametrize(
-    ("intent", "expected_hint"), [("login", ""), ("signup", "signup")]
+    ("intent", "expected_hint", "expected_connection", "expected_prompt"),
+    [
+        ("login", "", "", ""),
+        ("google", "", "google-oauth2", ""),
+        ("email", "", "Users", ""),
+        ("signup", "signup", "Users", "login"),
+        ("otp", "", "email", ""),
+    ],
 )
 def test_auth_login_intent_controls_signup_screen_hint(
-    tmp_path, monkeypatch: pytest.MonkeyPatch, intent: str, expected_hint: str
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+    intent: str,
+    expected_hint: str,
+    expected_connection: str,
+    expected_prompt: str,
 ) -> None:
     provider = FakeOidcProvider("auth0|signup-test", "signup@example.test")
     client, _, _ = _client(tmp_path, provider, monkeypatch)
@@ -525,7 +751,8 @@ def test_auth_login_intent_controls_signup_screen_hint(
     query = parse_qs(urlparse(response.headers["location"]).query)
     assert query.get("screen_hint", [""])[0] == expected_hint
     assert provider.authorization_calls[0]["screen_hint"] == expected_hint
-    assert provider.authorization_calls[0]["prompt"] == ""
+    assert provider.authorization_calls[0]["connection"] == expected_connection
+    assert provider.authorization_calls[0]["prompt"] == expected_prompt
 
 
 def test_existing_account_login_forces_fresh_auth0_prompt(
@@ -541,6 +768,19 @@ def test_existing_account_login_forces_fresh_auth0_prompt(
     assert response.status_code == 307
     assert provider.authorization_calls[0]["prompt"] == "login"
     assert parse_qs(urlparse(response.headers["location"]).query)["prompt"] == ["login"]
+
+
+def test_email_login_requires_a_configured_password_connection(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    provider = FakeOidcProvider("auth0|password", "person@example.test")
+    client, _, _ = _client(tmp_path, provider, monkeypatch)
+    monkeypatch.delenv("GTP_AUTH0_PASSWORD_CONNECTION")
+
+    response = client.get("/api/auth/login?intent=email", follow_redirects=False)
+
+    assert response.status_code == 503
+    assert provider.authorization_calls == []
 
 
 def test_unverified_email_cannot_create_an_app_account_or_session(
@@ -716,6 +956,45 @@ def test_auth0_provider_environment_requires_an_https_origin(
 
     with pytest.raises(AuthError, match="valid HTTPS origin"):
         Auth0OidcProvider.from_environment()
+
+
+def test_auth0_password_reset_uses_the_fixed_database_connection(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    provider = Auth0OidcProvider(
+        issuer="https://tenant.example.test",
+        client_id="client-id",
+        client_secret="test-secret",
+    )
+    calls = []
+
+    class EmptyResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return None
+
+    def fake_urlopen(request, timeout):
+        calls.append((request, timeout))
+        return EmptyResponse()
+
+    monkeypatch.setattr("grounded_travel_planner.auth.urlopen", fake_urlopen)
+    provider.request_password_reset(email="person@example.test", connection="Users")
+
+    assert len(calls) == 1
+    request, timeout = calls[0]
+    assert (
+        request.full_url == "https://tenant.example.test/dbconnections/change_password"
+    )
+    assert request.get_method() == "POST"
+    assert timeout == 10
+    assert json.loads(request.data) == {
+        "client_id": "client-id",
+        "email": "person@example.test",
+        "connection": "Users",
+    }
+    assert "test-secret" not in request.data.decode()
 
 
 @pytest.mark.skipif(os.name != "posix", reason="POSIX permissions are required")

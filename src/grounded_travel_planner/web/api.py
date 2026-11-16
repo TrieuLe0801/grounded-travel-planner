@@ -421,6 +421,8 @@ def create_app(
     auth = auth_repository or _auth_repository_from_environment()
     rate_limiter = turn_rate_limiter or TurnRateLimiter.from_environment()
     provider = auth_provider
+    password_reset_lock = Lock()
+    password_reset_times: dict[str, float] = {}
     app = FastAPI(title="Grounded Travel Planner", docs_url=None, redoc_url=None)
 
     def current_user(auth_token: str | None) -> AuthenticatedUser:
@@ -542,6 +544,12 @@ def create_app(
     def pending_codec() -> PendingLoginCodec:
         secret = os.getenv("GTP_AUTH_SESSION_SECRET", "")
         return PendingLoginCodec(secret)
+
+    def password_connection() -> str:
+        connection = os.getenv("GTP_AUTH0_PASSWORD_CONNECTION", "").strip()
+        if not connection:
+            raise AuthError("The Auth0 password connection is not configured.")
+        return connection
 
     def collect(session: WebSession) -> AgentResponse | None:
         if session.pending is None:
@@ -754,6 +762,7 @@ def create_app(
     def auth_me(gtp_auth: str | None = Cookie(default=None)) -> dict[str, object]:
         try:
             user = auth.authenticated(gtp_auth)
+            methods = auth.login_methods(user.user_id) if user is not None else []
         except AuthError as error:
             raise HTTPException(
                 status_code=503, detail="Không thể xác thực lúc này."
@@ -766,6 +775,7 @@ def create_app(
             "csrf_token": user.csrf_token,
             "access_status": user.access_status,
             "is_admin": user.is_admin,
+            "login_methods": methods,
         }
 
     def admin_user(auth_token: str | None) -> AuthenticatedUser:
@@ -891,8 +901,10 @@ def create_app(
         if start is not None and end is not None and end < start:
             raise HTTPException(status_code=422, detail="Khoảng ngày không hợp lệ.")
         try:
-            if auth.get_user(user_id) is None:
+            account = auth.get_user(user_id)
+            if account is None or account.access_status == "merged":
                 raise HTTPException(status_code=404, detail="Không tìm thấy tài khoản.")
+            account_aliases = auth.usage_aliases_for_users([user_id])
             from_time = (
                 datetime.combine(start, time.min, tzinfo=timezone.utc).isoformat()
                 if start is not None
@@ -909,7 +921,7 @@ def create_app(
                 user_id,
                 start=from_time,
                 end=through_time,
-                account_aliases=auth.usage_aliases_for_users([user_id]),
+                account_aliases=account_aliases,
             )
         except (AuthError, UsageError) as error:
             raise HTTPException(
@@ -941,7 +953,9 @@ def create_app(
     def auth_login(
         request: Request,
         return_to: str | None = Query(default=None),
-        intent: Literal["login", "signup", "existing"] = Query(default="login"),
+        intent: Literal[
+            "login", "google", "email", "signup", "otp", "existing"
+        ] = Query(default="login"),
     ) -> Response:
         nonlocal provider
         if provider is None:
@@ -962,6 +976,13 @@ def create_app(
             }
             if intent == "signup":
                 authorization_parameters["screen_hint"] = "signup"
+                authorization_parameters["prompt"] = "login"
+            if intent in {"email", "signup"}:
+                authorization_parameters["connection"] = password_connection()
+            if intent == "google":
+                authorization_parameters["connection"] = "google-oauth2"
+            if intent == "otp":
+                authorization_parameters["connection"] = "email"
             if intent == "existing":
                 authorization_parameters["prompt"] = "login"
             redirect = provider.authorization_url(**authorization_parameters)
@@ -987,10 +1008,47 @@ def create_app(
         gtp_auth: str | None = Cookie(default=None),
         x_csrf_token: str | None = Header(default=None),
     ) -> Response:
+        return begin_identity_link(
+            request, gtp_auth, x_csrf_token, method="google", signup=False
+        )
+
+    @app.post("/api/auth/link/password")
+    def auth_link_password(
+        request: Request,
+        mode: Literal["signup", "link"] = Query(default="link"),
+        gtp_auth: str | None = Cookie(default=None),
+        x_csrf_token: str | None = Header(default=None),
+    ) -> Response:
+        return begin_identity_link(
+            request, gtp_auth, x_csrf_token, method="password", signup=mode == "signup"
+        )
+
+    @app.post("/api/auth/link/email-otp")
+    def auth_link_email_otp(
+        request: Request,
+        gtp_auth: str | None = Cookie(default=None),
+        x_csrf_token: str | None = Header(default=None),
+    ) -> Response:
+        return begin_identity_link(
+            request, gtp_auth, x_csrf_token, method="email_otp", signup=False
+        )
+
+    def begin_identity_link(
+        request: Request,
+        auth_token: str | None,
+        csrf_token: str | None,
+        *,
+        method: Literal["google", "password", "email_otp"],
+        signup: bool,
+    ) -> Response:
         nonlocal provider
-        user = csrf_user(gtp_auth, x_csrf_token)
+        user = csrf_user(auth_token, csrf_token)
         try:
-            if not auth.recent_session(gtp_auth):
+            if method in auth.login_methods(user.user_id):
+                raise HTTPException(
+                    status_code=409, detail="Phương thức này đã được liên kết."
+                )
+            if not auth.recent_session(auth_token):
                 raise HTTPException(
                     status_code=409, detail="Vui lòng đăng nhập lại tài khoản cũ."
                 )
@@ -998,21 +1056,31 @@ def create_app(
                 provider = Auth0OidcProvider.from_environment()
             codec = pending_codec()
             pending, fields = codec.issue(
-                return_to="/",
+                return_to="/?view=profile",
                 link_user_id=user.user_id,
-                link_auth_hash=hashlib.sha256((gtp_auth or "").encode()).hexdigest(),
+                link_auth_hash=hashlib.sha256((auth_token or "").encode()).hexdigest(),
+                link_method=method,
             )
-            redirect = provider.authorization_url(
-                state=fields["state"],
-                nonce=fields["nonce"],
-                code_verifier=fields["verifier"],
-                redirect_uri=callback_uri(request),
-                connection="google-oauth2",
-                prompt="login",
-            )
+            if method == "google":
+                connection = "google-oauth2"
+            elif method == "password":
+                connection = password_connection()
+            else:
+                connection = "email"
+            parameters = {
+                "state": fields["state"],
+                "nonce": fields["nonce"],
+                "code_verifier": fields["verifier"],
+                "redirect_uri": callback_uri(request),
+                "connection": connection,
+                "prompt": "login",
+            }
+            if signup:
+                parameters["screen_hint"] = "signup"
+            redirect = provider.authorization_url(**parameters)
         except AuthError as error:
             raise HTTPException(
-                status_code=503, detail="Không thể bắt đầu liên kết Google."
+                status_code=503, detail="Không thể bắt đầu liên kết tài khoản."
             ) from error
         response = Response(
             content=json.dumps({"authorization_url": redirect}),
@@ -1028,6 +1096,40 @@ def create_app(
             path="/api/auth",
         )
         return response
+
+    @app.post("/api/auth/password/reset")
+    def auth_password_reset(
+        gtp_auth: str | None = Cookie(default=None),
+        x_csrf_token: str | None = Header(default=None),
+    ) -> dict[str, bool]:
+        nonlocal provider
+        user = csrf_user(gtp_auth, x_csrf_token)
+        try:
+            if "password" not in auth.login_methods(user.user_id) or not user.email:
+                raise HTTPException(
+                    status_code=409, detail="Tài khoản chưa có mật khẩu."
+                )
+            connection = password_connection()
+            now = monotonic()
+            with password_reset_lock:
+                last = password_reset_times.get(user.user_id, float("-inf"))
+                if now - last < 60:
+                    raise HTTPException(
+                        status_code=429,
+                        detail="Vui lòng chờ trước khi gửi lại email.",
+                        headers={"Retry-After": str(max(1, int(60 - (now - last))))},
+                    )
+                if len(password_reset_times) >= 1024:
+                    password_reset_times.clear()
+                password_reset_times[user.user_id] = now
+            if provider is None:
+                provider = Auth0OidcProvider.from_environment()
+            provider.request_password_reset(email=user.email, connection=connection)
+        except AuthError as error:
+            raise HTTPException(
+                status_code=503, detail="Không thể gửi email đổi mật khẩu."
+            ) from error
+        return {"sent": True}
 
     @app.get("/api/auth/callback")
     def auth_callback(
@@ -1059,6 +1161,12 @@ def create_app(
                 redirect_uri=callback_uri(request),
             )
             if "link_user_id" in pending:
+                if not identity.email_verified:
+                    unverified = RedirectResponse(
+                        "/?view=profile&auth_error=email_unverified", status_code=303
+                    )
+                    unverified.delete_cookie(AUTH_PENDING_COOKIE_NAME, path="/api/auth")
+                    return unverified
                 user = auth.authenticated(gtp_auth)
                 fingerprint = hashlib.sha256((gtp_auth or "").encode()).hexdigest()
                 if (
@@ -1069,8 +1177,16 @@ def create_app(
                     or not auth.recent_session(gtp_auth)
                 ):
                     raise AccountLinkConflict("The original account session changed.")
-                auth.link_google_identity(identity, user.user_id)
-                completed_link = RedirectResponse("/?auth_link=linked", status_code=303)
+                if pending["link_method"] == "google":
+                    auth.link_google_identity(identity, user.user_id)
+                    target = "/?auth_link=linked"
+                elif pending["link_method"] == "password":
+                    auth.link_password_identity(identity, user.user_id)
+                    target = "/?view=profile&auth_link=password"
+                else:
+                    auth.link_email_otp_identity(identity, user.user_id)
+                    target = "/?view=profile&auth_link=email_otp"
+                completed_link = RedirectResponse(target, status_code=303)
                 completed_link.delete_cookie(AUTH_PENDING_COOKIE_NAME, path="/api/auth")
                 return completed_link
             if not identity.email_verified:

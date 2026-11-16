@@ -24,6 +24,29 @@ remains the source of token and cost data; existing trace metadata is not
 rewritten. Never infer a usage alias from a matching email. Add the alias only
 after verifying the exact merge and backing up the database.
 
+User amendment — 2026-11-16: An operator may reconcile already-duplicated app
+accounts only after confirming both identities, backing up the database, and
+pausing writes. The operator selects the canonical and secondary UUIDs; the
+merge keeps the canonical role unchanged and never overrides blocked status.
+An admin canonical may absorb a non-admin secondary; the reverse is rejected.
+All linked identities then resolve to the canonical account and its role. Keep
+the secondary account as a merged tombstone and alias. Include its alias UUID
+when querying LangSmith so historical usage remains under the canonical
+account. Preserve access-audit rows and saved-tour snapshots. Email matching
+alone is not proof of ownership. A dry-run may use the canonical admin as its
+temporary actor. If the database has no other active admin, a user-authorized
+apply may use the canonical admin as a self-audit actor after an explicit
+confirmation; the database checks for another active admin in the transaction.
+Ownership, backup and paused-write confirmations remain required.
+
+User amendment — 2026-11-16: The user selected the existing admin UUID as the
+canonical account for the identified duplicate pair. A live dry-run passed and
+rolled back: one identity, zero saved tours and two secondary sessions. No
+account data changed in that dry-run. The user then authorized canonical
+self-audit because no independent active admin exists. The backed-up apply
+moved one identity, retained all six canonical tours, revoked two secondary
+sessions, and recorded the merge alias and audit events.
+
 ## Context
 
 ADR 0021 keeps Auth0 responsible for credentials and leaves account roles and

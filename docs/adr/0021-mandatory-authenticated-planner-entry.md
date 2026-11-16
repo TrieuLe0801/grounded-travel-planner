@@ -2,7 +2,37 @@
 
 Status: Accepted
 Date: 2026-11-08
-Amended: 2026-11-14
+Amended: 2026-11-16
+
+User amendment — 2026-11-16: Users may explicitly link Google, Auth0 database
+password, and email OTP identities to one internal account UUID. Every link
+requires a recent session for the original account, CSRF, fresh authentication
+of the added identity, a verified matching email, the same issuer, and an
+identity not owned by another account. Email equality alone never grants
+account ownership.
+
+User amendment — 2026-11-16: Existing duplicate application accounts may be
+reconciled only by an operator after confirming ownership of both identities,
+creating a backup, and pausing writes. The operator names the canonical and
+secondary UUIDs. A dry-run is default; applying the merge moves all secondary
+identities and saved-tour ownership, revokes secondary sessions, preserves
+snapshot IDs/content and access-audit history, records the secondary UUID as a
+canonical-account alias for historical LangSmith usage, and marks the old
+account merged. Access-status or administrator-role conflicts fail closed; a
+merge never grants administrator rights. This does not link Auth0 user
+profiles, merge automatically by email, or change Auth0 tenant settings.
+
+User amendment — 2026-11-15: The account menu opens Personal information.
+It shows which Google, database-password and email-code identities are linked
+to the internal application account. A Google-first user may create a separate
+Auth0 database password through hosted signup and email verification, then
+authenticate that database identity again to link it to the original UUID.
+Existing password or OTP users can link Google through the existing fresh-login
+flow. Password changes use Auth0's database-connection reset email. All links
+require a recent original-account session, CSRF, fresh authentication of the
+new identity, verified matching email and an unowned issuer/subject. A matching
+email alone never links or transfers saved tours. Email OTP remains available.
+Auth0 tenant configuration and browser checks are separate acceptance gates.
 
 User amendment — 2026-11-15: Registration uses an Auth0 database password
 connection with a password and confirmation field. Auth0 enforces a minimum of
@@ -45,9 +75,10 @@ planner sessions and live trip state remain in process memory.
 ## Decision
 
 - Keep Auth0 Universal Login and the existing email passwordless flow. Add an
-  Auth0 database connection for password signup; keep passwords in Auth0. Omit the
-  `connection` parameter from `/authorize` so Auth0 can reuse an active tenant
-  session for SSO. Users without an active Auth0 session can use the database
+  Auth0 database connection for password signup; keep passwords in Auth0. The
+  generic SSO route omits `connection` so Auth0 can reuse an active tenant
+  session. Direct Google, email/password and email-code actions select fixed
+  connections. Users without an active Auth0 session can use the database
   password or existing email one-time-code flow. Use Authorization Code with PKCE, `state`,
   `nonce`, signed ID-token validation, and the opaque server-side account session
   defined by ADR 0016. Require a verified email claim before app access. Do not
@@ -67,10 +98,12 @@ planner sessions and live trip state remain in process memory.
 - On logout, revoke the application auth session, remove the current volatile
   planner session, and clear the account and planner cookies. A submitted
   background turn may finish, but its result has no session to collect it.
-- Keep account controls limited to verified email, saved tours, and sign-out.
-  Auth0 remains the credential and user-profile system; administrators manage
-  accounts through the Auth0 Dashboard. Account deletion/export and roles need a
-  separate policy decision before app controls are added.
+- Show verified email and linked sign-in methods in Personal information,
+  alongside saved tours and sign-out. Start password signup/reset and explicit
+  Google, email OTP, and password identity links from this page; Auth0 keeps all
+  credentials. Administrators
+  manage Auth0 credentials through the Auth0 Dashboard. Account deletion/export
+  needs a separate policy decision before app controls are added.
 - Keep the root landing page public and static. Do not require authentication
   for read-only public assets or health checks. The private planner APIs remain
   authoritative for access control.
@@ -84,6 +117,11 @@ planner sessions and live trip state remain in process memory.
 - Put identity tokens in browser storage and call APIs as a public SPA:
   rejected because the existing same-origin FastAPI BFF already owns sessions,
   CSRF protection, quotas, and account-scoped storage.
+- Automatically merge accounts when verified email addresses match: rejected
+  because email equality does not prove ownership of both identities and could
+  transfer saved tours or administrator access. Require explicit authentication
+  of both identities; use operator reconciliation only for existing UUID
+  conflicts.
 - Persist live plans and transcripts by account: rejected because the existing
   session-only boundary remains active; only an explicit save creates a durable
   read-only tour snapshot.
