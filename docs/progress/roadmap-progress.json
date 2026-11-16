@@ -1,6 +1,6 @@
 {
-  "version": 111,
-  "updated": "2026-11-15T21:51:23+07:00",
+  "version": 112,
+  "updated": "2026-11-16T11:48:00+07:00",
   "active_scope": "city-place-sightseeing-webapp",
   "current_milestone": "Milestone 1: executable city/place sightseeing vertical slice",
   "completed": {
@@ -86,6 +86,10 @@
     "auth0_account_deployed": true,
     "admin_access_usage_offline": true,
     "admin_access_usage_deployed": true,
+    "admin_account_deletion_source": true,
+    "admin_account_deletion_offline_verified": true,
+    "admin_account_deletion_auth0_live": false,
+    "admin_account_deletion_deployed": false,
     "account_usage_alias_deployed": true,
     "macos_ci_cd_configured": true,
     "ngrok_session_rate_limit": false,
@@ -177,6 +181,21 @@
     ],
     "admin_access_usage_deployed": [
       "Running Compose app contains the lowercase LangSmith run-type fix and the account usage alias reader; PostgreSQL has one active administrator and one confirmed usage alias. The app is healthy and /api/health returned 200. Live repository aggregation matched the former account's LangSmith totals; browser administrator flow remains unchecked."
+    ],
+    "admin_account_deletion_source": [
+      "src/grounded_travel_planner/auth.py and src/grounded_travel_planner/web/api.py: server-side Auth0 Management API deletion, CSRF-protected admin route, retryable deleting state, tombstone, audit and session cleanup",
+      "src/grounded_travel_planner/saved_tours.py and src/grounded_travel_planner/postgres_saved_tours.py: account-owned tour cleanup; frontend bilingual delete confirmation and retry state",
+      "M2M client ID/secret, canonical Management API audience and delete:users scope are environment-configured; live Auth0 and deployment checks remain pending"
+    ],
+    "admin_account_deletion_offline_verified": [
+      "Focused admin/Auth0/saved-tour suite: 75 passed, including Auth0 partial-delete retry and owner-scoped tour cleanup.",
+      "Full offline suite: 230 passed, 1 optional PostgreSQL test skipped because GTP_POSTGRES_TEST_DSN/GTP_POSTGRES_TEST is not configured. Frontend npm run check/build, isort, Black, flake8, Ruff, JSON parsing and git diff --check passed. docker compose config --quiet could not run because GTP_SAVED_TOURS_POSTGRES_PASSWORD is unset in ignored .env."
+    ],
+    "admin_account_deletion_auth0_live": [
+      "Not checked: no live Auth0 Management API credentials or destructive provider call were used."
+    ],
+    "admin_account_deletion_deployed": [
+      "Not deployed: no Compose image rebuild or app restart was requested."
     ],
     "account_usage_alias_deployed": [
       "docs/adr/0023-admin-access-and-account-usage.md: user-confirmed former UUID maps to retained UUID without email inference or rewriting LangSmith traces",

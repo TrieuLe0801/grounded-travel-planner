@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 from grounded_travel_planner.auth import (
     AUTH_COOKIE_NAME,
     AccessChangeConflict,
+    Auth0ManagementError,
     AuthError,
     AuthRepository,
     VerifiedIdentity,
@@ -22,7 +23,7 @@ from grounded_travel_planner.contracts import (
     SightseeingPlan,
     SourceReference,
 )
-from grounded_travel_planner.saved_tours import SavedTourRepository
+from grounded_travel_planner.saved_tours import SavedTourError, SavedTourRepository
 from grounded_travel_planner.usage import UsageRepository, account_trace_ref
 from grounded_travel_planner.web.api import create_app
 from scripts.migrate_admin_accounts import find_bootstrap_user_id
@@ -67,6 +68,17 @@ class _FakeLangSmith:
                 yield item
 
         return rows()
+
+
+class _FakeAuth0UserDeleter:
+    def __init__(self) -> None:
+        self.calls: list[tuple[tuple[str, str], ...]] = []
+        self.errors: list[Exception] = []
+
+    def delete_users(self, identities) -> None:
+        self.calls.append(tuple(identities))
+        if self.errors:
+            raise self.errors.pop(0)
 
 
 def _plan() -> SightseeingPlan:
@@ -116,6 +128,7 @@ def account_app(tmp_path, monkeypatch: pytest.MonkeyPatch):
         auth_repository=auth,
         usage_repository=usage,
     )
+    app.state.auth0_user_deleter = _FakeAuth0UserDeleter()
     admin_id, _ = auth.find_or_create_user(
         VerifiedIdentity(
             "https://id.example.test/", "admin", "admin@example.test", True
@@ -382,3 +395,174 @@ def test_bootstrap_email_resolves_one_existing_account_across_pages():
         find_bootstrap_user_id(repository, "admin@example.test")
     with pytest.raises(AuthError, match="exactly one"):
         find_bootstrap_user_id(repository, "missing@example.test")
+
+
+def test_admin_deletes_all_auth0_identities_tours_and_account_data(account_app):
+    auth, tours, admin, member, admin_id, member_id, admin_csrf, _, _ = account_app
+    member_user = auth.get_user(member_id)
+    assert member_user is not None
+    auth.link_google_identity(
+        VerifiedIdentity(
+            "https://id.example.test/",
+            "google-oauth2|linked-member",
+            member_user.email,
+            True,
+        ),
+        member_id,
+    )
+    tours.save_for_user(member_id, _plan())
+    tours.save_for_user(admin_id, _plan())
+    with sqlite3.connect(auth._database_path) as connection:
+        connection.execute(
+            "INSERT INTO account_usage_aliases VALUES (?, ?)",
+            ("former-member-id", member_id),
+        )
+        connection.execute(
+            "INSERT INTO account_usage_aliases VALUES (?, ?)",
+            (member_id, admin_id),
+        )
+
+    result = admin.post(
+        f"/api/admin/users/{member_id}/delete",
+        headers={"X-CSRF-Token": admin_csrf},
+    )
+
+    assert result.status_code == 204
+    deleted_subjects = {
+        subject for _, subject in admin.app.state.auth0_user_deleter.calls[-1]
+    }
+    assert deleted_subjects == {"member", "google-oauth2|linked-member"}
+    account = auth.get_user(member_id)
+    assert account is not None
+    assert (account.email, account.access_status, account.is_admin) == (
+        None,
+        "deleted",
+        False,
+    )
+    assert member.get("/api/auth/me").json() == {"authenticated": False}
+    assert member_id not in {user.id for user in auth.list_users()}
+    assert tours.list_for_user(member_id).items == []
+    assert len(tours.list_for_user(admin_id).items) == 1
+    with sqlite3.connect(auth._database_path) as connection:
+        assert (
+            connection.execute(
+                "SELECT COUNT(*) FROM auth_identities WHERE user_id = ?", (member_id,)
+            ).fetchone()[0]
+            == 0
+        )
+        assert (
+            connection.execute(
+                "SELECT COUNT(*) FROM auth_sessions WHERE user_id = ?", (member_id,)
+            ).fetchone()[0]
+            == 0
+        )
+        assert (
+            connection.execute(
+                """SELECT COUNT(*) FROM account_usage_aliases
+            WHERE former_user_id = ? OR canonical_user_id = ?""",
+                (member_id, member_id),
+            ).fetchone()[0]
+            == 0
+        )
+        actions = {
+            row[0]
+            for row in connection.execute(
+                "SELECT action FROM account_access_events WHERE user_id = ?",
+                (member_id,),
+            )
+        }
+    assert {"deletion_started", "deleted"} <= actions
+
+
+def test_auth0_delete_error_preserves_local_account_and_session(account_app):
+    auth, tours, admin, member, _, member_id, admin_csrf, _, _ = account_app
+    tours.save_for_user(member_id, _plan())
+    deleter = admin.app.state.auth0_user_deleter
+    deleter.errors.append(Auth0ManagementError("provider unavailable"))
+
+    result = admin.post(
+        f"/api/admin/users/{member_id}/delete",
+        headers={"X-CSRF-Token": admin_csrf},
+    )
+
+    assert result.status_code == 502
+    account = auth.get_user(member_id)
+    assert account is not None
+    assert (account.email, account.access_status) == (
+        "member@example.test",
+        "active",
+    )
+    assert member.get("/api/auth/me").json()["authenticated"] is True
+    assert len(tours.list_for_user(member_id).items) == 1
+    assert admin.get("/api/admin/users").status_code == 200
+
+
+def test_account_deletion_retries_after_auth0_and_local_partial_failures(
+    account_app, monkeypatch: pytest.MonkeyPatch
+):
+    auth, tours, admin, member, _, member_id, admin_csrf, _, _ = account_app
+    member_user = auth.get_user(member_id)
+    assert member_user is not None
+    auth.link_google_identity(
+        VerifiedIdentity(
+            "https://id.example.test/",
+            "google-oauth2|retry-member",
+            member_user.email,
+            True,
+        ),
+        member_id,
+    )
+    deleter = admin.app.state.auth0_user_deleter
+    deleter.errors.append(Auth0ManagementError("partial provider failure"))
+    path = f"/api/admin/users/{member_id}/delete"
+
+    auth0_failure = admin.post(path, headers={"X-CSRF-Token": admin_csrf})
+    assert auth0_failure.status_code == 502
+    assert auth.get_user(member_id).access_status == "active"
+    assert member.get("/api/auth/me").json()["authenticated"] is True
+    assert len(deleter.calls) == 1
+
+    original_delete_all = tours.delete_all_for_user
+    calls = 0
+
+    def fail_once(user_id: str) -> int:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise SavedTourError("temporary archive failure")
+        return original_delete_all(user_id)
+
+    monkeypatch.setattr(tours, "delete_all_for_user", fail_once)
+    local_failure = admin.post(path, headers={"X-CSRF-Token": admin_csrf})
+    assert local_failure.status_code == 503
+    assert auth.get_user(member_id).access_status == "deleting"
+    assert member.get("/api/auth/me").json() == {"authenticated": False}
+    assert admin.get("/api/admin/users").json()["items"]
+    assert any(
+        user["id"] == member_id and user["access_status"] == "deleting"
+        for user in admin.get("/api/admin/users").json()["items"]
+    )
+
+    completed = admin.post(path, headers={"X-CSRF-Token": admin_csrf})
+    assert completed.status_code == 204
+    assert auth.get_user(member_id).access_status == "deleted"
+    assert len(deleter.calls) == 3
+    assert len(deleter.calls[-1]) == 2
+
+
+def test_admin_delete_requires_csrf_and_rejects_self_delete(account_app):
+    _, _, admin, member, admin_id, member_id, admin_csrf, member_csrf, _ = account_app
+    assert (
+        member.post(
+            f"/api/admin/users/{member_id}/delete",
+            headers={"X-CSRF-Token": member_csrf},
+        ).status_code
+        == 403
+    )
+    assert admin.post(f"/api/admin/users/{member_id}/delete").status_code == 403
+    result = admin.post(
+        f"/api/admin/users/{admin_id}/delete",
+        headers={"X-CSRF-Token": admin_csrf},
+    )
+    assert result.status_code == 409
+    assert admin.app.state.auth0_user_deleter.calls == []

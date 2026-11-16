@@ -10,6 +10,7 @@ import stat
 import time as clock
 from datetime import date, time
 from types import SimpleNamespace
+from urllib.error import HTTPError
 from urllib.parse import parse_qs, urlencode, urlparse
 
 import jwt
@@ -20,6 +21,8 @@ from fastapi.testclient import TestClient
 from grounded_travel_planner.auth import (
     AUTH_COOKIE_NAME,
     AUTH_PENDING_SECONDS,
+    Auth0ManagementApi,
+    Auth0ManagementError,
     Auth0OidcProvider,
     AuthError,
     AuthRepository,
@@ -716,6 +719,135 @@ def test_auth0_provider_environment_requires_an_https_origin(
 
     with pytest.raises(AuthError, match="valid HTTPS origin"):
         Auth0OidcProvider.from_environment()
+
+
+def test_auth0_management_api_uses_server_credentials_and_deletes_all_identities(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import grounded_travel_planner.auth as auth_module
+
+    class Response:
+        def __init__(self, payload: bytes, status: int) -> None:
+            self.payload = payload
+            self.status = status
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def read(self) -> bytes:
+            return self.payload
+
+    requests = []
+
+    def fake_urlopen(request, timeout):
+        requests.append((request, timeout))
+        return (
+            Response(b'{"access_token":"management-token"}', 200)
+            if request.method == "POST"
+            else Response(b"", 204)
+        )
+
+    monkeypatch.setattr(auth_module, "urlopen", fake_urlopen)
+    manager = Auth0ManagementApi(
+        issuer="https://login.example.test/",
+        client_id="m2m-client",
+        client_secret="m2m-secret",
+        audience="https://tenant.example.test/api/v2/",
+    )
+    manager.delete_users(
+        (
+            ("https://login.example.test/", "google-oauth2|linked"),
+            ("https://login.example.test/", "auth0|primary"),
+        )
+    )
+
+    token_request, delete_primary, delete_linked = [request for request, _ in requests]
+    assert token_request.full_url == "https://login.example.test/oauth/token"
+    assert b"client_id=m2m-client" in token_request.data
+    assert b"client_secret=m2m-secret" in token_request.data
+    assert (
+        b"audience=https%3A%2F%2Ftenant.example.test%2Fapi%2Fv2%2F"
+        in token_request.data
+    )
+    assert b"scope=delete%3Ausers" in token_request.data
+    assert delete_primary.full_url == (
+        "https://login.example.test/api/v2/users/auth0%7Cprimary"
+    )
+    assert delete_linked.full_url == (
+        "https://login.example.test/api/v2/users/google-oauth2%7Clinked"
+    )
+    assert delete_primary.get_header("Authorization") == "Bearer management-token"
+    assert [timeout for _, timeout in requests] == [10, 10, 10]
+
+
+def test_auth0_management_api_rejects_missing_credentials() -> None:
+    manager = Auth0ManagementApi(
+        issuer="https://tenant.example.test", client_id="", client_secret=""
+    )
+    with pytest.raises(Auth0ManagementError, match="not configured"):
+        manager.delete_users((("https://tenant.example.test/", "auth0|user"),))
+
+
+def test_auth0_management_partial_delete_retries_every_identity(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import grounded_travel_planner.auth as auth_module
+
+    class Response:
+        status = 204
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def read(self) -> bytes:
+            return b'{"access_token":"management-token"}'
+
+    delete_urls: list[str] = []
+    failed_secondary_once = False
+
+    def fake_urlopen(request, timeout):
+        nonlocal failed_secondary_once
+        if request.method == "POST":
+            return Response()
+        delete_urls.append(request.full_url)
+        if "google-oauth2" in request.full_url and not failed_secondary_once:
+            failed_secondary_once = True
+            raise HTTPError(
+                request.full_url,
+                500,
+                "temporary provider failure",
+                None,
+                io.BytesIO(b"private provider detail"),
+            )
+        return Response()
+
+    monkeypatch.setattr(auth_module, "urlopen", fake_urlopen)
+    manager = Auth0ManagementApi(
+        issuer="https://tenant.example.test/",
+        client_id="m2m-client",
+        client_secret="m2m-secret",
+    )
+    identities = (
+        ("https://tenant.example.test/", "auth0|primary"),
+        ("https://tenant.example.test/", "google-oauth2|linked"),
+    )
+    expected_urls = [
+        "https://tenant.example.test/api/v2/users/auth0%7Cprimary",
+        "https://tenant.example.test/api/v2/users/google-oauth2%7Clinked",
+    ]
+
+    with pytest.raises(Auth0ManagementError, match="HTTP 500"):
+        manager.delete_users(identities)
+    assert delete_urls == expected_urls
+
+    manager.delete_users(identities)
+    assert delete_urls == expected_urls + expected_urls
 
 
 @pytest.mark.skipif(os.name != "posix", reason="POSIX permissions are required")

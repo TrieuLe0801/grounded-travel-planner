@@ -471,6 +471,26 @@ def test_saved_tours_are_owner_scoped_and_survive_a_new_app_session(
     assert restarted.get(f"/api/saved-tours/{saved['id']}").json() == saved
 
 
+def test_delete_all_for_user_removes_only_account_owned_tours(tmp_path: Path) -> None:
+    repository = SavedTourRepository(tmp_path / "saved-tours.sqlite")
+    target_id = "target-account"
+    other_id = "other-account"
+    repository.save_for_user(target_id, _plan("Hue"))
+    repository.save_for_user(other_id, _plan("Hoi An"))
+    repository.save("legacy-browser-token", _plan("Da Nang"))
+
+    deleted_count = repository.delete_all_for_user(target_id)
+
+    assert deleted_count == 1
+    assert repository.list_for_user(target_id).items == []
+    assert [tour.destination for tour in repository.list_for_user(other_id).items] == [
+        "Hoi An"
+    ]
+    assert [
+        tour.destination for tour in repository.list("legacy-browser-token").items
+    ] == ["Da Nang"]
+
+
 def test_saved_tours_use_stable_keyset_pages_across_duplicate_timestamps(
     tmp_path: Path,
 ) -> None:
