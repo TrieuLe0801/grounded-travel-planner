@@ -1642,7 +1642,7 @@ function App() {
     const parameters = new URLSearchParams(window.location.search);
     if (parameters.has("auth_error")) {
       const error = parameters.get("auth_error");
-      setAuthError(error === "email_unverified" ? "authVerifyEmail" : error === "link_required" ? "authLinkRequired" : error === "link_failed" ? "linkMethodFailed" : "authError");
+      setAuthError(error === "email_unverified" ? "authVerifyEmail" : error === "link_required" ? "authLinkRequired" : error === "link_failed" ? "linkMethodFailed" : error === "login_start_failed" ? "authStartFailed" : "authError");
       parameters.delete("auth_error");
     }
     if (parameters.get("auth_link") === "linked") setAuthNotice("linkGoogleDone");

@@ -13,7 +13,7 @@ from pathlib import Path
 from threading import Lock
 from time import monotonic
 from typing import Literal, Protocol
-from urllib.parse import urlsplit
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from uuid import uuid4
 
 from dotenv import load_dotenv
@@ -90,6 +90,26 @@ DEFAULT_SESSION_IDLE_SECONDS = 60 * 60
 FRONTEND_DIST = Path(
     os.getenv("GTP_FRONTEND_DIST", Path.cwd() / "frontend" / "dist")
 ).resolve()
+
+
+def _auth_login_failure_redirect(return_to: str | None) -> RedirectResponse:
+    """Return to the landing page with a safe, localized sign-in error."""
+
+    try:
+        target = safe_return_to(return_to)
+    except AuthError:
+        target = "/"
+    parsed = urlsplit(target)
+    query = [
+        (key, value)
+        for key, value in parse_qsl(parsed.query, keep_blank_values=True)
+        if key != "auth_error"
+    ]
+    query.append(("auth_error", "login_start_failed"))
+    location = urlunsplit(
+        ("", "", parsed.path or "/", urlencode(query), parsed.fragment)
+    )
+    return RedirectResponse(location, status_code=303)
 
 
 class TurnInput(BaseModel):
@@ -1034,13 +1054,17 @@ def create_app(
         ] = Query(default="login"),
     ) -> Response:
         nonlocal provider
+        try:
+            redirect_uri = callback_uri(request)
+        except AuthError as error:
+            raise HTTPException(
+                status_code=503, detail="Không thể bắt đầu đăng nhập."
+            ) from error
         if provider is None:
             try:
                 provider = Auth0OidcProvider.from_environment()
-            except AuthError as error:
-                raise HTTPException(
-                    status_code=503, detail="Đăng nhập chưa được cấu hình."
-                ) from error
+            except AuthError:
+                return _auth_login_failure_redirect(return_to)
         try:
             codec = pending_codec()
             pending, fields = codec.issue(return_to=safe_return_to(return_to))
@@ -1048,7 +1072,7 @@ def create_app(
                 "state": fields["state"],
                 "nonce": fields["nonce"],
                 "code_verifier": fields["verifier"],
-                "redirect_uri": callback_uri(request),
+                "redirect_uri": redirect_uri,
             }
             if intent == "signup":
                 authorization_parameters["screen_hint"] = "signup"
@@ -1062,10 +1086,8 @@ def create_app(
             if intent == "existing":
                 authorization_parameters["prompt"] = "login"
             redirect = provider.authorization_url(**authorization_parameters)
-        except AuthError as error:
-            raise HTTPException(
-                status_code=503, detail="Không thể bắt đầu đăng nhập."
-            ) from error
+        except AuthError:
+            return _auth_login_failure_redirect(return_to)
         response = RedirectResponse(redirect, status_code=307)
         response.set_cookie(
             AUTH_PENDING_COOKIE_NAME,
