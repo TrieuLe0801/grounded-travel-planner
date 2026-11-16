@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-11-15
+Last updated: 2026-11-16
 
 ## Current Milestone
 
@@ -17,7 +17,7 @@ background only.
 | Scope reset | Complete | Charter, implementation plan, current log and ADR 0004/0009/0011/0012 |
 | Runtime package | Complete | Coordinator/Planner/Chat graph, typed providers and validators |
 | Streamlit app | Complete | Session-only itinerary/chat; graph page hidden from navigation |
-| Tests | Latest full run: 219 passed, 1 skipped | LangSmith/admin focused tests: 13 passed; full suite passed with `PYTHON_DOTENV_DISABLED=1`; isort, Black, flake8 and Ruff passed. First dotenv-enabled run had eight login redirect failures because host `GTP_AUTH_PUBLIC_ORIGIN` used `https://citedtrip.app`; tests expected a localhost redirect. |
+| Tests | Latest full run: 230 passed, 1 skipped | Full offline suite passed with `PYTHON_DOTENV_DISABLED=1`; one optional PostgreSQL test skipped because `GTP_POSTGRES_TEST_DSN`/`GTP_POSTGRES_TEST` was not configured. Isort, Black, flake8, Ruff, frontend check/build, `git diff --check` and roadmap JSON parsing passed. |
 | Live integration | Passed | OpenAI/Tavily/LangSmith smoke recorded under `docs/experiments/` |
 | Local container | Passed | Test/runtime images, health, non-root and live provider checks |
 | Chat editing | Passed | Trip extension plus eight prior offline eval cases and live two-turn smoke |
@@ -46,6 +46,7 @@ background only.
 | Saved tours | PostgreSQL Compose app healthy; browser QA pending | Database now uses a sibling host directory outside Git; three saved rows and checksum survived the move; former named volume retained; root 200, session creation 201 |
 | Auth0 account ownership | Deployed; live OTP pending | PostgreSQL has account-owner column, indexes and auth tables. The app is deployed on `citedtrip.app`; login reaches Auth0's hosted page. OTP callback and browser account-flow QA remain pending. |
 | Admin access and account usage | Compose deployed; browser QA pending | The running app counts lowercase LangSmith `llm` runs and reads an explicit former-UUID usage alias from PostgreSQL. The confirmed merged account has 21,351 input tokens, 7,323 output tokens and USD 0.11587275 recorded cost across three model groups and nine calls. Full offline suite: 222 passed, 1 skipped; Python quality gates passed. App health 200; browser administrator flow not checked. |
+| Admin account deletion | Offline verified; Auth0/deployment pending | CSRF-protected admin API uses server-only M2M credentials and `delete:users`; local account enters retryable `deleting` after Auth0 succeeds, then owner tours are removed and an audit-preserving tombstone remains. Focused backend suite: 75 passed; full suite: 230 passed, 1 optional PostgreSQL test skipped. Frontend check/build and Python quality gates passed. Compose config check could not run because `GTP_SAVED_TOURS_POSTGRES_PASSWORD` is unset. No live Auth0 call or app deployment. |
 | Auth0 SSO and mandatory sign-in | Latest source built and offline-tested; browser/deployment pending | Image `sha256:07e93379edc0efcf157dca5d28af79d7f91e96321b9911e1a0d323de25342b71` was healthy at last check. Latest source adds an Auth0 signup hint and separates SSO sign-in from registration. Full suite 199 passed, one optional PostgreSQL test skipped; frontend check/build and Python quality checks passed. Live Auth0 signup, SSO, OTP, callback exchange, browser QA and deployment remain pending. |
 | Self-service registration and SSO access | Source updated; Auth0 tenant setup pending | Signed ID token must have `email_verified=true`; verified new and legacy pending identities become active without admin grant. Blocked accounts remain blocked. Prepared Auth0 confirm-password partial and tenant checklist; hosted form, password policy, verification email and live signup remain unverified. |
 | Existing account Google SSO linking | Offline verified; live QA pending | User links Google after recent sign-in to the existing account and fresh Google authentication. Matching verified email is required; identity maps to the original UUID and saved tours. Email alone never links. Google identity already bound to another account is rejected for controlled resolution. Auth integration: 47 passed; full offline suite: 217 passed, 1 skipped. |
@@ -62,6 +63,18 @@ Planning progress is not implementation progress. Only executable artifacts and
 actual checks count as completion evidence.
 
 ## Done
+
+- Added CSRF-protected administrator account deletion. The server deletes each
+  stored Auth0 identity, revokes account sessions, removes owner-scoped saved
+  tours, clears usage aliases and account email, and retains a tombstone for
+  audit history. Failed Auth0 requests leave account data unchanged; local
+  cleanup failures leave a retryable `deleting` record. The M2M application
+  needs only the Auth0 Management API `delete:users` scope. Focused tests: 75
+  passed. Full offline suite: 230 passed, one optional PostgreSQL integration
+  test skipped because `GTP_POSTGRES_TEST_DSN`/`GTP_POSTGRES_TEST` is unset.
+  Frontend typecheck/build and isort, Black, flake8 and Ruff passed. Compose
+  config check could not run because `GTP_SAVED_TOURS_POSTGRES_PASSWORD` is
+  unset. No live Auth0 request or deployment ran.
 
 - Added a persistent former-UUID usage alias for the user-confirmed account
   merge. Admin list and detail aggregate both LangSmith account references

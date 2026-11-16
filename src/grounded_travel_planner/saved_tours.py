@@ -434,6 +434,21 @@ class SavedTourRepository:
             raise SavedTourError("Could not delete the saved tour.") from error
         return result.rowcount == 1
 
+    def delete_all_for_user(self, user_id: str) -> int:
+        """Delete snapshots explicitly owned by a deleted account."""
+
+        self._validate_user_id(user_id)
+        try:
+            with self._connection() as connection:
+                result = connection.execute(
+                    "DELETE FROM saved_tours WHERE owner_user_id = ?", (user_id,)
+                )
+        except sqlite3.Error as error:
+            raise SavedTourError(
+                "Could not delete the account's saved tours."
+            ) from error
+        return result.rowcount
+
     def claim_for_user(
         self, user_id: str, legacy_owner_token: str
     ) -> SavedTourClaimResult:

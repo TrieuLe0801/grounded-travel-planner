@@ -2,7 +2,7 @@
 
 Status: Accepted
 Date: 2026-11-08
-Amended: 2026-11-14
+Amended: 2026-11-16
 
 User amendment — 2026-11-15: Registration uses an Auth0 database password
 connection with a password and confirmation field. Auth0 enforces a minimum of
@@ -30,6 +30,21 @@ existing-account session, the same verified email, and proof of the Google
 identity. Never grant ownership of the existing account from email equality
 alone. If a separate Google account has data or other identities, stop linking
 and resolve ownership without discarding either account's records.
+
+User amendment — 2026-11-16: An active administrator may permanently delete
+another application account and its Auth0 user profiles. The administrator
+confirms this irreversible action in the bilingual admin page. The backend uses
+a server-only Auth0 Management API M2M client with only the `delete:users`
+scope. It deletes every stored issuer/subject pair, including the original
+login subject and manually linked identities; it never resolves a target by
+email. A provider failure leaves application account data unchanged. After
+Auth0 confirms deletion, the application revokes sessions and marks the account
+`deleting` until its owned saved tours are removed. An administrator can retry
+local cleanup; retries repeat the idempotent Auth0 deletes. Completion removes
+identity and usage-alias rows, clears the account email and administrator flag,
+and retains a `deleted` tombstone for access-audit foreign keys. Admins cannot
+delete themselves or the last active administrator. Account deletion does not
+rewrite or delete historical LangSmith traces.
 
 ## Context
 
@@ -67,10 +82,10 @@ planner sessions and live trip state remain in process memory.
 - On logout, revoke the application auth session, remove the current volatile
   planner session, and clear the account and planner cookies. A submitted
   background turn may finish, but its result has no session to collect it.
-- Keep account controls limited to verified email, saved tours, and sign-out.
-  Auth0 remains the credential and user-profile system; administrators manage
-  accounts through the Auth0 Dashboard. Account deletion/export and roles need a
-  separate policy decision before app controls are added.
+- Keep user account controls limited to verified email, saved tours, and
+  sign-out. Auth0 remains the credential and user-profile system. Administrators
+  can block, regrant, or delete accounts through the app's protected admin page;
+  account export and user self-service deletion still need separate decisions.
 - Keep the root landing page public and static. Do not require authentication
   for read-only public assets or health checks. The private planner APIs remain
   authoritative for access control.

@@ -183,13 +183,14 @@
       </ul>
     </section>
     <section class="card active">
-      <span class="badge">Compose deployed · browser QA pending</span>
+      <span class="badge">Usage deployed · deletion source offline checked; rollout pending</span>
       <h3>Admin access and account usage</h3>
       <ul>
         <li>Verified new accounts need no admin grant; admin controls still block and regrant by internal account UUID</li>
         <li>Blocking revokes account sessions; saved tours and LangSmith traces remain intact</li>
         <li>Admin view reads account token counts and USD cost from LangSmith LLM runs, with model and date detail</li>
         <li>Offline suite: 222 passed, 1 skipped; Python quality checks pass. The running app counts lowercase <code>llm</code> runs and combines a confirmed former account reference through a PostgreSQL alias. Live totals: 21,351 input tokens, 7,323 output tokens, USD 0.11587275 across nine calls. The app is healthy; browser administrator interaction remains unchecked.</li>
+        <li>Admin deletion uses server-only Auth0 Management API credentials and <code>delete:users</code>; it removes account-owned tours and identity mappings, revokes sessions, and keeps an audit tombstone. Failed local cleanup remains retryable. Focused backend tests: 75 passed; full offline suite: 230 passed, 1 optional PostgreSQL test skipped. Frontend check/build and Python quality gates pass, including partial Auth0 delete retry. Compose config could not run because <code>GTP_SAVED_TOURS_POSTGRES_PASSWORD</code> is unset. Auth0 credentials, live call, browser QA and deployment remain pending.</li>
       </ul>
     </section>
     <section class="card active">

@@ -120,6 +120,7 @@ type SavedTourPage = {
 };
 type AuthState = {
   authenticated: boolean;
+  user_id?: string;
   email?: string;
   csrf_token?: string;
   is_admin?: boolean;
@@ -129,7 +130,7 @@ type AdminUser = {
   id: string;
   email: string | null;
   created_at: string;
-  access_status: "active" | "blocked" | "pending";
+  access_status: "active" | "blocked" | "pending" | "deleting";
   is_admin: boolean;
   input_tokens: number | null;
   output_tokens: number | null;
@@ -1305,6 +1306,8 @@ function AdminUsersView({
   onBack,
   onLoadMore,
   onChangeAccess,
+  onDeleteUser,
+  currentUserId,
   onSelectUser,
   onUsageStartChange,
   onUsageEndChange,
@@ -1326,6 +1329,8 @@ function AdminUsersView({
   onBack: () => void;
   onLoadMore: () => void;
   onChangeAccess: (user: AdminUser) => void;
+  onDeleteUser: (user: AdminUser) => void;
+  currentUserId?: string;
   onSelectUser: (id: string) => void;
   onUsageStartChange: (date: string) => void;
   onUsageEndChange: (date: string) => void;
@@ -1355,7 +1360,7 @@ function AdminUsersView({
         <p className="mt-2 text-sm leading-6 text-slate-600">{labels.adminUsageNote}</p>
         {error && <p className="mt-4 rounded-xl bg-red-50 p-4 text-red-800" role="alert">{labels[error]}</p>}
         {!usageAvailable && <p className="mt-4 rounded-xl bg-amber-50 p-4 text-amber-900" role="status">{labels.adminUsageUnavailable}</p>}
-        {status && <p className="mt-4 rounded-xl bg-green-50 p-4 text-green-800" role="status">{labels[status]}</p>}
+        {status && <p className={`mt-4 rounded-xl p-4 ${status === "adminDeleteError" ? "bg-red-50 text-red-800" : "bg-green-50 text-green-800"}`} role={status === "adminDeleteError" ? "alert" : "status"}>{labels[status]}</p>}
         {loading && users.length === 0 && <p className="mt-5 text-slate-600" role="status">{labels.adminLoading}</p>}
         {!loading && users.length === 0 && !error && <p className="mt-5 text-slate-600">{labels.adminEmpty}</p>}
         <ul className="mt-5 grid gap-4" aria-busy={loading}>
@@ -1367,8 +1372,8 @@ function AdminUsersView({
                   {user.email && <p className="mt-1 break-all text-xs text-slate-500">{user.id}</p>}
                   <p className="mt-1 text-sm text-slate-600">{labels.adminCreated}: {new Date(user.created_at).toLocaleDateString(dateLocale(language))}</p>
                 </div>
-                <span className={`rounded-full px-3 py-1 text-sm font-semibold ${user.access_status === "active" ? "bg-green-100 text-green-800" : user.access_status === "pending" ? "bg-amber-100 text-amber-900" : "bg-red-100 text-red-800"}`}>
-                  {user.access_status === "active" ? labels.adminActive : user.access_status === "pending" ? labels.adminPending : labels.adminBlocked}
+                <span className={`rounded-full px-3 py-1 text-sm font-semibold ${user.access_status === "active" ? "bg-green-100 text-green-800" : user.access_status === "pending" || user.access_status === "deleting" ? "bg-amber-100 text-amber-900" : "bg-red-100 text-red-800"}`}>
+                  {user.access_status === "active" ? labels.adminActive : user.access_status === "pending" ? labels.adminPending : user.access_status === "deleting" ? labels.adminDeletingStatus : labels.adminBlocked}
                 </span>
               </div>
               <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
@@ -1381,11 +1386,20 @@ function AdminUsersView({
                 <button
                   type="button"
                   onClick={() => onChangeAccess(user)}
-                  disabled={updatingId !== null || user.is_admin}
+                  disabled={updatingId !== null || user.is_admin || user.access_status === "deleting"}
                   className={`inline-flex min-h-11 items-center rounded-xl px-4 text-sm font-bold focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300 disabled:cursor-not-allowed disabled:opacity-50 ${user.access_status === "active" ? "border border-red-200 bg-white text-red-800 hover:bg-red-50" : "bg-primary text-white hover:bg-blue-500"}`}
                 >
                   {updatingId === user.id ? labels.adminUpdating : user.access_status === "active" ? labels.adminBlock : labels.adminGrant}
                 </button>
+                <button
+                  type="button"
+                  onClick={() => onDeleteUser(user)}
+                  disabled={updatingId !== null || user.id === currentUserId}
+                  className="inline-flex min-h-11 items-center rounded-xl border border-red-200 bg-white px-4 text-sm font-bold text-red-800 hover:bg-red-50 focus-visible:outline focus-visible:outline-4 focus-visible:outline-red-300 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {updatingId === user.id ? labels.adminDeleting : user.access_status === "deleting" ? labels.adminRetryDelete : labels.adminDelete}
+                </button>
+                {user.id === currentUserId && <span className="text-sm text-slate-600">{labels.adminDeleteSelf}</span>}
                 <button type="button" onClick={() => onSelectUser(user.id)} aria-expanded={selectedUserId === user.id} className="inline-flex min-h-11 items-center rounded-xl px-4 text-sm font-semibold text-blue-800 hover:bg-blue-100 focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300">
                   {labels.adminUsageDetail}
                 </button>
@@ -1831,6 +1845,33 @@ function App() {
       if (request === adminUsersRequest.current) setAdminUserUpdatingId(null);
     }
   };
+  const deleteAdminUser = async (user: AdminUser) => {
+    if (!auth?.csrf_token || adminUserUpdatingId) return;
+    if (!window.confirm(`${labels.adminConfirmDelete}\n\n${user.email || user.id}`)) return;
+    const request = adminUsersRequest.current;
+    setAdminUserUpdatingId(user.id);
+    setAdminUsersError("");
+    setAdminUsersStatus("");
+    try {
+      await api<void>(`/api/admin/users/${encodeURIComponent(user.id)}/delete`, {
+        method: "POST",
+        headers: { "X-CSRF-Token": auth.csrf_token },
+      });
+      if (request !== adminUsersRequest.current) return;
+      setAdminUsersStatus("adminDeleteSuccess");
+      setAdminUserUpdatingId(null);
+      if (selectedAdminUserId === user.id) setSelectedAdminUserId(null);
+      void loadAdminUsers(false);
+    } catch {
+      if (request === adminUsersRequest.current) {
+        setAdminUsersStatus("adminDeleteError");
+        setAdminUserUpdatingId(null);
+        void loadAdminUsers(false);
+      }
+    } finally {
+      if (request === adminUsersRequest.current) setAdminUserUpdatingId(null);
+    }
+  };
   const signIn = (returnTo = "/", intent: "login" | "signup" | "existing" = "login") => {
     setAccountOpen(false);
     const separator = returnTo.includes("?") ? "&" : "?";
@@ -2265,6 +2306,7 @@ function App() {
             usageAvailable={adminUsageAvailable}
             status={adminUsersStatus}
             updatingId={adminUserUpdatingId}
+            currentUserId={auth.user_id}
             selectedUserId={selectedAdminUserId}
             usage={adminUsage}
             usageLoading={adminUsageLoading}
@@ -2274,6 +2316,7 @@ function App() {
             onBack={() => setView("itinerary")}
             onLoadMore={() => void loadAdminUsers(true)}
             onChangeAccess={(user) => void changeAdminAccess(user)}
+            onDeleteUser={(user) => void deleteAdminUser(user)}
             onSelectUser={(id) => setSelectedAdminUserId((current) => current === id ? null : id)}
             onUsageStartChange={setAdminUsageStart}
             onUsageEndChange={setAdminUsageEnd}

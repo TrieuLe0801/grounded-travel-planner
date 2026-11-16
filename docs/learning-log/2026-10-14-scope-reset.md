@@ -1558,3 +1558,35 @@ three-role runtime and role-specific model policy.
 - The running container still has the pre-fix package. No deployment ran;
   account-access migration and first-administrator bootstrap remain rollout
   gates.
+
+## Administrator Account Deletion — 2026-11-16
+
+- The user authorized an admin feature to delete an application user and the
+  corresponding Auth0 user records. ADR 0021 previously reserved deletion for a
+  separate policy decision; this amendment now authorizes administrator-only
+  deletion. Self-deletion and deletion of the last active administrator are
+  rejected.
+- Added a server-only Auth0 Management API M2M adapter. It requests the
+  `delete:users` scope, uses the configured Management API audience, validates
+  every stored identity issuer, and attempts every subject including the
+  original login identity. Auth0 failure leaves local account records intact.
+- After Auth0 success, account sessions are removed and the account is marked
+  `deleting`. Admin can retry if archive cleanup fails; repeated Auth0 deletes
+  are safe. Completion deletes only account-owned saved tours, identity rows
+  and usage aliases, clears email/admin status, and keeps a tombstone so access
+  audit events remain valid. Historical LangSmith traces are not rewritten or
+  deleted.
+- Added bilingual confirmation, progress, retry and failure feedback. Compose
+  accepts the server-only M2M client ID, secret and Management API audience;
+  `.env.example` contains blank values only.
+- Focused admin/Auth0/saved-tour tests passed 75 cases after setting placeholder
+  model names and disabling dotenv. Frontend `npm run check` and `npm run build`
+  passed. The Auth0 regression covers one successful identity delete followed
+  by an HTTP 500 and a retry of every identity. Isort, Black, flake8, Ruff, JSON
+  parsing and `git diff --check` passed. An independent full offline suite
+  passed 230 tests with one optional PostgreSQL integration test skipped
+  because `GTP_POSTGRES_TEST_DSN`/`GTP_POSTGRES_TEST` was not configured.
+- `docker compose config --quiet` could not run because ignored `.env` does not
+  set `GTP_SAVED_TOURS_POSTGRES_PASSWORD`; no secret was created or changed. No
+  live Auth0 request, database migration, image rebuild, browser QA or
+  deployment ran.
