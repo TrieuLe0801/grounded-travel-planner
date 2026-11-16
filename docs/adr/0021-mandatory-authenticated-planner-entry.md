@@ -33,7 +33,6 @@ require a recent original-account session, CSRF, fresh authentication of the
 new identity, verified matching email and an unowned issuer/subject. A matching
 email alone never links or transfers saved tours. Email OTP remains available.
 Auth0 tenant configuration and browser checks are separate acceptance gates.
-
 User amendment — 2026-11-15: Registration uses an Auth0 database password
 connection with a password and confirmation field. Auth0 enforces a minimum of
 eight characters including an uppercase letter, a number and a special
@@ -60,6 +59,23 @@ existing-account session, the same verified email, and proof of the Google
 identity. Never grant ownership of the existing account from email equality
 alone. If a separate Google account has data or other identities, stop linking
 and resolve ownership without discarding either account's records.
+
+User amendment — 2026-11-16: An active administrator may permanently delete
+another application account and its Auth0 user profiles. The administrator
+confirms this irreversible action in the bilingual admin page. The backend uses
+a server-only Auth0 Management API M2M client with only the `delete:users`
+scope. It deletes every stored issuer/subject pair, including the original
+login subject and manually linked identities; it never resolves a target by
+email. A provider failure leaves application account data unchanged. After
+Auth0 confirms deletion, the application revokes sessions and marks the account
+`deleting` until its owned saved tours are removed. An administrator can retry
+local cleanup; retries repeat the idempotent Auth0 deletes. Completion removes
+identity and legacy usage-alias rows, clears the account email and administrator
+flag, and retains a `deleted` tombstone for access-audit foreign keys. It
+retains `account_merges` rows and merge/access audit history so historical usage
+aliases remain traceable; merged secondary tombstones cannot be deleted. Admins
+cannot delete themselves or the last active administrator. Account deletion
+does not rewrite or delete historical LangSmith traces.
 
 ## Context
 
@@ -101,9 +117,10 @@ planner sessions and live trip state remain in process memory.
 - Show verified email and linked sign-in methods in Personal information,
   alongside saved tours and sign-out. Start password signup/reset and explicit
   Google, email OTP, and password identity links from this page; Auth0 keeps all
-  credentials. Administrators
-  manage Auth0 credentials through the Auth0 Dashboard. Account deletion/export
-  needs a separate policy decision before app controls are added.
+  credentials. Administrators manage Auth0 credentials through the Auth0
+  Dashboard and can block, regrant, or delete application accounts through the
+  protected admin page. Account export and user self-service deletion still
+  need separate decisions.
 - Keep the root landing page public and static. Do not require authentication
   for read-only public assets or health checks. The private planner APIs remain
   authoritative for access control.

@@ -13,6 +13,21 @@ Read-only public checks returned root/health HTTP 200 and login HTTP 307 with
 the `www` callback. Auth0 callback exchange, logout and browser QA are pending.
 ADR 0022 records the amendment; older apex-host checks remain historical.
 
+## PR #16/#17 Conflict Integration — 2026-11-16
+
+Integrated the three-method account-linking and duplicate-UUID reconciliation
+changes with PR #17 administrator deletion. Authentication, session creation,
+admin access changes and bootstrap reject merged, deleting and deleted
+accounts; merged secondary accounts cannot be deleted directly. Deleting
+accounts remain retryable, account-usage aliases include both legacy aliases
+and merge mappings, and canonical deletion preserves merge audit records.
+Administrator deletion continues to remove only exact stored Auth0 identities
+and owner-scoped saved tours. Offline verification passed 246 tests with one
+optional PostgreSQL test skipped; isort, Black, flake8, Ruff, frontend check
+and build, JSON parsing and diff checks passed. Auth0 live actions and
+interactive browser account flows remain pending; the browser automation host
+was unavailable. See the current learning log and ADRs 0021 and 0023.
+
 ## Google, Password and Personal Information — Source Implemented; Tenant QA Pending — 2026-11-15
 
 The landing now offers explicit Google, database email/password, email signup

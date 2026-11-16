@@ -1694,3 +1694,58 @@ three-role runtime and role-specific model policy.
 - Auth0 Universal Login HTTP reachability was checked earlier, but interactive
   browser sign-in, OTP, callback exchange and account linking remain unverified.
   Current source is not deployed.
+
+## Administrator Account Deletion — 2026-11-16
+
+- The user authorized an admin feature to delete an application user and the
+  corresponding Auth0 user records. ADR 0021 previously reserved deletion for a
+  separate policy decision; this amendment now authorizes administrator-only
+  deletion. Self-deletion and deletion of the last active administrator are
+  rejected.
+- Added a server-only Auth0 Management API M2M adapter. It requests the
+  `delete:users` scope, uses the configured Management API audience, validates
+  every stored identity issuer, and attempts every subject including the
+  original login identity. Auth0 failure leaves local account records intact.
+- After Auth0 success, account sessions are removed and the account is marked
+  `deleting`. Admin can retry if archive cleanup fails; repeated Auth0 deletes
+  are safe. Completion deletes only account-owned saved tours, identity rows
+  and legacy usage aliases, clears email/admin status, and keeps a tombstone so
+  access audit events remain valid. Canonical deletion retains `account_merges`
+  mappings and merge audit rows, preserving historical trace lookup. Historical
+  LangSmith traces are not rewritten or deleted.
+- Added bilingual confirmation, progress, retry and failure feedback. Compose
+  accepts the server-only M2M client ID, secret and Management API audience;
+  `.env.example` contains blank values only.
+- Focused admin/Auth0/saved-tour tests passed 75 cases after setting placeholder
+  model names and disabling dotenv. Frontend `npm run check` and `npm run build`
+  passed. The Auth0 regression covers one successful identity delete followed
+  by an HTTP 500 and a retry of every identity. Isort, Black, flake8, Ruff, JSON
+  parsing and `git diff --check` passed. An independent full offline suite
+  passed 230 tests with one optional PostgreSQL integration test skipped
+  because `GTP_POSTGRES_TEST_DSN`/`GTP_POSTGRES_TEST` was not configured.
+- `docker compose config --quiet` could not run because ignored `.env` does not
+  set `GTP_SAVED_TOURS_POSTGRES_PASSWORD`; no secret was created or changed. No
+  live Auth0 request, database migration, image rebuild, browser QA or
+  deployment ran.
+
+## PR #16/#17 Conflict Integration — 2026-11-16
+
+- Resolved PR #16 conflicts with current `origin/main`, including PR #17 admin
+  account deletion. Preserved explicit three-method identity linking,
+  duplicate-UUID reconciliation, admin deletion UI, exact Auth0 identity
+  deletion, and both legacy `account_usage_aliases` and `account_merges` usage
+  references.
+- Both auth repositories reject session creation and login for merged,
+  deleting and deleted accounts. Admin bootstrap and access changes cannot
+  reactivate those terminal states; merged secondary accounts cannot be
+  deleted directly. A `deleting` account remains visible for retry, and
+  canonical deletion keeps merge mappings and audit rows while cleaning its
+  identities and saved tours.
+- Offline pytest passed 246 tests; one optional PostgreSQL integration test
+  skipped because its opt-in variables were unset. Isort, Black, flake8, Ruff,
+  frontend `npm run check`/`npm run build`, roadmap JSON parsing, diff checks
+  and conflict-marker search passed.
+- Auth0 Universal Login HTTP reachability had passed in the earlier PR
+  preflight. Browser automation was unavailable, so signup, OTP, callback
+  exchange and interactive account linking were not verified. No live Auth0
+  deletion or deployment was performed.

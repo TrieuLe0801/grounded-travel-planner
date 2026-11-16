@@ -371,6 +371,21 @@ class PostgresSavedTourRepository:
         except (psycopg.Error, PoolClosed, PoolTimeout) as error:
             raise SavedTourError("Could not delete the saved tour.") from error
 
+    def delete_all_for_user(self, user_id: str) -> int:
+        """Delete snapshots explicitly owned by a deleted account."""
+
+        SavedTourRepository._validate_user_id(user_id)
+        try:
+            with self._pool.connection() as connection, connection.cursor() as cursor:
+                cursor.execute(
+                    "DELETE FROM saved_tours WHERE owner_user_id = %s", (user_id,)
+                )
+                return cursor.rowcount
+        except (psycopg.Error, PoolClosed, PoolTimeout) as error:
+            raise SavedTourError(
+                "Could not delete the account's saved tours."
+            ) from error
+
     def claim_for_user(
         self, user_id: str, legacy_owner_token: str
     ) -> SavedTourClaimResult:

@@ -6,7 +6,7 @@ import hashlib
 import hmac
 import json
 import os
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
@@ -30,7 +30,10 @@ from grounded_travel_planner.auth import (
     AccountLinkConflict,
     AccountLinkRequired,
     AccountNotFound,
+    Auth0ManagementApi,
+    Auth0ManagementError,
     Auth0OidcProvider,
+    Auth0UserDeleter,
     AuthenticatedUser,
     AuthError,
     AuthRepository,
@@ -352,6 +355,8 @@ class SavedTourStore(Protocol):
 
     def delete_for_user(self, user_id: str, tour_id: str) -> bool: ...
 
+    def delete_all_for_user(self, user_id: str) -> int: ...
+
     def claim_for_user(self, user_id: str, legacy_owner_token: str) -> object: ...
 
 
@@ -408,6 +413,7 @@ def create_app(
     turn_rate_limiter: TurnRateLimiter | None = None,
     usage_repository: UsageRepository | None = None,
     require_auth: bool = True,
+    auth0_user_deleter: Auth0UserDeleter | None = None,
 ) -> FastAPI:
     """Create an injectable app so endpoint tests need no live provider calls."""
 
@@ -424,6 +430,7 @@ def create_app(
     password_reset_lock = Lock()
     password_reset_times: dict[str, float] = {}
     app = FastAPI(title="Grounded Travel Planner", docs_url=None, redoc_url=None)
+    app.state.auth0_user_deleter = auth0_user_deleter
 
     def current_user(auth_token: str | None) -> AuthenticatedUser:
         try:
@@ -771,6 +778,7 @@ def create_app(
             return {"authenticated": False}
         return {
             "authenticated": True,
+            "user_id": user.user_id,
             "email": user.email,
             "csrf_token": user.csrf_token,
             "access_status": user.access_status,
@@ -890,6 +898,70 @@ def create_app(
             "is_admin": account.is_admin,
         }
 
+    @app.post("/api/admin/users/{user_id}/delete", status_code=204)
+    def admin_delete_user(
+        user_id: str,
+        gtp_auth: str | None = Cookie(default=None),
+        x_csrf_token: str | None = Header(default=None),
+    ) -> Response:
+        actor = csrf_user(gtp_auth, x_csrf_token)
+        if not actor.is_admin:
+            raise HTTPException(status_code=403, detail="Cần quyền quản trị.")
+
+        auth0_succeeded = False
+
+        def delete_auth0_users(identities: Sequence[tuple[str, str]]) -> None:
+            nonlocal auth0_succeeded
+            deleter = (
+                app.state.auth0_user_deleter or Auth0ManagementApi.from_environment()
+            )
+            deleter.delete_users(identities)
+            auth0_succeeded = True
+
+        try:
+            auth.begin_account_deletion(
+                user_id,
+                actor_user_id=actor.user_id,
+                delete_auth0_users=delete_auth0_users,
+            )
+        except AccountNotFound as error:
+            raise HTTPException(
+                status_code=404, detail="Không tìm thấy tài khoản."
+            ) from error
+        except AccessChangeConflict as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+        except Auth0ManagementError as error:
+            raise HTTPException(
+                status_code=502, detail="Không thể xóa người dùng Auth0."
+            ) from error
+        except AuthError as error:
+            raise HTTPException(
+                status_code=503, detail="Không thể xóa tài khoản lúc này."
+            ) from error
+
+        sessions.discard_owner(user_id)
+        try:
+            saved_tours.delete_all_for_user(user_id)
+            auth.complete_account_deletion(user_id, actor.user_id)
+        except AccountNotFound as error:
+            raise HTTPException(
+                status_code=404, detail="Không tìm thấy tài khoản."
+            ) from error
+        except AccessChangeConflict as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+        except (AuthError, SavedTourError) as error:
+            # Auth0 deletion already succeeded. Keep retry safe and revoke any
+            # stale application session if local cleanup did not commit.
+            if auth0_succeeded:
+                try:
+                    auth.revoke_user_sessions(user_id)
+                except AuthError:
+                    pass
+            raise HTTPException(
+                status_code=503, detail="Không thể hoàn tất xóa tài khoản."
+            ) from error
+        return Response(status_code=204)
+
     @app.get("/api/admin/users/{user_id}/usage")
     def admin_user_usage(
         user_id: str,
@@ -902,7 +974,11 @@ def create_app(
             raise HTTPException(status_code=422, detail="Khoảng ngày không hợp lệ.")
         try:
             account = auth.get_user(user_id)
-            if account is None or account.access_status == "merged":
+            if account is None or account.access_status in {
+                "merged",
+                "deleting",
+                "deleted",
+            }:
                 raise HTTPException(status_code=404, detail="Không tìm thấy tài khoản.")
             account_aliases = auth.usage_aliases_for_users([user_id])
             from_time = (

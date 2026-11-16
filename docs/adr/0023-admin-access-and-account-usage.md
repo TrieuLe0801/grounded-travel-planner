@@ -47,6 +47,20 @@ self-audit because no independent active admin exists. The backed-up apply
 moved one identity, retained all six canonical tours, revoked two secondary
 sessions, and recorded the merge alias and audit events.
 
+User amendment — 2026-11-16: An active administrator may delete another
+application account from the admin page. Require session CSRF, a confirmation,
+and server-side Auth0 Management API credentials granted only `delete:users`.
+Delete every stored Auth0 identity subject, including the original profile ID;
+do not select by email. Reject self-deletion and preserve at least one active
+administrator. Auth0 failure leaves local records unchanged. After Auth0
+success, revoke app sessions and expose a retryable `deleting` state until
+owner-scoped saved tours are removed. Then remove identity and legacy usage-alias
+rows, scrub account email/admin status, and retain a `deleted` tombstone with its
+access audit events. Canonical deletion retains `account_merges` rows so former
+UUIDs continue to resolve to the deleted canonical account for historical trace
+lookup; merge and access audit rows remain. Merged secondary tombstones cannot
+be deleted. Deletion does not erase historical LangSmith traces.
+
 ## Context
 
 ADR 0021 keeps Auth0 responsible for credentials and leaves account roles and
@@ -58,11 +72,12 @@ cost. The user then specified LangSmith as the source for both figures.
 ## Decision
 
 - Keep Auth0 Universal Login and the internal account UUID. Store application
-  access (`pending`, `active`, `blocked`) and the administrator flag in the
-  existing account database. Existing accounts migrate as active; new verified
-  identities start active. Bootstrap the first administrator from an existing
-  Auth0-backed account in an explicit maintenance step. A unique existing email
-  may resolve the internal UUID; the target email stays outside tracked files.
+  access (`pending`, `active`, `blocked`, `deleting`, `deleted`) and the
+  administrator flag in the existing account database. Existing accounts
+  migrate as active; new verified identities start active. Bootstrap the first
+  administrator from an existing Auth0-backed account in an explicit
+  maintenance step. A unique existing email may resolve the internal UUID; the
+  target email stays outside tracked files.
 - Check active access on every private planner and archive request. A block
   revokes all application authentication sessions, discards retained volatile
   sessions for that account, and prevents new work. In-flight provider calls may

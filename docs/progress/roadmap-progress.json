@@ -1,6 +1,6 @@
 {
-  "version": 116,
-  "updated": "2026-11-16T11:57:59+07:00",
+  "version": 117,
+  "updated": "2026-11-16T14:07:39+07:00",
   "active_scope": "city-place-sightseeing-webapp",
   "current_milestone": "Milestone 1: executable city/place sightseeing vertical slice",
   "completed": {
@@ -86,6 +86,11 @@
     "auth0_account_deployed": true,
     "admin_access_usage_offline": true,
     "admin_access_usage_deployed": true,
+    "admin_account_deletion_source": true,
+    "admin_account_deletion_offline_verified": true,
+    "auth_linking_admin_deletion_conflict_integration": true,
+    "admin_account_deletion_auth0_live": false,
+    "admin_account_deletion_deployed": false,
     "account_usage_alias_deployed": true,
     "macos_ci_cd_configured": true,
     "ngrok_session_rate_limit": false,
@@ -158,10 +163,10 @@
       "Linking requires recent primary session, CSRF, fresh identity authentication, verified matching email, the same issuer and an unowned subject; matching email alone never links"
     ],
     "auth0_three_method_linking_verified": [
-      "After fast-forwarding to origin/main and preserving both legacy account_usage_aliases and new account_merges aliases, offline pytest passed 234 tests; one optional PostgreSQL integration test skipped because its opt-in settings were unset.",
-      "The prior unverified-link redirect expectation was updated to the specific profile error route; wrong-provider/email cases still expect link_failed and retain session/identity safety assertions.",
-      "Isort, Black, flake8, Ruff, frontend npm run check/build, git diff --check origin/main, roadmap JSON parsing and conflict-marker search passed.",
-      "Auth0 hosted login HTTP reachability passed earlier. Browser UI, signup, OTP, callback exchange and account linking remain unverified; current source is not deployed."
+      "Integrated PR #16 with current origin/main PR #17 admin deletion behavior. Offline pytest passed 246 tests; one optional PostgreSQL integration test skipped because its opt-in settings were unset.",
+      "Merged/deleting/deleted accounts reject authentication and reactivation; merged secondary deletion is rejected; retryable deleting cleanup remains available. Legacy usage aliases and account_merges mappings are both included, and canonical deletion preserves merge audit rows.",
+      "Isort, Black, flake8, Ruff, frontend npm run check/build, git diff --check, roadmap JSON parsing and conflict-marker search passed.",
+      "Auth0 hosted login HTTP reachability passed earlier. Browser automation was unavailable; signup, OTP, callback exchange and interactive account linking remain unverified. Current source is not deployed."
     ],
     "auth0_duplicate_uuid_reconciliation_source": [
       "scripts/reconcile_auth_accounts.py adds explicit PostgreSQL pair reconciliation, rollback-by-default and ownership/backup/write-pause acknowledgements plus --apply; a canonical self-audit exception requires explicit confirmation and an in-transaction check that no other active admin exists",
@@ -254,6 +259,21 @@
     ],
     "admin_access_usage_deployed": [
       "Running Compose app contains the lowercase LangSmith run-type fix and the account usage alias reader; PostgreSQL has one active administrator and one confirmed usage alias. The app is healthy and /api/health returned 200. Live repository aggregation matched the former account's LangSmith totals; browser administrator flow remains unchecked."
+    ],
+    "admin_account_deletion_source": [
+      "src/grounded_travel_planner/auth.py and src/grounded_travel_planner/web/api.py: server-side Auth0 Management API deletion, CSRF-protected admin route, retryable deleting state, tombstone, audit and session cleanup",
+      "src/grounded_travel_planner/saved_tours.py and src/grounded_travel_planner/postgres_saved_tours.py: account-owned tour cleanup; frontend bilingual delete confirmation and retry state",
+      "M2M client ID/secret, canonical Management API audience and delete:users scope are environment-configured; live Auth0 and deployment checks remain pending"
+    ],
+    "admin_account_deletion_offline_verified": [
+      "Integrated PR #16/#17 offline suite: 246 passed, 1 optional PostgreSQL test skipped because GTP_POSTGRES_TEST_DSN/GTP_POSTGRES_TEST is not configured. Includes Auth0 partial-delete retry, owner-scoped tour cleanup, merge tombstone and terminal-account access guards.",
+      "Frontend npm run check/build, isort, Black, flake8, Ruff, JSON parsing and git diff --check passed. No live Auth0 call, interactive browser account flow or deployment was performed."
+    ],
+    "admin_account_deletion_auth0_live": [
+      "Not checked: no live Auth0 Management API credentials or destructive provider call were used."
+    ],
+    "admin_account_deletion_deployed": [
+      "Not deployed: no Compose image rebuild or app restart was requested."
     ],
     "account_usage_alias_deployed": [
       "docs/adr/0023-admin-access-and-account-usage.md: user-confirmed former UUID maps to retained UUID without email inference or rewriting LangSmith traces",

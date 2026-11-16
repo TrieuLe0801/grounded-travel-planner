@@ -11,14 +11,14 @@ import os
 import secrets
 import sqlite3
 import time
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Literal, Protocol
-from urllib.parse import urlencode, urlsplit
-from urllib.request import urlopen
+from urllib.parse import quote, urlencode, urlsplit
+from urllib.request import Request, urlopen
 from uuid import uuid4
 
 import jwt
@@ -46,6 +46,10 @@ class AccountNotFound(AuthError):
 
 class AccessChangeConflict(AuthError):
     """Requested access change would violate administrator safeguards."""
+
+
+class Auth0ManagementError(AuthError):
+    """Auth0 Management API could not delete the requested users."""
 
 
 class AccountLinkRequired(AuthError):
@@ -78,6 +82,12 @@ class OidcProvider(Protocol):
     def logout_url(self, *, return_to: str) -> str: ...
 
     def request_password_reset(self, *, email: str, connection: str) -> None: ...
+
+
+class Auth0UserDeleter(Protocol):
+    """Server-side boundary for deleting Auth0 user profiles."""
+
+    def delete_users(self, identities: Sequence[tuple[str, str]]) -> None: ...
 
 
 @dataclass(frozen=True)
@@ -403,6 +413,124 @@ class Auth0OidcProvider:
             raise AuthError("Auth0 could not send a password reset email.") from error
 
 
+class Auth0ManagementApi:
+    """Delete Auth0 users with a server-only Management API client credential."""
+
+    def __init__(
+        self,
+        *,
+        issuer: str,
+        client_id: str,
+        client_secret: str,
+        audience: str | None = None,
+    ) -> None:
+        self._endpoint = Auth0OidcProvider._https_origin(issuer)
+        self._issuer = f"{self._endpoint}/"
+        management_audience = (audience or f"{self._endpoint}/api/v2/").strip()
+        if not management_audience.endswith("/api/v2/"):
+            raise AuthError("Auth0 Management API audience must end with /api/v2/.")
+        management_origin = management_audience[: -len("/api/v2/")]
+        Auth0OidcProvider._https_origin(management_origin)
+        self._audience = management_audience
+        self._client_id = client_id
+        self._client_secret = client_secret
+
+    @classmethod
+    def from_environment(cls) -> Auth0ManagementApi:
+        return cls(
+            issuer=os.getenv("GTP_AUTH0_ISSUER", ""),
+            client_id=os.getenv("GTP_AUTH0_M2M_CLIENT_ID", ""),
+            client_secret=os.getenv("GTP_AUTH0_M2M_CLIENT_SECRET", ""),
+            audience=os.getenv("GTP_AUTH0_MGMT_API_AUDIENCE") or None,
+        )
+
+    def delete_users(self, identities: Sequence[tuple[str, str]]) -> None:
+        if not self._client_id or not self._client_secret:
+            raise Auth0ManagementError(
+                "Auth0 Management API credentials are not configured."
+            )
+        if not identities:
+            raise Auth0ManagementError("No Auth0 identities are available to delete.")
+        for issuer, subject in identities:
+            if issuer.rstrip("/") != self._issuer.rstrip("/") or not subject:
+                raise Auth0ManagementError(
+                    "The account has an unsupported Auth0 identity."
+                )
+
+        token = self._access_token()
+        # The stored identity set includes the original account subject plus
+        # linked identities. Delete every subject so a secondary lookup cannot
+        # prevent the primary Auth0 profile from being reached. Sorting only
+        # makes request order stable; it does not identify the primary subject.
+        ordered = sorted(
+            identities,
+            key=lambda identity: (identity[1], identity[0]),
+        )
+        for _, subject in ordered:
+            request = Request(
+                f"{self._endpoint}/api/v2/users/{quote(subject, safe='')}",
+                headers={"Authorization": f"Bearer {token}"},
+                method="DELETE",
+            )
+            self._request(request, "delete")
+
+    def _access_token(self) -> str:
+        if not self._client_id or not self._client_secret:
+            raise Auth0ManagementError(
+                "Auth0 Management API credentials are not configured."
+            )
+        body = urlencode(
+            {
+                "grant_type": "client_credentials",
+                "client_id": self._client_id,
+                "client_secret": self._client_secret,
+                "audience": self._audience,
+                "scope": "delete:users",
+            }
+        ).encode("ascii")
+        request = Request(
+            f"{self._endpoint}/oauth/token",
+            data=body,
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+            method="POST",
+        )
+        try:
+            with urlopen(request, timeout=10) as response:
+                result = json.loads(response.read())
+            access_token = result.get("access_token")
+            if not isinstance(access_token, str) or not access_token:
+                raise Auth0ManagementError(
+                    "Auth0 Management API returned an invalid token."
+                )
+            return access_token
+        except Auth0ManagementError:
+            raise
+        except Exception as error:
+            raise self._provider_error(error, "token") from error
+
+    @staticmethod
+    def _request(request: Any, operation: str) -> None:
+        try:
+            with urlopen(request, timeout=10) as response:
+                if not 200 <= response.status < 300:
+                    raise Auth0ManagementError(
+                        f"Auth0 Management API {operation} failed."
+                    )
+        except Auth0ManagementError:
+            raise
+        except Exception as error:
+            raise Auth0ManagementApi._provider_error(error, operation) from error
+
+    @staticmethod
+    def _provider_error(error: Exception, operation: str) -> Auth0ManagementError:
+        status = getattr(error, "code", None)
+        if isinstance(status, int):
+            return Auth0ManagementError(
+                f"Auth0 Management API {operation} failed (HTTP {status})."
+            )
+        return Auth0ManagementError(f"Auth0 Management API {operation} request failed.")
+
+
 class AuthRepository:
     """SQLite account/session store. Schema creation is an explicit migration."""
 
@@ -688,7 +816,7 @@ class AuthRepository:
                     "SELECT access_status FROM app_users WHERE id = ?",
                     (user_id,),
                 ).fetchone()
-                if row is None or row["access_status"] in {"blocked", "merged"}:
+                if row is None or row["access_status"] != "active":
                     raise AuthError("Account access is blocked.")
                 connection.execute(
                     """INSERT INTO auth_sessions
@@ -724,7 +852,7 @@ class AuthRepository:
                 if (
                     row is None
                     or row["revoked_at"] is not None
-                    or row["access_status"] in {"blocked", "merged"}
+                    or row["access_status"] != "active"
                     or now > min(row["idle_expires_at"], row["absolute_expires_at"])
                 ):
                     return None
@@ -764,7 +892,7 @@ class AuthRepository:
                 if (
                     row is None
                     or row["revoked_at"] is not None
-                    or row["access_status"] in {"blocked", "merged"}
+                    or row["access_status"] != "active"
                     or now > min(row["idle_expires_at"], row["absolute_expires_at"])
                 ):
                     return None
@@ -787,7 +915,7 @@ class AuthRepository:
             with self._connection() as connection:
                 rows = connection.execute(
                     """SELECT id, email, created_at, access_status, is_admin
-                    FROM app_users WHERE access_status <> 'merged'
+                    FROM app_users WHERE access_status NOT IN ('merged', 'deleted')
                     ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?""",
                     (limit, offset),
                 ).fetchall()
@@ -804,6 +932,171 @@ class AuthRepository:
                     (user_id,),
                 ).fetchone()
                 return _account_record(row) if row else None
+        except sqlite3.Error as error:
+            raise AuthError("Authentication storage is unavailable.") from error
+
+    def begin_account_deletion(
+        self,
+        user_id: str,
+        actor_user_id: str,
+        delete_auth0_users: Callable[[Sequence[tuple[str, str]]], None],
+    ) -> AccountRecord:
+        """Delete Auth0 identities, then hide and revoke a retryable account."""
+
+        try:
+            with self._connection() as connection:
+                connection.execute("BEGIN IMMEDIATE")
+                actor = connection.execute(
+                    "SELECT is_admin, access_status FROM app_users WHERE id = ?",
+                    (actor_user_id,),
+                ).fetchone()
+                if (
+                    not actor
+                    or not actor["is_admin"]
+                    or actor["access_status"] != "active"
+                ):
+                    raise AccessChangeConflict("An active administrator is required.")
+                target = connection.execute(
+                    """SELECT id, email, created_at, access_status, is_admin
+                    FROM app_users WHERE id = ?""",
+                    (user_id,),
+                ).fetchone()
+                if target is None:
+                    raise AccountNotFound("Account does not exist.")
+                if target["access_status"] == "merged":
+                    raise AccessChangeConflict("Merged accounts cannot be deleted.")
+                if user_id == actor_user_id:
+                    raise AccessChangeConflict(
+                        "Administrators cannot delete themselves."
+                    )
+                if target["access_status"] == "deleted":
+                    return _account_record(target)
+                if target["is_admin"] and target["access_status"] == "active":
+                    count = connection.execute("""SELECT COUNT(*) FROM app_users
+                        WHERE is_admin = 1 AND access_status = 'active'""").fetchone()[
+                        0
+                    ]
+                    if count <= 1:
+                        raise AccessChangeConflict(
+                            "The last active administrator cannot be deleted."
+                        )
+                identity_rows = connection.execute(
+                    """SELECT issuer, subject FROM auth_identities
+                    WHERE user_id = ?
+                    ORDER BY CASE WHEN subject LIKE 'google-oauth2|%' THEN 1 ELSE 0 END,
+                        subject""",
+                    (user_id,),
+                ).fetchall()
+                identities = tuple(
+                    (str(row["issuer"]), str(row["subject"])) for row in identity_rows
+                )
+                if not identities:
+                    raise AuthError("The account has no stored Auth0 identities.")
+
+                # Keep the original identity and all linked subjects until Auth0
+                # confirms every DELETE. The callback is idempotent for retries.
+                delete_auth0_users(identities)
+                next_status = "deleting"
+                if target["access_status"] != next_status:
+                    connection.execute(
+                        "UPDATE app_users SET access_status = ? WHERE id = ?",
+                        (next_status, user_id),
+                    )
+                    action = "deletion_started"
+                else:
+                    action = "deletion_retried"
+                connection.execute(
+                    "DELETE FROM auth_sessions WHERE user_id = ?", (user_id,)
+                )
+                connection.execute(
+                    """INSERT INTO account_access_events
+                    (id, user_id, actor_user_id, action, created_at)
+                    VALUES (?, ?, ?, ?, ?)""",
+                    (
+                        str(uuid4()),
+                        user_id,
+                        actor_user_id,
+                        action,
+                        datetime.now(timezone.utc).isoformat(),
+                    ),
+                )
+                return AccountRecord(
+                    user_id,
+                    target["email"],
+                    str(target["created_at"]),
+                    next_status,
+                    bool(target["is_admin"]),
+                )
+        except sqlite3.Error as error:
+            raise AuthError("Authentication storage is unavailable.") from error
+
+    def complete_account_deletion(
+        self, user_id: str, actor_user_id: str
+    ) -> AccountRecord:
+        """Scrub account data after its Auth0 users and saved tours are gone."""
+
+        try:
+            with self._connection() as connection:
+                connection.execute("BEGIN IMMEDIATE")
+                actor = connection.execute(
+                    "SELECT is_admin, access_status FROM app_users WHERE id = ?",
+                    (actor_user_id,),
+                ).fetchone()
+                if (
+                    not actor
+                    or not actor["is_admin"]
+                    or actor["access_status"] != "active"
+                ):
+                    raise AccessChangeConflict("An active administrator is required.")
+                target = connection.execute(
+                    """SELECT id, email, created_at, access_status, is_admin
+                    FROM app_users WHERE id = ?""",
+                    (user_id,),
+                ).fetchone()
+                if target is None:
+                    raise AccountNotFound("Account does not exist.")
+                if target["access_status"] == "merged":
+                    raise AccessChangeConflict("Merged accounts cannot be deleted.")
+                if target["access_status"] == "deleted":
+                    return _account_record(target)
+                if target["access_status"] != "deleting":
+                    raise AccessChangeConflict(
+                        "Auth0 deletion has not completed for this account."
+                    )
+                connection.execute(
+                    "DELETE FROM auth_sessions WHERE user_id = ?", (user_id,)
+                )
+                connection.execute(
+                    "DELETE FROM auth_identities WHERE user_id = ?", (user_id,)
+                )
+                connection.execute(
+                    """DELETE FROM account_usage_aliases
+                    WHERE canonical_user_id = ? OR former_user_id = ?""",
+                    (user_id, user_id),
+                )
+                connection.execute(
+                    """UPDATE app_users SET email = NULL, access_status = 'deleted',
+                    is_admin = 0 WHERE id = ?""",
+                    (user_id,),
+                )
+                connection.execute(
+                    """INSERT INTO account_access_events
+                    (id, user_id, actor_user_id, action, created_at)
+                    VALUES (?, ?, ?, 'deleted', ?)""",
+                    (
+                        str(uuid4()),
+                        user_id,
+                        actor_user_id,
+                        datetime.now(timezone.utc).isoformat(),
+                    ),
+                )
+                return AccountRecord(
+                    user_id,
+                    None,
+                    str(target["created_at"]),
+                    "deleted",
+                    False,
+                )
         except sqlite3.Error as error:
             raise AuthError("Authentication storage is unavailable.") from error
 
@@ -871,8 +1164,10 @@ class AuthRepository:
                 ).fetchone()
                 if target is None:
                     raise AccountNotFound("Account does not exist.")
-                if target["access_status"] == "merged":
-                    raise AccessChangeConflict("Merged accounts cannot be reactivated.")
+                if target["access_status"] in {"merged", "deleting", "deleted"}:
+                    raise AccessChangeConflict(
+                        "Merged or deleting accounts cannot change access."
+                    )
                 if not active and user_id == actor_user_id:
                     raise AccessChangeConflict(
                         "Administrators cannot block themselves."
@@ -936,8 +1231,10 @@ class AuthRepository:
                 ).fetchone()
                 if target is None:
                     raise AccountNotFound("Account does not exist.")
-                if target["access_status"] == "merged":
-                    raise AccessChangeConflict("Merged accounts cannot be activated.")
+                if target["access_status"] in {"merged", "deleting", "deleted"}:
+                    raise AccessChangeConflict(
+                        "Merged or deleting accounts cannot be activated."
+                    )
                 connection.execute(
                     "UPDATE app_users SET is_admin = 1, access_status = 'active' WHERE id = ?",
                     (user_id,),
@@ -1226,7 +1523,7 @@ class PostgresAuthRepository:
                     (user_id,),
                 )
                 row = cursor.fetchone()
-                if row is None or row["access_status"] in {"blocked", "merged"}:
+                if row is None or row["access_status"] != "active":
                     raise AuthError("Account access is blocked.")
                 cursor.execute(
                     """INSERT INTO auth_sessions (verifier_hash, user_id, csrf_hash,
@@ -1264,7 +1561,7 @@ class PostgresAuthRepository:
                 if (
                     row is None
                     or row["revoked_at"] is not None
-                    or row["access_status"] in {"blocked", "merged"}
+                    or row["access_status"] != "active"
                     or now > min(row["idle_expires_at"], row["absolute_expires_at"])
                 ):
                     return None
@@ -1305,7 +1602,7 @@ class PostgresAuthRepository:
             with self._pool.connection() as connection, connection.cursor() as cursor:
                 cursor.execute(
                     """SELECT id, email, created_at, access_status, is_admin
-                    FROM app_users WHERE access_status <> 'merged'
+                    FROM app_users WHERE access_status NOT IN ('merged', 'deleted')
                     ORDER BY created_at DESC, id DESC LIMIT %s OFFSET %s""",
                     (limit, offset),
                 )
@@ -1323,6 +1620,176 @@ class PostgresAuthRepository:
                 )
                 row = cursor.fetchone()
                 return _account_record(row) if row else None
+        except (psycopg.Error, PoolClosed, PoolTimeout) as error:
+            raise AuthError("Authentication storage is unavailable.") from error
+
+    def begin_account_deletion(
+        self,
+        user_id: str,
+        actor_user_id: str,
+        delete_auth0_users: Callable[[Sequence[tuple[str, str]]], None],
+    ) -> AccountRecord:
+        """Delete Auth0 identities, then hide and revoke a retryable account."""
+
+        try:
+            with self._pool.connection() as connection, connection.cursor() as cursor:
+                cursor.execute(
+                    "SELECT pg_advisory_xact_lock(hashtextextended('app_user_admin_access', 0))"
+                )
+                cursor.execute(
+                    "SELECT is_admin, access_status FROM app_users WHERE id = %s FOR UPDATE",
+                    (actor_user_id,),
+                )
+                actor = cursor.fetchone()
+                if (
+                    not actor
+                    or not actor["is_admin"]
+                    or actor["access_status"] != "active"
+                ):
+                    raise AccessChangeConflict("An active administrator is required.")
+                cursor.execute(
+                    """SELECT id, email, created_at, access_status, is_admin
+                    FROM app_users WHERE id = %s FOR UPDATE""",
+                    (user_id,),
+                )
+                target = cursor.fetchone()
+                if target is None:
+                    raise AccountNotFound("Account does not exist.")
+                if target["access_status"] == "merged":
+                    raise AccessChangeConflict("Merged accounts cannot be deleted.")
+                if user_id == actor_user_id:
+                    raise AccessChangeConflict(
+                        "Administrators cannot delete themselves."
+                    )
+                if target["access_status"] == "deleted":
+                    return _account_record(target)
+                if target["is_admin"] and target["access_status"] == "active":
+                    cursor.execute("""SELECT COUNT(*) FROM app_users
+                        WHERE is_admin = TRUE AND access_status = 'active'""")
+                    if cursor.fetchone()["count"] <= 1:
+                        raise AccessChangeConflict(
+                            "The last active administrator cannot be deleted."
+                        )
+                cursor.execute(
+                    """SELECT issuer, subject FROM auth_identities
+                    WHERE user_id = %s ORDER BY subject, issuer FOR UPDATE""",
+                    (user_id,),
+                )
+                identities = tuple(
+                    (str(row["issuer"]), str(row["subject"]))
+                    for row in cursor.fetchall()
+                )
+                if not identities:
+                    raise AuthError("The account has no stored Auth0 identities.")
+
+                # Keep the original subject and all linked identities until
+                # Auth0 confirms every DELETE. Repeating the callback is safe.
+                delete_auth0_users(identities)
+                next_status = "deleting"
+                if target["access_status"] != next_status:
+                    cursor.execute(
+                        "UPDATE app_users SET access_status = %s WHERE id = %s",
+                        (next_status, user_id),
+                    )
+                    action = "deletion_started"
+                else:
+                    action = "deletion_retried"
+                cursor.execute(
+                    "DELETE FROM auth_sessions WHERE user_id = %s", (user_id,)
+                )
+                cursor.execute(
+                    """INSERT INTO account_access_events
+                    (id, user_id, actor_user_id, action, created_at)
+                    VALUES (%s, %s, %s, %s, %s)""",
+                    (
+                        str(uuid4()),
+                        user_id,
+                        actor_user_id,
+                        action,
+                        datetime.now(timezone.utc).isoformat(),
+                    ),
+                )
+                return AccountRecord(
+                    user_id,
+                    target["email"],
+                    str(target["created_at"]),
+                    next_status,
+                    bool(target["is_admin"]),
+                )
+        except (psycopg.Error, PoolClosed, PoolTimeout) as error:
+            raise AuthError("Authentication storage is unavailable.") from error
+
+    def complete_account_deletion(
+        self, user_id: str, actor_user_id: str
+    ) -> AccountRecord:
+        """Scrub account data after its Auth0 users and saved tours are gone."""
+
+        try:
+            with self._pool.connection() as connection, connection.cursor() as cursor:
+                cursor.execute(
+                    "SELECT pg_advisory_xact_lock(hashtextextended('app_user_admin_access', 0))"
+                )
+                cursor.execute(
+                    "SELECT is_admin, access_status FROM app_users WHERE id = %s FOR UPDATE",
+                    (actor_user_id,),
+                )
+                actor = cursor.fetchone()
+                if (
+                    not actor
+                    or not actor["is_admin"]
+                    or actor["access_status"] != "active"
+                ):
+                    raise AccessChangeConflict("An active administrator is required.")
+                cursor.execute(
+                    """SELECT id, email, created_at, access_status, is_admin
+                    FROM app_users WHERE id = %s FOR UPDATE""",
+                    (user_id,),
+                )
+                target = cursor.fetchone()
+                if target is None:
+                    raise AccountNotFound("Account does not exist.")
+                if target["access_status"] == "merged":
+                    raise AccessChangeConflict("Merged accounts cannot be deleted.")
+                if target["access_status"] == "deleted":
+                    return _account_record(target)
+                if target["access_status"] != "deleting":
+                    raise AccessChangeConflict(
+                        "Auth0 deletion has not completed for this account."
+                    )
+                cursor.execute(
+                    "DELETE FROM auth_sessions WHERE user_id = %s", (user_id,)
+                )
+                cursor.execute(
+                    "DELETE FROM auth_identities WHERE user_id = %s", (user_id,)
+                )
+                cursor.execute(
+                    """DELETE FROM account_usage_aliases
+                    WHERE canonical_user_id = %s OR former_user_id = %s""",
+                    (user_id, user_id),
+                )
+                cursor.execute(
+                    """UPDATE app_users SET email = NULL, access_status = 'deleted',
+                    is_admin = FALSE WHERE id = %s""",
+                    (user_id,),
+                )
+                cursor.execute(
+                    """INSERT INTO account_access_events
+                    (id, user_id, actor_user_id, action, created_at)
+                    VALUES (%s, %s, %s, 'deleted', %s)""",
+                    (
+                        str(uuid4()),
+                        user_id,
+                        actor_user_id,
+                        datetime.now(timezone.utc).isoformat(),
+                    ),
+                )
+                return AccountRecord(
+                    user_id,
+                    None,
+                    str(target["created_at"]),
+                    "deleted",
+                    False,
+                )
         except (psycopg.Error, PoolClosed, PoolTimeout) as error:
             raise AuthError("Authentication storage is unavailable.") from error
 
@@ -1382,8 +1849,10 @@ class PostgresAuthRepository:
                 target = cursor.fetchone()
                 if target is None:
                     raise AccountNotFound("Account does not exist.")
-                if target["access_status"] == "merged":
-                    raise AccessChangeConflict("Merged accounts cannot be reactivated.")
+                if target["access_status"] in {"merged", "deleting", "deleted"}:
+                    raise AccessChangeConflict(
+                        "Merged or deleting accounts cannot change access."
+                    )
                 if not active and user_id == actor_user_id:
                     raise AccessChangeConflict(
                         "Administrators cannot block themselves."
@@ -1448,8 +1917,10 @@ class PostgresAuthRepository:
                 target = cursor.fetchone()
                 if target is None:
                     raise AccountNotFound("Account does not exist.")
-                if target["access_status"] == "merged":
-                    raise AccessChangeConflict("Merged accounts cannot be activated.")
+                if target["access_status"] in {"merged", "deleting", "deleted"}:
+                    raise AccessChangeConflict(
+                        "Merged or deleting accounts cannot be activated."
+                    )
                 cursor.execute(
                     """UPDATE app_users SET is_admin = TRUE,
                     access_status = 'active' WHERE id = %s""",

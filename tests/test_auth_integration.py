@@ -10,6 +10,7 @@ import stat
 import time as clock
 from datetime import date, time
 from types import SimpleNamespace
+from urllib.error import HTTPError
 from urllib.parse import parse_qs, urlencode, urlparse
 
 import jwt
@@ -20,7 +21,10 @@ from fastapi.testclient import TestClient
 from grounded_travel_planner.auth import (
     AUTH_COOKIE_NAME,
     AUTH_PENDING_SECONDS,
+    AccessChangeConflict,
     AccountLinkRequired,
+    Auth0ManagementApi,
+    Auth0ManagementError,
     Auth0OidcProvider,
     AuthError,
     AuthRepository,
@@ -995,6 +999,296 @@ def test_auth0_password_reset_uses_the_fixed_database_connection(
         "connection": "Users",
     }
     assert "test-secret" not in request.data.decode()
+
+
+def test_auth0_management_api_uses_server_credentials_and_deletes_all_identities(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import grounded_travel_planner.auth as auth_module
+
+    class Response:
+        def __init__(self, payload: bytes, status: int) -> None:
+            self.payload = payload
+            self.status = status
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def read(self) -> bytes:
+            return self.payload
+
+    requests = []
+
+    def fake_urlopen(request, timeout):
+        requests.append((request, timeout))
+        return (
+            Response(b'{"access_token":"management-token"}', 200)
+            if request.method == "POST"
+            else Response(b"", 204)
+        )
+
+    monkeypatch.setattr(auth_module, "urlopen", fake_urlopen)
+    manager = Auth0ManagementApi(
+        issuer="https://login.example.test/",
+        client_id="m2m-client",
+        client_secret="m2m-secret",
+        audience="https://tenant.example.test/api/v2/",
+    )
+    manager.delete_users(
+        (
+            ("https://login.example.test/", "google-oauth2|linked"),
+            ("https://login.example.test/", "auth0|primary"),
+        )
+    )
+
+    token_request, delete_primary, delete_linked = [request for request, _ in requests]
+    assert token_request.full_url == "https://login.example.test/oauth/token"
+    assert b"client_id=m2m-client" in token_request.data
+    assert b"client_secret=m2m-secret" in token_request.data
+    assert (
+        b"audience=https%3A%2F%2Ftenant.example.test%2Fapi%2Fv2%2F"
+        in token_request.data
+    )
+    assert b"scope=delete%3Ausers" in token_request.data
+    assert delete_primary.full_url == (
+        "https://login.example.test/api/v2/users/auth0%7Cprimary"
+    )
+    assert delete_linked.full_url == (
+        "https://login.example.test/api/v2/users/google-oauth2%7Clinked"
+    )
+    assert delete_primary.get_header("Authorization") == "Bearer management-token"
+    assert [timeout for _, timeout in requests] == [10, 10, 10]
+
+
+def test_auth0_management_api_rejects_missing_credentials() -> None:
+    manager = Auth0ManagementApi(
+        issuer="https://tenant.example.test", client_id="", client_secret=""
+    )
+    with pytest.raises(Auth0ManagementError, match="not configured"):
+        manager.delete_users((("https://tenant.example.test/", "auth0|user"),))
+
+
+def test_auth0_management_partial_delete_retries_every_identity(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import grounded_travel_planner.auth as auth_module
+
+    class Response:
+        status = 204
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def read(self) -> bytes:
+            return b'{"access_token":"management-token"}'
+
+    delete_urls: list[str] = []
+    failed_secondary_once = False
+
+    def fake_urlopen(request, timeout):
+        nonlocal failed_secondary_once
+        if request.method == "POST":
+            return Response()
+        delete_urls.append(request.full_url)
+        if "google-oauth2" in request.full_url and not failed_secondary_once:
+            failed_secondary_once = True
+            raise HTTPError(
+                request.full_url,
+                500,
+                "temporary provider failure",
+                None,
+                io.BytesIO(b"private provider detail"),
+            )
+        return Response()
+
+    monkeypatch.setattr(auth_module, "urlopen", fake_urlopen)
+    manager = Auth0ManagementApi(
+        issuer="https://tenant.example.test/",
+        client_id="m2m-client",
+        client_secret="m2m-secret",
+    )
+    identities = (
+        ("https://tenant.example.test/", "auth0|primary"),
+        ("https://tenant.example.test/", "google-oauth2|linked"),
+    )
+    expected_urls = [
+        "https://tenant.example.test/api/v2/users/auth0%7Cprimary",
+        "https://tenant.example.test/api/v2/users/google-oauth2%7Clinked",
+    ]
+
+    with pytest.raises(Auth0ManagementError, match="HTTP 500"):
+        manager.delete_users(identities)
+    assert delete_urls == expected_urls
+
+    manager.delete_users(identities)
+    assert delete_urls == expected_urls + expected_urls
+
+
+@pytest.mark.parametrize("status", ["merged", "deleting", "deleted"])
+def test_terminal_account_statuses_reject_auth_and_reactivation(
+    tmp_path, monkeypatch: pytest.MonkeyPatch, status: str
+) -> None:
+    monkeypatch.setenv(
+        "GTP_AUTH_SESSION_SECRET", "terminal-status-test-secret-value-0123456789"
+    )
+    auth = AuthRepository(tmp_path / "auth.sqlite")
+    auth.migrate()
+    user_id, email = auth.find_or_create_user(
+        VerifiedIdentity(
+            "https://tenant.example.test/",
+            "auth0|terminal",
+            "terminal@example.test",
+            True,
+        )
+    )
+    token, csrf = auth.issue_session(user_id, email)
+    with sqlite3.connect(tmp_path / "auth.sqlite") as connection:
+        connection.execute(
+            "UPDATE app_users SET access_status = ? WHERE id = ?", (status, user_id)
+        )
+
+    assert auth.authenticated(token) is None
+    assert auth.verify_csrf(token, csrf) is None
+    with pytest.raises(AuthError, match="Account access is blocked"):
+        auth.issue_session(user_id, email)
+    with pytest.raises(AccessChangeConflict, match="cannot be activated"):
+        auth.bootstrap_admin(user_id)
+    assert (user_id in {account.id for account in auth.list_users()}) is (
+        status == "deleting"
+    )
+
+    admin_id, _ = auth.find_or_create_user(
+        VerifiedIdentity(
+            "https://tenant.example.test/", "auth0|admin", "admin@example.test", True
+        )
+    )
+    auth.bootstrap_admin(admin_id)
+    with pytest.raises(AccessChangeConflict, match="cannot change access"):
+        auth.set_access(user_id, active=True, actor_user_id=admin_id)
+
+
+def test_admin_delete_rejects_merged_secondary_and_preserves_canonical_merge(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    provider = FakeOidcProvider("auth0|unused", "unused@example.test")
+    client, auth, tours = _client(tmp_path, provider, monkeypatch)
+    issuer = "https://tenant.example.test/"
+    admin_id = next(
+        account.id
+        for account in auth.list_users(limit=20, offset=0)
+        if account.email == "admin@example.test"
+    )
+    canonical_id, canonical_email = auth.find_or_create_user(
+        VerifiedIdentity(issuer, "auth0|canonical", "canonical@example.test", True)
+    )
+    auth.link_google_identity(
+        VerifiedIdentity(
+            issuer,
+            "google-oauth2|canonical",
+            canonical_email,
+            True,
+        ),
+        canonical_id,
+    )
+    secondary_id = "merged-secondary"
+    with sqlite3.connect(tmp_path / "auth.sqlite") as connection:
+        connection.execute(
+            """INSERT INTO app_users (id, email, created_at, access_status, is_admin)
+            VALUES (?, ?, ?, 'merged', 0)""",
+            (secondary_id, canonical_email, "2026-11-16T00:00:00+00:00"),
+        )
+        connection.execute(
+            "INSERT INTO auth_identities (issuer, subject, user_id) VALUES (?, ?, ?)",
+            (issuer, "auth0|moved-identity", canonical_id),
+        )
+        connection.execute(
+            """INSERT INTO account_merges
+            (secondary_user_id, canonical_user_id, actor_user_id, reason, created_at)
+            VALUES (?, ?, ?, ?, ?)""",
+            (secondary_id, canonical_id, admin_id, "verified ticket-123", "2026-11-16"),
+        )
+        connection.executemany(
+            """INSERT INTO account_access_events
+            (id, user_id, actor_user_id, action, created_at)
+            VALUES (?, ?, ?, ?, ?)""",
+            [
+                (
+                    "merge-source",
+                    secondary_id,
+                    admin_id,
+                    "account_merge_source",
+                    "2026-11-16",
+                ),
+                (
+                    "merge-received",
+                    canonical_id,
+                    admin_id,
+                    "account_merge_received",
+                    "2026-11-16",
+                ),
+            ],
+        )
+    saved = tours.save_for_user(canonical_id, _plan("Hue"))
+    provider.identity = VerifiedIdentity(
+        issuer, "fixture-admin", "admin@example.test", True
+    )
+    csrf = _sign_in(client, provider)
+    deleter_calls: list[tuple[tuple[str, str], ...]] = []
+    client.app.state.auth0_user_deleter = SimpleNamespace(
+        delete_users=lambda identities: deleter_calls.append(tuple(identities))
+    )
+
+    rejected = client.post(
+        f"/api/admin/users/{secondary_id}/delete",
+        headers={"X-CSRF-Token": csrf},
+    )
+
+    assert rejected.status_code == 409
+    assert deleter_calls == []
+    assert auth.get_user(secondary_id).access_status == "merged"
+
+    deleted = client.post(
+        f"/api/admin/users/{canonical_id}/delete",
+        headers={"X-CSRF-Token": csrf},
+    )
+
+    assert deleted.status_code == 204
+    assert {subject for _, subject in deleter_calls[0]} == {
+        "auth0|canonical",
+        "google-oauth2|canonical",
+        "auth0|moved-identity",
+    }
+    assert auth.get_user(canonical_id).access_status == "deleted"
+    assert auth.get_user(secondary_id).access_status == "merged"
+    assert tours.list_for_user(canonical_id).items == []
+    assert tours.get_for_user(canonical_id, saved.id) is None
+    with sqlite3.connect(tmp_path / "auth.sqlite") as connection:
+        merge = connection.execute(
+            "SELECT secondary_user_id, canonical_user_id FROM account_merges WHERE secondary_user_id = ?",
+            (secondary_id,),
+        ).fetchone()
+        events = {
+            (row[0], row[1])
+            for row in connection.execute(
+                "SELECT user_id, action FROM account_access_events WHERE user_id IN (?, ?)",
+                (canonical_id, secondary_id),
+            )
+        }
+        moved_identity_count = connection.execute(
+            "SELECT COUNT(*) FROM auth_identities WHERE user_id = ?",
+            (canonical_id,),
+        ).fetchone()[0]
+    assert merge == (secondary_id, canonical_id)
+    assert moved_identity_count == 0
+    assert (secondary_id, "account_merge_source") in events
+    assert (canonical_id, "account_merge_received") in events
+    assert (canonical_id, "deleted") in events
 
 
 @pytest.mark.skipif(os.name != "posix", reason="POSIX permissions are required")
