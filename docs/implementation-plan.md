@@ -3,9 +3,23 @@
 Status: Active
 Last updated: 2026-11-17
 
-This plan tracks remaining implementation acceptance. Product requirements and
-accepted architecture are defined in the [project charter](project-charter.md)
-and [ADRs](adr/README.md); completed change history is not repeated here.
+This plan tracks remaining acceptance and concise changes that affect it.
+Product requirements and accepted architecture are defined in the
+[project charter](project-charter.md) and [ADRs](adr/README.md).
+
+## Implemented update: authenticated view refresh — 2026-11-17
+
+React stores saved-tour, profile and administrator views in the `view` query
+parameter; itinerary remains at `/`. During the account check, the UI shows a
+neutral loading state, then restores the view for an authenticated account.
+Unauthenticated visitors see the public landing page, and non-admin accounts
+cannot restore the administrator view. The plan and conversation rehydrate
+from the same server session; trip data is not stored in the URL. Graph
+inspection remains hidden and is not a product view.
+
+`npm run check`, `npm run build` and `git diff --check` passed for PR #20.
+Browser refresh QA and deployment remain pending; the active app uses another
+checkout.
 
 ## Current environment
 

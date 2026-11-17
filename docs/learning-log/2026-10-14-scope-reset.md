@@ -5,6 +5,18 @@ current status. The [charter](../project-charter.md) and accepted ADRs are the
 source of truth for product and architecture. Historical test output belongs
 with its CI run or experiment artifact.
 
+## 2026-11-17 — Authenticated view refresh
+
+- PR #20 keeps the current React workspace view across refresh. Saved tours,
+  profile and administrator views use the `view` query parameter; itinerary
+  remains at `/`. The app restores private views only after checking the
+  account, and non-admin accounts cannot restore the administrator view.
+- The plan and conversation rehydrate from the same server session. Trip data
+  is not stored in the URL, and graph inspection remains hidden.
+- `npm run check`, `npm run build` and `git diff --check` passed. Browser QA,
+  container recreation and deployment were not run; the active app uses another
+  checkout.
+
 ## 2026-11-17 — Local Compose refresh
 
 - Local Compose rebuilt the app from commit 34e20ba. The app and PostgreSQL

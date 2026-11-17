@@ -1,5 +1,5 @@
 {
-  "version": 120,
+  "version": 121,
   "updated": "2026-11-17",
   "active_scope": "city-place-sightseeing-webapp",
   "current_milestone": "Milestone 1: executable city/place sightseeing vertical slice",
@@ -18,8 +18,8 @@
     },
     {
       "id": "web-ui",
-      "state": "implemented; browser QA pending",
-      "summary": "JavaScript/Tailwind is the current interface; Streamlit remains available during migration."
+      "state": "route restoration implemented; browser QA pending",
+      "summary": "JavaScript/Tailwind is current; refresh restores saved-tour, profile and admin views after account check. Itinerary stays at /; plan and conversation rehydrate from the same server session. Frontend check/build passed for PR #20; browser QA pending."
     },
     {
       "id": "saved-tours",

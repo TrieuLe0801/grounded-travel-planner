@@ -15,7 +15,7 @@ runs and experiment records.
 | Area | State | Evidence or open gate |
 |---|---|---|
 | Runtime | Implemented | Coordinator, Planner and Chat roles; bounded search, session context and validate-before-commit behavior are defined in the charter and ADRs 0004, 0009, 0011 and 0012. |
-| Web UI | Implemented; browser QA pending | JavaScript/Tailwind is the current UI; Streamlit remains a fallback during migration. Responsive, account and pending-turn flows still need manual browser review. |
+| Web UI | Route restoration implemented; browser QA pending | JavaScript/Tailwind is the current UI; Streamlit remains available. Refresh restores saved-tour, profile and administrator views after account check; itinerary stays at `/`. Frontend check/build passed for PR #20; browser QA and deployment remain pending. |
 | Saved tours | PostgreSQL Compose storage available; browser QA pending | Explicitly saved, owner-scoped snapshots are read-only. Verify save, list, detail, delete and owner isolation in a browser. |
 | Authentication | Compose app updated; live verification pending | Public host is www.citedtrip.app. The local app container has its configured Auth0 password connection. Auth0 enablement, sign-in, signup, email verification, OTP, callback, planner access and logout have not been browser-verified. |
 | Account administration | Source and offline integration verified; live QA pending | Account access, usage and deletion are implemented. No live Auth0 deletion request or administrator browser flow was checked. |
@@ -31,6 +31,9 @@ runs and experiment records.
 - The integrated source checks recorded on 2026-11-16 passed 246 tests; one
   optional PostgreSQL integration test was skipped because its opt-in settings
   were unset. Python quality checks and frontend check/build also passed then.
+- PR #20 added authenticated view restoration on 2026-11-17. `npm run check`,
+  `npm run build` and `git diff --check` passed for that change. Browser refresh
+  QA did not run; the active app container uses another checkout.
 - No test suite ran during the 2026-11-17 Compose update. No live Auth0 request,
   browser account flow or administrator deletion API call was made.
 

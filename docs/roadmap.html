@@ -40,9 +40,10 @@
     <section class="card done">
       <span class="badge">Implemented</span>
       <h3>Web interface</h3>
-      <p>JavaScript/Tailwind is the current interface. Streamlit remains
-      available during migration. Manual responsive and account-flow QA is
-      pending.</p>
+      <p>JavaScript/Tailwind is current; Streamlit remains available. Refresh
+      restores saved-tour, profile and administrator views after account check.
+      Itinerary stays at <code>/</code>; plan and conversation rehydrate from
+      the same server session. Browser QA is pending.</p>
     </section>
     <section class="card active">
       <span class="badge">Browser QA pending</span>
@@ -74,6 +75,8 @@
 
   <h2>Latest checks</h2>
   <ul>
+    <li>PR #20: frontend check/build and diff check passed on 2026-11-17;
+      browser refresh QA and deployment remain pending.</li>
     <li>Integrated source checks on 2026-11-16: 246 tests passed; one optional
       PostgreSQL test was skipped because its opt-in settings were unset.</li>
     <li>Python quality checks and frontend check/build passed before the
