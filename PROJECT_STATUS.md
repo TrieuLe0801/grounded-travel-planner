@@ -27,7 +27,7 @@ background only.
 | Visual itinerary | Complete | Source-backed photos; route map removed by user request |
 | Graph inspection | Hidden from UI; local SVG diagnostics retained | HTTP and Streamlit render locally; no external Mermaid renderer call |
 | Async page navigation | Implemented | Background Future, exact-once session integration; browser QA pending |
-| JavaScript/Tailwind UI | Frontend check/build passed; browser QA pending | `npm run check` and `npm run build` passed on 2026-11-16. Browser UI automation host was unavailable. The active app container uses a different checkout; current uncommitted source is not deployed. |
+| JavaScript/Tailwind UI | Route restoration implemented; frontend check/build passed; browser QA pending | Source stores itinerary, saved tours, profile or admin view and restores it after account check without rendering landing first. `npm run check`, `npm run build` and `git diff --check` passed on 2026-11-17. Browser QA not run. Active app container uses a different checkout; current source is not deployed. |
 | Configurable model provider | Passed on host and Compose app | Active mixed routing and an HTTP Compose-app Hue plan committed with OpenAI `gpt-5.5` Coordinator and Ollama `qwen2.5:3b` Planner/Chat |
 | No-local API defaults | Historical Compose verification | Earlier container resolved to OpenAI `gpt-5.5` / `gpt-5.4-mini` / `gpt-4.1`; root and graph image returned HTTP 200 |
 | Current Planner OpenAI default | Local app verified | `gpt-6.1-terra` with 60-second per-call timeout and JSON Schema URL validation; live full graph turn committed four sourced Huế entries in 41.3 seconds; 113 tests passed; app healthy, root/graph HTTP 200 |

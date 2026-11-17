@@ -1,5 +1,21 @@
 # Learning Log - 2026-10-14 Scope Reset
 
+## Authenticated View Refresh — 2026-11-17
+
+- The user clarified that refresh should keep the current page and skip the
+  public landing detour. Before the change, saved tours, profile and admin
+  views existed only in React state; a full refresh could not restore them.
+- React now keeps those views in the `view` query parameter. The itinerary
+  remains at `/`. During `/api/auth/me`, the UI shows a neutral loading state;
+  after the account check it restores the route or shows the public landing to
+  an unauthenticated visitor. Admin access still requires an admin account.
+- The plan and conversation remain in the original server session and rehydrate
+  through existing APIs. Graph inspection stays hidden and is not persisted as
+  a product view.
+- Frontend `npm run check`, `npm run build` and `git diff --check` passed. No
+  tests or browser QA ran. The active app container uses another checkout; no
+  deployment occurred.
+
 ## Merged Account LangSmith Usage Alias — 2026-11-15
 
 - The user requested that LangSmith usage recorded under the removed account

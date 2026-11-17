@@ -37,7 +37,10 @@ with the existing email one-time-code flow available. Auth0 may reuse an active
 browser session; each direct action selects its connection. Sign-in completes before the planner,
 chat, visuals or saved tours appear. FastAPI requires sign-in on private API routes;
 the landing page and static assets remain public. Each live planner session is
-bound to its verified internal account UUID. See ADR 0021.
+bound to its verified internal account UUID. On refresh, an authenticated user
+keeps the current workspace view while the app checks the account; the public
+landing appears only after the app confirms the visitor is unauthenticated.
+The plan and conversation rehydrate from the same server session. See ADR 0021.
 
 ADR 0023 adds application administrator access. Existing accounts remain active
 after the explicit migration; new identities with Auth0-verified email can use
