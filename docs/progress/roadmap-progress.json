@@ -1,6 +1,6 @@
 {
-  "version": 118,
-  "updated": "2026-11-17T00:33:25+07:00",
+  "version": 119,
+  "updated": "2026-11-17T10:30:59+07:00",
   "active_scope": "city-place-sightseeing-webapp",
   "current_milestone": "Milestone 1: executable city/place sightseeing vertical slice",
   "completed": {
@@ -25,6 +25,7 @@
     "async_session_turns": true,
     "async_multipage_browser_qa": false,
     "javascript_tailwind_ui_offline": true,
+    "javascript_route_refresh_restoration": true,
     "planner_source_schema_hardening": true,
     "javascript_graph_png_rendering": true,
     "role_specific_runtime_models": true,
@@ -421,6 +422,11 @@
       "host pytest 57 passed",
       "Compose runtime healthy and page/assets/graph HTTP 200",
       "Docker test target pytest 56 passed"
+    ],
+    "javascript_route_refresh_restoration": [
+      "frontend/src/main.tsx restores itinerary, saved, profile and authorized admin view after authentication without rendering landing during the check",
+      "Frontend npm run check and npm run build passed; git diff --check passed",
+      "Browser QA and deployment not run"
     ],
     "planner_source_schema_hardening": [
       "src/grounded_travel_planner/contracts.py#PlannerProposal",

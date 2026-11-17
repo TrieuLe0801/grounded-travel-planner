@@ -170,8 +170,20 @@ type FormErrorField = "destination" | "startDate" | "days" | "chat";
 type FormErrors = Partial<Record<FormErrorField, TextMessageKey>>;
 const savedToursPageSize = 50;
 const adminUsersPageSize = 50;
+const refreshableViews: Exclude<View, "graph" | "itinerary">[] = [
+  "saved",
+  "admin",
+  "profile",
+];
 const dateLocale = (language: Language) =>
   language === "vi" ? "vi-VN" : "en-US";
+
+function initialView(): View {
+  const requested = new URLSearchParams(window.location.search).get("view");
+  return requested && (refreshableViews as string[]).includes(requested)
+    ? requested as View
+    : "itinerary";
+}
 
 function formatDateOnly(value: string, language: Language): string {
   const date = new Date(`${value}T12:00:00Z`);
@@ -1461,7 +1473,7 @@ function App() {
   const [submitting, setSubmitting] = useState(false);
   const [visuals, setVisuals] = useState<Record<string, Visual>>({});
   const [visualsLoading, setVisualsLoading] = useState(false);
-  const [view, setView] = useState<View>("itinerary");
+  const [view, setView] = useState<View>(initialView);
   const [auth, setAuth] = useState<AuthState | null>(null);
   const [authError, setAuthError] = useState<LocalizedMessage>("");
   const [authNotice, setAuthNotice] = useState<LocalizedMessage>("");
@@ -1526,11 +1538,27 @@ function App() {
       ?.setAttribute("content", labels.metaDescription);
   }, [activeLanguage]);
   useEffect(() => {
+    const parameters = new URLSearchParams(window.location.search);
+    if (view === "itinerary" || view === "graph") parameters.delete("view");
+    else parameters.set("view", view);
+    const query = parameters.toString();
+    const nextUrl = query ? `/?${query}` : "/";
+    if (`${window.location.pathname}${window.location.search}` !== nextUrl) {
+      window.history.replaceState(null, "", nextUrl);
+    }
+  }, [view]);
+  useEffect(() => {
     currentSessionLanguage.current = state.language;
   }, [state.language]);
   useEffect(() => {
-    if (view === "profile") profileHeadingRef.current?.focus();
-  }, [view]);
+    if (
+      view === "profile" &&
+      auth?.authenticated &&
+      auth.access_status !== "pending"
+    ) {
+      profileHeadingRef.current?.focus();
+    }
+  }, [view, auth?.authenticated, auth?.access_status]);
   const load = async (csrfToken = auth?.csrf_token || "") => {
     try {
       setState(await api<ApiState>("/api/session"));
@@ -1625,8 +1653,10 @@ function App() {
       if (readDeepLink && parameters.get("view") === "profile") {
         setView("profile");
       }
-      if (readDeepLink && (parameters.has("view") || parameters.has("lang"))) {
-        window.history.replaceState(null, "", "/");
+      if (readDeepLink && parameters.has("lang")) {
+        parameters.delete("lang");
+        const query = parameters.toString();
+        window.history.replaceState(null, "", query ? `/?${query}` : "/");
       }
       setAuth(current);
     } catch (error) {
@@ -2137,7 +2167,17 @@ function App() {
       setRequestError(apiErrorMessageKey(error, "errorConnection"));
     }
   };
-  if (!auth?.authenticated) {
+  if (auth === null) {
+    return (
+      <main className="grid min-h-dvh place-items-center bg-gradient-to-b from-blue-50 via-white to-white px-4 text-slate-700">
+        <p className="inline-flex items-center gap-3" role="status" aria-live="polite">
+          <LoaderCircle className="animate-spin text-primary" aria-hidden="true" />
+          {labels.authChecking}
+        </p>
+      </main>
+    );
+  }
+  if (!auth.authenticated) {
     return (
       <div className="min-h-dvh bg-gradient-to-b from-blue-50 via-white to-white text-slate-900">
         <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 rounded bg-white p-3">

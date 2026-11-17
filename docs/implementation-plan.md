@@ -1,7 +1,23 @@
 # Implementation Plan
 
 Status: Active
-Last updated: 2026-11-16
+Last updated: 2026-11-17
+
+## Authenticated View Refresh — Source Updated — 2026-11-17
+
+The user clarified that refresh should keep the current view without showing the
+public landing page first. React stores saved tours, Personal information and
+administrator views in the `view` query parameter; itinerary remains at `/`.
+During the account check, React shows a neutral loading state. It requests
+private planner state only after authentication, then restores the view. A
+non-admin account cannot restore the administrator view. The plan and
+conversation continue to hydrate from the same server session; no trip data is
+stored in the URL. Graph inspection remains hidden and does not persist as a
+product view.
+
+`npm run check`, `npm run build` and `git diff --check` passed. Browser refresh
+QA, container recreation and deployment were not run; the running app uses a
+different checkout.
 
 ## Public Auth0 Hostname Correction — 2026-11-15
 
