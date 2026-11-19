@@ -57,6 +57,9 @@
   .rise {
     animation: rise 0.35s ease-out both;
   }
+  .guide-step {
+    animation: rise 0.55s ease-out both;
+  }
   @keyframes rise {
     from {
       opacity: 0;

@@ -1,6 +1,6 @@
 {
-  "version": 121,
-  "updated": "2026-11-17",
+  "version": 122,
+  "updated": "2026-11-19",
   "active_scope": "city-place-sightseeing-webapp",
   "current_milestone": "Milestone 1: executable city/place sightseeing vertical slice",
   "workstreams": [
@@ -18,8 +18,8 @@
     },
     {
       "id": "web-ui",
-      "state": "route restoration implemented; browser QA pending",
-      "summary": "JavaScript/Tailwind is current; refresh restores saved-tour, profile and admin views after account check. Itinerary stays at /; plan and conversation rehydrate from the same server session. Frontend check/build passed for PR #20; browser QA pending."
+      "state": "route restoration and public usage guide implemented; browser QA pending",
+      "summary": "JavaScript/Tailwind is current; refresh restores saved-tour, profile and admin views after account check. The public landing includes a bilingual five-step usage guide. Frontend and offline checks passed on 2026-11-19; browser QA pending."
     },
     {
       "id": "saved-tours",

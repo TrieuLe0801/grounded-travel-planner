@@ -2229,6 +2229,7 @@ function App() {
               <li className="flex items-start gap-3"><CheckCircle2 className="mt-0.5 shrink-0 text-primary" size={20} aria-hidden="true" />{labels.landingEvidence}</li>
               <li className="flex items-start gap-3"><MessageCircle className="mt-0.5 shrink-0 text-primary" size={20} aria-hidden="true" />{labels.landingChat}</li>
             </ul>
+            <a href="#how-to-use" className="mt-8 inline-flex min-h-11 items-center gap-2 rounded-xl border border-blue-200 bg-white px-5 font-semibold text-blue-800 hover:bg-blue-50 focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300">{labels.guideLink}<ChevronDown size={18} aria-hidden="true" /></a>
           </section>
           <section className="rise rounded-3xl bg-white p-7 shadow-xl shadow-blue-900/10 ring-1 ring-blue-100 sm:p-9" aria-labelledby="landing-action-title">
             <Compass className="size-9 text-primary" aria-hidden="true" />
@@ -2244,6 +2245,23 @@ function App() {
             </div>}
           </section>
         </main>
+        <section id="how-to-use" className="mx-auto max-w-7xl scroll-mt-6 px-4 pb-16 sm:px-6" aria-labelledby="guide-title">
+          <div className="rounded-3xl border border-blue-100 bg-white p-6 shadow-lg shadow-blue-900/5 sm:p-10">
+            <p className="font-semibold text-blue-800">{labels.guideEyebrow}</p>
+            <h2 id="guide-title" className="mt-2 font-heading text-3xl font-bold">{labels.guideTitle}</h2>
+            <p className="mt-3 max-w-2xl leading-7 text-slate-700">{labels.guideDescription}</p>
+            <ol className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+              {([1, 2, 3, 4, 5] as const).map((step) => (
+                <li key={step} className="guide-step rounded-2xl border border-blue-100 bg-blue-50/50 p-5" style={{ animationDelay: `${(step - 1) * 90}ms` }}>
+                  <span className="grid size-10 place-items-center rounded-xl bg-primary font-heading font-bold text-white" aria-hidden="true">{step}</span>
+                  <h3 className="mt-4 font-heading text-lg font-semibold">{labels[`guideStep${step}Title`]}</h3>
+                  <p className="mt-2 leading-6 text-slate-700">{labels[`guideStep${step}Body`]}</p>
+                </li>
+              ))}
+            </ol>
+            <a href="#landing-action-title" className="mt-8 inline-flex min-h-11 items-center gap-2 rounded-xl bg-primary px-5 font-bold text-white hover:bg-blue-500 focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300">{labels.guideStart}<ArrowLeft size={18} aria-hidden="true" /></a>
+          </div>
+        </section>
       </div>
     );
   }

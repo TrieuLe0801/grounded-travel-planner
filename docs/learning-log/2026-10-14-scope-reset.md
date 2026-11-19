@@ -15,6 +15,16 @@ with its CI run or experiment artifact.
 - `npm ci --offline`, `npm run check`, `npm run build` and `git diff --check`
   passed. Browser QA did not run.
 
+## 2026-11-19 — Landing usage guide
+
+- The user requested usage guidance before entering the app, with animation
+  on the landing page. The public landing now contains a bilingual five-step
+  guide and reduced-motion-aware entrance animation. Authentication and
+  private planner access remain unchanged.
+- Frontend type check, build, diff check, isort, Black, flake8 and Ruff passed.
+  The offline suite passed 246 tests with one optional PostgreSQL test skipped.
+  Browser and live Auth0 flows did not run.
+
 ## 2026-11-17 — Authenticated view refresh
 
 - PR #20 keeps the current React workspace view across refresh. Saved tours,
