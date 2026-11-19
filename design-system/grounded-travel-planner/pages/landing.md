@@ -10,14 +10,17 @@ verified sign-in.
   separate sign-in and registration actions.
 - Offer a bilingual usage guide from the landing view before sign-in. Explain
   trip setup, source and estimate labels, chat changes, and explicit saving.
-  Keep direct sign-in and registration actions easy to reach.
+  Users scroll below the introduction to see the guide; do not add a guide jump
+  button. Use local, decorative SVG illustrations for the five steps. Keep
+  direct sign-in and registration actions easy to reach.
 - Keep SSO, email-code, and other authentication mechanics out of the app
   description. Use Auth0 for both actions; the registration action requests
   Auth0's signup screen. Do not add a local password form or collect profile
   fields in the app.
 - Use the existing blue palette, Lexend headings, Source Sans 3 body, and Lucide
   icons. Do not add scroll-triggered storytelling or unsourced travel photos.
-- Use restrained entrance animation only when reduced motion is not requested.
+- Use restrained entrance animation when guide cards enter the viewport, only
+  when reduced motion is not requested.
 - Keep Vietnamese default and English selectable. Carry the selected locale
   through the Auth0 return URL and apply it to the authenticated session.
 

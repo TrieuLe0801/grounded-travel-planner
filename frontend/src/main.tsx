@@ -168,6 +168,37 @@ type View = "itinerary" | "graph" | "saved" | "admin" | "profile";
 type LocalizedMessage = TextMessageKey | "";
 type FormErrorField = "destination" | "startDate" | "days" | "chat";
 type FormErrors = Partial<Record<FormErrorField, TextMessageKey>>;
+type GuideStep = 1 | 2 | 3 | 4 | 5;
+
+function GuideScene({ step }: { step: GuideStep }) {
+  return (
+    <svg viewBox="0 0 200 112" className="mt-4 w-full rounded-xl bg-white" aria-hidden="true" focusable="false">
+      <rect x="12" y="12" width="176" height="88" rx="14" fill="#eff6ff" stroke="#bfdbfe" />
+      {step === 1 && <g fill="none" stroke="#2563eb" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="77" cy="45" r="12" fill="#dbeafe" />
+        <path d="M52 79c2-16 11-23 25-23s23 7 25 23" />
+        <g className="guide-art-mark"><rect x="112" y="36" width="34" height="31" rx="6" fill="white" /><path d="M120 36v-5a9 9 0 0 1 18 0v5M122 52l6 6 10-12" /></g>
+      </g>}
+      {step === 2 && <g fill="none" stroke="#2563eb" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M42 40h68v43H42zM42 51h68M56 32v16M96 32v16" fill="white" />
+        <circle cx="63" cy="65" r="4" fill="#60a5fa" stroke="none" /><circle cx="78" cy="65" r="4" fill="#60a5fa" stroke="none" />
+        <g className="guide-art-mark"><path d="M145 36c-11 0-18 8-18 18 0 13 18 30 18 30s18-17 18-30c0-10-7-18-18-18Z" fill="white" /><circle cx="145" cy="54" r="6" /></g>
+      </g>}
+      {step === 3 && <g fill="none" stroke="#2563eb" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="44" y="28" width="112" height="57" rx="7" fill="white" /><path d="M59 44h47M59 55h67M59 66h52" />
+        <g className="guide-art-mark"><circle cx="143" cy="75" r="13" fill="#dbeafe" /><path d="m137 75 4 4 8-9" /></g>
+      </g>}
+      {step === 4 && <g fill="none" stroke="#2563eb" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M37 35h91v37H70L55 83V72H37z" fill="white" /><path d="M60 49h43M60 59h29" />
+        <g className="guide-art-mark"><path d="M112 57h51v29h-12l-10 9v-9h-29z" fill="#dbeafe" /><path d="M124 71h26" /></g>
+      </g>}
+      {step === 5 && <g fill="none" stroke="#2563eb" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M57 26h64l17 17v44H57z" fill="white" /><path d="M121 26v17h17M72 58h49M72 69h36" />
+        <g className="guide-art-mark"><circle cx="140" cy="76" r="16" fill="#dbeafe" /><path d="m132 76 6 6 11-13" /></g>
+      </g>}
+    </svg>
+  );
+}
 const savedToursPageSize = 50;
 const adminUsersPageSize = 50;
 const refreshableViews: Exclude<View, "graph" | "itinerary">[] = [
@@ -1555,6 +1586,19 @@ function App() {
       ?.setAttribute("content", labels.metaDescription);
   }, [activeLanguage]);
   useEffect(() => {
+    if (auth?.authenticated || typeof IntersectionObserver === "undefined") return;
+    const cards = document.querySelectorAll<HTMLElement>("#how-to-use .guide-step");
+    const observer = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        entry.target.classList.add("guide-step-visible");
+        observer.unobserve(entry.target);
+      }
+    }, { threshold: 0.15 });
+    cards.forEach((card) => observer.observe(card));
+    return () => observer.disconnect();
+  }, [auth?.authenticated]);
+  useEffect(() => {
     const parameters = new URLSearchParams(window.location.search);
     if (view === "itinerary" || view === "graph") parameters.delete("view");
     else parameters.set("view", view);
@@ -2229,7 +2273,6 @@ function App() {
               <li className="flex items-start gap-3"><CheckCircle2 className="mt-0.5 shrink-0 text-primary" size={20} aria-hidden="true" />{labels.landingEvidence}</li>
               <li className="flex items-start gap-3"><MessageCircle className="mt-0.5 shrink-0 text-primary" size={20} aria-hidden="true" />{labels.landingChat}</li>
             </ul>
-            <a href="#how-to-use" className="mt-8 inline-flex min-h-11 items-center gap-2 rounded-xl border border-blue-200 bg-white px-5 font-semibold text-blue-800 hover:bg-blue-50 focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300">{labels.guideLink}<ChevronDown size={18} aria-hidden="true" /></a>
           </section>
           <section className="rise rounded-3xl bg-white p-7 shadow-xl shadow-blue-900/10 ring-1 ring-blue-100 sm:p-9" aria-labelledby="landing-action-title">
             <Compass className="size-9 text-primary" aria-hidden="true" />
@@ -2254,6 +2297,7 @@ function App() {
               {([1, 2, 3, 4, 5] as const).map((step) => (
                 <li key={step} className="guide-step rounded-2xl border border-blue-100 bg-blue-50/50 p-5" style={{ animationDelay: `${(step - 1) * 90}ms` }}>
                   <span className="grid size-10 place-items-center rounded-xl bg-primary font-heading font-bold text-white" aria-hidden="true">{step}</span>
+                  <GuideScene step={step} />
                   <h3 className="mt-4 font-heading text-lg font-semibold">{labels[`guideStep${step}Title`]}</h3>
                   <p className="mt-2 leading-6 text-slate-700">{labels[`guideStep${step}Body`]}</p>
                 </li>

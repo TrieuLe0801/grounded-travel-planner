@@ -12,8 +12,15 @@ Product requirements and accepted architecture are defined in the
 The unauthenticated React landing page offers a bilingual five-step usage
 guide before sign-in. It covers account entry, trip input, cited and estimated
 information, chat changes and explicit tour saving. The guide stays within the
-public landing view, with direct sign-in actions retained. Entrance animation
+public landing view, with direct sign-in actions retained. Each step has a local
+SVG illustration and restrained motion. Guide cards appear when they enter
+the viewport. Users scroll to the guide without a guide jump button. Animation
 respects reduced-motion settings.
+
+The illustrated update passed `npm run check`, `npm run build`,
+`git diff --check`, isort, Black, flake8 and Ruff. The offline suite passed 246
+tests; one optional PostgreSQL test was skipped. Browser visual, mobile and
+reduced-motion checks did not run because browser access was unavailable.
 
 `npm run check`, `npm run build`, `git diff --check`, isort, Black, flake8 and
 Ruff passed. The offline suite passed 246 tests; one optional PostgreSQL test

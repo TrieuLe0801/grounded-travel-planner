@@ -49,8 +49,10 @@ The plan and conversation rehydrate from the same server session. See ADR 0021.
 
 The public landing also offers a bilingual guide before sign-in. It explains
 trip setup, source and estimate labels, chat changes and explicit saving. Its
-animation respects reduced-motion preferences. The guide stays within the
-landing view and does not request private planner state.
+five steps use local illustrations and restrained animation when visible that
+respects reduced-motion preferences. Users reach the guide by scrolling below the
+introduction, without a guide jump button. The guide stays within the landing
+view and does not request private planner state.
 
 ADR 0023 adds application administrator access. Existing accounts remain active
 after the explicit migration; new identities with Auth0-verified email can use
