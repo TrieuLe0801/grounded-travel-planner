@@ -5,6 +5,16 @@ current status. The [charter](../project-charter.md) and accepted ADRs are the
 source of truth for product and architecture. Historical test output belongs
 with its CI run or experiment artifact.
 
+## 2026-11-19 — Itinerary and chat feedback
+
+- The React itinerary page uses plain progress text while creating an
+  itinerary. Chat progress and submission errors stay in the chat panel.
+- Ordinary chat responses do not show a page-level notice. Committed or
+  rejected itinerary changes from chat show a short localized status, without
+  repeating the assistant's chat response.
+- `npm ci --offline`, `npm run check`, `npm run build` and `git diff --check`
+  passed. Browser QA did not run.
+
 ## 2026-11-17 — Authenticated view refresh
 
 - PR #20 keeps the current React workspace view across refresh. Saved tours,

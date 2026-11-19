@@ -30,6 +30,11 @@ The current interface uses JavaScript and Tailwind on the same origin as a thin
 Python HTTP adapter. The earlier Streamlit interface remains available during
 migration; the Coordinator/Planner/Chat runtime and validation rules are shared.
 
+The itinerary page uses plain-language progress feedback while creating an
+itinerary. Chat progress stays in the chat panel. The itinerary page shows a
+completion notice for a committed itinerary change or a rejected change, but
+not for an ordinary chat response.
+
 The public React entry is a bilingual introduction page. Its app description
 explains sightseeing planning and its purpose without describing sign-in
 mechanics. It provides direct Google, email/password and registration actions,

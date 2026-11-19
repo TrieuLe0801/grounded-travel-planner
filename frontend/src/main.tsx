@@ -584,13 +584,23 @@ function Photo({ visual, placeName, language }: { visual?: Visual; placeName: st
 }
 function TurnStatus({
   response,
+  language,
+  simple = false,
   className = "mt-6",
 }: {
   response: TurnResponse | null;
+  language: Language;
+  simple?: boolean;
   className?: string;
 }) {
   if (!response) return null;
+  const labels = text(language);
   const committed = response.status === "committed";
+  const message = simple
+    ? committed
+      ? labels.statusCommitted
+      : labels.statusRejected
+    : response.message;
   return (
     <section
       className={`rise rounded-2xl border p-4 ${className} ${committed ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}
@@ -604,8 +614,8 @@ function TurnStatus({
           }
         />
         <div>
-          <p className="font-semibold">{response.message}</p>
-          {response.validation_issues.map((issue) => (
+          <p className="font-semibold">{message}</p>
+          {!simple && response.validation_issues.map((issue) => (
             <p className="mt-1 text-sm text-slate-700" key={issue.code}>
               {issue.message}
             </p>
@@ -1471,6 +1481,7 @@ function App() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [requestError, setRequestError] = useState<LocalizedMessage>("");
   const [submitting, setSubmitting] = useState(false);
+  const [lastTurnSource, setLastTurnSource] = useState<"itinerary" | "chat" | null>(null);
   const [visuals, setVisuals] = useState<Record<string, Visual>>({});
   const [visualsLoading, setVisualsLoading] = useState(false);
   const [view, setView] = useState<View>(initialView);
@@ -1527,6 +1538,12 @@ function App() {
   const activeLanguage = auth?.authenticated && auth.access_status === "active"
     ? state.language : landingLanguage;
   const labels = text(activeLanguage);
+  const showTurnStatus = Boolean(
+    state.response &&
+      (lastTurnSource === "itinerary" ||
+        state.response.status === "committed" ||
+        state.response.status === "rejected"),
+  );
   const accountName = auth?.authenticated
     ? auth.email?.split("@")[0]?.trim() || labels.account
     : labels.account;
@@ -1586,6 +1603,7 @@ function App() {
     setMessage("");
     setErrors({});
     setRequestError("");
+    setLastTurnSource(null);
     setVisuals({});
     setVisualsLoading(false);
     setView("itinerary");
@@ -1758,7 +1776,11 @@ function App() {
       .catch(() => setGraphError("errorGraph"))
       .finally(() => setGraphFallbackLoading(false));
   }, [graphFallbackLoading, graphImageUnavailable, graphSvg]);
-  const submit = async (body: object) => {
+  const submit = async (
+    body: object,
+    source: "itinerary" | "chat",
+  ) => {
+    setLastTurnSource(source);
     setRequestError("");
     setSubmitting(true);
     try {
@@ -2114,7 +2136,7 @@ function App() {
         start_date: startDate,
         day_count: days,
       },
-    });
+    }, "itinerary");
   };
   const graphImageFailed = () => {
     setGraphImageLoading(false);
@@ -2123,6 +2145,7 @@ function App() {
   const reset = async () => {
     if (state.pending || submitting) return;
     if (state.plan && !window.confirm(labels.confirmReset)) return;
+    setLastTurnSource(null);
     setRequestError("");
     try {
       const replacement = await api<ApiState>("/api/session/reset", {
@@ -2130,6 +2153,7 @@ function App() {
         headers: { "X-CSRF-Token": auth?.csrf_token || "" },
       });
       setState(replacement);
+      setLastTurnSource(null);
       setDestination("");
       setStartDate(today);
       setDays(2);
@@ -2164,6 +2188,7 @@ function App() {
       setState(updated);
       setRequestError("");
     } catch (error) {
+      setLastTurnSource(null);
       setRequestError(apiErrorMessageKey(error, "errorConnection"));
     }
   };
@@ -2603,7 +2628,7 @@ function App() {
                     disabled={state.pending || submitting}
                     className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-primary px-5 font-bold text-white shadow-lg shadow-blue-500/25 hover:bg-blue-500 disabled:opacity-60"
                   >
-                    {state.pending ? (
+                    {state.pending && lastTurnSource === "itinerary" ? (
                       <LoaderCircle className="animate-spin" />
                     ) : (
                       <Sparkles size={18} />
@@ -2613,7 +2638,7 @@ function App() {
                 </div>
               </form>
             </section>
-            {requestError && (
+            {requestError && lastTurnSource !== "chat" && (
               <p
                 className="mt-5 rounded-xl bg-red-50 p-4 text-red-800"
                 role="alert"
@@ -2621,7 +2646,7 @@ function App() {
                 {labels[requestError]}
               </p>
             )}
-            {state.pending && (
+            {state.pending && lastTurnSource === "itinerary" && (
               <section
                 className="mt-7 flex items-center gap-3 rounded-2xl border border-blue-200 bg-blue-50 p-4 text-blue-900"
                 role="status"
@@ -2631,7 +2656,13 @@ function App() {
                 {labels.pending}
               </section>
             )}
-            <TurnStatus response={state.response} />
+            {showTurnStatus && (
+              <TurnStatus
+                response={state.response}
+                language={state.language}
+                simple={lastTurnSource !== "itinerary"}
+              />
+            )}
             {state.plan ? (
               <>
                 <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-blue-100 bg-white p-4 shadow-sm">
@@ -2689,7 +2720,7 @@ function App() {
         setErrors={setErrors}
         submitting={submitting}
         requestError={requestError}
-        onSend={(sent) => submit({ message: sent })}
+        onSend={(sent) => submit({ message: sent }, "chat")}
         language={state.language}
       />}
       <footer className="mx-auto flex max-w-7xl flex-wrap gap-4 px-4 py-8 text-sm text-slate-500 sm:px-6">
