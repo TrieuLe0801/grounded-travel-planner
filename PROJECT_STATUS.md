@@ -15,7 +15,7 @@ runs and experiment records.
 | Area | State | Evidence or open gate |
 |---|---|---|
 | Runtime | Implemented | Coordinator, Planner and Chat roles; bounded search, session context and validate-before-commit behavior are defined in the charter and ADRs 0004, 0009, 0011 and 0012. |
-| Web UI | Route restoration, scoped itinerary feedback and landing usage guide implemented; browser QA pending | JavaScript/Tailwind is the current UI; Streamlit remains available. Refresh restores saved-tour, profile and administrator views after account check; itinerary stays at `/`. The public landing has a bilingual five-step guide. Frontend check/build passed; browser QA and deployment remain pending. |
+| Web UI | Route restoration, scoped itinerary feedback and illustrated landing guide implemented; browser QA pending | JavaScript/Tailwind is the current UI; Streamlit remains available. Refresh restores saved-tour, profile and administrator views after account check; itinerary stays at `/`. The public landing has a bilingual five-step illustrated guide reached by scrolling. Frontend check/build passed; browser QA and deployment remain pending. |
 | Saved tours | PostgreSQL Compose storage available; browser QA pending | Explicitly saved, owner-scoped snapshots are read-only. Verify save, list, detail, delete and owner isolation in a browser. |
 | Authentication | Compose app updated; live verification pending | Public host is www.citedtrip.app. The local app container has its configured Auth0 password connection. Auth0 enablement, sign-in, signup, email verification, OTP, callback, planner access and logout have not been browser-verified. |
 | Account administration | Source and offline integration verified; live QA pending | Account access, usage and deletion are implemented. No live Auth0 deletion request or administrator browser flow was checked. |
@@ -23,6 +23,11 @@ runs and experiment records.
 
 ## Latest verification
 
+- On 2026-11-19, the illustrated landing guide passed `npm run check`,
+  `npm run build`, `git diff --check`, isort, Black, flake8 and Ruff. The offline
+  suite passed 246 tests; one optional PostgreSQL test was skipped. Browser
+  visual, mobile and reduced-motion checks did not run because browser access
+  was unavailable.
 - On 2026-11-19, the landing usage guide passed `npm run check`,
   `npm run build`, `git diff --check`, isort, Black, flake8 and Ruff. The offline
   suite passed 246 tests; one optional PostgreSQL test was skipped. Browser and

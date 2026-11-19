@@ -21,6 +21,14 @@ with its CI run or experiment artifact.
   on the landing page. The public landing now contains a bilingual five-step
   guide and reduced-motion-aware entrance animation. Authentication and
   private planner access remain unchanged.
+- The user then requested images and animation for the guide and removal of
+  the guide jump button. Users reach the illustrated guide by scrolling; its
+  cards animate on entering the viewport, and decorative SVG motion is disabled
+  when reduced motion is preferred.
+- The illustrated update passed frontend check/build, diff check, isort, Black,
+  flake8 and Ruff. The offline suite passed 246 tests; one optional PostgreSQL
+  test was skipped. Browser visual, mobile and reduced-motion checks did not run
+  because browser access was unavailable.
 - Frontend type check, build, diff check, isort, Black, flake8 and Ruff passed.
   The offline suite passed 246 tests with one optional PostgreSQL test skipped.
   Browser and live Auth0 flows did not run.
