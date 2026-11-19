@@ -55,8 +55,7 @@ const catalog = {
       "Tạo lịch tham quan có nguồn tham khảo, rồi trò chuyện để đổi ngày, giờ hoặc địa điểm. Thời lượng và thông tin chưa xác minh luôn được gắn nhãn rõ.",
     emptyTitle: "Lịch trình của bạn sẽ xuất hiện ở đây",
     emptyDescription: "Chọn điểm đến, ngày bắt đầu và số ngày để bắt đầu.",
-    pending:
-      "Coordinator đang phân phối yêu cầu cho Planner và Chat. Bạn có thể tiếp tục xem lịch trình hiện tại.",
+    pending: "Đang chuẩn bị lịch trình…",
     chatTitle: "Trợ lý hành trình",
     chatSubtitle: "Điều chỉnh lịch trình bằng chat",
     chatPlaceholder: "Ví dụ: thêm một ngày…",
@@ -275,8 +274,7 @@ const catalog = {
     emptyTitle: "Your itinerary will appear here",
     emptyDescription:
       "Choose a destination, start date, and number of days to begin.",
-    pending:
-      "The Coordinator is routing your request to Planner and Chat. You can continue viewing your itinerary.",
+    pending: "Preparing your itinerary…",
     chatTitle: "Trip assistant",
     chatSubtitle: "Adjust your itinerary by chat",
     chatPlaceholder: "For example: add one day…",

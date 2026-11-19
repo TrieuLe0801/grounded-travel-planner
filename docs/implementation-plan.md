@@ -1,11 +1,22 @@
 # Implementation Plan
 
 Status: Active
-Last updated: 2026-11-17
+Last updated: 2026-11-19
 
 This plan tracks remaining acceptance and concise changes that affect it.
 Product requirements and accepted architecture are defined in the
 [project charter](project-charter.md) and [ADRs](adr/README.md).
+
+## Implemented update: itinerary and chat feedback — 2026-11-19
+
+The React itinerary page uses plain Vietnamese and English progress text for
+itinerary creation. Chat progress and submission errors stay in the chat
+panel. Ordinary chat responses do not create an itinerary-page notice. A
+committed or rejected chat itinerary change shows a short localized status on
+the itinerary page without repeating the chat response.
+
+`npm ci --offline`, `npm run check`, `npm run build` and `git diff --check`
+passed. Browser QA did not run.
 
 ## Implemented update: authenticated view refresh — 2026-11-17
 

@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-11-17
+Last updated: 2026-11-19
 
 ## Active scope
 
@@ -15,7 +15,7 @@ runs and experiment records.
 | Area | State | Evidence or open gate |
 |---|---|---|
 | Runtime | Implemented | Coordinator, Planner and Chat roles; bounded search, session context and validate-before-commit behavior are defined in the charter and ADRs 0004, 0009, 0011 and 0012. |
-| Web UI | Route restoration implemented; browser QA pending | JavaScript/Tailwind is the current UI; Streamlit remains available. Refresh restores saved-tour, profile and administrator views after account check; itinerary stays at `/`. Frontend check/build passed for PR #20; browser QA and deployment remain pending. |
+| Web UI | Route restoration and scoped itinerary feedback implemented; browser QA pending | JavaScript/Tailwind is the current UI; Streamlit remains available. Refresh restores saved-tour, profile and administrator views after account check; itinerary stays at `/`. Frontend check/build passed for PR #20 and the 2026-11-19 feedback change; browser QA and deployment remain pending. |
 | Saved tours | PostgreSQL Compose storage available; browser QA pending | Explicitly saved, owner-scoped snapshots are read-only. Verify save, list, detail, delete and owner isolation in a browser. |
 | Authentication | Compose app updated; live verification pending | Public host is www.citedtrip.app. The local app container has its configured Auth0 password connection. Auth0 enablement, sign-in, signup, email verification, OTP, callback, planner access and logout have not been browser-verified. |
 | Account administration | Source and offline integration verified; live QA pending | Account access, usage and deletion are implemented. No live Auth0 deletion request or administrator browser flow was checked. |
@@ -23,6 +23,9 @@ runs and experiment records.
 
 ## Latest verification
 
+- On 2026-11-19, React feedback copy and display rules passed `npm run check`,
+  `npm run build` and `git diff --check`. `npm ci --offline` installed the
+  locked frontend dependencies. Browser QA did not run.
 - The local Compose app was rebuilt from commit 34e20ba as image
   sha256:286a871aff073cd2a37586c14a557f96aadc0ac96a588c1f8277a1a3a79c3138.
   A container check confirmed the Auth0 connection setting is present without
