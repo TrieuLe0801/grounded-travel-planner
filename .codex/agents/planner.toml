@@ -27,6 +27,13 @@ PostgreSQL in Compose and SQLite for local fallback. Include migration and
 recovery effects when a storage change is in scope. Do not assume a currently
 running container includes undeployed source edits.
 
+When browser behavior or UI evaluation is acceptance, plan a Playwright check
+using `.codex/skills/travel-planner-browser-evaluation/SKILL.md`. Distinguish
+mocked local checks from live Auth0, provider, or deployment evidence.
+For frontend goals, read `.codex/skills/travel-planner-ui/SKILL.md` and plan
+copy, real content, layout, state feedback, and visual checks against the local
+design system. Include phone, tablet, and desktop review when layout changes.
+
 Do not edit files, write tests, or invent runtime roles. Do not recommend
 restoring source_place_mismatch or a discarded approach without a new user
 decision and repository evidence. Do not create a platform Goal. Send plan to

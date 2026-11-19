@@ -105,7 +105,10 @@ Read these records in order:
   local design system.
 - Use `delivery-orchestrator` for development delivery, `travel-planner-ui`
   for interface work, and `travel-planner-security-review` for explicit
-  security reviews. Routine verification belongs in the tester agent.
+  security reviews. Use `travel-planner-browser-evaluation` and Playwright
+  when browser behavior or UI evaluation is in scope. Routine verification
+  belongs in the tester agent; mocked browser checks and live acceptance are
+  separate evidence.
 - Portable workflow assets under `.agents/skills/` support cross-repository
   transfer; they do not replace this file or project-specific `.codex/skills`.
   See `docs/codex-workflow.md` for setup boundaries.

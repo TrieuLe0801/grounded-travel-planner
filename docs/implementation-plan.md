@@ -1,11 +1,27 @@
 # Implementation Plan
 
 Status: Active
-Last updated: 2026-11-19
+Last updated: 2026-11-20
 
 This plan tracks remaining acceptance and concise changes that affect it.
 Product requirements and accepted architecture are defined in the
 [project charter](project-charter.md) and [ADRs](adr/README.md).
+
+## Implemented update: React interface refresh — 2026-11-20
+
+The public landing and authenticated planner now use clearer bilingual task
+copy and a consistent visual hierarchy. Itinerary cards, chat, saved tours,
+profile and administrator views reuse the existing blue palette, typography
+and controls. Chat before a plan still accepts ordinary questions and explains
+that a plan is needed to edit specific stops. On tablet and desktop, chat opens
+from the sticky authenticated header; the phone keeps its floating control.
+Source links, estimated durations and photo credits remain visible.
+
+`npm run check`, `npm run build`, `git diff --check` and 16 Playwright checks
+passed. Two duplicate mobile-project screenshot sweeps were intentionally
+skipped. Mocked browser screenshots were reviewed at 390, 768, 1024 and 1440
+px for overflow, obscured actions and reduced motion. Live Auth0, provider,
+saved-tour ownership and deployed behavior were not exercised.
 
 ## Implemented update: public usage guide — 2026-11-19
 

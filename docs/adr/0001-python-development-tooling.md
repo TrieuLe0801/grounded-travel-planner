@@ -153,3 +153,24 @@ verification belongs to `AGENTS.md` and Tester. Retain
 and cross-machine setup workflow. Retain delivery, UI, and security-review
 skills for distinct responsibilities. Runtime agent architecture and
 application behavior do not change.
+
+## Amendment — 2026-11-19 — Playwright browser evaluation
+
+Use Playwright for browser testing and UI evaluation in the development
+workflow. The project-authored `travel-planner-browser-evaluation` skill guides
+Tester; UI and delivery skills point to it when browser behavior is in scope.
+Frontend browser regressions run against a local Vite server with mocked API
+responses in desktop and mobile Chromium. Live authentication, saved-tour,
+provider-quality and deployment acceptance remain separate checks against the
+actual target. This adds development test tooling; it does not change the
+webapp runtime or make mocked results live evidence.
+
+## Amendment — 2026-11-19 — Frontend skill review
+
+After reviewing [Taste Skill](https://github.com/Leonxlnx/taste-skill), keep
+the project-authored UI skill and derive fitting guidance for clear copy, real
+product content, coherent layout, purposeful motion and browser inspection.
+Planner, Coordinator and Tester use that guidance within their existing roles.
+The local design system and product rules govern source/photo attribution and
+accessibility. No external skill files, scripts or mandatory visual effects are
+adopted.

@@ -16,6 +16,12 @@ providers behind typed interfaces. For interface work, read
 `.codex/skills/travel-planner-ui/SKILL.md` and the local design system. Never
 load third-party skill bundles.
 
+For frontend work, write the task and action copy before visual polish, show
+real product states and grounded content, and keep one coherent layout using
+existing tokens. Review the rendered page at phone, tablet, and desktop widths
+when visual acceptance is in scope; hand Playwright scenarios and screenshot
+review needs to Tester. Keep motion purposeful and reduced-motion safe.
+
 Keep current product invariants: Vietnamese default with session-selected
 English; captured turn locale; Planner-only plan changes; session-only live
 state; explicit owner-scoped saved snapshots; PostgreSQL in Compose and SQLite

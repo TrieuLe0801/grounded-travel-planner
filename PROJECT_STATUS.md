@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-11-19
+Last updated: 2026-11-20
 
 ## Active scope
 
@@ -15,7 +15,7 @@ runs and experiment records.
 | Area | State | Evidence or open gate |
 |---|---|---|
 | Runtime | Implemented | Coordinator, Planner and Chat roles; bounded search, session context and validate-before-commit behavior are defined in the charter and ADRs 0004, 0009, 0011 and 0012. |
-| Web UI | Route restoration, scoped itinerary feedback and illustrated landing guide implemented; browser QA pending | JavaScript/Tailwind is the current UI; Streamlit remains available. Refresh restores saved-tour, profile and administrator views after account check; itinerary stays at `/`. The public landing has a bilingual five-step illustrated guide reached by scrolling. Frontend check/build passed; browser QA and deployment remain pending. |
+| Web UI | React interface refreshed; mocked browser QA passed; live browser QA pending | Landing, planner, chat, saved tours, profile and admin share clearer copy and visual hierarchy. Playwright passed responsive mocked checks at 390, 768, 1024 and 1440 px. Auth0 and deployed-flow QA remain pending. |
 | Saved tours | PostgreSQL Compose storage available; browser QA pending | Explicitly saved, owner-scoped snapshots are read-only. Verify save, list, detail, delete and owner isolation in a browser. |
 | Authentication | Compose app updated; live verification pending | Public host is www.citedtrip.app. The local app container has its configured Auth0 password connection. Auth0 enablement, sign-in, signup, email verification, OTP, callback, planner access and logout have not been browser-verified. |
 | Account administration | Source and offline integration verified; live QA pending | Account access, usage and deletion are implemented. No live Auth0 deletion request or administrator browser flow was checked. |
@@ -23,6 +23,15 @@ runs and experiment records.
 
 ## Latest verification
 
+- On 2026-11-20, the React UI refresh passed `npm run check`, `npm run build`,
+  `git diff --check` and 16 Playwright checks; two duplicate viewport sweeps
+  were intentionally skipped in the mobile project. Screenshots were reviewed
+  at 390, 768, 1024 and 1440 px. Browser APIs were mocked; live Auth0,
+  provider and deployed-app flows were not run.
+- On 2026-11-19, the new Playwright browser suite passed four mocked public
+  landing checks across desktop and mobile Chromium. Frontend check and build
+  passed. These checks do not establish live Auth0, saved-tour or provider
+  acceptance.
 - On 2026-11-19, the illustrated landing guide passed `npm run check`,
   `npm run build`, `git diff --check`, isort, Black, flake8 and Ruff. The offline
   suite passed 246 tests; one optional PostgreSQL test was skipped. Browser
@@ -53,9 +62,9 @@ runs and experiment records.
 
 1. Verify Auth0 application settings and complete password, signup, email
    verification, OTP, callback, planner and logout flows on www.citedtrip.app.
-2. In a real browser, verify saved-tour operations and owner isolation, then
-   review the React UI at phone and desktop widths, including Home reset,
-   account actions and navigation while a turn is pending.
+2. In the deployed app, verify saved-tour operations and owner isolation, then
+   complete authenticated browser QA for Home reset, account actions and
+   navigation while a turn is pending. Mocked responsive UI checks have passed.
 3. Measure live source relevance, place coverage and host diversity; evaluate
    Chat answer accuracy across factual questions; test reorder and replace
    intents with live evidence.

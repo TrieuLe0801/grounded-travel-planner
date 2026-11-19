@@ -69,6 +69,12 @@ jobs:
           npm run check
           npm run build
 
+      - name: Run mocked browser checks
+        working-directory: frontend
+        run: |
+          npx playwright install --with-deps chromium
+          npm run test:browser
+
       - name: Validate Compose configuration
         run: |
           set -eu

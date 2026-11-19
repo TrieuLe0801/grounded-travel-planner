@@ -45,3 +45,5 @@ dist/
 node_modules/
 .build/
 artifacts/
+playwright-report/
+test-results/
