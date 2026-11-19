@@ -7,6 +7,18 @@ This plan tracks remaining acceptance and concise changes that affect it.
 Product requirements and accepted architecture are defined in the
 [project charter](project-charter.md) and [ADRs](adr/README.md).
 
+## Implemented update: public usage guide — 2026-11-19
+
+The unauthenticated React landing page offers a bilingual five-step usage
+guide before sign-in. It covers account entry, trip input, cited and estimated
+information, chat changes and explicit tour saving. The guide stays within the
+public landing view, with direct sign-in actions retained. Entrance animation
+respects reduced-motion settings.
+
+`npm run check`, `npm run build`, `git diff --check`, isort, Black, flake8 and
+Ruff passed. The offline suite passed 246 tests; one optional PostgreSQL test
+was skipped. Browser and live authentication checks did not run.
+
 ## Implemented update: itinerary and chat feedback — 2026-11-19
 
 The React itinerary page uses plain Vietnamese and English progress text for

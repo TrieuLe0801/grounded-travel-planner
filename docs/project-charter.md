@@ -47,6 +47,11 @@ keeps the current workspace view while the app checks the account; the public
 landing appears only after the app confirms the visitor is unauthenticated.
 The plan and conversation rehydrate from the same server session. See ADR 0021.
 
+The public landing also offers a bilingual guide before sign-in. It explains
+trip setup, source and estimate labels, chat changes and explicit saving. Its
+animation respects reduced-motion preferences. The guide stays within the
+landing view and does not request private planner state.
+
 ADR 0023 adds application administrator access. Existing accounts remain active
 after the explicit migration; new identities with Auth0-verified email can use
 the app without administrator approval. An existing pending identity activates
