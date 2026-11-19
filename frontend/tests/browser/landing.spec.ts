@@ -31,6 +31,16 @@ test("public landing layout at phone, tablet and desktop widths", async ({ page 
     await page.goto("/");
     await expect(page.locator("#how-to-use h3")).toHaveCount(5);
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    if (width === 1440) {
+      const guide = await page.locator("#how-to-use").boundingBox();
+      const cards = await page.locator("#how-to-use li").all();
+      const positions = await Promise.all(cards.map((card) => card.boundingBox()));
+      expect(guide).not.toBeNull();
+      expect(guide!.y).toBeLessThan(900);
+      expect(positions[0]?.y).toBe(positions[1]?.y);
+      expect(positions[1]?.y).toBe(positions[2]?.y);
+      expect(positions[3]!.y).toBeGreaterThan(positions[2]!.y);
+    }
     await page.screenshot({ path: testInfo.outputPath(`landing-${width}.png`), fullPage: true });
   }
 });

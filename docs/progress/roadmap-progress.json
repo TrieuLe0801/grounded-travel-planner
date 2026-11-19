@@ -1,5 +1,5 @@
 {
-  "version": 124,
+  "version": 125,
   "updated": "2026-11-20",
   "active_scope": "city-place-sightseeing-webapp",
   "current_milestone": "Milestone 1: executable city/place sightseeing vertical slice",
@@ -18,8 +18,8 @@
     },
     {
       "id": "web-ui",
-      "state": "React interface refreshed; mocked browser QA passed; live browser QA pending",
-      "summary": "Landing, planner, chat, saved tours, profile and admin use clearer bilingual copy and consistent layout. Frontend check/build and 16 mocked Playwright checks passed on 2026-11-20 across phone, tablet and desktop widths; live Auth0, provider and deployed-flow QA remain pending."
+      "state": "React layout refined; mocked browser QA passed; live browser QA pending",
+      "summary": "An existing plan now leads the workspace; desktop day cards show details beside credited photos. The public illustrated guide appears sooner. Frontend check/build and 18 mocked Playwright checks passed on 2026-11-20 across phone, tablet and desktop widths; live Auth0, provider and deployed-flow QA remain pending."
     },
     {
       "id": "saved-tours",

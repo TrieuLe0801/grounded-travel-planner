@@ -605,7 +605,7 @@ function Photo({ visual, placeName, language }: { visual?: Visual; placeName: st
           href={visual.image_page_url}
           target="_blank"
           rel="noreferrer"
-          className="font-semibold text-accent hover:underline"
+          className="font-semibold text-blue-700 underline underline-offset-2 hover:text-blue-900"
         >
           {labels.photoSource}
         </a>
@@ -674,7 +674,7 @@ function PlanView({
   const labels = text(language);
   const days = Array.from({ length: plan.day_count }, (_, index) => index + 1);
   return (
-    <section aria-labelledby={titleId} className="rise mt-10">
+    <section aria-labelledby={titleId} className="rise mt-8">
       <div className="mb-5 flex flex-wrap items-end justify-between gap-3 border-b border-blue-100 pb-5">
         <div>
           <p className="text-sm font-semibold uppercase tracking-wider text-primary">
@@ -705,7 +705,7 @@ function PlanView({
           {labels.findingPhotos}
         </p>
       )}
-      <div className="grid gap-5 xl:grid-cols-2">
+      <div className="grid gap-5">
         {days.map((day) => {
           const entries = plan.entries
             .filter((entry) => entry.day_index === day)
@@ -727,63 +727,65 @@ function PlanView({
                 {entries.length ? (
                   entries.map((entry, index) => (
                     <article
-                      className="border-l-2 border-blue-300 pl-4"
+                      className="grid gap-5 border-l-2 border-blue-300 pl-4 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.8fr)] lg:gap-8"
                       key={entry.id}
                     >
-                      <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-blue-700">
-                        <Clock3 size={16} />
-                        {entry.start_time.slice(0, 5)}–
-                        {entry.end_time.slice(0, 5)}{" "}
-                        <span className="text-slate-500">·</span> {labels.stop}{" "}
-                        {index + 1}
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-blue-700">
+                          <Clock3 size={16} />
+                          {entry.start_time.slice(0, 5)}–
+                          {entry.end_time.slice(0, 5)}{" "}
+                          <span className="text-slate-500">·</span> {labels.stop}{" "}
+                          {index + 1}
+                        </div>
+                        <h4 className="mt-2 font-heading text-lg font-semibold text-slate-900">
+                          {entry.place.name}
+                        </h4>
+                        <p className="mt-1 text-slate-600">
+                          {entry.place.description}
+                        </p>
+                        <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold">
+                          <span className="rounded-full bg-blue-100 px-3 py-1 text-blue-800">
+                            {labels.visit} ~
+                            {entry.place.visit_minutes_estimate} {labels.minutes}
+                          </span>
+                          <span className="rounded-full bg-blue-50 px-3 py-1 text-blue-700">
+                            {labels.travel} ~
+                            {entry.place.travel_minutes_estimate} {labels.minutes}
+                          </span>
+                          <span className="rounded-full bg-blue-50 px-3 py-1 text-slate-700">
+                            {labels.hours}:{" "}
+                            {entry.place.opening_hours_verified
+                              ? entry.place.opening_hours
+                              : labels.unverified}
+                          </span>
+                        </div>
+                        {entry.notes && (
+                          <p className="mt-3 text-sm text-slate-600">
+                            {entry.notes}
+                          </p>
+                        )}
+                        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-sm">
+                          {entry.place.source_references.map((source) => (
+                            <a
+                              className="inline-flex items-center gap-1 break-words font-semibold text-blue-700 underline decoration-blue-200 underline-offset-4 hover:decoration-blue-700"
+                              key={source.url}
+                              href={source.url}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              {source.title}
+                              <ExternalLink size={14} />
+                            </a>
+                          ))}
+                        </div>
                       </div>
-                      <h4 className="mt-2 font-heading text-lg font-semibold text-slate-900">
-                        {entry.place.name}
-                      </h4>
-                      <p className="mt-1 text-slate-600">
-                        {entry.place.description}
-                      </p>
-                      <div className="mt-4">
+                      <div className="min-w-0">
                         <Photo
                           visual={visuals[entry.id]}
                           placeName={entry.place.name}
                           language={language}
                         />
-                      </div>
-                      <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold">
-                        <span className="rounded-full bg-blue-100 px-3 py-1 text-blue-800">
-                          {labels.visit} ~
-                          {entry.place.visit_minutes_estimate} {labels.minutes}
-                        </span>
-                        <span className="rounded-full bg-blue-50 px-3 py-1 text-blue-700">
-                          {labels.travel} ~
-                          {entry.place.travel_minutes_estimate} {labels.minutes}
-                        </span>
-                        <span className="rounded-full bg-blue-50 px-3 py-1 text-slate-700">
-                          {labels.hours}:{" "}
-                          {entry.place.opening_hours_verified
-                            ? entry.place.opening_hours
-                            : labels.unverified}
-                        </span>
-                      </div>
-                      {entry.notes && (
-                        <p className="mt-3 text-sm text-slate-600">
-                          {entry.notes}
-                        </p>
-                      )}
-                      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-sm">
-                        {entry.place.source_references.map((source) => (
-                          <a
-                            className="inline-flex items-center gap-1 break-words font-semibold text-blue-700 underline decoration-blue-200 underline-offset-4 hover:decoration-blue-700"
-                            key={source.url}
-                            href={source.url}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            {source.title}
-                            <ExternalLink size={14} />
-                          </a>
-                        ))}
                       </div>
                     </article>
                   ))
@@ -2267,7 +2269,7 @@ function App() {
             </div>
           </div>
         </header>
-        <main id="main" className="mx-auto grid min-h-[calc(100dvh-73px)] max-w-7xl items-center gap-10 px-4 py-12 sm:px-6 lg:grid-cols-[1.15fr_.85fr] lg:gap-16 lg:py-20">
+        <main id="main" className="mx-auto grid max-w-7xl items-center gap-10 px-4 py-12 sm:px-6 lg:grid-cols-[1.15fr_.85fr] lg:gap-16 lg:py-20">
           <section className="rise max-w-2xl">
             <p className="mb-4 inline-flex items-center gap-2 rounded-full bg-blue-100 px-3 py-1 text-sm font-semibold text-blue-800"><ShieldCheck size={16} aria-hidden="true" />{labels.landingEyebrow}</p>
             <h1 className="font-heading text-4xl font-bold leading-tight tracking-tight sm:text-5xl lg:text-6xl">{labels.landingTitle}</h1>
@@ -2296,7 +2298,7 @@ function App() {
             <p className="font-semibold text-blue-800">{labels.guideEyebrow}</p>
             <h2 id="guide-title" className="mt-2 font-heading text-3xl font-bold">{labels.guideTitle}</h2>
             <p className="mt-3 max-w-2xl leading-7 text-slate-700">{labels.guideDescription}</p>
-            <ol className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+            <ol className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {([1, 2, 3, 4, 5] as const).map((step) => (
                 <li key={step} className="guide-step rounded-2xl border border-blue-100 bg-blue-50/50 p-5" style={{ animationDelay: `${(step - 1) * 90}ms` }}>
                   <span className="grid size-10 place-items-center rounded-xl bg-primary font-heading font-bold text-white" aria-hidden="true">{step}</span>
@@ -2616,7 +2618,7 @@ function App() {
           />
         ) : (
           <>
-            <section className="grid gap-8 lg:grid-cols-[1.05fr_.95fr] lg:items-center lg:gap-12">
+            {!state.plan && <section className="grid gap-8 lg:grid-cols-[1.05fr_.95fr] lg:items-center lg:gap-12">
               <div className="max-w-2xl">
                 <p className="mb-3 inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-sm font-semibold text-blue-700">
                   <ShieldCheck size={16} />
@@ -2716,7 +2718,7 @@ function App() {
                   </button>
                 </div>
               </form>
-            </section>
+            </section>}
             {requestError && lastTurnSource !== "chat" && (
               <p
                 className="mt-5 rounded-xl bg-red-50 p-4 text-red-800"

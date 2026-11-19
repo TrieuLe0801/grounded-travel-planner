@@ -5,6 +5,21 @@ current status. The [charter](../project-charter.md) and accepted ADRs are the
 source of truth for product and architecture. Historical test output belongs
 with its CI run or experiment artifact.
 
+## 2026-11-20 — Plan-first interface layout
+
+- The user requested another interface analysis and layout improvement, with
+  imagery and effects where useful. Screenshot review showed the trip form
+  delaying the current itinerary, narrow desktop day cards and a large gap
+  before the illustrated public guide. The current plan now leads the workspace;
+  New Trip remains the confirmed reset path. Day cards use full width with
+  credited photos beside place details on desktop. Landing guide cards are
+  wider and appear sooner.
+- Existing local SVG guide illustrations and source-attributed place photos
+  meet the visual need. No additional image or motion was added.
+- Frontend check/build, diff check, 18 mocked Playwright checks, 246 offline
+  tests, and Python quality checks passed. Two duplicate browser sweeps and
+  one optional PostgreSQL test were skipped. Live flows remain pending.
+
 ## 2026-11-20 — React interface refresh
 
 - The user asked to run an interface update using the revised project UI skill.

@@ -7,6 +7,23 @@ This plan tracks remaining acceptance and concise changes that affect it.
 Product requirements and accepted architecture are defined in the
 [project charter](project-charter.md) and [ADRs](adr/README.md).
 
+## Implemented update: plan-first React layout — 2026-11-20
+
+When a current plan exists, the itinerary and explicit save action appear
+without the trip setup form above them. The existing New Trip action still
+confirms before resetting the session. Day cards now span the content width;
+on desktop, place details sit beside the sourced photo and its credit. The
+public landing guide begins sooner and uses wider illustrated cards. Existing
+guide SVGs and provider-attributed place photos supply the imagery; no new
+unsourced image or decorative animation was needed.
+
+Frontend check/build, `git diff --check`, and 18 mocked Playwright checks
+passed; two duplicate mobile viewport sweeps were skipped. Screenshots at
+390, 768, 1024 and 1440 px were inspected. The offline suite passed 246
+tests with one optional PostgreSQL skip using test-only model names. Python
+quality checks passed. No live Auth0, provider, owner-isolation or deployed
+flow was exercised.
+
 ## Implemented update: React interface refresh — 2026-11-20
 
 The public landing and authenticated planner now use clearer bilingual task

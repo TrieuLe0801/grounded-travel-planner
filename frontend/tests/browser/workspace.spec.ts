@@ -87,6 +87,9 @@ test("authenticated planner accepts ordinary chat before a plan", async ({ page 
 test("plan keeps source and estimates visible and chat offers edit examples", async ({ page }) => {
   await mockWorkspace(page, { withPlan: true });
   await page.goto("/");
+  await expect(page.getByLabel("Điểm đến")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Tạo lịch trình" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Chuyến đi mới" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Văn Miếu" })).toBeVisible();
   await expect(page.getByRole("link", { name: /Nguồn kiểm thử/ })).toHaveAttribute("href", "https://example.com/source");
   await expect(page.getByText(/~90/)).toBeVisible();
@@ -95,6 +98,19 @@ test("plan keeps source and estimates visible and chat offers edit examples", as
   await expect(page.getByRole("link", { name: "nguồn ảnh" })).toHaveAttribute("href", "https://example.com/photo");
   await page.getByRole("button", { name: "Mở cửa sổ chat" }).click();
   await expect(page.getByRole("button", { name: "Đổi thứ tự hai điểm tham quan" })).toBeVisible();
+});
+
+test("new trip returns to setup after confirming plan reset", async ({ page }) => {
+  await mockWorkspace(page, { withPlan: true });
+  await page.route("**/api/session/reset", (route) => route.fulfill({
+    contentType: "application/json",
+    body: JSON.stringify({ language: "vi", plan: null, pending: false, response: null, conversation: [] }),
+  }));
+  await page.goto("/");
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.getByRole("button", { name: "Chuyến đi mới" }).click();
+  await expect(page.getByLabel("Điểm đến")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Tạo lịch trình" })).toBeVisible();
 });
 
 test("saved tours, profile and admin keep authenticated navigation", async ({ page }) => {
@@ -133,13 +149,13 @@ test("workspace layout fits representative widths with reduced motion", async ({
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await expect(page.locator(".rise").first()).toHaveCSS("animation-name", "none");
     if (width === 390) {
-      const create = await page.getByRole("button", { name: "Create itinerary" }).boundingBox();
       const chat = await page.getByRole("button", { name: "Open chat" }).boundingBox();
-      expect(create).not.toBeNull();
+      const save = await page.getByRole("button", { name: "Save tour", exact: true }).boundingBox();
       expect(chat).not.toBeNull();
-      const overlapX = Math.min(create!.x + create!.width, chat!.x + chat!.width) - Math.max(create!.x, chat!.x);
-      const overlapY = Math.min(create!.y + create!.height, chat!.y + chat!.height) - Math.max(create!.y, chat!.y);
-      expect(overlapX <= 0 || overlapY <= 0, "chat launcher must not cover the create action").toBe(true);
+      expect(save).not.toBeNull();
+      const overlapX = Math.min(save!.x + save!.width, chat!.x + chat!.width) - Math.max(save!.x, chat!.x);
+      const overlapY = Math.min(save!.y + save!.height, chat!.y + chat!.height) - Math.max(save!.y, chat!.y);
+      expect(overlapX <= 0 || overlapY <= 0, "chat launcher must not cover the save action").toBe(true);
       await expect(page.locator("button.fixed[aria-controls='chat-panel']")).toBeVisible();
     }
     if (width === 768) {
@@ -155,6 +171,16 @@ test("workspace layout fits representative widths with reduced motion", async ({
       await expect(page.locator("header button[aria-controls='chat-panel']")).toBeVisible();
       await expect(page.locator("button.fixed[aria-controls='chat-panel']")).toBeHidden();
       await expect(page.getByRole("heading", { name: "Day 1" })).toBeVisible();
+    }
+    if (width === 1440) {
+      const day = await page.getByRole("heading", { name: "Day 1" }).locator("xpath=..").boundingBox();
+      const photo = await page.getByRole("img", { name: "Ảnh kiểm thử Văn Miếu" }).boundingBox();
+      const place = await page.getByRole("heading", { name: "Văn Miếu" }).boundingBox();
+      expect(day).not.toBeNull();
+      expect(photo).not.toBeNull();
+      expect(place).not.toBeNull();
+      expect(day!.width).toBeGreaterThan(1000);
+      expect(photo!.x).toBeGreaterThan(place!.x + place!.width);
     }
     await page.screenshot({ path: testInfo.outputPath(`workspace-${width}.png`), fullPage: true });
   }

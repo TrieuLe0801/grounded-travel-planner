@@ -15,7 +15,7 @@ runs and experiment records.
 | Area | State | Evidence or open gate |
 |---|---|---|
 | Runtime | Implemented | Coordinator, Planner and Chat roles; bounded search, session context and validate-before-commit behavior are defined in the charter and ADRs 0004, 0009, 0011 and 0012. |
-| Web UI | React interface refreshed; mocked browser QA passed; live browser QA pending | Landing, planner, chat, saved tours, profile and admin share clearer copy and visual hierarchy. Playwright passed responsive mocked checks at 390, 768, 1024 and 1440 px. Auth0 and deployed-flow QA remain pending. |
+| Web UI | React layout refined; mocked browser QA passed; live browser QA pending | The public guide appears sooner, and an existing itinerary takes priority over the trip setup form. Day cards use the available width with place details beside credited photos on desktop. Playwright passed responsive mocked checks at 390, 768, 1024 and 1440 px. Auth0 and deployed-flow QA remain pending. |
 | Saved tours | PostgreSQL Compose storage available; browser QA pending | Explicitly saved, owner-scoped snapshots are read-only. Verify save, list, detail, delete and owner isolation in a browser. |
 | Authentication | Compose app updated; live verification pending | Public host is www.citedtrip.app. The local app container has its configured Auth0 password connection. Auth0 enablement, sign-in, signup, email verification, OTP, callback, planner access and logout have not been browser-verified. |
 | Account administration | Source and offline integration verified; live QA pending | Account access, usage and deletion are implemented. No live Auth0 deletion request or administrator browser flow was checked. |
@@ -23,6 +23,13 @@ runs and experiment records.
 
 ## Latest verification
 
+- On 2026-11-20, the layout refinement passed `npm run check`, `npm run build`,
+  `git diff --check`, and 18 Playwright checks; two duplicate mobile viewport
+  sweeps were skipped. Screenshots were reviewed at 390, 768, 1024 and 1440 px.
+  The offline suite passed 246 tests with one optional PostgreSQL skip after
+  supplying test-only model names. isort, Black, flake8 and Ruff passed.
+  Browser APIs were mocked; live Auth0, provider and deployed-app flows were
+  not run.
 - On 2026-11-20, the React UI refresh passed `npm run check`, `npm run build`,
   `git diff --check` and 16 Playwright checks; two duplicate viewport sweeps
   were intentionally skipped in the mobile project. Screenshots were reviewed
