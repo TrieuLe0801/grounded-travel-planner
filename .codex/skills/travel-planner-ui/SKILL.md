@@ -53,9 +53,33 @@ API flow before changing presentation.
 - Treat saved-tour details as read-only. Keep owner-scoped pages bounded and
   follow API pagination rather than loading the full archive in the browser.
 
+## Design pass
+
+- Start with the user's task, the page's main action, and the real content it
+  must show. Write concise Vietnamese and English copy before polishing layout;
+  headings should name the task or object, and actions should say what happens.
+- Show the actual planner interface, source labels, estimates, and saved-tour
+  behavior when describing the product. Avoid decorative mock data, placeholder
+  claims, and imagery presented as a real place without source and license
+  evidence. Preserve visible source and photo credits required by the charter.
+- Use one coherent layout grid and the existing type, color, spacing, and
+  control styles. Give each section a clear purpose and keep content edges
+  aligned; adapt section height to content rather than forcing a fixed screen.
+- Add motion only when it clarifies entry, feedback, or state. Keep controls
+  responsive to hover, press, and keyboard focus; all content remains visible
+  with reduced motion and without hover. Do not add shader, scroll scene, or
+  animation package just to decorate a travel page.
+- Inspect the rendered page over HTTP at phone, tablet, and desktop widths
+  when visual acceptance is in scope. Review screenshots as well as automated
+  assertions for clipped content, empty visuals, misaligned edges, contrast,
+  long translated copy, and loading or error states. Fix observed failures
+  before reporting the UI ready.
+
 ## Evidence
 
 Run only the checks required by the user request and project acceptance. Report
 static, frontend-build, browser, container and live-provider evidence
 separately. Claim browser behavior only after browser interaction; claim a
 deployed change only after checking the running image.
+For browser behavior or visual evaluation, follow
+`.codex/skills/travel-planner-browser-evaluation/SKILL.md` and use Playwright.

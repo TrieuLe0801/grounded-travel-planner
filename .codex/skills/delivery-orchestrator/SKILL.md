@@ -43,7 +43,8 @@ For implementation goals, use the project roles in order:
    choices, and integrates changes.
 4. **Tester** verifies the change against the Goal Card. Tester derives
    expectations from contracts or independent inputs and reports every failed
-   check with its error and cause.
+   check with its error and cause. Browser acceptance uses the project-authored
+   `travel-planner-browser-evaluation` skill and Playwright.
 5. **Deployer** opens a requested PR to `main`; deploys or releases only when
    the Goal Card includes that outcome and project gates allow it.
 

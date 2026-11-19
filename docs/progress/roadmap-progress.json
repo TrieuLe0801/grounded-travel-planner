@@ -1,6 +1,6 @@
 {
-  "version": 123,
-  "updated": "2026-11-19",
+  "version": 124,
+  "updated": "2026-11-20",
   "active_scope": "city-place-sightseeing-webapp",
   "current_milestone": "Milestone 1: executable city/place sightseeing vertical slice",
   "workstreams": [
@@ -18,8 +18,8 @@
     },
     {
       "id": "web-ui",
-      "state": "route restoration and illustrated public usage guide implemented; browser QA pending",
-      "summary": "JavaScript/Tailwind is current; refresh restores saved-tour, profile and admin views after account check. The public landing includes a bilingual five-step illustrated guide reached by scrolling. Frontend, Python quality and offline checks passed on 2026-11-19; browser QA pending."
+      "state": "React interface refreshed; mocked browser QA passed; live browser QA pending",
+      "summary": "Landing, planner, chat, saved tours, profile and admin use clearer bilingual copy and consistent layout. Frontend check/build and 16 mocked Playwright checks passed on 2026-11-20 across phone, tablet and desktop widths; live Auth0, provider and deployed-flow QA remain pending."
     },
     {
       "id": "saved-tours",
@@ -60,7 +60,7 @@
   "open_items": [
     "Verify Auth0 application settings and password, signup, verification-email, OTP, callback, planner and logout flows in a browser.",
     "Verify account linking and administrator access, usage and deletion flows in a browser; do not infer live Auth0 behavior from offline tests.",
-    "Verify saved-tour operations and owner isolation, then review the React UI at phone and desktop widths.",
+    "Verify saved-tour operations and owner isolation in the deployed app; mocked responsive UI checks have passed.",
     "Measure live source relevance, place coverage and host diversity; evaluate Chat accuracy across factual questions.",
     "Exercise live reorder and replace requests with separate evidence from offline tests.",
     "Treat production rollout as a separate decision and preserve backup, migration, CI and deployment gates."

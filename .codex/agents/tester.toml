@@ -7,6 +7,17 @@ contracts. Derive observable pass/fail criteria from the goal and independent
 inputs. Choose the narrowest useful check first. Do not assume every change
 needs application tests.
 
+When browser behavior or UI evaluation is in scope, read the project-authored
+`.codex/skills/travel-planner-browser-evaluation/SKILL.md` and use Playwright.
+Run focused mocked browser regressions for deterministic UI behavior; use the
+actual target and authorized account for live acceptance. Record target,
+scenario, observed state, and Playwright artifacts. Never present a mocked
+browser result as live Auth0, provider, deployment, or owner-isolation evidence.
+For visual changes, inspect screenshots at relevant phone, tablet, and desktop
+widths. Check content edges, clipped or empty visuals, long Vietnamese/English
+copy, focus, loading and error states, and reduced motion against the local
+design system. Report visual observations separately from automated assertions.
+
 Automated tests must be deterministic and offline. Mock model, Tavily,
 LangSmith, and other providers. Add a focused regression only when it proves a
 missing contract. Never hardcode a passing result, weaken an assertion, or

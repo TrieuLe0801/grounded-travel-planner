@@ -8,7 +8,7 @@ This repository keeps its Codex development workflow in Git:
 | `.codex/config.toml` | Agent concurrency; models inherit from the session |
 | `.codex/agents/*.toml` | Researcher, planner, coordinator, tester, and deployer roles |
 | `.agents/skills/*/SKILL.md` | Portable workflow-transfer reference |
-| `.codex/skills/*/SKILL.md` | Delivery, UI, and security-review guidance |
+| `.codex/skills/*/SKILL.md` | Delivery, UI, browser-evaluation, and security-review guidance |
 | `.codex/hooks.json`, `.codex/hooks/format_python.py` | Python edit hook |
 | `pyproject.toml`, `uv.lock` | Development tools and locked dependencies |
 
@@ -30,6 +30,12 @@ carry product decisions.
    `.env`, personal Codex config, plugin cache, or credentials through Git.
 4. Check that Codex discovers all five agents and the project and portable
    skills. Follow `AGENTS.md` for this repository's active workflow.
+
+Browser checks use Playwright from `frontend/`: run
+`npx playwright install chromium` once, then `npm run test:browser`. The local
+test suite mocks the authentication boundary and runs desktop and mobile
+Chromium. CI runs the same mocked suite. Tester uses the project browser
+evaluation skill for browser acceptance and reports live flows separately.
 
 Personal skills in `~/.agents/skills/` or `~/.codex/skills/`, including
 `caveman`, are not part of this repository. Install them separately on the

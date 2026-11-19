@@ -5,6 +5,42 @@ current status. The [charter](../project-charter.md) and accepted ADRs are the
 source of truth for product and architecture. Historical test output belongs
 with its CI run or experiment artifact.
 
+## 2026-11-20 — React interface refresh
+
+- The user asked to run an interface update using the revised project UI skill.
+  The landing, planner, chat, saved-tour, profile and administrator surfaces now
+  use clearer bilingual copy and a consistent visual hierarchy. Ordinary chat
+  remains available before an itinerary exists.
+- Screenshot review found the floating chat button obscuring actions at phone
+  and tablet widths. The phone create action now leaves room for that button;
+  tablet and desktop use a sticky-header chat control instead. The admin view
+  does not offer chat.
+- Frontend check/build and diff check passed. Playwright passed 16 mocked
+  browser checks with two intentional duplicate-sweep skips. Screenshots at
+  390, 768, 1024 and 1440 px were reviewed. Live Auth0, providers, owner
+  isolation and deployed flows were not run.
+
+## 2026-11-19 — Playwright browser evaluation workflow
+
+- The user directed test and evaluation skills and agents to use Playwright.
+  Tester now follows a project-authored browser evaluation skill. Frontend
+  browser tests cover the public landing in desktop and mobile Chromium with
+  mocked authentication. Live Auth0, saved-tour and source-quality acceptance
+  remain separate and must be observed on the actual target.
+- `npm run check`, `npm run build` and `npm run test:browser` passed. Playwright
+  ran four checks across desktop and mobile Chromium. The first sandboxed
+  browser run could not bind localhost (`EPERM`); the permitted rerun passed.
+
+## 2026-11-19 — Frontend and UI skill guidance
+
+- The user asked to read [Taste Skill](https://github.com/Leonxlnx/taste-skill)
+  and update related frontend/UI skills and agents. The project-authored UI
+  skill now asks for task-first copy, real product states, one coherent layout,
+  purposeful motion and rendered browser review at phone, tablet and desktop
+  widths. Planner, Coordinator and Tester carry the matching responsibilities.
+  Project photo attribution, grounded claims, reduced motion and the existing
+  design system remain authoritative. No external skill bundle was installed.
+
 ## 2026-11-19 — Itinerary and chat feedback
 
 - The React itinerary page uses plain progress text while creating an

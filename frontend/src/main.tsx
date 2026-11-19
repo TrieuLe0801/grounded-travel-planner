@@ -674,13 +674,13 @@ function PlanView({
   const labels = text(language);
   const days = Array.from({ length: plan.day_count }, (_, index) => index + 1);
   return (
-    <section aria-labelledby={titleId} className="rise mt-8">
-      <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
+    <section aria-labelledby={titleId} className="rise mt-10">
+      <div className="mb-5 flex flex-wrap items-end justify-between gap-3 border-b border-blue-100 pb-5">
         <div>
           <p className="text-sm font-semibold uppercase tracking-wider text-primary">
             {statusLabel ?? labels.verified}
           </p>
-          <h2 id={titleId} className="font-heading text-2xl font-bold">
+          <h2 id={titleId} className="mt-1 font-heading text-2xl font-bold tracking-tight sm:text-3xl">
             {plan.destination}{" "}
             <span className="text-slate-500">· v{plan.revision}</span>
           </h2>
@@ -716,15 +716,18 @@ function PlanView({
             );
           return (
             <article
-              className="rounded-3xl border border-blue-100 bg-white p-5 shadow-sm"
+              className="rounded-3xl border border-blue-100 bg-white p-5 shadow-lg shadow-blue-900/5 sm:p-6"
               key={day}
             >
-              <h3 className="font-heading text-lg font-bold">{labels.day} {day}</h3>
-              <div className="mt-4 space-y-6">
+              <h3 className="flex items-center gap-3 font-heading text-lg font-bold text-slate-900">
+                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary text-white" aria-hidden="true">{day}</span>
+                {labels.day} {day}
+              </h3>
+              <div className="mt-5 space-y-6 border-t border-blue-100 pt-5">
                 {entries.length ? (
                   entries.map((entry, index) => (
                     <article
-                      className="border-l-2 border-blue-500 pl-4"
+                      className="border-l-2 border-blue-300 pl-4"
                       key={entry.id}
                     >
                       <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-blue-700">
@@ -734,7 +737,7 @@ function PlanView({
                         <span className="text-slate-500">·</span> {labels.stop}{" "}
                         {index + 1}
                       </div>
-                      <h4 className="mt-1 font-heading text-lg font-semibold">
+                      <h4 className="mt-2 font-heading text-lg font-semibold text-slate-900">
                         {entry.place.name}
                       </h4>
                       <p className="mt-1 text-slate-600">
@@ -771,7 +774,7 @@ function PlanView({
                       <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-sm">
                         {entry.place.source_references.map((source) => (
                           <a
-                            className="inline-flex items-center gap-1 font-semibold text-accent underline-offset-4 hover:underline"
+                            className="inline-flex items-center gap-1 break-words font-semibold text-blue-700 underline decoration-blue-200 underline-offset-4 hover:decoration-blue-700"
                             key={source.url}
                             href={source.url}
                             target="_blank"
@@ -1044,7 +1047,7 @@ function ChatWidget({
       {open && (
         <section
           id="chat-panel"
-          className="chat-panel fixed bottom-24 right-4 z-40 flex h-[min(620px,calc(100dvh-7rem))] w-[calc(100vw-2rem)] max-w-md flex-col overflow-hidden rounded-3xl border border-slate-300 bg-white shadow-2xl shadow-slate-900/10 sm:right-6"
+          className="chat-panel fixed bottom-24 right-4 z-40 flex h-[min(620px,calc(100dvh-7rem))] w-[calc(100vw-2rem)] max-w-md flex-col overflow-hidden rounded-3xl border border-blue-200 bg-white shadow-2xl shadow-blue-950/15 sm:right-6"
           role="dialog"
           aria-labelledby="chat-panel-title"
         >
@@ -1073,17 +1076,17 @@ function ChatWidget({
             </button>
           </header>
 
-          <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
+          <div className="min-h-0 flex-1 overflow-y-auto bg-white p-4 sm:p-5">
             <div className="space-y-4">
               {messages.length === 0 && (
                 <>
                   <ChatBubble
                     role="agent"
-                    content={labels.chatEmpty}
+                    content={state.plan ? labels.chatEmpty : labels.chatBeforePlan}
                     language={language}
                   />
-                  <div className="ml-auto grid max-w-[88%] gap-2">
-                  {labels.chatExamples.map((example) => (
+                  {state.plan && <div className="ml-auto grid max-w-[88%] gap-2">
+                    {labels.chatExamples.map((example) => (
                       <button
                         type="button"
                         key={example}
@@ -1093,7 +1096,7 @@ function ChatWidget({
                         {example}
                       </button>
                     ))}
-                  </div>
+                  </div>}
                 </>
               )}
               {messages.map((chatMessage) => (
@@ -1116,7 +1119,7 @@ function ChatWidget({
           </div>
 
           <form
-            className="border-t border-slate-300 bg-blue-50 p-3 sm:p-4"
+            className="border-t border-blue-100 bg-blue-50/70 p-3 sm:p-4"
             onSubmit={submitChat}
           >
             <label className="sr-only" htmlFor="chat-widget-input">
@@ -1163,7 +1166,7 @@ function ChatWidget({
       <button
         type="button"
         onClick={() => onOpenChange(!open)}
-        className="fixed bottom-4 right-4 z-40 inline-flex min-h-14 min-w-14 items-center justify-center rounded-full bg-primary text-white shadow-xl shadow-blue-900/20 transition hover:-translate-y-0.5 hover:bg-blue-500 focus-visible:ring-4 focus-visible:ring-blue-400 sm:bottom-6 sm:right-6"
+        className="fixed bottom-4 right-4 z-40 inline-flex min-h-14 min-w-14 items-center justify-center rounded-full bg-primary text-white shadow-xl shadow-blue-900/20 transition hover:bg-blue-500 focus-visible:ring-4 focus-visible:ring-blue-400 md:hidden"
         aria-expanded={open}
         aria-controls="chat-panel"
         aria-label={open ? labels.closeChat : labels.openChat}
@@ -1216,7 +1219,7 @@ function SavedToursView({
       timeStyle: "short",
     }).format(new Date(value));
   return (
-    <section aria-labelledby="saved-tours-title" className="rise mt-8">
+    <section aria-labelledby="saved-tours-title" className="rise mt-4">
       <button
         type="button"
         onClick={onBack}
@@ -1226,8 +1229,8 @@ function SavedToursView({
         {labels.back}
       </button>
       <div className="mt-4 grid gap-6 lg:grid-cols-[minmax(17rem,.7fr)_minmax(0,1.3fr)]">
-        <aside className="rounded-3xl border border-blue-100 bg-white p-5 shadow-sm sm:p-6">
-          <h1 id="saved-tours-title" className="font-heading text-2xl font-bold">
+        <aside className="self-start rounded-3xl border border-blue-100 bg-white p-5 shadow-lg shadow-blue-900/5 sm:p-6">
+          <h1 id="saved-tours-title" className="font-heading text-2xl font-bold tracking-tight sm:text-3xl">
             {labels.savedTours}
           </h1>
           <p className="mt-2 text-sm leading-6 text-slate-600">{labels.savedToursDescription}</p>
@@ -1266,7 +1269,7 @@ function SavedToursView({
                     onClick={() => onSelect(tour.id)}
                     aria-current={selected ? "page" : undefined}
                     aria-busy={loadingId === tour.id}
-                    className={`min-h-11 min-w-0 flex-1 rounded-xl border p-3 text-left transition ${selected ? "border-primary bg-blue-50" : "border-slate-200 hover:border-blue-300 hover:bg-blue-50/50"}`}
+                    className={`min-h-11 min-w-0 flex-1 rounded-xl border p-4 text-left transition ${selected ? "border-primary bg-blue-50 ring-1 ring-blue-200" : "border-blue-100 bg-white hover:border-blue-300 hover:bg-blue-50/50"}`}
                   >
                     <span className="flex items-center gap-2 font-semibold text-slate-900">
                       {tour.title}
@@ -1331,7 +1334,7 @@ function SavedToursView({
               />
             </>
           ) : (
-            <div className="rounded-3xl border border-dashed border-blue-200 bg-white/80 p-8 text-center text-slate-600">
+            <div className="grid min-h-60 place-content-center rounded-3xl border border-dashed border-blue-200 bg-white p-8 text-center text-slate-600 shadow-sm">
               <Save className="mx-auto mb-3 text-primary" aria-hidden="true" />
               <p>{labels.savedToursSelect}</p>
             </div>
@@ -1409,8 +1412,8 @@ function AdminUsersView({
       <button type="button" onClick={onBack} className="inline-flex min-h-11 items-center gap-2 rounded-xl px-3 font-semibold text-slate-700 hover:bg-blue-100 focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300">
         <ArrowLeft size={18} aria-hidden="true" />{labels.back}
       </button>
-      <div className="mt-5 rounded-3xl border border-blue-100 bg-white p-5 shadow-sm sm:p-8">
-        <h1 id="admin-title" className="font-heading text-2xl font-bold">{labels.adminUsers}</h1>
+      <div className="mt-5 rounded-3xl border border-blue-100 bg-white p-5 shadow-lg shadow-blue-900/5 sm:p-8">
+        <h1 id="admin-title" className="font-heading text-2xl font-bold tracking-tight sm:text-3xl">{labels.adminUsers}</h1>
         <p className="mt-2 text-sm leading-6 text-slate-600">{labels.adminUsageNote}</p>
         {error && <p className="mt-4 rounded-xl bg-red-50 p-4 text-red-800" role="alert">{labels[error]}</p>}
         {!usageAvailable && <p className="mt-4 rounded-xl bg-amber-50 p-4 text-amber-900" role="status">{labels.adminUsageUnavailable}</p>}
@@ -1419,7 +1422,7 @@ function AdminUsersView({
         {!loading && users.length === 0 && !error && <p className="mt-5 text-slate-600">{labels.adminEmpty}</p>}
         <ul className="mt-5 grid gap-4" aria-busy={loading}>
           {users.map((user) => (
-            <li key={user.id} className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-5">
+            <li key={user.id} className="min-w-0 rounded-2xl border border-blue-100 bg-blue-50/40 p-4 sm:p-5">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
                   <h2 className="break-all font-semibold text-slate-900">{user.email || user.id}</h2>
@@ -2252,7 +2255,7 @@ function App() {
         <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 rounded bg-white p-3">
           {labels.skip}
         </a>
-        <header className="border-b border-blue-100 bg-white/90 backdrop-blur">
+        <header className="border-b border-blue-100 bg-white/95 shadow-sm shadow-blue-900/5 backdrop-blur">
           <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6">
             <div className="flex items-center gap-3 font-heading font-bold">
               <span className="grid size-10 place-items-center rounded-2xl bg-primary text-white"><Compass aria-hidden="true" /></span>
@@ -2264,19 +2267,19 @@ function App() {
             </div>
           </div>
         </header>
-        <main id="main" className="mx-auto grid min-h-[calc(100dvh-73px)] max-w-7xl items-center gap-10 px-4 py-12 sm:px-6 lg:grid-cols-[1.15fr_.85fr] lg:py-20">
+        <main id="main" className="mx-auto grid min-h-[calc(100dvh-73px)] max-w-7xl items-center gap-10 px-4 py-12 sm:px-6 lg:grid-cols-[1.15fr_.85fr] lg:gap-16 lg:py-20">
           <section className="rise max-w-2xl">
             <p className="mb-4 inline-flex items-center gap-2 rounded-full bg-blue-100 px-3 py-1 text-sm font-semibold text-blue-800"><ShieldCheck size={16} aria-hidden="true" />{labels.landingEyebrow}</p>
-            <h1 className="font-heading text-4xl font-bold tracking-tight sm:text-6xl">{labels.landingTitle}</h1>
-            <p className="mt-6 max-w-xl text-lg leading-8 text-slate-700">{labels.landingDescription}</p>
-            <ul className="mt-8 grid gap-3 text-slate-700" aria-label={labels.landingEyebrow}>
+            <h1 className="font-heading text-4xl font-bold leading-tight tracking-tight sm:text-5xl lg:text-6xl">{labels.landingTitle}</h1>
+            <p className="mt-6 max-w-xl border-l-4 border-primary pl-5 text-lg leading-8 text-slate-700">{labels.landingDescription}</p>
+            <ul className="mt-8 grid gap-4 text-slate-700" aria-label={labels.landingEyebrow}>
               <li className="flex items-start gap-3"><CheckCircle2 className="mt-0.5 shrink-0 text-primary" size={20} aria-hidden="true" />{labels.landingEvidence}</li>
               <li className="flex items-start gap-3"><MessageCircle className="mt-0.5 shrink-0 text-primary" size={20} aria-hidden="true" />{labels.landingChat}</li>
             </ul>
           </section>
-          <section className="rise rounded-3xl bg-white p-7 shadow-xl shadow-blue-900/10 ring-1 ring-blue-100 sm:p-9" aria-labelledby="landing-action-title">
+          <section className="rise rounded-3xl border border-blue-100 bg-white p-7 shadow-xl shadow-blue-900/10 sm:p-9" aria-labelledby="landing-action-title">
             <Compass className="size-9 text-primary" aria-hidden="true" />
-            <h2 id="landing-action-title" className="mt-5 font-heading text-2xl font-bold">{labels.landingActionTitle}</h2>
+            <h2 id="landing-action-title" className="mt-5 font-heading text-2xl font-bold tracking-tight">{labels.landingActionTitle}</h2>
             <p className="mt-3 leading-7 text-slate-700">{auth === null ? labels.authChecking : labels.landingAccess}</p>
             {authError && <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-800" role="alert">{labels[authError]}</p>}
             {authError === "authLinkRequired" && <button type="button" onClick={() => signIn("/", "existing")} className="mt-3 inline-flex min-h-11 items-center rounded-xl border border-blue-200 bg-white px-4 font-semibold text-blue-800 focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300">{labels.signInExisting}</button>}
@@ -2336,14 +2339,14 @@ function App() {
     );
   }
   return (
-    <div className="min-h-dvh">
+    <div className="min-h-dvh bg-gradient-to-b from-blue-50/80 via-white to-blue-50/50">
       <a
         href="#main"
         className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 rounded bg-white p-3"
       >
         {labels.skip}
       </a>
-      <header className="relative z-10 border-b border-blue-100 bg-white/90 backdrop-blur">
+      <header className="relative z-10 border-b border-blue-100 bg-white/95 shadow-sm shadow-blue-900/5 backdrop-blur md:sticky md:top-0 md:z-30">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6">
           <button
             type="button"
@@ -2371,8 +2374,8 @@ function App() {
                 onClick={() => void changeLanguage("vi")}
                 className={`min-h-9 min-w-10 rounded-lg px-2 text-sm font-bold transition-colors ${state.language === "vi" ? "bg-primary text-white shadow-sm" : "text-slate-700 hover:bg-white"}`}
               >
-                <span className="sm:hidden">VI</span>
-                <span className="hidden sm:inline">{labels.languageVietnamese}</span>
+                <span className="lg:hidden">VI</span>
+                <span className="hidden lg:inline">{labels.languageVietnamese}</span>
               </button>
               <button
                 type="button"
@@ -2382,10 +2385,24 @@ function App() {
                 onClick={() => void changeLanguage("en")}
                 className={`min-h-9 min-w-10 rounded-lg px-2 text-sm font-bold transition-colors ${state.language === "en" ? "bg-primary text-white shadow-sm" : "text-slate-700 hover:bg-white"}`}
               >
-                <span className="sm:hidden">EN</span>
-                <span className="hidden sm:inline">{labels.languageEnglish}</span>
+                <span className="lg:hidden">EN</span>
+                <span className="hidden lg:inline">{labels.languageEnglish}</span>
               </button>
             </div>
+            {view !== "admin" && (
+              <button
+                type="button"
+                onClick={() => setChatOpen((open) => !open)}
+                aria-expanded={chatOpen}
+                aria-controls="chat-panel"
+                aria-label={chatOpen ? labels.closeChat : labels.openChat}
+                title={chatOpen ? labels.closeChat : labels.openChat}
+                className="hidden min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl px-3 text-sm font-semibold text-slate-700 hover:bg-blue-50 focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300 md:inline-flex"
+              >
+                {chatOpen ? <X size={18} aria-hidden="true" /> : <MessageCircle size={18} aria-hidden="true" />}
+                <span className="hidden xl:inline">{chatOpen ? labels.closeChat : labels.openChat}</span>
+              </button>
+            )}
             <div className="relative" ref={accountMenuRef}>
               <button
                 ref={accountTriggerRef}
@@ -2401,7 +2418,7 @@ function App() {
                 className="inline-flex min-h-11 max-w-40 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-slate-700 hover:bg-blue-50 focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300 sm:max-w-56"
               >
                 <UserRound size={17} className="shrink-0" aria-hidden="true" />
-                <span className="hidden truncate sm:inline">{accountName}</span>
+                <span className="hidden truncate lg:inline">{accountName}</span>
                 <ChevronDown
                   size={15}
                   className={`shrink-0 transition-transform ${accountOpen ? "rotate-180" : ""}`}
@@ -2490,7 +2507,7 @@ function App() {
               className="inline-flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-slate-700 hover:bg-blue-50 disabled:opacity-50"
             >
               <RotateCcw size={17} />
-              <span className="hidden sm:inline">{labels.newTrip}</span>
+              <span className="hidden lg:inline">{labels.newTrip}</span>
             </button>
           </div>
         </div>
@@ -2499,11 +2516,11 @@ function App() {
         {authError && <p className="mb-5 rounded-xl bg-red-50 p-4 text-red-800" role="alert">{labels[authError]}</p>}
         {authNotice && <p className="mb-5 rounded-xl bg-green-50 p-4 text-green-800" role="status">{labels[authNotice]}</p>}
         {view === "profile" ? (
-          <section className="rise mx-auto max-w-2xl rounded-3xl border border-blue-100 bg-white p-6 shadow-sm sm:p-8" aria-labelledby="profile-title">
+          <section className="rise mx-auto max-w-2xl rounded-3xl border border-blue-100 bg-white p-6 shadow-lg shadow-blue-900/5 sm:p-8" aria-labelledby="profile-title">
             <button type="button" onClick={() => { setView("itinerary"); accountTriggerRef.current?.focus(); }} className="inline-flex min-h-11 items-center gap-2 rounded-xl px-3 font-semibold text-slate-700 hover:bg-blue-50 focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300">
               <ArrowLeft size={18} aria-hidden="true" />{labels.back}
             </button>
-            <h1 ref={profileHeadingRef} id="profile-title" tabIndex={-1} className="mt-5 font-heading text-2xl font-bold text-slate-900 focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300">{labels.profileTitle}</h1>
+            <h1 ref={profileHeadingRef} id="profile-title" tabIndex={-1} className="mt-5 font-heading text-2xl font-bold tracking-tight text-slate-900 focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300 sm:text-3xl">{labels.profileTitle}</h1>
             <p className="mt-2 text-slate-600">{labels.profileDescription}</p>
             <dl className="mt-6 divide-y divide-blue-100 rounded-2xl border border-blue-100">
               <div className="px-4 py-3">
@@ -2599,30 +2616,30 @@ function App() {
           />
         ) : (
           <>
-            <section className="grid gap-8 lg:grid-cols-[1.05fr_.95fr] lg:items-center">
-              <div>
+            <section className="grid gap-8 lg:grid-cols-[1.05fr_.95fr] lg:items-center lg:gap-12">
+              <div className="max-w-2xl">
                 <p className="mb-3 inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-sm font-semibold text-blue-700">
                   <ShieldCheck size={16} />
                   {labels.badge}
                 </p>
-                <h1 className="font-heading text-4xl font-bold tracking-tight sm:text-5xl">
+                <h1 className="font-heading text-4xl font-bold leading-tight tracking-tight sm:text-5xl">
                   {labels.heroTitle}
                   <br />
                   <span className="text-primary">{labels.heroAccent}</span>
                 </h1>
-                <p className="mt-5 max-w-xl text-lg leading-8 text-slate-600">
+                <p className="mt-6 max-w-xl border-l-4 border-primary pl-5 text-lg leading-8 text-slate-700">
                   {labels.heroDescription}
                 </p>
               </div>
               <form
                 noValidate
                 onSubmit={makePlan}
-                className="rounded-3xl bg-white p-5 shadow-xl shadow-blue-900/10 ring-1 ring-blue-100 sm:p-7"
+                className="rounded-3xl border border-blue-100 bg-white p-6 shadow-xl shadow-blue-900/10 sm:p-8"
               >
-                <h2 className="font-heading text-xl font-bold">
+                <h2 className="font-heading text-xl font-bold tracking-tight">
                   {labels.startJourney}
                 </h2>
-                <div className="mt-5 grid gap-4">
+                <div className="mt-6 grid gap-5">
                   <label className="font-semibold" htmlFor="destination">
                     {labels.destination}
                     <input
@@ -2688,7 +2705,7 @@ function App() {
                   </div>
                   <button
                     disabled={state.pending || submitting}
-                    className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-primary px-5 font-bold text-white shadow-lg shadow-blue-500/25 hover:bg-blue-500 disabled:opacity-60"
+                    className="inline-flex min-h-12 items-center justify-center justify-self-start gap-2 rounded-xl bg-primary px-5 font-bold text-white shadow-lg shadow-blue-500/25 hover:bg-blue-500 disabled:opacity-60"
                   >
                     {state.pending && lastTurnSource === "itinerary" ? (
                       <LoaderCircle className="animate-spin" />
@@ -2727,7 +2744,7 @@ function App() {
             )}
             {state.plan ? (
               <>
-                <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-blue-100 bg-white p-4 shadow-sm">
+                <div className="mt-8 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-blue-100 bg-white p-5 shadow-sm sm:p-6">
                   <div>
                     <p className="font-semibold text-slate-900">{labels.saveTour}</p>
                     <p className="mt-1 text-sm text-slate-600">{labels.saveTourDescription}</p>
@@ -2759,7 +2776,7 @@ function App() {
                 />
               </>
             ) : (
-              <section className="mt-8 rounded-3xl border border-dashed border-blue-200 bg-white/80 p-8 text-center text-slate-600">
+              <section className="mt-10 grid min-h-52 place-content-center rounded-3xl border border-dashed border-blue-200 bg-white p-8 text-center text-slate-600 shadow-sm">
                 <Compass className="mx-auto mb-3 text-primary" />
                 <h2 className="font-heading text-xl font-bold text-slate-900">
                   {labels.emptyTitle}

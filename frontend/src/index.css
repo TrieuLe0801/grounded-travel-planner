@@ -53,6 +53,11 @@
     }
   }
 }
+@media (prefers-reduced-motion: reduce) {
+  .animate-spin {
+    animation: none;
+  }
+}
 @media (prefers-reduced-motion: no-preference) {
   .rise {
     animation: rise 0.35s ease-out both;
