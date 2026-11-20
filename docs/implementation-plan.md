@@ -7,6 +7,25 @@ This plan tracks remaining acceptance and concise changes that affect it.
 Product requirements and accepted architecture are defined in the
 [project charter](project-charter.md) and [ADRs](adr/README.md).
 
+## Implemented update: UI trend proposal — 2026-11-20
+
+Implemented the proposal's high-priority landing and itinerary changes. On
+phone, sign-in actions now precede the introduction and fit in the first
+390×844 viewport. The itinerary header places destination, date, day count and
+explicit snapshot-save action together. Multi-day itineraries provide
+keyboard-accessible links to each day; one-day plans omit that navigation.
+Missing photos use a compact message while actual source links, photo credits,
+estimated durations and unverified-hours labels remain visible. English day
+counts use singular/plural forms, and language/calendar controls meet the
+project's 44px target.
+
+`npm run check`, `npm run build`, `git diff --check` and 17 mocked Chromium
+checks passed. Screenshots were generated at 390, 768, 1024 and 1440 px; the
+landing and itinerary were inspected at phone and desktop sizes. The suite
+checked reduced motion, page overflow, reset confirmation, pending-turn
+language switching and existing source/photo/chat behavior. Live Auth0,
+provider, saved-tour ownership and deployed flows were not exercised.
+
 ## Implemented update: plan-first React layout — 2026-11-20
 
 When a current plan exists, the itinerary and explicit save action appear

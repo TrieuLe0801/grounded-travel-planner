@@ -5,6 +5,36 @@ current status. The [charter](../project-charter.md) and accepted ADRs are the
 source of truth for product and architecture. Historical test output belongs
 with its CI run or experiment artifact.
 
+## 2026-11-20 — Implemented UI trend proposal priorities
+
+- Based on the review, moved landing sign-in above the introduction on mobile,
+  grouped itinerary identity and explicit snapshot save, added accessible day
+  links for longer plans, compacted missing-photo feedback, corrected English
+  day singular/plural, and raised language/calendar targets to 44px.
+- Kept all five guide steps, session and pending-turn language behavior, reset
+  confirmation, saved-tour read-only behavior, source links, photo credits,
+  estimates and unverified-hours labels. No new image, package or API/runtime
+  behavior was added.
+- Frontend check/build and diff check passed. Playwright passed 17 mocked
+  Chromium checks, including phone/tablet/desktop widths, keyboard day jump,
+  missing photo, touch targets and pending language switch. Screenshots were
+  generated at 390/768/1024/1440px; landing and itinerary were inspected at
+  390/1440px. Live Auth0, providers and deployed flows were not checked.
+
+## 2026-11-20 — UI trend research and proposed next steps
+
+- The user requested current UI design research, comparison with the project,
+  and a modification proposal. This request covers research and planning;
+  application changes and publishing are not part of this research pass.
+- The [review and proposal](../experiments/2026-11-20-ui-trends-review.md)
+  compares external design references with source and mocked browser evidence
+  at `bdf3e35`. It prioritizes earlier landing actions, trip-header hierarchy,
+  day navigation and compact missing-photo states while retaining the existing
+  design system and source attribution. These remain proposals.
+- A fresh Chromium run passed 10 mocked checks. Landing and itinerary
+  screenshots were inspected at phone and desktop sizes. No application code,
+  product acceptance count, deployment state or live-provider evidence changed.
+
 ## 2026-11-20 — Plan-first interface layout
 
 - The user requested another interface analysis and layout improvement, with
