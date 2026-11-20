@@ -109,9 +109,12 @@ Read these records in order:
   when browser behavior or UI evaluation is in scope. Routine verification
   belongs in the tester agent; mocked browser checks and live acceptance are
   separate evidence.
-- Portable workflow assets under `.agents/skills/` support cross-repository
-  transfer; they do not replace this file or project-specific `.codex/skills`.
-  See `docs/codex-workflow.md` for setup boundaries.
+- Cross-repository and cross-machine setup procedures live in
+  `docs/codex-workflow.md`; no separate transfer skill is needed. Keep personal
+  and plugin skills outside repository cleanup.
+- For UI/UX work, Planner owns the design brief, Coordinator implements it, and
+  Tester independently reviews behavior and visuals. Use the existing UI and
+  browser skills; preserve the local design system and recorded interactions.
 
 - For implementation goals, use project roles in sequence: `researcher` studies
   requirements and returns a Goal Card; `planner` creates an ordered plan;
@@ -123,7 +126,7 @@ Read these records in order:
 - Codex development agents/configuration are separate from the webapp runtime
   Coordinator/Planner/Chat. Preserve the tooling decision in ADR 0001.
 - Retain Python `>=3.10`, `uv`, `pytest`, isort, Black, flake8 and Ruff.
-  Runtime dependencies and an application package remain implementation work.
+  Inspect the existing application package and locked dependencies before changes.
 - Keep modules small, typed and testable. Automated unit tests use mocked
   providers and never call live models/search/tracing services.
 - Derive test expectations from product contracts or independent inputs. Never

@@ -20,7 +20,10 @@ Skip a role only when the goal does not need that work. Assign bounded scope,
 constraints, and required reports. Run dependent work in order. Keep optional
 features and extra layers outside acceptance.
 
-For interface tasks, use travel-planner-ui. For explicit security reviews,
+For interface tasks, use travel-planner-ui. Planner owns the design brief;
+Coordinator preserves the interaction inventory while implementing it; Tester
+provides independent behavioral and visual review through the browser skill.
+Keep audit, polish and redesign scope explicit; reuse the local design system. For explicit security reviews,
 use travel-planner-security-review. Keep development helpers distinct from
 the runtime Coordinator, Planner, Chat, and tavily_tool node. Preserve the
 current charter and accepted ADRs. Do not revive rejected designs, silently

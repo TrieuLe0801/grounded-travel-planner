@@ -53,6 +53,13 @@ documentation-only change. Keep primary session responsible for integration,
 durable records, and final judgment. Development agents are separate from
 runtime travel-planner roles.
 
+For UI/UX goals, use the existing roles: Planner supplies the scoped design
+brief and preservation inventory, Coordinator implements, and Tester reviews
+behavior and visuals independently. Route interface work to `travel-planner-ui`
+and browser acceptance to `travel-planner-browser-evaluation`; do not add a
+separate design agent or duplicate verification skill for the same handoff.
+For workflow transfer, follow `docs/codex-workflow.md`.
+
 ## Goal Lifecycle
 
 Use the Goal API only when the user explicitly asks for a multi-turn goal. Do

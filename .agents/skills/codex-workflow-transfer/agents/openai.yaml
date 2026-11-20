@@ -1,3 +1,0 @@
-interface:
-  display_name: "Codex Workflow Transfer"
-  short_description: "Adapt Codex workflow for another repo or machine"

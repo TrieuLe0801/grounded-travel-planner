@@ -30,6 +30,10 @@ running container includes undeployed source edits.
 When browser behavior or UI evaluation is acceptance, plan a Playwright check
 using `.codex/skills/travel-planner-browser-evaluation/SKILL.md`. Distinguish
 mocked local checks from live Auth0, provider, or deployment evidence.
+For frontend goals, own the UI/UX design brief and pre-change interaction
+inventory defined by the UI skill. Specify audit, polish or redesign scope;
+identify existing components/tokens and real content before proposing additions.
+Hand concrete behavioral and visual acceptance to Coordinator and Tester.
 For frontend goals, read `.codex/skills/travel-planner-ui/SKILL.md` and plan
 copy, real content, layout, state feedback, and visual checks against the local
 design system. Include phone, tablet, and desktop review when layout changes.

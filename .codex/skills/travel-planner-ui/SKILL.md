@@ -9,6 +9,26 @@ Use this skill for product interface changes. Read `AGENTS.md`, the relevant
 charter sections and accepted UI ADRs first. Inspect the existing component and
 API flow before changing presentation.
 
+## Scope and design brief
+
+Choose the scope from the request: an audit reports findings without edits;
+polish improves the named surface within its current layout; redesign changes
+the requested layout while preserving product behavior. Do not turn a component
+fix into a page redesign. Infer routine choices from project evidence; ask only
+when missing information changes scope or acceptance.
+
+Planner records a compact brief: affected view and files, user task, primary
+action, existing components/tokens to reuse, real content available, missing
+facts, and observable acceptance. Cite the relevant source paths. Inventory
+links, fields, handlers, navigation, focus behavior and loading/error/empty
+states before changing the surface. For a redesign, include baseline screenshots
+when the app can run; report their absence rather than inventing a baseline.
+
+Use the current itinerary as the workspace's main content. Keep trip identity,
+day navigation, explicit save, sources and estimates easy to scan. Preserve the
+landing's direct sign-in actions and five local SVG guide steps. Do not force
+marketing-page compositions or word limits onto itinerary data and controls.
+
 ## Product boundaries
 
 - React/Tailwind is the current product UI with a thin same-origin FastAPI
@@ -74,6 +94,28 @@ API flow before changing presentation.
   assertions for clipped content, empty visuals, misaligned edges, contrast,
   long translated copy, and loading or error states. Fix observed failures
   before reporting the UI ready.
+
+## Review and handoff
+
+Coordinator hands Tester the brief, changed paths, before/after interaction
+inventory, and states that need browser checks. Reuse existing Playwright
+fixtures before adding coverage. An audit must distinguish observed defects
+from suggestions; a screenshot does not establish that a control works.
+
+- Acceptance blockers: broken actions, lost content or source credits, invented
+  claims, unreadable contrast, inaccessible focus, clipped controls, or violated
+  session/locale/save contracts. Fix and verify these before claiming readiness.
+- Design concerns: weak hierarchy, repetitive wrappers, competing actions or
+  decoration without a task purpose. Explain the user impact and proposed fix;
+  retain a deliberate pattern when project content justifies it.
+- Finishing suggestions: minor spacing or typographic refinements beyond the
+  requested acceptance. Report separately; do not expand scope to chase taste.
+
+Keep new styling within the existing token vocabulary. Fix overflow at its
+layout cause; never hide a broken layout with page-wide clipping. Prefer explicit
+transition properties and inexpensive motion with reduced-motion fallback.
+Tester reviews independently against the brief and product contracts, compares
+matching states and viewports, and reports unresolved findings with evidence.
 
 ## Evidence
 

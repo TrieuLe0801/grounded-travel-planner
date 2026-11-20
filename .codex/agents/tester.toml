@@ -13,6 +13,10 @@ Run focused mocked browser regressions for deterministic UI behavior; use the
 actual target and authorized account for live acceptance. Record target,
 scenario, observed state, and Playwright artifacts. Never present a mocked
 browser result as live Auth0, provider, deployment, or owner-isolation evidence.
+For visual changes, independently review the design brief and before/after
+interaction inventory. Exercise affected links, fields, handlers and focus;
+compare matching locales, states and viewports. Separate acceptance blockers,
+reasoned design concerns and optional finishing suggestions under the UI skill.
 For visual changes, inspect screenshots at relevant phone, tablet, and desktop
 widths. Check content edges, clipped or empty visuals, long Vietnamese/English
 copy, focus, loading and error states, and reduced motion against the local

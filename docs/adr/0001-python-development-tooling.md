@@ -174,3 +174,21 @@ Planner, Coordinator and Tester use that guidance within their existing roles.
 The local design system and product rules govern source/photo attribution and
 accessibility. No external skill files, scripts or mandatory visual effects are
 adopted.
+
+## Amendment — 2026-11-20 — Skill consolidation and UI/UX handoffs
+
+The user requested a project review, removal of redundant skills and selective
+adaptation of Hallmark ideas without taking its skill bundle. Keep the four
+project-authored delivery, UI, browser-evaluation and security-review skills.
+Move the transfer procedure into `docs/codex-workflow.md` and remove its separate
+skill and manifest. This supersedes the 2026-11-15 decision to retain
+`codex-workflow-transfer` as a skill; cross-machine/repository setup remains
+supported by the maintained document. No usage telemetry was available, so the
+removal is justified by duplicated responsibility rather than usage counts.
+
+Keep five development roles. Planner owns a scoped UI design brief and
+interaction inventory, Coordinator implements within the existing design
+system, and Tester independently checks behavior and visuals. Distinguish
+acceptance failures from design concerns and optional polish. Preserve local
+SVGs, product contracts, accessibility and Playwright. No external skill files,
+scripts, themes or dependencies are imported. Runtime architecture is unchanged.
