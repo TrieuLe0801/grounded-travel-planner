@@ -15,7 +15,7 @@ runs and experiment records.
 | Area | State | Evidence or open gate |
 |---|---|---|
 | Runtime | Implemented | Coordinator, Planner and Chat roles; bounded search, session context and validate-before-commit behavior are defined in the charter and ADRs 0004, 0009, 0011 and 0012. |
-| Web UI | React layout refined; mocked browser QA passed; live browser QA pending | Landing sign-in appears in the first 390×844 viewport. Plan header groups destination/date/day count with explicit save; multi-day plans have keyboard-accessible day links. Missing-photo fallback is compact; estimates, sources and credits remain visible. 17 mocked Chromium checks passed at 390, 768, 1024 and 1440 px. Auth0 and deployed-flow QA remain pending. |
+| Web UI | Travel-guide redesign implemented; mocked browser QA passed; live QA pending | Travel-guide redesign implemented with an editorial landing, local decorative landscape/compass SVG, departure form, destination-led journal, numbered days, saved-tour index and consistent chat styling. Frontend check/build and 34 mocked Chromium checks passed; two duplicate viewport sweeps skipped. Live Auth0, providers and deployed behavior remain unverified. |
 | Saved tours | PostgreSQL Compose storage available; browser QA pending | Explicitly saved, owner-scoped snapshots are read-only. Verify save, list, detail, delete and owner isolation in a browser. |
 | Authentication | Compose app updated; live verification pending | Public host is www.citedtrip.app. The local app container has its configured Auth0 password connection. Auth0 enablement, sign-in, signup, email verification, OTP, callback, planner access and logout have not been browser-verified. |
 | Account administration | Source and offline integration verified; live QA pending | Account access, usage and deletion are implemented. No live Auth0 deletion request or administrator browser flow was checked. |
@@ -31,6 +31,13 @@ manifests, TOML/JSON/YAML parsing, active references, diff checks and all four
 Python formatting/lint checks passed. Product and live acceptance are unchanged.
 
 ## Latest verification
+
+- Travel/exploration redesign: frontend type check/build, diff check and 34
+  mocked Chromium tests passed; two duplicate mobile viewport sweeps skipped.
+  Screenshots cover 390, 768, 1024 and 1440 px, VI/EN, landing, itinerary, saved
+  detail and chat. See the [research and evidence record](docs/experiments/2026-11-20-travel-exploration-redesign.md).
+  Python checks were not run for this frontend-only change. No deployment or
+  live Auth0/provider flow was performed.
 
 - On 2026-11-20, UI trend proposal P0 and day-navigation P1 changes passed
   `npm run check`, `npm run build`, `git diff --check`, and 17 mocked Chromium

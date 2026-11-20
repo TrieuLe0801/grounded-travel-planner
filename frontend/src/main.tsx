@@ -657,6 +657,21 @@ function TurnStatus({
     </section>
   );
 }
+function ExplorationArt() {
+  return (
+    <div className="exploration-art" aria-hidden="true">
+      <svg viewBox="0 0 640 200" fill="none" focusable="false">
+        <circle cx="480" cy="72" r="38" fill="currentColor" opacity=".14" />
+        <circle cx="480" cy="72" r="55" stroke="currentColor" opacity=".25" />
+        <path d="M0 165 100 72 177 132 286 36 409 151 492 107 640 183V200H0Z" fill="currentColor" opacity=".1" />
+        <path d="m0 165 100-93 77 60L286 36l123 115 83-44 148 76M244 73l42 15 23-30" stroke="currentColor" strokeWidth="2" opacity=".55" />
+        <path d="M0 185c115-32 162 23 276-2s183-18 364 3" stroke="currentColor" opacity=".35" />
+      </svg>
+      <Compass className="exploration-compass" strokeWidth={1} />
+    </div>
+  );
+}
+
 function PlanView({
   plan,
   visuals,
@@ -677,15 +692,15 @@ function PlanView({
   const labels = text(language);
   const days = Array.from({ length: plan.day_count }, (_, index) => index + 1);
   return (
-    <section aria-labelledby={titleId} className="rise mt-8">
-      <div className="mb-5 flex flex-wrap items-end justify-between gap-3 border-b border-blue-100 pb-5">
+    <section aria-labelledby={titleId} className="journey-journal rise mt-8">
+      <div className="journey-cover mb-5 flex flex-wrap items-end justify-between gap-5">
         <div>
           <p className="text-sm font-semibold uppercase tracking-wider text-primary">
             {statusLabel ?? labels.verified}
           </p>
-          <h2 id={titleId} className="mt-1 font-heading text-2xl font-bold tracking-tight sm:text-3xl">
+          <h2 id={titleId} className="journey-destination mt-2 font-heading text-3xl font-bold tracking-tight sm:text-5xl">
             {plan.destination}{" "}
-            <span className="text-slate-500">· v{plan.revision}</span>
+            <span className="journey-revision">v{plan.revision}</span>
           </h2>
         </div>
         <div className="flex flex-wrap items-end gap-3">
@@ -712,7 +727,7 @@ function PlanView({
         </p>
       )}
       {days.length > 1 && (
-        <nav className="mb-5 flex gap-2 overflow-x-auto pb-1" aria-label={labels.dayNavigation}>
+        <nav className="journey-tabs mb-6 flex gap-2 overflow-x-auto pb-1" aria-label={labels.dayNavigation}>
           {days.map((day) => (
             <a
               key={day}
@@ -736,18 +751,18 @@ function PlanView({
           return (
             <article
               id={`itinerary-day-${day}`}
-              className="scroll-mt-24 rounded-3xl border border-blue-100 bg-white p-5 shadow-lg shadow-blue-900/5 sm:scroll-mt-28 sm:p-6"
+              className="journey-day scroll-mt-24 rounded-3xl border border-blue-100 bg-white p-5 sm:scroll-mt-28 sm:p-8"
               key={day}
             >
               <h3 className="flex items-center gap-3 font-heading text-lg font-bold text-slate-900">
-                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary text-white" aria-hidden="true">{day}</span>
+                <span className="journey-day-number grid size-12 shrink-0 place-items-center rounded-full bg-primary text-white" aria-hidden="true">{String(day).padStart(2, "0")}</span>
                 {labels.day} {day}
               </h3>
               <div className="mt-5 space-y-6 border-t border-blue-100 pt-5">
                 {entries.length ? (
                   entries.map((entry, index) => (
                     <article
-                      className="grid gap-5 border-l-2 border-blue-300 pl-4 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.8fr)] lg:gap-8"
+                      className="journey-stop grid gap-5 border-l-2 border-blue-200 pl-5 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.8fr)] lg:gap-8"
                       key={entry.id}
                     >
                       <div className="min-w-0">
@@ -758,7 +773,7 @@ function PlanView({
                           <span className="text-slate-500">·</span> {labels.stop}{" "}
                           {index + 1}
                         </div>
-                        <h4 className="mt-2 font-heading text-lg font-semibold text-slate-900">
+                        <h4 className="mt-3 font-heading text-xl font-semibold text-slate-900 sm:text-2xl">
                           {entry.place.name}
                         </h4>
                         <p className="mt-1 text-slate-600">
@@ -1241,7 +1256,7 @@ function SavedToursView({
       timeStyle: "short",
     }).format(new Date(value));
   return (
-    <section aria-labelledby="saved-tours-title" className="rise mt-4">
+    <section aria-labelledby="saved-tours-title" className="saved-journal rise mt-4">
       <button
         type="button"
         onClick={onBack}
@@ -1251,7 +1266,8 @@ function SavedToursView({
         {labels.back}
       </button>
       <div className="mt-4 grid gap-6 lg:grid-cols-[minmax(17rem,.7fr)_minmax(0,1.3fr)]">
-        <aside className="self-start rounded-3xl border border-blue-100 bg-white p-5 shadow-lg shadow-blue-900/5 sm:p-6">
+        <aside className="saved-index self-start rounded-3xl border border-blue-100 bg-white p-5 sm:p-6">
+          <p className="journal-eyebrow mb-3"><Compass size={16} aria-hidden="true" />{labels.travelJournal}</p>
           <h1 id="saved-tours-title" className="font-heading text-2xl font-bold tracking-tight sm:text-3xl">
             {labels.savedTours}
           </h1>
@@ -1291,7 +1307,7 @@ function SavedToursView({
                     onClick={() => onSelect(tour.id)}
                     aria-current={selected ? "page" : undefined}
                     aria-busy={loadingId === tour.id}
-                    className={`min-h-11 min-w-0 flex-1 rounded-xl border p-4 text-left transition ${selected ? "border-primary bg-blue-50 ring-1 ring-blue-200" : "border-blue-100 bg-white hover:border-blue-300 hover:bg-blue-50/50"}`}
+                    className={`saved-entry min-h-11 min-w-0 flex-1 rounded-xl border p-4 text-left transition ${selected ? "border-primary bg-blue-50 ring-1 ring-blue-200" : "border-blue-100 bg-white hover:border-blue-300 hover:bg-blue-50/50"}`}
                   >
                     <span className="flex items-center gap-2 font-semibold text-slate-900">
                       {tour.title}
@@ -2276,11 +2292,11 @@ function App() {
   }
   if (!auth.authenticated) {
     return (
-      <div className="min-h-dvh bg-gradient-to-b from-blue-50 via-white to-white text-slate-900">
+      <div className="explore-landing min-h-dvh text-slate-900">
         <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 rounded bg-white p-3">
           {labels.skip}
         </a>
-        <header className="border-b border-blue-100 bg-white/95 shadow-sm shadow-blue-900/5 backdrop-blur">
+        <header className="travel-masthead border-b border-blue-100 bg-white/95 backdrop-blur">
           <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6">
             <div className="flex items-center gap-3 font-heading font-bold">
               <span className="grid size-10 place-items-center rounded-2xl bg-primary text-white"><Compass aria-hidden="true" /></span>
@@ -2292,17 +2308,18 @@ function App() {
             </div>
           </div>
         </header>
-        <main id="main" className="mx-auto grid max-w-7xl items-center gap-5 px-4 py-5 sm:gap-10 sm:px-6 sm:py-12 lg:grid-cols-[1.15fr_.85fr] lg:gap-16 lg:py-20">
-          <section className="rise order-last max-w-2xl lg:order-first">
-            <p className="mb-4 inline-flex items-center gap-2 rounded-full bg-blue-100 px-3 py-1 text-sm font-semibold text-blue-800"><ShieldCheck size={16} aria-hidden="true" />{labels.landingEyebrow}</p>
-            <h1 className="font-heading text-4xl font-bold leading-tight tracking-tight sm:text-5xl lg:text-6xl">{labels.landingTitle}</h1>
-            <p className="mt-6 max-w-xl border-l-4 border-primary pl-5 text-lg leading-8 text-slate-700">{labels.landingDescription}</p>
-            <ul className="mt-8 grid gap-4 text-slate-700" aria-label={labels.landingEyebrow}>
+        <main id="main" className="explore-hero mx-auto grid max-w-7xl items-stretch gap-5 px-4 py-5 sm:gap-6 sm:px-6 sm:py-10 lg:grid-cols-[1.15fr_.85fr]">
+          <section className="explore-story rise order-last lg:order-first">
+            <p className="journal-eyebrow mb-5"><Compass size={16} aria-hidden="true" />{labels.landingEyebrow}</p>
+            <h1 className="explore-title font-heading text-4xl font-bold leading-tight tracking-tight sm:text-5xl lg:text-6xl">{labels.landingTitle}</h1>
+            <p className="explore-description mt-5 max-w-xl text-lg leading-8">{labels.landingDescription}</p>
+            <ul className="explore-benefits mt-6 grid gap-3" aria-label={labels.landingEyebrow}>
               <li className="flex items-start gap-3"><CheckCircle2 className="mt-0.5 shrink-0 text-primary" size={20} aria-hidden="true" />{labels.landingEvidence}</li>
               <li className="flex items-start gap-3"><MessageCircle className="mt-0.5 shrink-0 text-primary" size={20} aria-hidden="true" />{labels.landingChat}</li>
             </ul>
+            <ExplorationArt />
           </section>
-          <section className="rise order-first rounded-3xl border border-blue-100 bg-white p-6 shadow-xl shadow-blue-900/10 sm:p-9 lg:order-last" aria-labelledby="landing-action-title">
+          <section className="departure-card rise order-first rounded-3xl border border-blue-100 bg-white p-6 shadow-xl shadow-blue-900/10 sm:p-9 lg:order-last" aria-labelledby="landing-action-title">
             <div className="flex items-center gap-3">
               <Compass className="size-8 shrink-0 text-primary" aria-hidden="true" />
               <h2 id="landing-action-title" className="font-heading text-xl font-bold tracking-tight sm:text-2xl">{labels.landingActionTitle}</h2>
@@ -2319,14 +2336,14 @@ function App() {
           </section>
         </main>
         <section id="how-to-use" className="mx-auto max-w-7xl scroll-mt-6 px-4 pb-16 sm:px-6" aria-labelledby="guide-title">
-          <div className="rounded-3xl border border-blue-100 bg-white p-6 shadow-lg shadow-blue-900/5 sm:p-10">
-            <p className="font-semibold text-blue-800">{labels.guideEyebrow}</p>
+          <div className="explore-guide py-8 sm:py-10">
+            <p className="journal-eyebrow">{labels.guideEyebrow}</p>
             <h2 id="guide-title" className="mt-2 font-heading text-3xl font-bold">{labels.guideTitle}</h2>
             <p className="mt-3 max-w-2xl leading-7 text-slate-700">{labels.guideDescription}</p>
-            <ol className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <ol className="guide-chapters mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
               {([1, 2, 3, 4, 5] as const).map((step) => (
-                <li key={step} className="guide-step rounded-2xl border border-blue-100 bg-blue-50/50 p-5" style={{ animationDelay: `${(step - 1) * 90}ms` }}>
-                  <span className="grid size-10 place-items-center rounded-xl bg-primary font-heading font-bold text-white" aria-hidden="true">{step}</span>
+                <li key={step} className="guide-step rounded-2xl border border-blue-100 bg-white p-5" style={{ animationDelay: `${(step - 1) * 90}ms` }}>
+                  <span className="guide-chapter-number font-heading font-bold" aria-hidden="true">{String(step).padStart(2, "0")}</span>
                   <GuideScene step={step} />
                   <h3 className="mt-4 font-heading text-lg font-semibold">{labels[`guideStep${step}Title`]}</h3>
                   <p className="mt-2 leading-6 text-slate-700">{labels[`guideStep${step}Body`]}</p>
@@ -2366,14 +2383,14 @@ function App() {
     );
   }
   return (
-    <div className="min-h-dvh bg-gradient-to-b from-blue-50/80 via-white to-blue-50/50">
+    <div className="travel-workspace min-h-dvh">
       <a
         href="#main"
         className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 rounded bg-white p-3"
       >
         {labels.skip}
       </a>
-      <header className="relative z-10 border-b border-blue-100 bg-white/95 shadow-sm shadow-blue-900/5 backdrop-blur md:sticky md:top-0 md:z-30">
+      <header className="travel-masthead relative z-10 border-b border-blue-100 bg-white/95 backdrop-blur md:sticky md:top-0 md:z-30">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6">
           <button
             type="button"
@@ -2643,8 +2660,8 @@ function App() {
           />
         ) : (
           <>
-            {!state.plan && <section className="grid gap-8 lg:grid-cols-[1.05fr_.95fr] lg:items-center lg:gap-12">
-              <div className="max-w-2xl">
+            {!state.plan && <section className="trip-departure grid gap-8 lg:grid-cols-[1.05fr_.95fr] lg:items-center lg:gap-12">
+              <div className="trip-introduction max-w-2xl">
                 <p className="mb-3 inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-sm font-semibold text-blue-700">
                   <ShieldCheck size={16} />
                   {labels.badge}
@@ -2657,12 +2674,14 @@ function App() {
                 <p className="mt-6 max-w-xl border-l-4 border-primary pl-5 text-lg leading-8 text-slate-700">
                   {labels.heroDescription}
                 </p>
+                <ExplorationArt />
               </div>
               <form
                 noValidate
                 onSubmit={makePlan}
-                className="rounded-3xl border border-blue-100 bg-white p-6 shadow-xl shadow-blue-900/10 sm:p-8"
+                className="departure-form rounded-3xl border border-blue-100 bg-white p-6 sm:p-8"
               >
+                <p className="journal-eyebrow mb-3"><MapPin size={16} aria-hidden="true" />{labels.yourNextJourney}</p>
                 <h2 className="font-heading text-xl font-bold tracking-tight">
                   {labels.startJourney}
                 </h2>

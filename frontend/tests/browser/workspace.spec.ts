@@ -223,6 +223,33 @@ test("desktop header keeps chat available outside admin", async ({ page }) => {
   await expect(headerChat).toBeHidden();
 });
 
+test("saved snapshot remains read-only and chat retains keyboard access", async ({ page }, testInfo) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await mockWorkspace(page, { withPlan: true });
+  await page.route("**/api/saved-tours/saved-1", (route) => route.fulfill({
+    contentType: "application/json",
+    body: JSON.stringify({ id: "saved-1", title: "Hà Nội một ngày", plan, visuals_by_entry: { "stop-1": photo } }),
+  }));
+  const widths = testInfo.project.name === "chromium" ? [390, 768, 1024, 1440] : [390];
+  for (const width of widths) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/?view=saved");
+    await page.getByRole("button", { name: /^Hà Nội một ngày/ }).click();
+    await expect(page.getByText("Bản lưu đã xác nhận", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Lưu tour", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: /Nguồn kiểm thử/ })).toBeVisible();
+    await expect(page.getByText(/Test creator · CC BY 4.0/)).toBeVisible();
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath(`saved-${width}.png`), fullPage: true });
+    await page.getByRole("button", { name: "Mở cửa sổ chat" }).click();
+    const input = page.getByRole("textbox", { name: "Yêu cầu thay đổi lịch trình" });
+    await expect(input).toBeFocused();
+    await page.screenshot({ path: testInfo.outputPath(`chat-${width}.png`) });
+    await input.press("Escape");
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+  }
+});
+
 test("workspace layout fits representative widths with reduced motion", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "chromium", "One browser project captures all target widths");
   await mockWorkspace(page, { withPlan: true, admin: true, language: "en" });

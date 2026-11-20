@@ -7,6 +7,16 @@ This plan tracks remaining acceptance and concise changes that affect it.
 Product requirements and accepted architecture are defined in the
 [project charter](project-charter.md) and [ADRs](adr/README.md).
 
+## Implemented update: travel-guide redesign — 2026-11-20
+
+The user requested a travel and exploration interface. The landing now uses a
+deep blue editorial cover and local abstract landscape/compass SVG; setup,
+itinerary, saved-tour index and chat follow a travel-journal composition.
+Existing actions, source/photo credits, estimates, locale and session behavior
+remain intact. Frontend check/build and 34 mocked browser checks passed; two
+duplicate viewport sweeps skipped. Live acceptance and deployment remain
+separate. See the [redesign evidence](experiments/2026-11-20-travel-exploration-redesign.md).
+
 ## Implemented update: UI trend proposal — 2026-11-20
 
 Implemented the proposal's high-priority landing and itinerary changes. On

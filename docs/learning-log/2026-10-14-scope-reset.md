@@ -5,6 +5,23 @@ current status. The [charter](../project-charter.md) and accepted ADRs are the
 source of truth for product and architecture. Historical test output belongs
 with its CI run or experiment artifact.
 
+## 2026-11-20 — Travel and exploration redesign request
+
+- The user requested research and implementation of a travel and exploration
+  interface. The selected brief uses an editorial travel-guide composition,
+  preserving the existing palette, typography, local guide illustrations and
+  product interactions. Scope is frontend presentation; no deployment requested.
+- Research, preservation criteria and baseline evidence are recorded in the
+  [redesign record](../experiments/2026-11-20-travel-exploration-redesign.md).
+  Baseline Playwright passed 32 checks with two duplicate viewport sweeps skipped.
+  The redesign is implemented in React/CSS/i18n and the local design system.
+  Frontend check/build and 34 mocked browser checks passed; two duplicate
+  viewport sweeps skipped. Source/credit labels, saved-detail read-only behavior,
+  chat focus/Escape and pending locale preservation are covered. Tester reached
+  its usage limit after initial checks and added coverage; the primary session
+  completed the final run and screenshot review. No Python, live provider,
+  deployed/Auth0 checks or deployment ran for this frontend-only change.
+
 ## 2026-11-20 — Development skill and agent refresh
 
 - The user requested a project reread, skill cleanup and selective adaptation

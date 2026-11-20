@@ -46,8 +46,10 @@
       by scrolling. A current plan leads the workspace, with full-width day
       cards and credited photos beside place details on desktop. Sign-in appears
       in the first mobile viewport; multi-day plans include keyboard-accessible
-      day links and missing-photo feedback is compact. Seventeen mocked Chromium
-      checks passed at phone, tablet and desktop widths. Itinerary stays at
+      day links and missing-photo feedback is compact. The travel-guide redesign
+      adds an editorial cover, local landscape/compass art and journal-style
+      itinerary, setup, archive and chat. Thirty-four mocked Chromium checks
+      passed; two duplicate viewport sweeps skipped. Itinerary stays at
       <code>/</code>; plan and conversation rehydrate from the same server
       session. Live browser QA is pending.</p>
     </section>
@@ -89,6 +91,9 @@
 
   <h2>Latest checks</h2>
   <ul>
+    <li>Travel-guide redesign: frontend check/build, diff check and 34 mocked
+      browser checks passed; two duplicate viewport sweeps skipped. Live
+      Auth0/provider and deployed behavior were not checked.</li>
     <li>2026-11-20 plan-first layout: frontend check/build, diff check,
       18 mocked Playwright checks, 246 offline tests and Python quality checks
       passed. Two duplicate browser sweeps and one optional PostgreSQL test
