@@ -3,6 +3,7 @@ import {
   type Dispatch,
   type FormEvent,
   type KeyboardEvent as ReactKeyboardEvent,
+  type ReactNode,
   type SetStateAction,
   useEffect,
   useRef,
@@ -448,7 +449,7 @@ function StartDatePicker({
               type="button"
               aria-label={labels.previousMonth}
               onClick={() => changeMonth(-1)}
-              className="inline-flex size-10 items-center justify-center rounded-lg text-slate-700 hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600"
+              className="inline-flex size-11 items-center justify-center rounded-lg text-slate-700 hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600"
             >
               <ChevronLeft size={18} aria-hidden="true" />
             </button>
@@ -462,7 +463,7 @@ function StartDatePicker({
               type="button"
               aria-label={labels.nextMonth}
               onClick={() => changeMonth(1)}
-              className="inline-flex size-10 items-center justify-center rounded-lg text-slate-700 hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600"
+              className="inline-flex size-11 items-center justify-center rounded-lg text-slate-700 hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600"
             >
               <ChevronRight size={18} aria-hidden="true" />
             </button>
@@ -470,7 +471,7 @@ function StartDatePicker({
               type="button"
               aria-label={labels.closeCalendar}
               onClick={closeCalendar}
-              className="inline-flex size-10 items-center justify-center rounded-lg text-slate-600 hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600"
+              className="inline-flex size-11 items-center justify-center rounded-lg text-slate-600 hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600"
             >
               <X size={18} aria-hidden="true" />
             </button>
@@ -515,7 +516,7 @@ function StartDatePicker({
                             closeCalendar();
                           }}
                           onKeyDown={(event) => handleDayKeyDown(event, date)}
-                          className={`min-h-10 w-full rounded-lg font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600 ${isSelected ? "bg-primary text-white" : isToday ? "border border-primary text-primary" : "text-slate-800 hover:bg-blue-50"} ${isCurrentMonth ? "" : "text-slate-400"}`}
+                          className={`min-h-11 w-full rounded-lg font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600 ${isSelected ? "bg-primary text-white" : isToday ? "border border-primary text-primary" : "text-slate-800 hover:bg-blue-50"} ${isCurrentMonth ? "" : "text-slate-400"}`}
                         >
                           {date.getUTCDate()}
                         </button>
@@ -575,9 +576,9 @@ function Photo({ visual, placeName, language }: { visual?: Visual; placeName: st
   const labels = text(language);
   if (!visual)
     return (
-      <div className="flex aspect-[16/9] items-center justify-center rounded-2xl bg-blue-50 px-4 text-center text-sm text-slate-500">
-        <ImageOff className="mr-2 size-4" />
-        {labels.photoUnavailable} {placeName}.
+      <div className="flex items-start gap-2 rounded-xl border border-dashed border-blue-200 bg-blue-50/70 px-3 py-3 text-sm leading-5 text-slate-600">
+        <ImageOff className="mt-0.5 size-4 shrink-0 text-slate-500" aria-hidden="true" />
+        <span>{labels.photoUnavailable} {placeName}.</span>
       </div>
     );
   return (
@@ -663,6 +664,7 @@ function PlanView({
   language,
   statusLabel,
   titleId = "itinerary-title",
+  headerAction,
 }: {
   plan: Plan;
   visuals: Record<string, Visual>;
@@ -670,6 +672,7 @@ function PlanView({
   language: Language;
   statusLabel?: string;
   titleId?: string;
+  headerAction?: ReactNode;
 }) {
   const labels = text(language);
   const days = Array.from({ length: plan.day_count }, (_, index) => index + 1);
@@ -685,13 +688,16 @@ function PlanView({
             <span className="text-slate-500">· v{plan.revision}</span>
           </h2>
         </div>
-        <p className="text-sm text-slate-600">
-          <time dateTime={plan.start_date}>
-            {formatDateOnly(plan.start_date, language)}
-          </time>
-          {" · "}
-          {plan.day_count} {labels.dayUnit}
-        </p>
+        <div className="flex flex-wrap items-end gap-3">
+          <p className="text-sm text-slate-600">
+            <time dateTime={plan.start_date}>
+              {formatDateOnly(plan.start_date, language)}
+            </time>
+            {" · "}
+            {plan.day_count} {plan.day_count === 1 ? labels.dayUnitSingular : labels.dayUnitPlural}
+          </p>
+          {headerAction}
+        </div>
       </div>
       {plan.summary && (
         <p className="mb-5 max-w-3xl text-slate-700">{plan.summary}</p>
@@ -705,6 +711,19 @@ function PlanView({
           {labels.findingPhotos}
         </p>
       )}
+      {days.length > 1 && (
+        <nav className="mb-5 flex gap-2 overflow-x-auto pb-1" aria-label={labels.dayNavigation}>
+          {days.map((day) => (
+            <a
+              key={day}
+              href={`#itinerary-day-${day}`}
+              className="inline-flex min-h-11 shrink-0 items-center rounded-xl border border-blue-200 bg-white px-4 text-sm font-semibold text-blue-800 transition hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+            >
+              {labels.day} {day}
+            </a>
+          ))}
+        </nav>
+      )}
       <div className="grid gap-5">
         {days.map((day) => {
           const entries = plan.entries
@@ -716,7 +735,8 @@ function PlanView({
             );
           return (
             <article
-              className="rounded-3xl border border-blue-100 bg-white p-5 shadow-lg shadow-blue-900/5 sm:p-6"
+              id={`itinerary-day-${day}`}
+              className="scroll-mt-24 rounded-3xl border border-blue-100 bg-white p-5 shadow-lg shadow-blue-900/5 sm:scroll-mt-28 sm:p-6"
               key={day}
             >
               <h3 className="flex items-center gap-3 font-heading text-lg font-bold text-slate-900">
@@ -1284,7 +1304,7 @@ function SavedToursView({
                         {formatDateOnly(tour.start_date, language)}
                       </time>
                       {" · "}
-                      {tour.day_count} {labels.dayUnit} · v{tour.revision}
+                      {tour.day_count} {tour.day_count === 1 ? labels.dayUnitSingular : labels.dayUnitPlural} · v{tour.revision}
                     </span>
                     <span className="mt-1 block text-xs text-slate-500">
                       {labels.savedOn} {savedAt(tour.saved_at)}
@@ -1829,6 +1849,9 @@ function App() {
     body: object,
     source: "itinerary" | "chat",
   ) => {
+    // A saved-tour success describes the last snapshot, not a plan that may
+    // change after this new request.
+    setSaveStatus("");
     setLastTurnSource(source);
     setRequestError("");
     setSubmitting(true);
@@ -2264,13 +2287,13 @@ function App() {
               <span>{labels.brand}</span>
             </div>
             <div className="inline-flex items-center rounded-xl border border-blue-100 bg-blue-50/70 p-1" role="group" aria-label={labels.language}>
-              <button type="button" aria-label={labels.switchToVietnamese} aria-pressed={landingLanguage === "vi"} onClick={() => void changeLanguage("vi")} className={`min-h-10 min-w-11 rounded-lg px-2 text-sm font-bold transition-colors ${landingLanguage === "vi" ? "bg-primary text-white shadow-sm" : "text-slate-700 hover:bg-white"}`}>VI</button>
-              <button type="button" aria-label={labels.switchToEnglish} aria-pressed={landingLanguage === "en"} onClick={() => void changeLanguage("en")} className={`min-h-10 min-w-11 rounded-lg px-2 text-sm font-bold transition-colors ${landingLanguage === "en" ? "bg-primary text-white shadow-sm" : "text-slate-700 hover:bg-white"}`}>EN</button>
+              <button type="button" aria-label={labels.switchToVietnamese} aria-pressed={landingLanguage === "vi"} onClick={() => void changeLanguage("vi")} className={`min-h-11 min-w-11 rounded-lg px-2 text-sm font-bold transition-colors ${landingLanguage === "vi" ? "bg-primary text-white shadow-sm" : "text-slate-700 hover:bg-white"}`}>VI</button>
+              <button type="button" aria-label={labels.switchToEnglish} aria-pressed={landingLanguage === "en"} onClick={() => void changeLanguage("en")} className={`min-h-11 min-w-11 rounded-lg px-2 text-sm font-bold transition-colors ${landingLanguage === "en" ? "bg-primary text-white shadow-sm" : "text-slate-700 hover:bg-white"}`}>EN</button>
             </div>
           </div>
         </header>
-        <main id="main" className="mx-auto grid max-w-7xl items-center gap-10 px-4 py-12 sm:px-6 lg:grid-cols-[1.15fr_.85fr] lg:gap-16 lg:py-20">
-          <section className="rise max-w-2xl">
+        <main id="main" className="mx-auto grid max-w-7xl items-center gap-5 px-4 py-5 sm:gap-10 sm:px-6 sm:py-12 lg:grid-cols-[1.15fr_.85fr] lg:gap-16 lg:py-20">
+          <section className="rise order-last max-w-2xl lg:order-first">
             <p className="mb-4 inline-flex items-center gap-2 rounded-full bg-blue-100 px-3 py-1 text-sm font-semibold text-blue-800"><ShieldCheck size={16} aria-hidden="true" />{labels.landingEyebrow}</p>
             <h1 className="font-heading text-4xl font-bold leading-tight tracking-tight sm:text-5xl lg:text-6xl">{labels.landingTitle}</h1>
             <p className="mt-6 max-w-xl border-l-4 border-primary pl-5 text-lg leading-8 text-slate-700">{labels.landingDescription}</p>
@@ -2279,13 +2302,15 @@ function App() {
               <li className="flex items-start gap-3"><MessageCircle className="mt-0.5 shrink-0 text-primary" size={20} aria-hidden="true" />{labels.landingChat}</li>
             </ul>
           </section>
-          <section className="rise rounded-3xl border border-blue-100 bg-white p-7 shadow-xl shadow-blue-900/10 sm:p-9" aria-labelledby="landing-action-title">
-            <Compass className="size-9 text-primary" aria-hidden="true" />
-            <h2 id="landing-action-title" className="mt-5 font-heading text-2xl font-bold tracking-tight">{labels.landingActionTitle}</h2>
-            <p className="mt-3 leading-7 text-slate-700">{auth === null ? labels.authChecking : labels.landingAccess}</p>
+          <section className="rise order-first rounded-3xl border border-blue-100 bg-white p-6 shadow-xl shadow-blue-900/10 sm:p-9 lg:order-last" aria-labelledby="landing-action-title">
+            <div className="flex items-center gap-3">
+              <Compass className="size-8 shrink-0 text-primary" aria-hidden="true" />
+              <h2 id="landing-action-title" className="font-heading text-xl font-bold tracking-tight sm:text-2xl">{labels.landingActionTitle}</h2>
+            </div>
+            <p className="mt-2 leading-6 text-slate-700">{auth === null ? labels.authChecking : labels.landingAccess}</p>
             {authError && <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-800" role="alert">{labels[authError]}</p>}
             {authError === "authLinkRequired" && <button type="button" onClick={() => signIn("/", "existing")} className="mt-3 inline-flex min-h-11 items-center rounded-xl border border-blue-200 bg-white px-4 font-semibold text-blue-800 focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300">{labels.signInExisting}</button>}
-            {auth !== null && <div className="mt-7 grid gap-3">
+            {auth !== null && <div className="mt-4 grid gap-2 sm:mt-7 sm:gap-3">
               <button type="button" onClick={() => signIn("/", "google")} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 font-bold text-white shadow-lg shadow-blue-500/25 transition hover:bg-blue-500 focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300"><LogIn size={18} aria-hidden="true" />{labels.signInWithGoogle}</button>
               <button type="button" onClick={() => signIn("/", "email")} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-blue-200 bg-white px-5 font-bold text-blue-800 transition hover:bg-blue-50 focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300"><LogIn size={18} aria-hidden="true" />{labels.signInWithEmail}</button>
               <button type="button" onClick={() => signIn("/", "signup")} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-blue-200 bg-white px-5 font-bold text-blue-800 transition hover:bg-blue-50 focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300"><UserPlus size={18} aria-hidden="true" />{labels.registerWithEmail}</button>
@@ -2374,7 +2399,7 @@ function App() {
                 aria-pressed={state.language === "vi"}
                 title={labels.switchToVietnamese}
                 onClick={() => void changeLanguage("vi")}
-                className={`min-h-9 min-w-10 rounded-lg px-2 text-sm font-bold transition-colors ${state.language === "vi" ? "bg-primary text-white shadow-sm" : "text-slate-700 hover:bg-white"}`}
+                className={`min-h-11 min-w-11 rounded-lg px-2 text-sm font-bold transition-colors ${state.language === "vi" ? "bg-primary text-white shadow-sm" : "text-slate-700 hover:bg-white"}`}
               >
                 <span className="lg:hidden">VI</span>
                 <span className="hidden lg:inline">{labels.languageVietnamese}</span>
@@ -2385,7 +2410,7 @@ function App() {
                 aria-pressed={state.language === "en"}
                 title={labels.switchToEnglish}
                 onClick={() => void changeLanguage("en")}
-                className={`min-h-9 min-w-10 rounded-lg px-2 text-sm font-bold transition-colors ${state.language === "en" ? "bg-primary text-white shadow-sm" : "text-slate-700 hover:bg-white"}`}
+                className={`min-h-11 min-w-11 rounded-lg px-2 text-sm font-bold transition-colors ${state.language === "en" ? "bg-primary text-white shadow-sm" : "text-slate-700 hover:bg-white"}`}
               >
                 <span className="lg:hidden">EN</span>
                 <span className="hidden lg:inline">{labels.languageEnglish}</span>
@@ -2745,16 +2770,17 @@ function App() {
               />
             )}
             {state.plan ? (
-              <>
-                <div className="mt-8 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-blue-100 bg-white p-5 shadow-sm sm:p-6">
-                  <div>
-                    <p className="font-semibold text-slate-900">{labels.saveTour}</p>
-                    <p className="mt-1 text-sm text-slate-600">{labels.saveTourDescription}</p>
-                  </div>
-                  <button
+              <PlanView
+                  plan={state.plan}
+                  visuals={visuals}
+                  loading={visualsLoading}
+                  language={state.language}
+                  headerAction={<div className="flex flex-col items-start gap-1">
+                    <button
                     type="button"
                     onClick={() => void saveTour()}
                     disabled={state.pending || savingTour}
+                    aria-describedby="save-tour-description"
                     className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-primary px-4 font-bold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {savingTour ? (
@@ -2764,19 +2790,14 @@ function App() {
                     )}
                     {labels.saveTour}
                   </button>
+                  <span id="save-tour-description" className="max-w-xs text-xs text-slate-500">{labels.saveTourDescription}</span>
                   {saveStatus && (
-                    <p className="w-full text-sm text-slate-700" role="status" aria-live="polite">
+                    <p className="max-w-xs text-sm text-slate-700" role="status" aria-live="polite">
                       {labels[saveStatus]}
                     </p>
                   )}
-                </div>
-                <PlanView
-                  plan={state.plan}
-                  visuals={visuals}
-                  loading={visualsLoading}
-                  language={state.language}
-                />
-              </>
+                </div>}
+              />
             ) : (
               <section className="mt-10 grid min-h-52 place-content-center rounded-3xl border border-dashed border-blue-200 bg-white p-8 text-center text-slate-600 shadow-sm">
                 <Compass className="mx-auto mb-3 text-primary" />

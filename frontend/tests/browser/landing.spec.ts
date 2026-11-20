@@ -15,6 +15,17 @@ test("public guide follows the selected language", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Use the planner in 5 steps" })).toBeVisible();
 });
 
+test("primary sign-in action is visible in the first phone viewport", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  const primaryAction = page.getByRole("button", { name: "Tiếp tục với Google" });
+  await expect(primaryAction).toBeVisible();
+  const bounds = await primaryAction.boundingBox();
+  expect(bounds).not.toBeNull();
+  expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(844);
+  expect(await page.getByRole("button", { name: "Chuyển sang tiếng Anh" }).evaluate((button) => button.getBoundingClientRect().height)).toBeGreaterThanOrEqual(44);
+});
+
 test("public guide fits the viewport and respects reduced motion", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");

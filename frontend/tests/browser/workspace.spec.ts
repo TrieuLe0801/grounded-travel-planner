@@ -29,15 +29,15 @@ const photo = {
   image_license: "CC BY 4.0",
 };
 
-async function mockWorkspace(page: Page, options: { withPlan?: boolean; admin?: boolean; language?: "vi" | "en" } = {}) {
+async function mockWorkspace(page: Page, options: { withPlan?: boolean; admin?: boolean; language?: "vi" | "en"; dayCount?: number; withPhoto?: boolean; pending?: boolean } = {}) {
   const language = options.language ?? "vi";
   const session = {
     language,
-    plan: options.withPlan ? plan : null,
-    pending: false,
+    plan: options.withPlan ? { ...plan, day_count: options.dayCount ?? plan.day_count } : null,
+    pending: options.pending ?? false,
     response: null,
     conversation: [],
-    visuals_by_entry: options.withPlan ? { "stop-1": photo } : {},
+    visuals_by_entry: options.withPlan && options.withPhoto !== false ? { "stop-1": photo } : {},
   };
   await page.route("**/api/auth/me", (route) => route.fulfill({
     contentType: "application/json",
@@ -98,6 +98,91 @@ test("plan keeps source and estimates visible and chat offers edit examples", as
   await expect(page.getByRole("link", { name: "nguồn ảnh" })).toHaveAttribute("href", "https://example.com/photo");
   await page.getByRole("button", { name: "Mở cửa sổ chat" }).click();
   await expect(page.getByRole("button", { name: "Đổi thứ tự hai điểm tham quan" })).toBeVisible();
+});
+
+test("a later itinerary request clears the previous snapshot save notice", async ({ page }) => {
+  await mockWorkspace(page, { withPlan: true });
+  await page.route("**/api/saved-tours", (route) => route.fulfill({
+    contentType: "application/json",
+    body: JSON.stringify({
+      id: "saved-current", title: "Hà Nội", destination: "Hà Nội",
+      start_date: plan.start_date, day_count: 1, revision: 1,
+      saved_at: "2026-11-20T08:00:00Z", plan,
+    }),
+  }));
+  await page.route("**/api/turns", (route) => route.fulfill({
+    contentType: "application/json", body: '{"accepted":true}',
+  }));
+  await page.goto("/");
+  await page.getByRole("button", { name: "Lưu tour", exact: true }).click();
+  await expect(page.getByRole("status").getByText("Đã lưu tour.", { exact: false })).toBeVisible();
+  await page.getByRole("button", { name: "Mở cửa sổ chat" }).click();
+  await page.getByRole("textbox", { name: "Yêu cầu thay đổi lịch trình" }).fill("Đổi thời gian tham quan.");
+  await page.getByRole("button", { name: "Gửi" }).click();
+  await expect(page.getByRole("status").getByText("Đã lưu tour.", { exact: false })).toHaveCount(0);
+});
+
+test("one-day itinerary has no day links and renders the English singular unit", async ({ page }) => {
+  await mockWorkspace(page, { withPlan: true, language: "en" });
+  await page.goto("/");
+  await expect(page.getByRole("navigation", { name: "Navigate itinerary by day" })).toHaveCount(0);
+  await expect(page.getByText(/December 1, 2026\s*·\s*1 day/)).toBeVisible();
+});
+
+test("multi-day itinerary links navigate to the last day by keyboard", async ({ page }) => {
+  await mockWorkspace(page, { withPlan: true, dayCount: 7 });
+  await page.goto("/");
+  const nav = page.getByRole("navigation", { name: "Điều hướng lịch trình theo ngày" });
+  await expect(nav.getByRole("link")).toHaveCount(7);
+  const lastDayLink = nav.getByRole("link", { name: "Ngày 7" });
+  await lastDayLink.focus();
+  await lastDayLink.press("Enter");
+  await expect(page).toHaveURL(/#itinerary-day-7$/);
+  await expect(page.locator("#itinerary-day-7")).toBeInViewport();
+});
+
+test("language switch keeps the current plan and pending turn", async ({ page }) => {
+  await mockWorkspace(page, { withPlan: true, pending: true });
+  await page.route("**/api/session/language", (route) => route.fulfill({
+    contentType: "application/json",
+    body: JSON.stringify({
+      language: "en", plan, pending: true, response: null,
+      conversation: [{ role: "user", content: "Giữ nguyên lượt đang chạy." }],
+      visuals_by_entry: { "stop-1": photo },
+    }),
+  }));
+  await page.goto("/");
+  await page.getByRole("button", { name: "Mở cửa sổ chat" }).click();
+  await expect(page.getByText("Đang kiểm tra yêu cầu…")).toBeVisible();
+  await page.getByRole("button", { name: "Chuyển sang tiếng Anh" }).click();
+  await expect(page.getByRole("heading", { name: "Văn Miếu" })).toBeVisible();
+  await expect(page.getByText("Giữ nguyên lượt đang chạy.")).toBeVisible();
+  await expect(page.getByText("Checking your request…")).toBeVisible();
+});
+
+test("missing photo uses a compact fallback while source information remains", async ({ page }) => {
+  await mockWorkspace(page, { withPlan: true, withPhoto: false });
+  await page.goto("/");
+  await expect(page.getByText("Chưa tìm được ảnh có giấy phép cho Văn Miếu.")).toBeVisible();
+  await expect(page.getByRole("link", { name: /Nguồn kiểm thử/ })).toBeVisible();
+  await expect(page.locator("#itinerary-day-1 .aspect-\\[16\\/9\\]")).toHaveCount(0);
+});
+
+test("language and calendar controls meet the 44px touch target", async ({ page }) => {
+  await mockWorkspace(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  const language = page.getByRole("button", { name: "Chuyển sang tiếng Anh" });
+  await expect(language).toBeVisible();
+  expect((await language.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+  await page.getByRole("button", { name: "Chuyển sang tiếng Việt" }).click();
+  await page.getByRole("button", { name: "Ngày bắt đầu" }).click();
+  const calendar = page.getByRole("dialog", { name: "Ngày bắt đầu" });
+  await expect(calendar).toBeVisible();
+  const controls = await calendar.getByRole("button").all();
+  for (const control of controls) {
+    expect((await control.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+  }
 });
 
 test("new trip returns to setup after confirming plan reset", async ({ page }) => {
