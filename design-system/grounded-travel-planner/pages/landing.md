@@ -35,3 +35,17 @@ verified sign-in.
 - Give sign-in the primary visual treatment and registration a clear secondary
   treatment. Keep visible focus, keyboard access, and a responsive layout
   without horizontal overflow.
+
+## Exploration redesign
+
+Use a deep blue editorial cover with a concise exploration heading, factual
+product description, source/chat benefits and local decorative landscape and
+compass artwork. The artwork is abstract, not a representation of a real place.
+The sign-in card remains a separate white surface with the existing direct
+Google, email/password, registration and email-code actions. On phones it comes
+first, preserving sign-in access in the initial viewport.
+
+The guide reads as five numbered chapters on paper cards. Keep all five local
+SVG illustrations and bilingual explanations. Chapter numbers and generous
+spacing provide hierarchy; avoid fabricated itinerary previews or destination
+recommendations. Existing reduced-motion-aware guide entry behavior remains.

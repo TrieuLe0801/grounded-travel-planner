@@ -1,5 +1,5 @@
 {
-  "version": 127,
+  "version": 128,
   "updated": "2026-11-20",
   "active_scope": "city-place-sightseeing-webapp",
   "current_milestone": "Milestone 1: executable city/place sightseeing vertical slice",
@@ -18,8 +18,8 @@
     },
     {
       "id": "web-ui",
-      "state": "React layout refined; mocked browser QA passed; live browser QA pending",
-      "summary": "The mobile landing sign-in action appears in the first viewport. Itinerary identity and explicit snapshot save share a header; multi-day plans have keyboard-accessible day links; missing-photo fallback is compact. Frontend check/build and 17 mocked Chromium checks passed on 2026-11-20 at 390, 768, 1024 and 1440 px. Live Auth0, provider and deployed-flow QA remain pending."
+      "state": "Travel-guide redesign implemented; mocked browser QA passed; live QA pending",
+      "summary": "Travel-guide redesign implemented with an editorial landing, local decorative landscape/compass SVG, departure form, destination-led journal, numbered days, saved-tour index and consistent chat styling. Frontend check/build and 34 mocked Chromium checks passed; two duplicate viewport sweeps skipped. Live Auth0, providers and deployed behavior remain unverified."
     },
     {
       "id": "saved-tours",

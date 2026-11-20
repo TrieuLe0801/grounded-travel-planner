@@ -23,3 +23,22 @@ existing React/Tailwind components and tokens in `frontend/src/index.css`.
   source data. Never imply booking, guaranteed hours, or unsupported routing.
 - Keep the current itinerary and chat session-only. A saved tour is a separate,
   explicit, read-only snapshot.
+
+## Travel journal composition
+
+The interface uses an editorial travel-journal composition: a deep blue cover,
+large destination headings, numbered day chapters and chronological stop markers.
+Primary actions remain blue `#2563eb`; paper surfaces remain white/light blue
+with slate text. The cover's `#172f56` background is a supporting blue tone, not
+an alternative action color. Existing fonts and Lucide icons remain unchanged.
+
+Use named component classes for the cover, departure form, day chapters and
+saved-tour index. Abstract mountain/compass artwork is local decorative SVG,
+hidden from assistive technology; it does not depict an actual destination or
+route. It has no animation. Actual destination imagery still requires provider
+source, creator and license credit. Never replace missing photos with this art.
+
+The destination and date lead the itinerary cover. Revision is secondary;
+explicit save stays adjacent. Day chapters retain full-width layouts and
+chronological times; source and estimate labels stay with each stop. Saved
+snapshots reuse this journal layout without editing or save controls.

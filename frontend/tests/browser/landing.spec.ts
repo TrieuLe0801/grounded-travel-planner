@@ -6,13 +6,15 @@ test.beforeEach(async ({ page }) => {
   );
 });
 
-test("public guide follows the selected language", async ({ page }) => {
+test("public guide follows the selected language", async ({ page }, testInfo) => {
   await page.goto("/");
   await expect(page.locator("html")).toHaveAttribute("lang", "vi-VN");
   await expect(page.locator("#how-to-use h3")).toHaveCount(5);
   await page.getByRole("button", { name: "Chuyển sang tiếng Anh" }).click();
   await expect(page.locator("html")).toHaveAttribute("lang", "en-US");
   await expect(page.getByRole("heading", { name: "Use the planner in 5 steps" })).toBeVisible();
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath("landing-en.png"), fullPage: true });
 });
 
 test("primary sign-in action is visible in the first phone viewport", async ({ page }) => {
