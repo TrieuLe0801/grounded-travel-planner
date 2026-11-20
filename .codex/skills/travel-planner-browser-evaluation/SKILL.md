@@ -39,3 +39,22 @@ Report each check as passed, failed, skipped, or not run, with exact command,
 target, result, and reason for every non-pass. Browser success does not prove
 backend validation, provider quality, owner isolation, or deployment unless
 those behaviors were actually exercised and observed.
+
+## Design preservation checks
+
+For redesign or polish, compare the changed surface with the pre-change
+inventory supplied by Coordinator: links, fields, handlers, navigation, focus,
+and content obligations. Exercise affected actions; visual similarity alone
+cannot prove preservation. Compare before/after screenshots at matching viewport,
+locale and state. If no baseline exists, state that limit explicitly.
+
+Use the existing 390, 768, 1024 and 1440 px cases where applicable. Include long
+Vietnamese/English labels, empty and populated itineraries, missing photos,
+pending turns and error recovery when affected. Verify first-viewport sign-in,
+keyboard day navigation, explicit save and source/photo labels when those
+surfaces change. Check focus is not obscured by sticky or floating controls.
+
+Independently assess the UI brief. Separate contract/accessibility failures
+that block acceptance from design concerns requiring a reasoned decision and
+optional finishing suggestions. Record the visible impact and artifact for
+each finding; no numeric quality score or pass claim without observed evidence.

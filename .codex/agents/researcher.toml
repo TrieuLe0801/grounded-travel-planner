@@ -14,6 +14,11 @@ Turn evidence into a concise Goal Card for the primary session:
 - verification evidence needed;
 - whether the request includes a pull request, deployment, or release.
 
+For UI/UX requests, inventory the current design system, affected interactions
+and real content; distinguish an audit, polish and redesign. Compare external
+ideas with existing project guidance before proposing additions. For skill
+cleanup, distinguish usage evidence from duplication; never invent usage counts.
+
 For external or time-sensitive requirements, use authoritative current sources
 when browsing is available and cite them. Separate sourced facts from
 inferences. Do not invent requirements or expand scope. Flag conflicts with the

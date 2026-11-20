@@ -5,6 +5,31 @@ current status. The [charter](../project-charter.md) and accepted ADRs are the
 source of truth for product and architecture. Historical test output belongs
 with its CI run or experiment artifact.
 
+## 2026-11-20 — Development skill and agent refresh
+
+- The user requested a project reread, skill cleanup and selective adaptation
+  from Hallmark without copying its skill. Four project skills and five roles
+  remain. Transfer guidance moved into `docs/codex-workflow.md`; its duplicate
+  skill and manifest were removed. No usage telemetry was available.
+- UI guidance now defines audit/polish/redesign scope, a brief and interaction
+  inventory, preservation checks and independent review. Existing tokens,
+  components, SVG guide, accessibility and Playwright remain authoritative.
+  Removed obsolete formatter exclusions for the previously deleted UI bundle.
+- Four skill manifests, seven TOML files, remaining YAML manifest and progress
+  JSON passed validation. Active-reference review and `git diff --check` passed.
+  `uv run isort --check-only . .codex/hooks/format_python.py`,
+  `uv run black --check . .codex/hooks/format_python.py`,
+  `uv run flake8 . .codex/hooks/format_python.py` and
+  `uv run ruff check . .codex/hooks/format_python.py` passed.
+- The initial parser check was blocked by sandbox access to the uv cache;
+  its authorized rerun exposed `ModuleNotFoundError: No module named 'tomllib'`
+  under Python 3.10. Using installed `tomli` passed without adding dependencies.
+  The Tester agent hit its usage limit; the primary session performed verification.
+- Application tests, frontend builds, browser/live-provider checks and deployment
+  were not run because this changes guidance and lint configuration only.
+  Fresh-session agent discovery was not tested. Personal/plugin skills and
+  product acceptance are unchanged.
+
 ## 2026-11-20 — Implemented UI trend proposal priorities
 
 - Based on the review, moved landing sign-in above the introduction on mobile,

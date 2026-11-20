@@ -1,5 +1,5 @@
 {
-  "version": 126,
+  "version": 127,
   "updated": "2026-11-20",
   "active_scope": "city-place-sightseeing-webapp",
   "current_milestone": "Milestone 1: executable city/place sightseeing vertical slice",
@@ -65,5 +65,10 @@
     "Exercise live reorder and replace requests with separate evidence from offline tests.",
     "Treat production rollout as a separate decision and preserve backup, migration, CI and deployment gates."
   ],
-  "notes": "This file is a compact roadmap summary, not an independent source of product policy or runtime verification. See PROJECT_STATUS.md, docs/project-charter.md, accepted ADRs and CI/experiment records."
+  "notes": "This file is a compact roadmap summary, not an independent source of product policy or runtime verification. See PROJECT_STATUS.md, docs/project-charter.md, accepted ADRs and CI/experiment records.",
+  "development_workflow": {
+    "updated": "2026-11-20",
+    "summary": "Four project skills and five development roles; transfer procedure consolidated in docs/codex-workflow.md; UI/UX brief, preservation inventory and independent review added without importing Hallmark.",
+    "verification": "Four skill manifests, seven TOML files, YAML/JSON, active references, diff check and isort/Black/flake8/Ruff passed. Application/browser/live checks and fresh-session agent discovery not run; application acceptance unchanged."
+  }
 }

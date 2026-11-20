@@ -21,6 +21,15 @@ runs and experiment records.
 | Account administration | Source and offline integration verified; live QA pending | Account access, usage and deletion are implemented. No live Auth0 deletion request or administrator browser flow was checked. |
 | Public app | Read-only smoke observed | On 2026-11-17, the local Compose app and PostgreSQL were healthy and the local root returned HTTP 200. This does not establish browser or Auth0 acceptance. |
 
+## Development workflow
+
+On 2026-11-20, project skills were consolidated to four and the five development
+roles gained explicit UI/UX handoffs. The redundant transfer skill was replaced
+by its procedure in `docs/codex-workflow.md`. Selective Hallmark ideas extend
+existing UI/browser guidance; no external bundle was imported. Four skill
+manifests, TOML/JSON/YAML parsing, active references, diff checks and all four
+Python formatting/lint checks passed. Product and live acceptance are unchanged.
+
 ## Latest verification
 
 - On 2026-11-20, UI trend proposal P0 and day-navigation P1 changes passed
