@@ -3,6 +3,7 @@ name: CI and Mac deployment
 on:
   push:
     branches:
+      - main
       - feature/travel-ground-planner
   pull_request:
     branches:
@@ -59,7 +60,7 @@ jobs:
         run: |
           uv run isort --check-only . .codex/hooks/format_python.py
           uv run black --check . .codex/hooks/format_python.py
-          uv run flake8 src tests .codex/hooks/format_python.py
+          uv run flake8 . .codex/hooks/format_python.py
           uv run ruff check . .codex/hooks/format_python.py
 
       - name: Check and build frontend

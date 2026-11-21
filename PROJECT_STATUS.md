@@ -14,7 +14,7 @@ runs and experiment records.
 
 | Area | State | Evidence or open gate |
 |---|---|---|
-| Runtime | Implemented; admin model settings source-verified | Coordinator, Planner and Chat retain bounded search, session context and validate-before-commit behavior. Active admins can set role provider/model, additive prompt and bounded generation parameters. Offline and mocked browser checks passed; explicit settings migration and live provider check remain pending. See ADR 0024. |
+| Runtime | Implemented; admin model settings source-verified | Coordinator, Planner and Chat retain bounded search, session context and validate-before-commit behavior. Active admins can set role provider/model, additive prompt and bounded generation parameters. Offline and mocked browser checks passed; PostgreSQL settings tables were observed, but backup restore, write-pause evidence and live provider checks remain pending. See ADR 0024. |
 | Web UI | Travel-guide redesign implemented; mocked browser QA passed; live QA pending | Travel-guide redesign implemented with an editorial landing, local decorative landscape/compass SVG, departure form, destination-led journal, numbered days, saved-tour index and consistent chat styling. Frontend check/build and 34 mocked Chromium checks passed; two duplicate viewport sweeps skipped. Live Auth0, providers and deployed behavior remain unverified. |
 | Saved tours | PostgreSQL Compose storage available; browser QA pending | Explicitly saved, owner-scoped snapshots are read-only. Verify save, list, detail, delete and owner isolation in a browser. |
 | Authentication | Compose app updated; live verification pending | Public host is www.citedtrip.app. The local app container has its configured Auth0 password connection. Auth0 enablement, sign-in, signup, email verification, OTP, callback, planner access and logout have not been browser-verified. |
@@ -22,6 +22,15 @@ runs and experiment records.
 | Public app | Read-only smoke observed | On 2026-11-17, the local Compose app and PostgreSQL were healthy and the local root returned HTTP 200. This does not establish browser or Auth0 acceptance. |
 
 ## Development workflow
+
+On 2026-11-21, the CI workflow was extended to verify pushes to `main`
+and to run flake8 across the repository. Pull request checks and push checks
+for `feature/travel-ground-planner` remain. The user selected `main` for Mac
+deployment. Its local poller now tracks `main` with the deployment gate enabled,
+but the current `main` commit has no push CI run, so the poller waited without
+deploying. The checkout, app image and healthy PostgreSQL container stayed
+unchanged. The `main` ruleset requires the GitHub Actions `verify` check; the
+workflow edit has not reached `main`. See ADR 0019.
 
 On 2026-11-21, a project-authored `requirement-clarification` skill was added
 for blocking user decisions and explicit deep interviews. Researcher and
@@ -45,6 +54,17 @@ manifests, TOML/JSON/YAML parsing, active references, diff checks and all four
 Python formatting/lint checks passed. Product and live acceptance are unchanged.
 
 ## Latest verification
+
+- CI/CD review: `uv sync --frozen`, 267 offline tests, isort, Black, flake8,
+  Ruff, frontend install/check/build, 46 mocked Playwright checks, Compose
+  configuration, Mac deployment preflight and diff check passed. One optional
+  PostgreSQL test and two duplicate viewport sweeps skipped. No live deploy or
+  GitHub run of the edited workflow occurred.
+- Mac deployment branch switch: local config now has `GTP_DEPLOY_BRANCH=main`
+  and `GTP_DEPLOY_ENABLED=true`. The installed poller reported the current
+  `main` SHA's push CI run as pending. Deployment checkout remained at
+  `a7409fd`, app image at `a16e52d` and PostgreSQL container at `da18268`;
+  both services stayed healthy. Mac preflight passed. No app deploy occurred.
 
 - Administrator runtime model settings: 267 offline tests passed; one optional
   PostgreSQL archive test skipped because its opt-in DSN was unset. Frontend
@@ -121,8 +141,9 @@ Python formatting/lint checks passed. Product and live acceptance are unchanged.
 3. Measure live source relevance, place coverage and host diversity; evaluate
    Chat answer accuracy across factual questions; test reorder and replace
    intents with live evidence.
-4. Back up the account database, pause application writes, and apply the
-   runtime-model-settings migration before enabling admin edits in deployment.
+4. Verify a full restore of the account backup and confirm write-pause evidence
+   for the existing runtime-model-settings tables before accepting admin edits
+   in deployment.
 5. Treat production rollout as a separate decision and follow the existing
    migration, backup and deployment gates.
 
@@ -135,8 +156,9 @@ Python formatting/lint checks passed. Product and live acceptance are unchanged.
 - Live plans, chat and pending turns remain session-only; app recreation clears
   them. Saved-tour snapshots are separate durable records.
 - Process-local request limits reset on restart and do not coordinate replicas.
-- Admin model settings remain unavailable until the explicit backed-up
-  SQLite/PostgreSQL migration runs during a write pause.
+- PostgreSQL runtime settings tables exist, but a complete backup restore and
+  write-pause evidence have not been verified. Admin edit behavior in the
+  deployed app remains untested.
 
 ## Canonical records
 
