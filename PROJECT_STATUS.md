@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-11-20
+Last updated: 2026-11-21
 
 ## Active scope
 
@@ -22,6 +22,20 @@ runs and experiment records.
 | Public app | Read-only smoke observed | On 2026-11-17, the local Compose app and PostgreSQL were healthy and the local root returned HTTP 200. This does not establish browser or Auth0 acceptance. |
 
 ## Development workflow
+
+On 2026-11-21, a project-authored `requirement-clarification` skill was added
+for blocking user decisions and explicit deep interviews. Researcher and
+Planner identify questions; the primary session asks and records answers.
+Five project skills and five development roles now exist. Runtime behavior and
+product acceptance are unchanged. Five skill manifests, five agent TOML files,
+config TOML, progress JSON and diff checks passed. Application/browser/live
+checks were not run for this guidance-only change.
+
+On 2026-11-21, project-authored delivery and agent guidance gained focused
+defect reproduction and separate Goal Card/project-contract review after a
+review of mattpocock/skills. Four skills and five roles remain; no external
+bundle was installed. Agent TOML parsing and diff checks passed. This is a
+workflow change only; application and live acceptance are unchanged.
 
 On 2026-11-20, project skills were consolidated to four and the five development
 roles gained explicit UI/UX handoffs. The redundant transfer skill was replaced

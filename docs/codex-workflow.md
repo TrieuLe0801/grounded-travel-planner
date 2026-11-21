@@ -7,7 +7,7 @@ This repository keeps its Codex development workflow in Git:
 | `AGENTS.md` | Project rules and required reading |
 | `.codex/config.toml` | Agent concurrency; models inherit from the session |
 | `.codex/agents/*.toml` | Researcher, planner, coordinator, tester, and deployer roles |
-| `.codex/skills/*/SKILL.md` | Delivery, UI, browser-evaluation, and security-review guidance |
+| `.codex/skills/*/SKILL.md` | Delivery, requirement clarification, UI, browser-evaluation, and security-review guidance |
 | `.codex/hooks.json`, `.codex/hooks/format_python.py` | Python edit hook |
 | `pyproject.toml`, `uv.lock` | Development tools and locked dependencies |
 
@@ -27,7 +27,7 @@ carry product decisions.
    signed-in account; development subagents inherit it.
 3. Set up credentials in ignored local environment files. Do not transfer
    `.env`, personal Codex config, plugin cache, or credentials through Git.
-4. Check that Codex discovers all five agents and the four project skills.
+4. Check that Codex discovers all five agents and the five project skills.
    Follow `AGENTS.md` for this repository's active workflow.
 
 Browser checks use Playwright from `frontend/`: run
@@ -97,3 +97,27 @@ Do not adopt Hallmark's theme selection, scripts, CSS stamps, rigid word limits,
 blanket overflow clipping or illustration prohibition. The current Tailwind
 system, local guide SVGs and data-rich itinerary govern those choices. No new
 UI framework, image library, package or designer role is required.
+
+## Engineering skill review — 2026-11-21
+
+The user asked to review [mattpocock/skills](https://github.com/mattpocock/skills)
+and update project skills and agents. We compared its bug diagnosis, code
+review, and agent-writing guidance with the existing five roles and four
+project skills. The delivery skill and Coordinator now require a focused,
+observable failure before asserting a defect's cause. Tester checks that a
+regression exercises the reported symptom and reviews the diff separately for
+Goal Card fit and project-contract compliance. Researcher compares external
+ideas with local gaps before recommending them. No external skill bundle or
+issue-tracker setup was installed; existing project roles and gates remain.
+
+## Requirements interview — 2026-11-21
+
+After reviewing [grill-me](https://github.com/mattpocock/skills/blob/main/skills/productivity/grill-me/SKILL.md)
+and [grilling](https://github.com/mattpocock/skills/blob/main/skills/productivity/grilling/SKILL.md),
+the user requested a project skill for agents to clarify requirements. The new
+`requirement-clarification` skill has a focused mode for blocking user decisions
+and a deep-interview mode for an explicit request to explore design branches.
+Researcher finds evidence before raising questions; Planner identifies remaining
+decision dependencies; the primary session asks and records answers. This keeps
+routine authorized work moving and avoids re-asking settled decisions. No
+external skill file or runtime agent was adopted.

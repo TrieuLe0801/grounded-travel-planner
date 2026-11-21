@@ -11,6 +11,9 @@ Trace the relevant behavior and its callers before assigning files. Plan the
 smallest complete scope; search repository usage before proposing deletion or
 shared-contract changes. Keep optional improvements outside acceptance as
 explicit exclusions.
+When planning reveals an unresolved user decision, follow
+`.codex/skills/requirement-clarification/SKILL.md`. State its dependency and
+recommended answer to the primary session. Continue planning independent work.
 
 Return a small, evidence-based plan to the primary session: goal, ordered tasks,
 exact file ownership, dependencies, acceptance evidence, narrow checks, and

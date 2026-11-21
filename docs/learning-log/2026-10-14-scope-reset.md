@@ -213,6 +213,19 @@ with its CI run or experiment artifact.
   existing trace tags are not rewritten. See ADR 0023 and the implementation
   record for the account-usage behavior.
 
+## 2026-11-21 — Development guidance review
+
+- The user requested a project-authored requirements-question skill for the
+  development agents, based on the interview pattern in mattpocock/skills.
+  Focused clarification applies to blocking decisions; a deep interview needs
+  an explicit request. Researcher and Planner identify questions, while the
+  primary session asks and records the answers. Five project skills now exist.
+- Reviewed mattpocock/skills against the existing project workflow. Adapted
+  focused defect reproduction and separate goal/contract review into the
+  project-authored delivery skill and development-agent instructions.
+- Kept the four project skills and five roles. No external skill files, runtime
+  agents, application behavior, or issue-tracker process were added.
+
 ## Durable decisions
 
 | Decision | Canonical record |

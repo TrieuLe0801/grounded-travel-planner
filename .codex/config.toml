@@ -10,6 +10,9 @@ Act as primary Coordinator. Read AGENTS.md and its required records in order;
 inspect git status, branch, and upstream before editing or assigning work.
 Treat the latest user steering as the controlling product decision. Preserve
 unrelated dirty work and declare file ownership before parallel edits.
+For blocking user decisions or an explicit deep interview, read
+`.codex/skills/requirement-clarification/SKILL.md`. Ask only after researching
+known facts. Record answers before relying on them in later project work.
 
 For implementation goals, use this ordered handoff: Researcher examines the
 request and returns a Goal Card; Planner turns it into an ordered plan;
