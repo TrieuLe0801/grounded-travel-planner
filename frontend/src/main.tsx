@@ -182,7 +182,7 @@ type ClaimResult = {
   already_claimed_count: number;
   conflicts: unknown[];
 };
-type View = "itinerary" | "graph" | "saved" | "admin" | "profile";
+type View = "itinerary" | "graph" | "saved" | "admin" | "admin-model-settings" | "profile";
 type LocalizedMessage = TextMessageKey | "";
 type FormErrorField = "destination" | "startDate" | "days" | "chat";
 type FormErrors = Partial<Record<FormErrorField, TextMessageKey>>;
@@ -222,6 +222,7 @@ const adminUsersPageSize = 50;
 const refreshableViews: Exclude<View, "graph" | "itinerary">[] = [
   "saved",
   "admin",
+  "admin-model-settings",
   "profile",
 ];
 const dateLocale = (language: Language) =>
@@ -1400,18 +1401,21 @@ function SavedToursView({
   );
 }
 
-function AdminModelSettingsPanel({
+function AdminModelSettingsView({
   csrfToken,
   language,
+  onBack,
 }: {
   csrfToken: string;
   language: Language;
+  onBack: () => void;
 }) {
   const labels = text(language);
   const [settings, setSettings] = useState<RuntimeAgentSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [loadError, setLoadError] = useState(false);
+  const [loadError, setLoadError] = useState<"generic" | "migration" | "">("");
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [saveStatus, setSaveStatus] = useState<"saved" | "error" | "">("");
 
   useEffect(() => {
@@ -1420,8 +1424,14 @@ function AdminModelSettingsPanel({
       .then((response) => {
         if (active) setSettings(response.settings);
       })
-      .catch(() => {
-        if (active) setLoadError(true);
+      .catch((error: unknown) => {
+        if (active) {
+          setLoadError(
+            error instanceof ApiError && error.message.includes("migrate_runtime_model_settings.py")
+              ? "migration"
+              : "generic",
+          );
+        }
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -1429,7 +1439,7 @@ function AdminModelSettingsPanel({
     return () => {
       active = false;
     };
-  }, []);
+  }, [loadAttempt]);
 
   const update = (
     role: keyof RuntimeAgentSettings,
@@ -1472,12 +1482,25 @@ function AdminModelSettingsPanel({
   const roles: (keyof RuntimeAgentSettings)[] = ["coordinator", "planner", "chat"];
 
   return (
-    <section className="mt-6 rounded-3xl border border-blue-100 bg-white p-5 shadow-lg shadow-blue-900/5 sm:p-8" aria-labelledby="admin-model-settings-title">
-      <h2 id="admin-model-settings-title" className="font-heading text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">{labels.adminModelSettings}</h2>
+    <section className="rise" aria-labelledby="admin-model-settings-title">
+      <button type="button" onClick={onBack} className="inline-flex min-h-11 items-center gap-2 rounded-xl px-3 font-semibold text-slate-700 hover:bg-blue-100 focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300">
+        <ArrowLeft size={18} aria-hidden="true" />{labels.back}
+      </button>
+      <div className="mt-5 rounded-3xl border border-blue-100 bg-white p-5 shadow-lg shadow-blue-900/5 sm:p-8">
+      <h1 id="admin-model-settings-title" className="font-heading text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">{labels.adminModelSettings}</h1>
       <p className="mt-2 text-sm leading-6 text-slate-600">{labels.adminModelSettingsHelp}</p>
-      <p className="mt-3 rounded-xl bg-amber-50 p-3 text-sm leading-6 text-amber-900">{labels.adminModelSecrets}</p>
+      <p className="mt-3 rounded-xl bg-amber-50 p-3 text-sm leading-6 text-amber-900" role="note">{labels.adminModelSecrets}</p>
       {loading && <p className="mt-4 text-sm text-slate-600" role="status">{labels.adminModelLoading}</p>}
-      {loadError && <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-800" role="alert">{labels.adminModelLoadError}</p>}
+      {loadError && <div className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-800" role="alert">
+        <p>{loadError === "migration" ? labels.adminModelMigrationRequired : labels.adminModelLoadError}</p>
+        <button type="button" onClick={() => {
+          setLoadError("");
+          setLoading(true);
+          setLoadAttempt((attempt) => attempt + 1);
+        }} disabled={loading} className="mt-3 inline-flex min-h-11 items-center rounded-lg border border-red-200 bg-white px-4 font-semibold hover:bg-red-100 focus-visible:outline focus-visible:outline-4 focus-visible:outline-red-300 disabled:cursor-not-allowed disabled:opacity-50">
+          {labels.adminModelRetry}
+        </button>
+      </div>}
       {saveStatus === "saved" && <p className="mt-4 rounded-xl bg-green-50 p-3 text-sm text-green-800" role="status">{labels.adminModelSaved}</p>}
       {saveStatus === "error" && <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-800" role="alert">{labels.adminModelSaveError}</p>}
       {settings && !loadError && <form className="mt-5 grid gap-5" onSubmit={(event) => void save(event)} aria-busy={saving}>
@@ -1515,6 +1538,7 @@ function AdminModelSettingsPanel({
         <p className="text-sm text-slate-600">{labels.adminModelIdHelp}</p>
         <button type="submit" disabled={saving || loading || !csrfToken} className="inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-primary px-5 font-bold text-white hover:bg-blue-500 focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:justify-self-start">{saving ? labels.adminModelSaving : labels.adminModelSave}</button>
       </form>}
+      </div>
     </section>
   );
 }
@@ -1539,7 +1563,6 @@ function AdminUsersView({
   onChangeAccess,
   onDeleteUser,
   currentUserId,
-  csrfToken,
   onSelectUser,
   onUsageStartChange,
   onUsageEndChange,
@@ -1563,7 +1586,6 @@ function AdminUsersView({
   onChangeAccess: (user: AdminUser) => void;
   onDeleteUser: (user: AdminUser) => void;
   currentUserId?: string;
-  csrfToken: string;
   onSelectUser: (id: string) => void;
   onUsageStartChange: (date: string) => void;
   onUsageEndChange: (date: string) => void;
@@ -1591,7 +1613,6 @@ function AdminUsersView({
       <div className="mt-5 rounded-3xl border border-blue-100 bg-white p-5 shadow-lg shadow-blue-900/5 sm:p-8">
         <h1 id="admin-title" className="font-heading text-2xl font-bold tracking-tight sm:text-3xl">{labels.adminUsers}</h1>
         <p className="mt-2 text-sm leading-6 text-slate-600">{labels.adminUsageNote}</p>
-        <AdminModelSettingsPanel csrfToken={csrfToken} language={language} />
         {error && <p className="mt-4 rounded-xl bg-red-50 p-4 text-red-800" role="alert">{labels[error]}</p>}
         {!usageAvailable && <p className="mt-4 rounded-xl bg-amber-50 p-4 text-amber-900" role="status">{labels.adminUsageUnavailable}</p>}
         {status && <p className={`mt-4 rounded-xl p-4 ${status === "adminDeleteError" ? "bg-red-50 text-red-800" : "bg-green-50 text-green-800"}`} role={status === "adminDeleteError" ? "alert" : "status"}>{labels[status]}</p>}
@@ -1870,7 +1891,7 @@ function App() {
         setAuth(current);
         return;
       }
-      if (!current.is_admin && view === "admin") setView("itinerary");
+      if (!current.is_admin && (view === "admin" || view === "admin-model-settings")) setView("itinerary");
       await load(current.csrf_token);
       const parameters = new URLSearchParams(window.location.search);
       const requestedLanguage = parameters.get("lang");
@@ -1891,6 +1912,9 @@ function App() {
       }
       if (readDeepLink && parameters.get("view") === "admin" && current.is_admin) {
         setView("admin");
+      }
+      if (readDeepLink && parameters.get("view") === "admin-model-settings" && current.is_admin) {
+        setView("admin-model-settings");
       }
       if (readDeepLink && parameters.get("view") === "profile") {
         setView("profile");
@@ -2572,7 +2596,7 @@ function App() {
                 <span className="hidden lg:inline">{labels.languageEnglish}</span>
               </button>
             </div>
-            {view !== "admin" && (
+            {view !== "admin" && view !== "admin-model-settings" && (
               <button
                 type="button"
                 onClick={() => setChatOpen((open) => !open)}
@@ -2646,15 +2670,26 @@ function App() {
                       <Save size={17} aria-hidden="true" />
                       {labels.savedTours}
                     </button>
-                    {auth.is_admin && <button
-                      type="button"
-                      onClick={() => { setAccountOpen(false); setView("admin"); }}
-                      disabled={signingOut}
-                      className="flex min-h-11 w-full items-center gap-2 rounded-xl px-3 text-left text-sm font-semibold text-slate-700 hover:bg-blue-50 focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300 disabled:opacity-50"
-                    >
-                      <UsersRound size={17} aria-hidden="true" />
-                      {labels.adminUsers}
-                    </button>}
+                    {auth.is_admin && <>
+                      <button
+                        type="button"
+                        onClick={() => { setAccountOpen(false); setView("admin"); }}
+                        disabled={signingOut}
+                        className="flex min-h-11 w-full items-center gap-2 rounded-xl px-3 text-left text-sm font-semibold text-slate-700 hover:bg-blue-50 focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300 disabled:opacity-50"
+                      >
+                        <UsersRound size={17} aria-hidden="true" />
+                        {labels.adminUsers}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setAccountOpen(false); setView("admin-model-settings"); }}
+                        disabled={signingOut}
+                        className="flex min-h-11 w-full items-center gap-2 rounded-xl px-3 text-left text-sm font-semibold text-slate-700 hover:bg-blue-50 focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300 disabled:opacity-50"
+                      >
+                        <Bot size={17} aria-hidden="true" />
+                        {labels.adminModelSettingsNav}
+                      </button>
+                    </>}
                     {auth?.authenticated ? (
                       <button
                         type="button"
@@ -2743,7 +2778,6 @@ function App() {
             status={adminUsersStatus}
             updatingId={adminUserUpdatingId}
             currentUserId={auth.user_id}
-            csrfToken={auth.csrf_token || ""}
             selectedUserId={selectedAdminUserId}
             usage={adminUsage}
             usageLoading={adminUsageLoading}
@@ -2758,6 +2792,12 @@ function App() {
             onUsageStartChange={setAdminUsageStart}
             onUsageEndChange={setAdminUsageEnd}
             language={state.language}
+          />
+        ) : view === "admin-model-settings" && auth.is_admin ? (
+          <AdminModelSettingsView
+            csrfToken={auth.csrf_token || ""}
+            language={state.language}
+            onBack={() => setView("admin")}
           />
         ) : view === "graph" ? (
           <GraphView
@@ -2971,7 +3011,7 @@ function App() {
           </>
         )}
       </main>
-      {view !== "admin" && <ChatWidget
+      {view !== "admin" && view !== "admin-model-settings" && <ChatWidget
         open={chatOpen}
         onOpenChange={setChatOpen}
         state={state}
