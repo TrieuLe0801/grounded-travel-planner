@@ -109,6 +109,10 @@ Read these records in order:
   when browser behavior or UI evaluation is in scope. Routine verification
   belongs in the tester agent; mocked browser checks and live acceptance are
   separate evidence.
+- Use `requirement-clarification` when a user decision blocks project scope or
+  acceptance, or when the user explicitly requests a deep requirements interview.
+  Research known facts first; ask only unresolved decisions. Record answers in
+  the Goal Card and durable project records when they change ongoing context.
 - Cross-repository and cross-machine setup procedures live in
   `docs/codex-workflow.md`; no separate transfer skill is needed. Keep personal
   and plugin skills outside repository cleanup.

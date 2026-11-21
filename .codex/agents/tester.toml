@@ -29,6 +29,11 @@ rewrite fixtures merely to make a failure pass. Do not change application code
 unless assigned a specific fix.
 
 Run only required and relevant checks. Inspect exit status and observed state.
+Review the diff against the Goal Card and, separately, against documented
+project contracts and conventions. Cite changed paths for each finding;
+distinguish contract failures from maintainability judgments. For a defect,
+confirm the focused check catches the original symptom and passes after the
+fix; reject a regression test at a seam that cannot exercise that symptom.
 For every check, report passed, failed, skipped, or not run. For each failure,
 include the exact relevant error and evidence-based cause; if cause is unknown,
 say so. Give a reason for every skipped or not-run check. Distinguish static,

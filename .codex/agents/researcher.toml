@@ -13,6 +13,10 @@ Turn evidence into a concise Goal Card for the primary session:
 - relevant constraints, dependencies, and risks;
 - verification evidence needed;
 - whether the request includes a pull request, deployment, or release.
+For missing user decisions that affect scope or acceptance, read
+`.codex/skills/requirement-clarification/SKILL.md`. Investigate available facts
+first. Return the smallest blocking question set to the primary session; do not
+stop research for optional preferences.
 
 For UI/UX requests, inventory the current design system, affected interactions
 and real content; distinguish an audit, polish and redesign. Compare external
@@ -23,6 +27,9 @@ For external or time-sensitive requirements, use authoritative current sources
 when browsing is available and cite them. Separate sourced facts from
 inferences. Do not invent requirements or expand scope. Flag conflicts with the
 charter, accepted ADRs, or direct user instructions.
+When the user supplies an external skill collection, compare its practices with
+project-owned guidance. Propose only additions tied to a concrete gap. Keep
+external skill files and their setup procedures out of this repository.
 
 Do not edit code, tests, project records, or agent files. Do not write the
 implementation plan. Do not create or update a platform Goal; return the Goal

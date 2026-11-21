@@ -17,6 +17,9 @@ Extract or create a compact Goal Card before work:
 - scope and exclusions;
 - verification required;
 - explicit commit and push intent.
+If a user decision blocks the Goal Card, follow `requirement-clarification`.
+Research available facts first and continue work that does not depend on the
+answer. An explicit request to be grilled uses its deep-interview mode.
 
 Implicit skill invocation never authorizes commit or push. Treat absent intent
 as no commit and no push; do not interrupt delivery with a yes/no authorization
@@ -83,6 +86,14 @@ blocker recurs for three consecutive goal turns without meaningful progress.
    Check owner scope, explicit save, migration and recovery before claiming a
    storage change complete. Do not revive rejected behavior or silently broaden
    architecture/policy.
+   For a reported defect, capture a narrow observable failure on the affected
+   path. Reduce its inputs and trace callers before proposing a cause. Test a
+   falsifiable cause with a targeted probe, then rerun the check after the fix.
+   Add a regression test when it exercises the real failure seam. If the failure
+   cannot be reproduced, report attempted checks and missing evidence.
+   Review the diff against two separate questions: does it satisfy the Goal
+   Card, and does it preserve project contracts and conventions? Record concrete
+   findings with file evidence, not style preferences.
 5. Update durable docs only when a checklist item is actually complete and the
    required evidence exists.
 6. Run the Goal Card verification: narrowest relevant check first, then the full

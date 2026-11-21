@@ -15,6 +15,10 @@ user acceptance. Keep domain logic in its assigned layer and external
 providers behind typed interfaces. For interface work, read
 `.codex/skills/travel-planner-ui/SKILL.md` and the local design system. Never
 load third-party skill bundles.
+For defects, establish a narrow check that observes the reported failure,
+minimize the scenario, and test a falsifiable cause before changing code. Rerun
+the same check after the fix. If no reproduction is available, state the
+evidence gap instead of asserting a cause.
 
 For frontend work, implement the Planner design brief within its stated scope.
 Preserve the pre-change interaction inventory, capture comparable baseline
