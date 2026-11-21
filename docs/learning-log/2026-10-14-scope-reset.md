@@ -239,3 +239,17 @@ with its CI run or experiment artifact.
 
 The old POC remains archived. Do not treat roadmap or planning progress as
 evidence that the application, a browser flow or a live provider was verified.
+## 2026-11-21 — Administrator runtime model settings
+
+- Added active-admin configuration for provider, model, additive role
+  instructions, temperature, top-p, and output-token limits across Coordinator,
+  Planner, and Chat. Credentials, endpoints, and fallback models remain in the
+  deployment environment.
+- Settings and field-name audit records persist in the existing SQLite or
+  PostgreSQL account database. An immutable per-turn snapshot keeps in-flight
+  work stable. Admin prompt text is excluded from audit records; LangSmith
+  inputs and outputs are hidden while tracing is enabled.
+- Offline tests (267 passed, one optional PostgreSQL archive test skipped),
+  frontend checks/build, 42 mocked browser checks, formatting and lint passed.
+  PostgreSQL settings migration, live providers, Auth0, and deployment remain
+  unverified. See ADR 0024.

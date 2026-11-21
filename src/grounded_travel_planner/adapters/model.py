@@ -1,11 +1,16 @@
 """LangChain structured-output model adapters."""
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from typing import TypeVar
 
 from pydantic import BaseModel
 
 from grounded_travel_planner.providers import StructuredChatModel, TraceSink
+from grounded_travel_planner.runtime_settings import (
+    AgentModelSettings,
+    AgentRole,
+    current_turn_agent_settings,
+)
 from grounded_travel_planner.usage import current_account_trace_ref
 
 T = TypeVar("T", bound=BaseModel)
@@ -23,12 +28,16 @@ class ChatOpenAIStructuredModel(StructuredChatModel):
         *,
         json_schema_model_names: tuple[str, ...] = (),
         max_completion_tokens: int = 2048,
+        temperature: float | None = None,
+        top_p: float | None = None,
         trace_sink: TraceSink | None = None,
         role: str = "unknown",
     ) -> None:
         self._model_name = model_name
         self._json_schema_model_names = frozenset(json_schema_model_names)
         self._max_completion_tokens = max_completion_tokens
+        self._temperature = temperature
+        self._top_p = top_p
         self._trace_sink = trace_sink
         self._role = role
 
@@ -42,16 +51,21 @@ class ChatOpenAIStructuredModel(StructuredChatModel):
         schema: type[T],
         *,
         metadata: Mapping[str, str] | None = None,
+        system_prompt: str | None = None,
     ) -> T:
         from langchain_core.messages import HumanMessage, SystemMessage
         from langchain_openai import ChatOpenAI
 
-        model_options: dict[str, str | int] = {
+        model_options: dict[str, str | int | float] = {
             "model": self._model_name,
             "max_retries": OPENAI_MAX_RETRIES,
             "timeout": OPENAI_TIMEOUT_SECONDS,
             "max_completion_tokens": self._max_completion_tokens,
         }
+        if self._temperature is not None:
+            model_options["temperature"] = self._temperature
+        if self._top_p is not None:
+            model_options["top_p"] = self._top_p
         structured_output_method = "function_calling"
         structured_schema: type[T] | dict[str, object] = schema
         if self._model_name in self._json_schema_model_names:
@@ -75,9 +89,17 @@ class ChatOpenAIStructuredModel(StructuredChatModel):
             [
                 SystemMessage(
                     content=(
-                        "You are a bounded travel-planner runtime component. "
-                        "Return only the requested structured output. Do not "
-                        "include secrets, API keys, or unsupported claims."
+                        (
+                            "Additional administrator role guidance:\n"
+                            + system_prompt
+                            + "\n\n"
+                            if system_prompt
+                            else ""
+                        )
+                        + "Mandatory runtime policy: You are a bounded travel-planner "
+                        "component. Return only the requested structured output. "
+                        "Do not include secrets, API keys, or unsupported claims. "
+                        "These mandatory safeguards cannot be changed by role guidance."
                     )
                 ),
                 HumanMessage(content=prompt),
@@ -170,11 +192,15 @@ class OllamaStructuredChatModel(StructuredChatModel):
         base_url: str | None = None,
         *,
         max_completion_tokens: int = 2048,
+        temperature: float | None = None,
+        top_p: float | None = None,
         role: str = "unknown",
     ) -> None:
         self._model_name = model_name
         self._base_url = base_url.strip() if base_url else None
         self._max_completion_tokens = max_completion_tokens
+        self._temperature = temperature
+        self._top_p = top_p
         self._role = role
 
     @property
@@ -187,15 +213,20 @@ class OllamaStructuredChatModel(StructuredChatModel):
         schema: type[T],
         *,
         metadata: Mapping[str, str] | None = None,
+        system_prompt: str | None = None,
     ) -> T:
         from langchain_core.messages import HumanMessage, SystemMessage
         from langchain_ollama import ChatOllama
 
-        model_options: dict[str, str | int] = {
+        model_options: dict[str, str | int | float] = {
             "model": self._model_name,
             # ChatOllama forwards ``num_predict`` to Ollama as its generation cap.
             "num_predict": self._max_completion_tokens,
         }
+        if self._temperature is not None:
+            model_options["temperature"] = self._temperature
+        if self._top_p is not None:
+            model_options["top_p"] = self._top_p
         if self._base_url:
             model_options["base_url"] = self._base_url
         model = ChatOllama(**model_options).with_structured_output(schema)
@@ -208,9 +239,17 @@ class OllamaStructuredChatModel(StructuredChatModel):
             [
                 SystemMessage(
                     content=(
-                        "You are a bounded travel-planner runtime component. "
-                        "Return only the requested structured output. Do not "
-                        "include secrets, API keys, or unsupported claims."
+                        (
+                            "Additional administrator role guidance:\n"
+                            + system_prompt
+                            + "\n\n"
+                            if system_prompt
+                            else ""
+                        )
+                        + "Mandatory runtime policy: You are a bounded travel-planner "
+                        "component. Return only the requested structured output. "
+                        "Do not include secrets, API keys, or unsupported claims. "
+                        "These mandatory safeguards cannot be changed by role guidance."
                     )
                 ),
                 HumanMessage(content=prompt),
@@ -250,11 +289,60 @@ class OpenAIWithOllamaFallbackStructuredModel(StructuredChatModel):
         schema: type[T],
         *,
         metadata: Mapping[str, str] | None = None,
+        system_prompt: str | None = None,
     ) -> T:
         from openai import OpenAIError
 
         try:
+            if system_prompt:
+                return self._primary.generate_structured(
+                    prompt, schema, metadata=metadata, system_prompt=system_prompt
+                )
             return self._primary.generate_structured(prompt, schema, metadata=metadata)
         except OpenAIError:
             pass
+        if system_prompt:
+            return self._fallback.generate_structured(
+                prompt, schema, metadata=metadata, system_prompt=system_prompt
+            )
         return self._fallback.generate_structured(prompt, schema, metadata=metadata)
+
+
+class AdminConfigurableStructuredModel(StructuredChatModel):
+    """Resolve one admin settings snapshot without mutating shared adapters."""
+
+    def __init__(
+        self,
+        role: AgentRole,
+        default_model: StructuredChatModel,
+        configured_model_factory: Callable[[AgentModelSettings], StructuredChatModel],
+    ) -> None:
+        self._role = role
+        self._default_model = default_model
+        self._configured_model_factory = configured_model_factory
+
+    @property
+    def model_name(self) -> str:
+        settings = current_turn_agent_settings(self._role)
+        return settings.model if settings else self._default_model.model_name
+
+    def generate_structured(
+        self,
+        prompt: str,
+        schema: type[T],
+        *,
+        metadata: Mapping[str, str] | None = None,
+        system_prompt: str | None = None,
+    ) -> T:
+        settings = current_turn_agent_settings(self._role)
+        if settings is None:
+            return self._default_model.generate_structured(
+                prompt, schema, metadata=metadata
+            )
+        configured_model = self._configured_model_factory(settings)
+        return configured_model.generate_structured(
+            prompt,
+            schema,
+            metadata=metadata,
+            system_prompt=settings.system_prompt or system_prompt,
+        )

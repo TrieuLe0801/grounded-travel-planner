@@ -630,6 +630,86 @@ class AuthRepository:
                 "CREATE INDEX IF NOT EXISTS account_merges_canonical ON account_merges (canonical_user_id)"
             )
 
+    def migrate_runtime_model_settings(self) -> None:
+        """Create durable runtime-model settings and audit tables explicitly."""
+
+        with self._connection() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            if not connection.execute("PRAGMA table_info(app_users)").fetchall():
+                raise AuthError("Authentication schema is missing.")
+            connection.execute("""CREATE TABLE IF NOT EXISTS runtime_model_settings (
+                settings_key TEXT PRIMARY KEY CHECK (settings_key = 'global'),
+                config_json TEXT NOT NULL,
+                revision INTEGER NOT NULL DEFAULT 1,
+                updated_by TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY(updated_by) REFERENCES app_users(id))""")
+            connection.execute(
+                """CREATE TABLE IF NOT EXISTS runtime_model_settings_events (
+                id TEXT PRIMARY KEY,
+                actor_user_id TEXT NOT NULL,
+                action TEXT NOT NULL,
+                changed_fields_json TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY(actor_user_id) REFERENCES app_users(id))"""
+            )
+
+    def get_runtime_model_settings(self) -> tuple[str, int] | None:
+        """Read the committed app-wide config; migration errors fail closed."""
+
+        try:
+            with self._connection() as connection:
+                row = connection.execute(
+                    "SELECT config_json, revision FROM runtime_model_settings WHERE settings_key = 'global'"
+                ).fetchone()
+                return (str(row["config_json"]), int(row["revision"])) if row else None
+        except sqlite3.OperationalError as error:
+            if "no such table" in str(error).casefold():
+                raise AuthError(
+                    "Runtime model settings migration is required."
+                ) from error
+            raise AuthError("Runtime model settings are unavailable.") from error
+        except sqlite3.Error as error:
+            raise AuthError("Runtime model settings are unavailable.") from error
+
+    def update_runtime_model_settings(
+        self, config_json: str, changed_fields_json: str, actor_user_id: str
+    ) -> int:
+        """Atomically replace settings and record field names, never values."""
+
+        try:
+            with self._connection() as connection:
+                connection.execute("BEGIN IMMEDIATE")
+                row = connection.execute(
+                    "SELECT revision FROM runtime_model_settings WHERE settings_key = 'global'"
+                ).fetchone()
+                revision = int(row["revision"]) + 1 if row else 1
+                now = datetime.now(timezone.utc).isoformat()
+                connection.execute(
+                    """INSERT INTO runtime_model_settings
+                    (settings_key, config_json, revision, updated_by, updated_at)
+                    VALUES ('global', ?, ?, ?, ?)
+                    ON CONFLICT(settings_key) DO UPDATE SET
+                    config_json=excluded.config_json, revision=excluded.revision,
+                    updated_by=excluded.updated_by, updated_at=excluded.updated_at""",
+                    (config_json, revision, actor_user_id, now),
+                )
+                connection.execute(
+                    """INSERT INTO runtime_model_settings_events
+                    (id, actor_user_id, action, changed_fields_json, created_at)
+                    VALUES (?, ?, 'update', ?, ?)""",
+                    (str(uuid4()), actor_user_id, changed_fields_json, now),
+                )
+                return revision
+        except sqlite3.OperationalError as error:
+            if "no such table" in str(error).casefold():
+                raise AuthError(
+                    "Runtime model settings migration is required."
+                ) from error
+            raise AuthError("Runtime model settings are unavailable.") from error
+        except sqlite3.Error as error:
+            raise AuthError("Runtime model settings are unavailable.") from error
+
     def find_or_create_user(self, identity: VerifiedIdentity) -> tuple[str, str | None]:
         if not identity.email_verified:
             raise AuthError("Email is not verified.")
@@ -1961,6 +2041,53 @@ class PostgresAuthRepository:
         except (psycopg.Error, PoolClosed, PoolTimeout) as error:
             raise AuthError("Authentication storage is unavailable.") from error
 
+    def get_runtime_model_settings(self) -> tuple[str, int] | None:
+        """Read app-wide model settings from PostgreSQL."""
+
+        try:
+            with self._pool.connection() as connection, connection.cursor() as cursor:
+                cursor.execute(
+                    "SELECT config_json::text AS config_json, revision FROM runtime_model_settings WHERE settings_key = 'global'"
+                )
+                row = cursor.fetchone()
+                return (str(row["config_json"]), int(row["revision"])) if row else None
+        except psycopg.errors.UndefinedTable as error:
+            raise AuthError("Runtime model settings migration is required.") from error
+        except (psycopg.Error, PoolClosed, PoolTimeout) as error:
+            raise AuthError("Runtime model settings are unavailable.") from error
+
+    def update_runtime_model_settings(
+        self, config_json: str, changed_fields_json: str, actor_user_id: str
+    ) -> int:
+        """Atomically replace settings and store field names, never values."""
+
+        try:
+            with self._pool.connection() as connection, connection.cursor() as cursor:
+                now = datetime.now(timezone.utc).isoformat()
+                cursor.execute(
+                    """INSERT INTO runtime_model_settings
+                    (settings_key, config_json, revision, updated_by, updated_at)
+                    VALUES ('global', %s::jsonb, 1, %s, %s)
+                    ON CONFLICT(settings_key) DO UPDATE SET
+                    config_json=EXCLUDED.config_json,
+                    revision=runtime_model_settings.revision + 1,
+                    updated_by=EXCLUDED.updated_by, updated_at=EXCLUDED.updated_at
+                    RETURNING revision""",
+                    (config_json, actor_user_id, now),
+                )
+                revision = int(cursor.fetchone()["revision"])
+                cursor.execute(
+                    """INSERT INTO runtime_model_settings_events
+                    (id, actor_user_id, action, changed_fields_json, created_at)
+                    VALUES (%s, %s, 'update', %s::jsonb, %s)""",
+                    (str(uuid4()), actor_user_id, changed_fields_json, now),
+                )
+                return revision
+        except psycopg.errors.UndefinedTable as error:
+            raise AuthError("Runtime model settings migration is required.") from error
+        except (psycopg.Error, PoolClosed, PoolTimeout) as error:
+            raise AuthError("Runtime model settings are unavailable.") from error
+
 
 def create_postgres_auth_schema(
     connection: psycopg.Connection[dict[str, Any]],
@@ -2038,3 +2165,26 @@ def migrate_postgres_admin_schema(
         cursor.execute(
             "CREATE INDEX IF NOT EXISTS account_merges_canonical ON account_merges (canonical_user_id)"
         )
+
+
+def migrate_postgres_runtime_model_settings_schema(
+    connection: psycopg.Connection[dict[str, Any]],
+) -> None:
+    """Create app-wide runtime settings and audit tables in maintenance mode."""
+
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT to_regclass('app_users')")
+        if cursor.fetchone()[0] is None:
+            raise AuthError("Authentication schema is missing.")
+        cursor.execute("""CREATE TABLE IF NOT EXISTS runtime_model_settings (
+            settings_key TEXT PRIMARY KEY CHECK (settings_key = 'global'),
+            config_json JSONB NOT NULL,
+            revision BIGINT NOT NULL DEFAULT 1,
+            updated_by TEXT NOT NULL REFERENCES app_users(id),
+            updated_at TEXT NOT NULL)""")
+        cursor.execute("""CREATE TABLE IF NOT EXISTS runtime_model_settings_events (
+            id TEXT PRIMARY KEY,
+            actor_user_id TEXT NOT NULL REFERENCES app_users(id),
+            action TEXT NOT NULL,
+            changed_fields_json JSONB NOT NULL,
+            created_at TEXT NOT NULL)""")

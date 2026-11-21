@@ -20,7 +20,7 @@ from dotenv import load_dotenv
 from fastapi import Cookie, FastAPI, Header, HTTPException, Query, Request, Response
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from grounded_travel_planner.auth import (
     AUTH_ABSOLUTE_SECONDS,
@@ -53,6 +53,10 @@ from grounded_travel_planner.conversation import (
     MAX_SESSION_SUMMARY,
 )
 from grounded_travel_planner.i18n import Language, localized, localized_issue_message
+from grounded_travel_planner.runtime_settings import (
+    AgentModelSettings,
+    RuntimeAgentSettings,
+)
 from grounded_travel_planner.saved_tours import (
     LIST_LIMIT,
     InvalidSavedTourCursor,
@@ -125,6 +129,14 @@ class LanguageInput(BaseModel):
 
 class AccessInput(BaseModel):
     access_status: Literal["active", "blocked"]
+
+
+class RuntimeAgentSettingsInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    coordinator: AgentModelSettings
+    planner: AgentModelSettings
+    chat: AgentModelSettings
 
 
 @dataclass
@@ -451,6 +463,24 @@ def create_app(
     password_reset_times: dict[str, float] = {}
     app = FastAPI(title="Grounded Travel Planner", docs_url=None, redoc_url=None)
     app.state.auth0_user_deleter = auth0_user_deleter
+
+    settings_reader = getattr(auth, "get_runtime_model_settings", None)
+    if callable(settings_reader):
+
+        def turn_settings_snapshot() -> RuntimeAgentSettings | None:
+            try:
+                stored = settings_reader()
+            except AuthError as error:
+                if "migration is required" in str(error).casefold():
+                    return None
+                raise
+            if stored is None:
+                return None
+            return RuntimeAgentSettings.model_validate_json(stored[0])
+
+        settings_binder = getattr(planner_service, "set_runtime_settings_source", None)
+        if callable(settings_binder):
+            settings_binder(turn_settings_snapshot)
 
     def current_user(auth_token: str | None) -> AuthenticatedUser:
         try:
@@ -811,6 +841,102 @@ def create_app(
         if not user.is_admin:
             raise HTTPException(status_code=403, detail="Cần quyền quản trị.")
         return user
+
+    def environment_runtime_settings() -> RuntimeAgentSettings:
+        config = planner_service.config
+        return RuntimeAgentSettings(
+            coordinator=AgentModelSettings(
+                provider=config.coordinator_model_provider,
+                model=config.model_name or "",
+                max_output_tokens=config.coordinator_max_output_tokens,
+            ),
+            planner=AgentModelSettings(
+                provider=config.planner_model_provider,
+                model=config.planner_model_name or "",
+                max_output_tokens=config.planner_max_output_tokens,
+            ),
+            chat=AgentModelSettings(
+                provider=config.chat_model_provider,
+                model=config.chat_model_name or "",
+                max_output_tokens=config.chat_max_output_tokens,
+            ),
+        )
+
+    @app.get("/api/admin/model-settings")
+    def admin_get_model_settings(
+        gtp_auth: str | None = Cookie(default=None),
+    ) -> dict[str, object]:
+        admin_user(gtp_auth)
+        if not callable(settings_reader):
+            raise HTTPException(status_code=503, detail="Cấu hình chưa khả dụng.")
+        try:
+            stored = settings_reader()
+            config = (
+                RuntimeAgentSettings.model_validate_json(stored[0])
+                if stored
+                else environment_runtime_settings()
+            )
+        except AuthError as error:
+            if "migration is required" in str(error).casefold():
+                raise HTTPException(
+                    status_code=503,
+                    detail="Cần chạy scripts/migrate_runtime_model_settings.py trước.",
+                ) from error
+            raise HTTPException(
+                status_code=503, detail="Không thể tải cấu hình mô hình."
+            ) from error
+        except ValueError as error:
+            raise HTTPException(
+                status_code=503, detail="Không thể tải cấu hình mô hình."
+            ) from error
+        return {
+            "revision": stored[1] if stored else 0,
+            "settings": config.model_dump(mode="json"),
+        }
+
+    @app.put("/api/admin/model-settings")
+    def admin_update_model_settings(
+        payload: RuntimeAgentSettingsInput,
+        gtp_auth: str | None = Cookie(default=None),
+        x_csrf_token: str | None = Header(default=None),
+    ) -> dict[str, object]:
+        actor = csrf_user(gtp_auth, x_csrf_token)
+        if not actor.is_admin:
+            raise HTTPException(status_code=403, detail="Cần quyền quản trị.")
+        if not callable(settings_reader):
+            raise HTTPException(status_code=503, detail="Cấu hình chưa khả dụng.")
+        settings = RuntimeAgentSettings.model_validate(payload.model_dump())
+        try:
+            previous = settings_reader()
+            before = (
+                RuntimeAgentSettings.model_validate_json(previous[0])
+                if previous
+                else environment_runtime_settings()
+            )
+            changed_fields = [
+                f"{role}.{field_name}"
+                for role in ("coordinator", "planner", "chat")
+                for field_name, value in getattr(settings, role).model_dump().items()
+                if getattr(before, role).model_dump().get(field_name) != value
+            ]
+            revision = auth.update_runtime_model_settings(
+                settings.model_dump_json(),
+                json.dumps(changed_fields, separators=(",", ":")),
+                actor.user_id,
+            )
+        except (AuthError, ValueError) as error:
+            if (
+                isinstance(error, AuthError)
+                and "migration is required" in str(error).casefold()
+            ):
+                raise HTTPException(
+                    status_code=503,
+                    detail="Cần chạy scripts/migrate_runtime_model_settings.py trước.",
+                ) from error
+            raise HTTPException(
+                status_code=503, detail="Không thể lưu cấu hình mô hình."
+            ) from error
+        return {"revision": revision, "settings": settings.model_dump(mode="json")}
 
     @app.get("/api/admin/users")
     def admin_list_users(

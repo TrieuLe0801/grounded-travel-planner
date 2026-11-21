@@ -28,6 +28,11 @@ const photo = {
   image_credit: "Test creator",
   image_license: "CC BY 4.0",
 };
+const modelSettings = {
+  coordinator: { provider: "openai", model: "coordinator-model", system_prompt: "", temperature: 1, top_p: 1, max_output_tokens: 2048 },
+  planner: { provider: "openai", model: "planner-model", system_prompt: "", temperature: 1, top_p: 1, max_output_tokens: 8192 },
+  chat: { provider: "ollama", model: "chat-model", system_prompt: "", temperature: 0.7, top_p: 0.9, max_output_tokens: 2048 },
+};
 
 async function mockWorkspace(page: Page, options: { withPlan?: boolean; admin?: boolean; language?: "vi" | "en"; dayCount?: number; withPhoto?: boolean; pending?: boolean } = {}) {
   const language = options.language ?? "vi";
@@ -67,6 +72,10 @@ async function mockWorkspace(page: Page, options: { withPlan?: boolean; admin?: 
       access_status: "active", is_admin: false, input_tokens: 12,
       output_tokens: 6, estimated_cost_usd: null,
     }], usage_available: true, has_more: false, next_cursor: null }),
+  }));
+  await page.route("**/api/admin/model-settings", (route) => route.fulfill({
+    contentType: "application/json",
+    body: JSON.stringify({ revision: 3, settings: modelSettings }),
   }));
 }
 
@@ -209,6 +218,89 @@ test("saved tours, profile and admin keep authenticated navigation", async ({ pa
   await page.goto("/?view=admin");
   await expect(page.getByRole("heading", { name: "Quản lý người dùng" })).toBeVisible();
   await expect(page.getByText("other@example.com")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Cấu hình mô hình runtime" })).toBeVisible();
+  await expect(page.getByLabel("Mã mô hình").nth(1)).toHaveValue("planner-model");
+});
+
+test("non-admin cannot open the administrator view from a deep link", async ({ page }) => {
+  await mockWorkspace(page, { admin: false });
+  await page.goto("/?view=admin");
+  await expect(page.getByRole("heading", { name: "Quản lý người dùng" })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Lập lịch tham quan" })).toBeVisible();
+});
+
+test("admin model settings save sends CSRF and keeps secret-bearing fields absent", async ({ page }) => {
+  await mockWorkspace(page, { admin: true });
+  await page.route("**/api/admin/model-settings", async (route) => {
+    if (route.request().method() === "GET") {
+      await route.fulfill({ contentType: "application/json", body: JSON.stringify({ revision: 3, settings: modelSettings }) });
+      return;
+    }
+    const request = route.request();
+    expect(request.headers()["x-csrf-token"]).toBe("test-csrf");
+    const payload = request.postDataJSON();
+    expect(payload.planner.model).toBe("planner-tuned");
+    expect(payload.planner.system_prompt).toBe("Prefer concise, source-grounded plans.");
+    expect(payload.planner.temperature).toBe(0.75);
+    expect(payload.planner.top_p).toBe(0.9);
+    expect(JSON.stringify(payload)).not.toMatch(/api[_-]?key|password|base_url/i);
+    await route.fulfill({ contentType: "application/json", body: JSON.stringify({ revision: 4, settings: payload }) });
+  });
+  await page.goto("/?view=admin");
+  await page.getByLabel("Mã mô hình").nth(1).fill("planner-tuned");
+  await page.getByLabel("Temperature (0–2)").nth(1).fill("0.75");
+  await page.getByLabel("Top-p (0–1, không gồm 0)").nth(1).fill("0.9");
+  await page.getByLabel("Chỉ dẫn bổ sung theo vai trò").nth(1).fill("Prefer concise, source-grounded plans.");
+  await page.getByRole("button", { name: "Lưu cấu hình mô hình" }).click();
+  await expect(page.getByRole("status").getByText("Đã lưu cấu hình. Lượt mới sẽ dùng cấu hình này.")).toBeVisible();
+});
+
+test("admin model settings loading state does not expose a premature save action", async ({ page }) => {
+  await mockWorkspace(page, { admin: true });
+  let finishSettingsLoad: (() => void) | undefined;
+  const settingsLoad = new Promise<void>((resolve) => {
+    finishSettingsLoad = resolve;
+  });
+  await page.route("**/api/admin/model-settings", async (route) => {
+    await settingsLoad;
+    await route.fulfill({ contentType: "application/json", body: JSON.stringify({ revision: 3, settings: modelSettings }) });
+  });
+  await page.goto("/?view=admin");
+  await expect(page.getByRole("status").getByText("Đang tải cấu hình mô hình…")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Lưu cấu hình mô hình" })).toHaveCount(0);
+  finishSettingsLoad?.();
+  await expect(page.getByRole("button", { name: "Lưu cấu hình mô hình" })).toBeEnabled();
+});
+
+test("admin model settings retain rejected draft after language switch", async ({ page }, testInfo) => {
+  await mockWorkspace(page, { admin: true });
+  await page.route("**/api/admin/model-settings", async (route) => {
+    if (route.request().method() === "GET") {
+      await route.fulfill({ contentType: "application/json", body: JSON.stringify({ revision: 3, settings: modelSettings }) });
+      return;
+    }
+    await route.fulfill({ status: 503, contentType: "application/json", body: '{"detail":"unavailable"}' });
+  });
+  await page.route("**/api/session/language", (route) => route.fulfill({
+    contentType: "application/json",
+    body: JSON.stringify({ language: "en", plan: null, pending: false, response: null, conversation: [] }),
+  }));
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/?view=admin");
+  const plannerModel = page.getByLabel("Mã mô hình").nth(1);
+  await plannerModel.fill("draft-model");
+  await page.getByRole("button", { name: "Lưu cấu hình mô hình" }).click();
+  await expect(page.getByRole("alert").getByText("Không thể lưu cấu hình mô hình. Bản nháp vẫn được giữ.")).toBeVisible();
+  await expect(plannerModel).toHaveValue("draft-model");
+  await page.getByRole("button", { name: "Chuyển sang tiếng Anh" }).click();
+  await expect(page.getByRole("heading", { name: "Runtime model settings" })).toBeVisible();
+  await expect(page.getByLabel("Model identifier").nth(1)).toHaveValue("draft-model");
+  const widths = testInfo.project.name === "chromium" ? [390, 768, 1024, 1440] : [390];
+  for (const width of widths) {
+    await page.setViewportSize({ width, height: 900 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath(`admin-settings-${width}.png`), fullPage: true });
+  }
 });
 
 test("desktop header keeps chat available outside admin", async ({ page }) => {

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sqlite3
 from datetime import date, datetime, time, timedelta
 from types import SimpleNamespace
@@ -27,6 +28,18 @@ from grounded_travel_planner.saved_tours import SavedTourError, SavedTourReposit
 from grounded_travel_planner.usage import UsageRepository, account_trace_ref
 from grounded_travel_planner.web.api import create_app
 from scripts.migrate_admin_accounts import find_bootstrap_user_id
+
+
+def _runtime_model_settings(prompt: str = "") -> dict[str, object]:
+    role = {
+        "provider": "openai",
+        "model": "model-test",
+        "system_prompt": prompt,
+        "temperature": 0.4,
+        "top_p": 0.9,
+        "max_output_tokens": 2048,
+    }
+    return {"coordinator": role, "planner": role, "chat": role}
 
 
 class _Service:
@@ -566,3 +579,89 @@ def test_admin_delete_requires_csrf_and_rejects_self_delete(account_app):
     )
     assert result.status_code == 409
     assert admin.app.state.auth0_user_deleter.calls == []
+
+
+def test_admin_runtime_model_settings_are_private_validated_and_audited(account_app):
+    auth, _, admin, member, admin_id, _, admin_csrf, member_csrf, _ = account_app
+    auth.migrate_runtime_model_settings()
+    original = _runtime_model_settings()
+    auth.update_runtime_model_settings(json.dumps(original), "[]", admin_id)
+
+    assert admin.get("/api/admin/model-settings").status_code == 200
+    assert member.get("/api/admin/model-settings").status_code == 403
+    assert admin.put("/api/admin/model-settings", json=original).status_code == 403
+    assert (
+        member.put(
+            "/api/admin/model-settings",
+            json=original,
+            headers={"X-CSRF-Token": member_csrf},
+        ).status_code
+        == 403
+    )
+
+    settings = _runtime_model_settings("Prefer concise, sourced proposals.")
+    settings["planner"] = {
+        **settings["planner"],
+        "model": "planner-v2",
+        "temperature": 0.2,
+    }
+    saved = admin.put(
+        "/api/admin/model-settings",
+        json=settings,
+        headers={"X-CSRF-Token": admin_csrf},
+    )
+    assert saved.status_code == 200
+    assert saved.json()["revision"] == 2
+    assert saved.json()["settings"] == settings
+    assert json.loads(auth.get_runtime_model_settings()[0]) == settings
+
+    with auth._connection() as connection:
+        events = connection.execute(
+            "SELECT actor_user_id, changed_fields_json FROM runtime_model_settings_events"
+        ).fetchall()
+    assert events[-1]["actor_user_id"] == admin_id
+    changed_fields = json.loads(events[-1]["changed_fields_json"])
+    assert "planner.model" in changed_fields
+    assert "planner.system_prompt" in changed_fields
+    assert "Prefer concise, sourced proposals." not in events[-1]["changed_fields_json"]
+
+    secret_payload = json.loads(json.dumps(settings))
+    secret_payload["chat"]["api_key"] = "should-be-rejected"
+    invalid = admin.put(
+        "/api/admin/model-settings",
+        json=secret_payload,
+        headers={"X-CSRF-Token": admin_csrf},
+    )
+    assert invalid.status_code == 422
+    assert json.loads(auth.get_runtime_model_settings()[0]) == settings
+
+
+def test_admin_model_settings_requires_explicit_database_migration(account_app):
+    _, _, admin, _, _, _, _, _, _ = account_app
+
+    response = admin.get("/api/admin/model-settings")
+
+    assert response.status_code == 503
+    assert "scripts/migrate_runtime_model_settings.py" in response.json()["detail"]
+
+
+def test_runtime_model_settings_update_rolls_back_if_audit_insert_fails(account_app):
+    auth, _, admin, _, admin_id, _, admin_csrf, _, _ = account_app
+    auth.migrate_runtime_model_settings()
+    original = _runtime_model_settings()
+    auth.update_runtime_model_settings(json.dumps(original), "[]", admin_id)
+    with auth._connection() as connection:
+        connection.execute("""CREATE TRIGGER reject_runtime_model_audit
+            BEFORE INSERT ON runtime_model_settings_events
+            BEGIN SELECT RAISE(ABORT, 'audit write rejected'); END""")
+
+    changed = _runtime_model_settings("new instruction")
+    response = admin.put(
+        "/api/admin/model-settings",
+        json=changed,
+        headers={"X-CSRF-Token": admin_csrf},
+    )
+    assert response.status_code == 503
+    stored, revision = auth.get_runtime_model_settings()
+    assert json.loads(stored) == original
+    assert revision == 1

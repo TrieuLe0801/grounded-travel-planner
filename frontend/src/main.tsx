@@ -160,6 +160,23 @@ type AdminUsage = {
   unpriced_calls: number;
   by_model: AdminUsageModel[];
 };
+type AgentModelSettings = {
+  provider: "openai" | "ollama";
+  model: string;
+  system_prompt: string;
+  temperature: number;
+  top_p: number;
+  max_output_tokens: number;
+};
+type RuntimeAgentSettings = {
+  coordinator: AgentModelSettings;
+  planner: AgentModelSettings;
+  chat: AgentModelSettings;
+};
+type RuntimeAgentSettingsResponse = {
+  revision: number;
+  settings: RuntimeAgentSettings;
+};
 type ClaimResult = {
   claimed_count: number;
   already_claimed_count: number;
@@ -1383,6 +1400,125 @@ function SavedToursView({
   );
 }
 
+function AdminModelSettingsPanel({
+  csrfToken,
+  language,
+}: {
+  csrfToken: string;
+  language: Language;
+}) {
+  const labels = text(language);
+  const [settings, setSettings] = useState<RuntimeAgentSettings | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<"saved" | "error" | "">("");
+
+  useEffect(() => {
+    let active = true;
+    void api<RuntimeAgentSettingsResponse>("/api/admin/model-settings")
+      .then((response) => {
+        if (active) setSettings(response.settings);
+      })
+      .catch(() => {
+        if (active) setLoadError(true);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const update = (
+    role: keyof RuntimeAgentSettings,
+    field: keyof AgentModelSettings,
+    value: string | number,
+  ) => {
+    setSettings((current) => current ? {
+      ...current,
+      [role]: { ...current[role], [field]: value },
+    } : current);
+    setSaveStatus("");
+  };
+
+  const save = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!settings || saving) return;
+    setSaving(true);
+    setSaveStatus("");
+    try {
+      const response = await api<RuntimeAgentSettingsResponse>("/api/admin/model-settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken },
+        body: JSON.stringify(settings),
+      });
+      setSettings(response.settings);
+      setSaveStatus("saved");
+    } catch {
+      setSaveStatus("error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const roleLabels: Record<keyof RuntimeAgentSettings, string> = {
+    coordinator: labels.adminModelCoordinator,
+    planner: labels.adminModelPlanner,
+    chat: labels.adminModelChat,
+  };
+  const inputClass = "mt-1 block min-h-11 w-full min-w-0 rounded-xl border border-slate-300 bg-white px-3 text-slate-900 focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300";
+  const roles: (keyof RuntimeAgentSettings)[] = ["coordinator", "planner", "chat"];
+
+  return (
+    <section className="mt-6 rounded-3xl border border-blue-100 bg-white p-5 shadow-lg shadow-blue-900/5 sm:p-8" aria-labelledby="admin-model-settings-title">
+      <h2 id="admin-model-settings-title" className="font-heading text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">{labels.adminModelSettings}</h2>
+      <p className="mt-2 text-sm leading-6 text-slate-600">{labels.adminModelSettingsHelp}</p>
+      <p className="mt-3 rounded-xl bg-amber-50 p-3 text-sm leading-6 text-amber-900">{labels.adminModelSecrets}</p>
+      {loading && <p className="mt-4 text-sm text-slate-600" role="status">{labels.adminModelLoading}</p>}
+      {loadError && <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-800" role="alert">{labels.adminModelLoadError}</p>}
+      {saveStatus === "saved" && <p className="mt-4 rounded-xl bg-green-50 p-3 text-sm text-green-800" role="status">{labels.adminModelSaved}</p>}
+      {saveStatus === "error" && <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-800" role="alert">{labels.adminModelSaveError}</p>}
+      {settings && !loadError && <form className="mt-5 grid gap-5" onSubmit={(event) => void save(event)} aria-busy={saving}>
+        {roles.map((role) => {
+          const item = settings[role];
+          const prefix = `admin-model-${role}`;
+          return <fieldset key={role} className="grid min-w-0 gap-4 rounded-2xl border border-blue-100 bg-blue-50/40 p-4 sm:p-5">
+            <legend className="px-1 font-semibold text-slate-900">{roleLabels[role]}</legend>
+            <div className="grid min-w-0 gap-4 sm:grid-cols-2">
+              <label htmlFor={`${prefix}-provider`} className="text-sm font-semibold text-slate-700">{labels.adminProvider}
+                <select id={`${prefix}-provider`} value={item.provider} onChange={(event) => update(role, "provider", event.target.value as AgentModelSettings["provider"])} className={inputClass} disabled={saving}>
+                  <option value="openai">OpenAI</option>
+                  <option value="ollama">Ollama</option>
+                </select>
+              </label>
+              <label htmlFor={`${prefix}-model`} className="text-sm font-semibold text-slate-700">{labels.adminModel}
+                <input id={`${prefix}-model`} value={item.model} required maxLength={128} pattern="[A-Za-z0-9][A-Za-z0-9._:/-]*" onChange={(event) => update(role, "model", event.target.value)} className={inputClass} disabled={saving} />
+              </label>
+              <label htmlFor={`${prefix}-temperature`} className="text-sm font-semibold text-slate-700">{labels.adminTemperature}
+                <input id={`${prefix}-temperature`} type="number" value={item.temperature} min={0} max={2} step="any" onChange={(event) => update(role, "temperature", Number(event.target.value))} className={inputClass} disabled={saving} />
+              </label>
+              <label htmlFor={`${prefix}-top-p`} className="text-sm font-semibold text-slate-700">{labels.adminTopP}
+                <input id={`${prefix}-top-p`} type="number" value={item.top_p} min={0.001} max={1} step="any" onChange={(event) => update(role, "top_p", Number(event.target.value))} className={inputClass} disabled={saving} />
+              </label>
+              <label htmlFor={`${prefix}-max-output-tokens`} className="text-sm font-semibold text-slate-700">{labels.adminMaxOutputTokens}
+                <input id={`${prefix}-max-output-tokens`} type="number" value={item.max_output_tokens} min={256} max={16384} step={256} onChange={(event) => update(role, "max_output_tokens", Number(event.target.value))} className={inputClass} disabled={saving} />
+              </label>
+            </div>
+            <label htmlFor={`${prefix}-system-prompt`} className="text-sm font-semibold text-slate-700">{labels.adminSystemPrompt}
+              <textarea id={`${prefix}-system-prompt`} value={item.system_prompt} maxLength={8000} rows={4} onChange={(event) => update(role, "system_prompt", event.target.value)} className={`${inputClass} resize-y py-3`} disabled={saving} />
+              <span className="mt-1 block font-normal leading-5 text-slate-500">{labels.adminModelPromptHelp} · {item.system_prompt.length}/8,000</span>
+            </label>
+          </fieldset>;
+        })}
+        <p className="text-sm text-slate-600">{labels.adminModelIdHelp}</p>
+        <button type="submit" disabled={saving || loading || !csrfToken} className="inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-primary px-5 font-bold text-white hover:bg-blue-500 focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:justify-self-start">{saving ? labels.adminModelSaving : labels.adminModelSave}</button>
+      </form>}
+    </section>
+  );
+}
+
 function AdminUsersView({
   users,
   loading,
@@ -1403,6 +1539,7 @@ function AdminUsersView({
   onChangeAccess,
   onDeleteUser,
   currentUserId,
+  csrfToken,
   onSelectUser,
   onUsageStartChange,
   onUsageEndChange,
@@ -1426,6 +1563,7 @@ function AdminUsersView({
   onChangeAccess: (user: AdminUser) => void;
   onDeleteUser: (user: AdminUser) => void;
   currentUserId?: string;
+  csrfToken: string;
   onSelectUser: (id: string) => void;
   onUsageStartChange: (date: string) => void;
   onUsageEndChange: (date: string) => void;
@@ -1453,6 +1591,7 @@ function AdminUsersView({
       <div className="mt-5 rounded-3xl border border-blue-100 bg-white p-5 shadow-lg shadow-blue-900/5 sm:p-8">
         <h1 id="admin-title" className="font-heading text-2xl font-bold tracking-tight sm:text-3xl">{labels.adminUsers}</h1>
         <p className="mt-2 text-sm leading-6 text-slate-600">{labels.adminUsageNote}</p>
+        <AdminModelSettingsPanel csrfToken={csrfToken} language={language} />
         {error && <p className="mt-4 rounded-xl bg-red-50 p-4 text-red-800" role="alert">{labels[error]}</p>}
         {!usageAvailable && <p className="mt-4 rounded-xl bg-amber-50 p-4 text-amber-900" role="status">{labels.adminUsageUnavailable}</p>}
         {status && <p className={`mt-4 rounded-xl p-4 ${status === "adminDeleteError" ? "bg-red-50 text-red-800" : "bg-green-50 text-green-800"}`} role={status === "adminDeleteError" ? "alert" : "status"}>{labels[status]}</p>}
@@ -2604,6 +2743,7 @@ function App() {
             status={adminUsersStatus}
             updatingId={adminUserUpdatingId}
             currentUserId={auth.user_id}
+            csrfToken={auth.csrf_token || ""}
             selectedUserId={selectedAdminUserId}
             usage={adminUsage}
             usageLoading={adminUsageLoading}

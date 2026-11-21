@@ -143,6 +143,17 @@ never falls back to OpenAI. The webapp keeps the live itinerary and
 conversation in session-local state. Only user-approved saved tour snapshots
 use durable storage. It does not use LangSmith traces as state storage.
 
+An active administrator may configure the provider, model identifier,
+supplementary system guidance, temperature, top-p, and output-token limit for
+Coordinator, Planner, and Chat. Settings are global to the application, stored
+in its account database, validated and audited. Changes apply to new turns;
+each in-flight turn keeps its starting snapshot. The UI cannot set credentials,
+provider endpoints, arbitrary kwargs, or fallback models. Environment
+configuration remains the source for credentials, endpoints, and fallbacks.
+Admin guidance supplements a code-owned runtime guard; deterministic product
+validation and graph/search bounds remain unchanged. LangSmith model inputs and
+outputs are hidden when tracing is enabled. See ADR 0024.
+
 The webapp keeps the canonical plan, at most 12 conversation messages and a
 rolling summary of at most 1,200 characters in session-only state. Coordinator
 prompts receive at most eight recent messages of 600 characters each plus the
@@ -185,6 +196,9 @@ integrates its result exactly once when the chat page polls or is reopened.
   repair attempt. Chat skips search when the remaining graph steps cannot fit
   the tool node and its final response.
 - Keep provider secrets out of model prompts, traces, logs and tracked files.
+- Keep editable administrator guidance free of credentials and secrets. Admin
+  model settings cannot change provider credentials, endpoints, deterministic
+  validation, graph bounds, or search quotas.
 - Visual enrichment never changes or blocks the validated current plan. Do not
   invent photos; show image creator, license and source-page credit.
 - Only an explicit save action on a validated canonical plan creates a saved
