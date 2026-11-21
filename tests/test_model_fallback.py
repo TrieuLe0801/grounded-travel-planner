@@ -46,6 +46,7 @@ class _RecordingModel:
         self.model_name = model_name
         self._result = result
         self.calls: list[tuple[str, type[BaseModel], Mapping[str, str] | None]] = []
+        self.system_prompts: list[str | None] = []
 
     def generate_structured(
         self,
@@ -53,8 +54,10 @@ class _RecordingModel:
         schema: type[T],
         *,
         metadata: Mapping[str, str] | None = None,
+        system_prompt: str | None = None,
     ) -> T:
         self.calls.append((prompt, schema, metadata))
+        self.system_prompts.append(system_prompt)
         if isinstance(self._result, Exception):
             raise self._result
         return schema.model_validate(self._result)
@@ -96,6 +99,27 @@ def test_successful_openai_response_does_not_call_ollama(
     assert result.value == "remote answer"
     assert len(primary.calls) == 1
     assert fallback.calls == []
+
+
+def test_ollama_fallback_preserves_admin_system_prompt_and_trace_metadata() -> None:
+    metadata = {"thread_id": "thread-fallback", "turn_id": "turn-fallback"}
+    system_prompt = "Admin role guidance."
+    primary = _RecordingModel("openai-test-model", _authentication_error())
+    fallback = _RecordingModel("ollama-test-model", _Result(value="local answer"))
+
+    result = OpenAIWithOllamaFallbackStructuredModel(
+        primary, fallback
+    ).generate_structured(
+        "same task prompt",
+        _Result,
+        metadata=metadata,
+        system_prompt=system_prompt,
+    )
+
+    assert result.value == "local answer"
+    assert primary.system_prompts == [system_prompt]
+    assert fallback.system_prompts == [system_prompt]
+    assert fallback.calls == [("same task prompt", _Result, metadata)]
 
 
 @pytest.mark.parametrize(

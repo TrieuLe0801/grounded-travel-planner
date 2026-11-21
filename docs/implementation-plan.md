@@ -1,11 +1,29 @@
 # Implementation Plan
 
 Status: Active
-Last updated: 2026-11-20
+Last updated: 2026-11-21
 
 This plan tracks remaining acceptance and concise changes that affect it.
 Product requirements and accepted architecture are defined in the
 [project charter](project-charter.md) and [ADRs](adr/README.md).
+
+## Implemented update: administrator model settings — 2026-11-21
+
+The authenticated administrator page now configures provider, model identifier,
+supplementary role guidance, temperature, top-p and output-token limit for the
+three existing runtime roles. Settings persist in SQLite or PostgreSQL and
+record an audit event without prompt contents. Each new turn reads one
+immutable snapshot; an in-flight turn keeps its original settings. Provider
+credentials, endpoints and fallback model names remain deployment-owned.
+LangSmith model inputs/outputs are hidden when tracing is enabled.
+
+Offline verification passed 267 tests; one optional PostgreSQL saved-tour test
+was skipped because its opt-in settings were unset. Frontend check/build and
+42 mocked Chromium checks passed; two duplicate viewport sweeps were skipped.
+Screenshots at 390 and 1440 px were reviewed. Python formatting/lint checks and
+diff checks passed. No Auth0, live model, PostgreSQL migration, or deployment
+check ran. Admin changes require the explicit backed-up settings migration;
+the application continues to use environment settings before migration.
 
 ## Implemented update: travel-guide redesign — 2026-11-20
 

@@ -10,6 +10,7 @@ The active product/runtime scope is defined by ADR 0004 and the current
 | [0003 — Previous POC UI](0003-streamlit-poc-ui.md) | Superseded by 0004 |
 | [0004 — City sightseeing runtime](0004-city-sightseeing-two-agent-runtime.md) | Accepted; partial updates in ADR 0009 |
 | [0022 — Cloudflare Tunnel public ingress](0022-cloudflare-tunnel-public-ingress.md) | Accepted; live cutover pending |
+| [0024 — Administrator runtime model settings](0024-administrator-runtime-model-settings.md) | Accepted; explicit settings migration pending |
 
 Use sequential filenames. Include status, context, decision, alternatives,
 consequences and review triggers in each new record.
@@ -34,4 +35,6 @@ records the completed single-origin cutover; temporary ngrok ingress is retired.
 ADR 0023 adds application administrator access and account-scoped LangSmith
 token/cost reporting; deployment awaits the account-access migration and
 first-admin bootstrap.
+ADR 0024 adds durable, audited admin settings for the three runtime roles;
+environment configuration still owns credentials, endpoints, and fallbacks.
 

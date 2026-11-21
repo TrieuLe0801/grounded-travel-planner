@@ -25,6 +25,7 @@ class StructuredChatModel(Protocol):
         schema: type[T],
         *,
         metadata: Mapping[str, str] | None = None,
+        system_prompt: str | None = None,
     ) -> T:
         """Return model output parsed as the requested Pydantic schema."""
 

@@ -14,7 +14,7 @@ runs and experiment records.
 
 | Area | State | Evidence or open gate |
 |---|---|---|
-| Runtime | Implemented | Coordinator, Planner and Chat roles; bounded search, session context and validate-before-commit behavior are defined in the charter and ADRs 0004, 0009, 0011 and 0012. |
+| Runtime | Implemented; admin model settings source-verified | Coordinator, Planner and Chat retain bounded search, session context and validate-before-commit behavior. Active admins can set role provider/model, additive prompt and bounded generation parameters. Offline and mocked browser checks passed; explicit settings migration and live provider check remain pending. See ADR 0024. |
 | Web UI | Travel-guide redesign implemented; mocked browser QA passed; live QA pending | Travel-guide redesign implemented with an editorial landing, local decorative landscape/compass SVG, departure form, destination-led journal, numbered days, saved-tour index and consistent chat styling. Frontend check/build and 34 mocked Chromium checks passed; two duplicate viewport sweeps skipped. Live Auth0, providers and deployed behavior remain unverified. |
 | Saved tours | PostgreSQL Compose storage available; browser QA pending | Explicitly saved, owner-scoped snapshots are read-only. Verify save, list, detail, delete and owner isolation in a browser. |
 | Authentication | Compose app updated; live verification pending | Public host is www.citedtrip.app. The local app container has its configured Auth0 password connection. Auth0 enablement, sign-in, signup, email verification, OTP, callback, planner access and logout have not been browser-verified. |
@@ -45,6 +45,13 @@ manifests, TOML/JSON/YAML parsing, active references, diff checks and all four
 Python formatting/lint checks passed. Product and live acceptance are unchanged.
 
 ## Latest verification
+
+- Administrator runtime model settings: 267 offline tests passed; one optional
+  PostgreSQL archive test skipped because its opt-in DSN was unset. Frontend
+  check/build and 42 mocked Chromium tests passed; two duplicate viewport
+  sweeps skipped. Screenshots at 390 and 1440 px were reviewed. isort, Black,
+  flake8, Ruff and diff checks passed. Settings migration was not run; no live
+  Auth0, model provider, Postgres migration, or deployment was checked.
 
 - Travel/exploration redesign: frontend type check/build, diff check and 34
   mocked Chromium tests passed; two duplicate mobile viewport sweeps skipped.
@@ -114,7 +121,9 @@ Python formatting/lint checks passed. Product and live acceptance are unchanged.
 3. Measure live source relevance, place coverage and host diversity; evaluate
    Chat answer accuracy across factual questions; test reorder and replace
    intents with live evidence.
-4. Treat production rollout as a separate decision and follow the existing
+4. Back up the account database, pause application writes, and apply the
+   runtime-model-settings migration before enabling admin edits in deployment.
+5. Treat production rollout as a separate decision and follow the existing
    migration, backup and deployment gates.
 
 ## Current risks
@@ -126,6 +135,8 @@ Python formatting/lint checks passed. Product and live acceptance are unchanged.
 - Live plans, chat and pending turns remain session-only; app recreation clears
   them. Saved-tour snapshots are separate durable records.
 - Process-local request limits reset on restart and do not coordinate replicas.
+- Admin model settings remain unavailable until the explicit backed-up
+  SQLite/PostgreSQL migration runs during a write pause.
 
 ## Canonical records
 
@@ -134,5 +145,6 @@ Python formatting/lint checks passed. Product and live acceptance are unchanged.
 - [Current learning log](docs/learning-log/2026-10-14-scope-reset.md)
 - [Progress summary](docs/progress/roadmap-progress.json)
 - [Roadmap](docs/roadmap.html)
+- [ADR 0024](docs/adr/0024-administrator-runtime-model-settings.md)
 - Accepted ADRs 0004, 0009, 0011 and 0012; authentication, storage and ingress
   decisions are recorded in their respective ADRs.

@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Callable
 
 from dotenv import load_dotenv
 
 from grounded_travel_planner.adapters import (
+    AdminConfigurableStructuredModel,
     ChatOpenAIStructuredModel,
     LangSmithTraceSink,
     NoOpTraceSink,
@@ -27,7 +29,17 @@ from grounded_travel_planner.contracts import (
 from grounded_travel_planner.conversation import bounded_history, bounded_summary
 from grounded_travel_planner.graph import build_travel_planner_graph
 from grounded_travel_planner.i18n import Language, localized
-from grounded_travel_planner.providers import PlaceSearchProvider, TraceSink
+from grounded_travel_planner.providers import (
+    PlaceSearchProvider,
+    StructuredChatModel,
+    TraceSink,
+)
+from grounded_travel_planner.runtime_settings import (
+    AgentModelSettings,
+    AgentRole,
+    RuntimeAgentSettings,
+    turn_model_settings,
+)
 from grounded_travel_planner.usage import current_account_trace_ref
 from utils.ids import new_id
 from utils.redaction import sanitize_error
@@ -57,6 +69,9 @@ class TravelPlannerService:
         self.coordinator = coordinator
         self.planner = planner
         self.chat = chat
+        self._runtime_settings_source: (
+            Callable[[], RuntimeAgentSettings | None] | None
+        ) = None
         self.graph = build_travel_planner_graph(
             coordinator,
             planner,
@@ -89,11 +104,13 @@ class TravelPlannerService:
             "true",
             "yes",
         }
-        trace_sink: TraceSink = (
-            LangSmithTraceSink(os.getenv("LANGSMITH_PROJECT"))
-            if tracing_enabled and os.getenv("LANGSMITH_API_KEY")
-            else NoOpTraceSink()
-        )
+        if tracing_enabled and os.getenv("LANGSMITH_API_KEY"):
+            trace_client = LangSmithTraceSink.configure_private_client()
+            trace_sink: TraceSink = LangSmithTraceSink(
+                os.getenv("LANGSMITH_PROJECT"), client=trace_client
+            )
+        else:
+            trace_sink = NoOpTraceSink()
         coordinator_model = cls._model_factory(
             runtime_config.coordinator_model_provider,
             ollama_fallback_model_name=runtime_config.coordinator_ollama_fallback_model,
@@ -118,6 +135,41 @@ class TravelPlannerService:
             trace_sink=trace_sink,
             role="chat",
         )(chat_name)
+
+        def configurable_model(
+            role: AgentRole,
+            default_model: StructuredChatModel,
+            fallback_name: str | None,
+        ) -> AdminConfigurableStructuredModel:
+            def create_configured(settings: AgentModelSettings):
+                return cls._model_factory(
+                    settings.provider,
+                    ollama_fallback_model_name=(
+                        fallback_name if settings.provider == "openai" else None
+                    ),
+                    json_schema_model_names=runtime_config.openai_json_schema_model_names,
+                    max_completion_tokens=settings.max_output_tokens,
+                    temperature=settings.temperature,
+                    top_p=settings.top_p,
+                    trace_sink=trace_sink,
+                    role=role,
+                )(settings.model)
+
+            return AdminConfigurableStructuredModel(
+                role, default_model, create_configured
+            )
+
+        coordinator_model = configurable_model(
+            "coordinator",
+            coordinator_model,
+            runtime_config.coordinator_ollama_fallback_model,
+        )
+        planner_model = configurable_model(
+            "planner", planner_model, runtime_config.planner_ollama_fallback_model
+        )
+        chat_model = configurable_model(
+            "chat", chat_model, runtime_config.chat_ollama_fallback_model
+        )
         search = TavilyPlaceSearchProvider()
         return cls(
             CoordinatorAgent(coordinator_model),
@@ -135,6 +187,8 @@ class TravelPlannerService:
         ollama_fallback_model_name: str | None = None,
         json_schema_model_names: tuple[str, ...] = (),
         max_completion_tokens: int = 2048,
+        temperature: float | None = None,
+        top_p: float | None = None,
         trace_sink: TraceSink | None = None,
         role: str = "unknown",
     ):
@@ -147,6 +201,8 @@ class TravelPlannerService:
                     model_name,
                     json_schema_model_names=json_schema_model_names,
                     max_completion_tokens=max_completion_tokens,
+                    temperature=temperature,
+                    top_p=top_p,
                     trace_sink=trace_sink,
                     role=role,
                 )
@@ -164,6 +220,8 @@ class TravelPlannerService:
                         ollama_fallback_model_name,
                         base_url=base_url,
                         max_completion_tokens=max_completion_tokens,
+                        temperature=temperature,
+                        top_p=top_p,
                     ),
                 )
 
@@ -176,10 +234,19 @@ class TravelPlannerService:
                     model_name,
                     base_url=base_url,
                     max_completion_tokens=max_completion_tokens,
+                    temperature=temperature,
+                    top_p=top_p,
                 )
 
             return create_ollama
         raise ValueError(f"Unsupported model provider: {provider}")
+
+    def set_runtime_settings_source(
+        self, source: Callable[[], RuntimeAgentSettings | None]
+    ) -> None:
+        """Bind the durable config reader used to snapshot settings per turn."""
+
+        self._runtime_settings_source = source
 
     def create_session(self) -> str:
         return new_id("thread")
@@ -226,13 +293,19 @@ class TravelPlannerService:
             account_ref = current_account_trace_ref()
             if account_ref:
                 trace_metadata["account_ref"] = account_ref
-            result = self.graph.invoke(
-                initial_state,
-                config={
-                    "recursion_limit": self.config.graph_step_limit + 2,
-                    "metadata": trace_metadata,
-                },
+            model_settings = (
+                self._runtime_settings_source()
+                if self._runtime_settings_source is not None
+                else None
             )
+            with turn_model_settings(model_settings):
+                result = self.graph.invoke(
+                    initial_state,
+                    config={
+                        "recursion_limit": self.config.graph_step_limit + 2,
+                        "metadata": trace_metadata,
+                    },
+                )
             response = result.get("response")
             if isinstance(response, AgentResponse):
                 return response

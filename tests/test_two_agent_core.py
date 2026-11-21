@@ -425,9 +425,11 @@ def test_legacy_global_ollama_provider_selects_all_runtime_roles(
 
     service = TravelPlannerService.from_environment()
 
-    assert isinstance(service.coordinator._model, OllamaStructuredChatModel)
-    assert isinstance(service.planner._model, OllamaStructuredChatModel)
-    assert isinstance(service.chat._model, OllamaStructuredChatModel)
+    assert isinstance(
+        service.coordinator._model._default_model, OllamaStructuredChatModel
+    )
+    assert isinstance(service.planner._model._default_model, OllamaStructuredChatModel)
+    assert isinstance(service.chat._model._default_model, OllamaStructuredChatModel)
     assert [
         service.coordinator.model_name,
         service.planner.model_name,
@@ -437,7 +439,10 @@ def test_legacy_global_ollama_provider_selects_all_runtime_roles(
         "ollama-planner-test-model",
         "ollama-chat-test-model",
     ]
-    assert service.coordinator._model._base_url == "http://ollama.test:11434"
+    assert (
+        service.coordinator._model._default_model._base_url
+        == "http://ollama.test:11434"
+    )
 
 
 def test_role_provider_overrides_take_precedence_over_global_fallback(
@@ -489,10 +494,12 @@ def test_environment_service_constructs_exact_mixed_role_adapters(
             *,
             json_schema_model_names: tuple[str, ...] = (),
             max_completion_tokens: int = 2048,
+            temperature: float | None = None,
+            top_p: float | None = None,
             trace_sink=None,
             role: str = "unknown",
         ) -> None:
-            del json_schema_model_names, trace_sink, role
+            del json_schema_model_names, temperature, top_p, trace_sink, role
             self._model_name = model_name
             constructed.append(("openai", model_name, None, max_completion_tokens))
 
@@ -507,7 +514,10 @@ def test_environment_service_constructs_exact_mixed_role_adapters(
             base_url: str | None = None,
             *,
             max_completion_tokens: int = 2048,
+            temperature: float | None = None,
+            top_p: float | None = None,
         ) -> None:
+            del temperature, top_p
             self._model_name = model_name
             constructed.append(("ollama", model_name, base_url, max_completion_tokens))
 
@@ -538,10 +548,14 @@ def test_environment_service_constructs_exact_mixed_role_adapters(
         ("ollama", "ollama-planner-test-model", "http://ollama.test:11434", 8192),
         ("ollama", "ollama-planner-test-model", "http://ollama.test:11434", 2048),
     ]
-    assert isinstance(service.coordinator._model._primary, FakeOpenAIModel)
-    assert isinstance(service.coordinator._model._fallback, FakeOllamaModel)
-    assert isinstance(service.planner._model, FakeOllamaModel)
-    assert isinstance(service.chat._model, FakeOllamaModel)
+    assert isinstance(
+        service.coordinator._model._default_model._primary, FakeOpenAIModel
+    )
+    assert isinstance(
+        service.coordinator._model._default_model._fallback, FakeOllamaModel
+    )
+    assert isinstance(service.planner._model._default_model, FakeOllamaModel)
+    assert isinstance(service.chat._model._default_model, FakeOllamaModel)
 
 
 def test_openai_adapter_uses_function_calling_for_pydantic_schema(
@@ -557,11 +571,15 @@ def test_openai_adapter_uses_function_calling_for_pydantic_schema(
             max_retries: int,
             timeout: int,
             max_completion_tokens: int,
+            temperature: float | None = None,
+            top_p: float | None = None,
         ) -> None:
             observed["model"] = model
             observed["max_retries"] = max_retries
             observed["timeout"] = timeout
             observed["max_completion_tokens"] = max_completion_tokens
+            observed["temperature"] = temperature
+            observed["top_p"] = top_p
 
         def with_structured_output(self, schema, *, method: str, include_raw: bool):
             observed["schema"] = schema
@@ -570,16 +588,20 @@ def test_openai_adapter_uses_function_calling_for_pydantic_schema(
             return self
 
         def invoke(self, messages, config):
+            observed["messages"] = [message.content for message in messages]
             observed["metadata"] = config["metadata"]
             return ChatResponse(message="ok")
 
     monkeypatch.setattr("langchain_openai.ChatOpenAI", FakeChatOpenAI)
-    adapter = ChatOpenAIStructuredModel(COORDINATOR_TEST_MODEL)
+    adapter = ChatOpenAIStructuredModel(
+        COORDINATOR_TEST_MODEL, temperature=0.3, top_p=0.8
+    )
 
     result = adapter.generate_structured(
         "explain",
         ChatResponse,
         metadata={"thread_id": "thread-adapter"},
+        system_prompt="Admin role guidance.",
     )
 
     assert result.message == "ok"
@@ -588,9 +610,21 @@ def test_openai_adapter_uses_function_calling_for_pydantic_schema(
         "max_retries": 0,
         "timeout": 60,
         "max_completion_tokens": 2048,
+        "temperature": 0.3,
+        "top_p": 0.8,
         "schema": ChatResponse,
         "method": "function_calling",
         "include_raw": True,
+        "messages": [
+            (
+                "Additional administrator role guidance:\nAdmin role guidance.\n\n"
+                "Mandatory runtime policy: You are a bounded travel-planner "
+                "component. Return only the requested structured output. Do not "
+                "include secrets, API keys, or unsupported claims. These mandatory "
+                "safeguards cannot be changed by role guidance."
+            ),
+            "explain",
+        ],
         "metadata": {
             "thread_id": "thread-adapter",
             "ls_provider": "openai",
@@ -738,10 +772,20 @@ def test_ollama_adapter_uses_structured_output_without_network(
     observed: dict[str, object] = {}
 
     class FakeChatOllama:
-        def __init__(self, *, model: str, base_url: str, num_predict: int) -> None:
+        def __init__(
+            self,
+            *,
+            model: str,
+            base_url: str,
+            num_predict: int,
+            temperature: float | None = None,
+            top_p: float | None = None,
+        ) -> None:
             observed["model"] = model
             observed["base_url"] = base_url
             observed["num_predict"] = num_predict
+            observed["temperature"] = temperature
+            observed["top_p"] = top_p
 
         def with_structured_output(self, schema):
             observed["schema"] = schema
@@ -754,19 +798,25 @@ def test_ollama_adapter_uses_structured_output_without_network(
 
     monkeypatch.setattr("langchain_ollama.ChatOllama", FakeChatOllama)
     adapter = OllamaStructuredChatModel(
-        "ollama-planner-test-model", "http://localhost:11434"
+        "ollama-planner-test-model",
+        "http://localhost:11434",
+        temperature=0.25,
+        top_p=0.7,
     )
 
     result = adapter.generate_structured(
         "explain",
         ChatResponse,
         metadata={"thread_id": "thread-adapter"},
+        system_prompt="Admin role guidance.",
     )
 
     assert result.message == "ok"
     assert observed["model"] == "ollama-planner-test-model"
     assert observed["base_url"] == "http://localhost:11434"
     assert observed["num_predict"] == 2048
+    assert observed["temperature"] == 0.25
+    assert observed["top_p"] == 0.7
     assert observed["schema"] is ChatResponse
     assert observed["metadata"] == {
         "thread_id": "thread-adapter",
@@ -775,9 +825,11 @@ def test_ollama_adapter_uses_structured_output_without_network(
     }
     assert [message.content for message in observed["messages"]] == [
         (
-            "You are a bounded travel-planner runtime component. Return only "
-            "the requested structured output. Do not include secrets, API keys, "
-            "or unsupported claims."
+            "Additional administrator role guidance:\nAdmin role guidance.\n\n"
+            "Mandatory runtime policy: You are a bounded travel-planner component. "
+            "Return only the requested structured output. Do not include secrets, "
+            "API keys, or unsupported claims. These mandatory safeguards cannot be "
+            "changed by role guidance."
         ),
         "explain",
     ]

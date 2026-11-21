@@ -35,7 +35,10 @@
       <span class="badge">Implemented</span>
       <h3>Planner runtime</h3>
       <p>Validated itinerary proposals, bounded session context, shared Tavily
-      search and session-owned trip/chat state.</p>
+      search and session-owned trip/chat state. Administrators can configure
+      per-role providers, models, additive instructions and bounded generation
+      settings; new turns use a durable settings snapshot. Migration and live
+      provider checks remain pending.</p>
     </section>
     <section class="card done">
       <span class="badge">Implemented</span>
@@ -98,6 +101,10 @@
 
   <h2>Latest checks</h2>
   <ul>
+    <li>Administrator model settings: 267 offline tests and 42 mocked browser
+      checks passed; one optional PostgreSQL test and two duplicate viewport
+      sweeps skipped. Frontend and Python quality checks passed. The explicit
+      database migration, live providers and deployment were not checked.</li>
     <li>Travel-guide redesign: frontend check/build, diff check and 34 mocked
       browser checks passed; two duplicate viewport sweeps skipped. Live
       Auth0/provider and deployed behavior were not checked.</li>
