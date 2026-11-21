@@ -37,8 +37,9 @@
       <p>Validated itinerary proposals, bounded session context, shared Tavily
       search and session-owned trip/chat state. Administrators can configure
       per-role providers, models, additive instructions and bounded generation
-      settings; new turns use a durable settings snapshot. Migration and live
-      provider checks remain pending.</p>
+      settings; new turns use a durable settings snapshot. PostgreSQL settings
+      tables exist; backup restore, write-pause evidence and live provider
+      checks remain pending.</p>
     </section>
     <section class="card done">
       <span class="badge">Implemented</span>
@@ -85,6 +86,12 @@
   </div>
 
   <h2>Development workflow</h2>
+  <p>On 2026-11-21, CI configuration added push verification for
+  <code>main</code> and repository-wide flake8. The main ruleset now requires
+  the GitHub Actions <code>verify</code> check. The workflow edit takes effect
+  after it reaches <code>main</code>. The Mac poller now tracks <code>main</code> with its deployment gate
+  enabled. The current main commit has no push CI run, so the poller waited;
+  checkout, app image and healthy PostgreSQL stayed unchanged.</p>
   <p>Five project skills and five roles now exist. The new requirement
   clarification skill supports focused questions for blocking decisions and
   deep interviews when requested. Runtime and product acceptance are unchanged.</p>
@@ -101,6 +108,11 @@
 
   <h2>Latest checks</h2>
   <ul>
+    <li>CI/CD local verification: 267 offline tests, Python quality checks,
+      frontend check/build, 46 mocked Playwright checks, Compose configuration,
+      Mac deployment preflight and diff check passed. One optional PostgreSQL
+      test and two duplicate viewport sweeps skipped. No live deployment or
+      GitHub run of the edited workflow occurred.</li>
     <li>Administrator model settings: 267 offline tests and 42 mocked browser
       checks passed; one optional PostgreSQL test and two duplicate viewport
       sweeps skipped. Frontend and Python quality checks passed. The explicit

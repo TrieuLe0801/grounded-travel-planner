@@ -5,6 +5,29 @@ current status. The [charter](../project-charter.md) and accepted ADRs are the
 source of truth for product and architecture. Historical test output belongs
 with its CI run or experiment artifact.
 
+## 2026-11-21 — CI/CD review and main branch protection
+
+- The user clarified that a successful merge into `main` must trigger Mac app
+  deployment. ADR 0019 now selects `main` as the poller's source. Deployment
+  still requires a successful push workflow for the exact commit; missing,
+  pending or failed CI does not deploy. Migrations remain explicit.
+- The CI workflow already verified pull requests targeting `main` and the
+  feature branch, but push verification covered only
+  `feature/travel-ground-planner`. The workflow change also targets pushes
+  to `main` and uses the repository-wide flake8 command. Until it reaches
+  `main`, no push CI run for that branch exists.
+- The `main` ruleset now requires the GitHub Actions `verify` check. The Mac
+  LaunchAgent now polls `main` with its local deploy gate enabled. The current
+  `main` SHA has no push CI run, so the poller waited and did not deploy. The
+  checkout, app image and healthy PostgreSQL container stayed unchanged.
+  No database migration ran during the branch switch. The runtime settings
+  tables already exist; a pre-migration archive parsed successfully, while a
+  full restore and write-pause evidence remain unverified.
+- Local verification passed: `uv sync --frozen`, 267 offline tests, isort,
+  Black, flake8, Ruff, frontend install/check/build, 46 mocked Playwright
+  checks, Compose configuration, Mac deployment preflight and diff check.
+  One optional PostgreSQL test and two duplicate viewport sweeps skipped.
+
 ## 2026-11-20 — Travel and exploration redesign request
 
 - The user requested research and implementation of a travel and exploration

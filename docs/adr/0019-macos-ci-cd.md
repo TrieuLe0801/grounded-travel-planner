@@ -68,3 +68,29 @@ poller. Also run hosted verification for pull requests targeting `main`, while
 retaining the existing feature-branch PR trigger. A PR-targeted workflow does
 not deploy the app. Deployment still requires a passing push workflow and the
 local gate described above.
+
+## Amendment — 2026-11-21 — Verify pushes to main
+
+Run the hosted verification workflow on pushes to `main` as well as pushes to
+`feature/travel-ground-planner`. Keep pull request verification for both target
+branches. Use the repository-wide flake8 command required by `AGENTS.md`.
+This adds a post-merge CI result for `main` without changing the Mac poller's
+source branch or authorizing a production rollout. The Mac poller still requires
+a successful push workflow for its configured branch and the local deployment
+gate. Changing that branch requires a separate review of backup, migration and
+rollout gates.
+
+## Amendment — 2026-11-21 — Deploy successful main pushes
+
+The user selected `main` as the Mac deployment branch, superseding the earlier
+feature-branch source and disabled-gate instruction. The current Mac has
+`GTP_DEPLOY_BRANCH=main` and `GTP_DEPLOY_ENABLED=true`. After a merge creates a
+push commit on `main`, the five-minute LaunchAgent poller waits for that
+commit's completed, successful push workflow before deploying the exact SHA.
+A missing, pending or failed CI run leaves the app unchanged. Keep the local
+enable gate, serialized polling, app-only Compose rebuild, health checks and
+previous-image rollback.
+Database migrations remain explicit and never run from the poller. A merge and
+deployment restart may clear session-only itinerary and chat state.
+The workflow edit enabling `main` push CI takes effect after it reaches `main`;
+switching the poller alone does not deploy the current `main` commit.

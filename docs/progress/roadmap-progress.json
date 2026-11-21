@@ -1,5 +1,5 @@
 {
-  "version": 130,
+  "version": 132,
   "updated": "2026-11-21",
   "active_scope": "city-place-sightseeing-webapp",
   "current_milestone": "Milestone 1: executable city/place sightseeing vertical slice",
@@ -56,12 +56,12 @@
     "date": "2026-11-21",
     "result": "267 passed; 1 optional PostgreSQL archive test skipped because opt-in settings were unset.",
     "python_and_frontend_checks": "Python quality checks and frontend typecheck/build passed.",
-    "mocked_browser_checks": "42 passed; 2 duplicate viewport sweeps skipped. Screenshots reviewed at 390px and 1440px.",
-    "live_checks": "No live Auth0/provider, PostgreSQL settings migration, or deployment check ran.",
+    "mocked_browser_checks": "46 passed; 2 duplicate viewport sweeps skipped during the CI/CD local verification. Earlier admin settings screenshots were reviewed at 390px and 1440px.",
+    "live_checks": "Mac deployment preflight passed and PostgreSQL settings tables were observed; no live Auth0/provider or app deployment check ran.",
     "checks_during_2026_11_17_rebuild": "No test suite ran."
   },
   "open_items": [
-    "Back up the account database, pause application writes, and run the runtime model settings migration before enabling admin configuration in the deployed app.",
+    "PostgreSQL runtime settings tables exist; verify full backup restore and write-pause evidence, then test administrator edits in the deployed app.",
     "Verify Auth0 application settings and password, signup, verification-email, OTP, callback, planner and logout flows in a browser.",
     "Verify account linking and administrator access, usage and deletion flows in a browser; do not infer live Auth0 behavior from offline tests.",
     "Verify saved-tour operations and owner isolation in the deployed app; mocked responsive UI checks have passed.",
@@ -72,7 +72,7 @@
   "notes": "This file is a compact roadmap summary, not an independent source of product policy or runtime verification. See PROJECT_STATUS.md, docs/project-charter.md, accepted ADRs and CI/experiment records.",
   "development_workflow": {
     "updated": "2026-11-21",
-    "summary": "Five project skills and five development roles. Requirement clarification supports focused blocking questions and explicit deep interviews. Defect reproduction and separate goal/contract review also added without external skill bundles.",
-    "verification": "Five skill manifests, five agent TOML files, config TOML, progress JSON and diff checks passed. Application/browser/live checks not run for guidance-only changes; application acceptance unchanged."
+    "summary": "Five project skills and five development roles. CI configuration targets main pushes and uses repository-wide flake8; the main ruleset requires the GitHub Actions verify check. The Mac poller tracks main with its local deployment gate enabled, and waits for a successful push CI run before app-only deployment.",
+    "verification": "CI/CD local checks passed: 267 offline tests, Python quality, frontend check/build, 46 mocked browser checks, Compose configuration, Mac deployment preflight and diff check. One optional PostgreSQL test and two duplicate viewport sweeps skipped. The installed poller reported current main push CI pending and left checkout, app image and healthy PostgreSQL unchanged. Edited workflow has not reached main; no live deploy."
   }
 }
