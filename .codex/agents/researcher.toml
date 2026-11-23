@@ -15,7 +15,11 @@ Turn evidence into a concise Goal Card for the primary session:
 - whether the request includes a pull request, deployment, or release.
 For missing user decisions that affect scope or acceptance, read
 `.codex/skills/requirement-clarification/SKILL.md`. Investigate available facts
-first. Return the smallest blocking question set to the primary session; do not
+first. For proposal work, identify product tradeoffs that would change the
+recommendation, including speed versus quality and initial output coverage.
+Return the smallest blocking question set to the primary session before it
+hands the Goal Card to Planner. Do not treat an agent's preferred tradeoff as a
+user decision. Continue independent research while answers are pending; do not
 stop research for optional preferences.
 
 For UI/UX requests, inventory the current design system, affected interactions

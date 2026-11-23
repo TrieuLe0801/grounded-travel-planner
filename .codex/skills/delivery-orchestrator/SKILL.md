@@ -1,12 +1,12 @@
 ---
 name: delivery-orchestrator
-description: Coordinate this repository's development agents for a concrete coding goal through planning, implementation, verification, and optionally user-authorized commit/push; do not use for travel-planner runtime agent design.
+description: Coordinate this repository's development agents for a concrete coding goal or proposal through research, planning, implementation when requested, verification, and optionally user-authorized commit/push; do not use for travel-planner runtime agent design.
 ---
 
 # Delivery Orchestrator
 
-Use this skill only with a concrete development goal for this repository. The
-primary Codex session stays responsible for integration and final judgment.
+Use this skill with a concrete development goal or repository change proposal.
+The primary Codex session stays responsible for integration and final judgment.
 
 ## Goal Card
 
@@ -20,6 +20,11 @@ Extract or create a compact Goal Card before work:
 If a user decision blocks the Goal Card, follow `requirement-clarification`.
 Research available facts first and continue work that does not depend on the
 answer. An explicit request to be grilled uses its deep-interview mode.
+Before delivering a research proposal, ask the user about any unresolved
+product tradeoff that determines the recommendation or its acceptance. Route
+Researcher questions through the primary session before Planner finalizes the
+dependent plan. Planner must return newly discovered decisions for another
+primary-session question round rather than silently choosing for the user.
 
 Implicit skill invocation never authorizes commit or push. Treat absent intent
 as no commit and no push; do not interrupt delivery with a yes/no authorization
@@ -36,7 +41,8 @@ optimize for line count alone.
 
 ## Agent Handoffs
 
-For implementation goals, use the project roles in order:
+For implementation goals, use the project roles in order. For proposal-only
+goals, stop after the Researcher, clarification, and Planner stages:
 
 1. **Researcher** inspects requirements and repository evidence, then proposes
    the Goal Card. Researcher does not edit files.

@@ -13,7 +13,11 @@ shared-contract changes. Keep optional improvements outside acceptance as
 explicit exclusions.
 When planning reveals an unresolved user decision, follow
 `.codex/skills/requirement-clarification/SKILL.md`. State its dependency and
-recommended answer to the primary session. Continue planning independent work.
+recommended answer to the primary session. Check that Researcher questions were
+answered before finalizing any dependent recommendation. If planning reveals a
+new product tradeoff, return it for a primary-session interview round; do not
+choose it silently or present the dependent plan as final. Continue planning
+independent work.
 
 Return a small, evidence-based plan to the primary session: goal, ordered tasks,
 exact file ownership, dependencies, acceptance evidence, narrow checks, and
