@@ -296,3 +296,16 @@ evidence that the application, a browser flow or a live provider was verified.
   updated. Proposal work now asks unresolved product questions before Planner
   finalizes a dependent recommendation. This is a development workflow change;
   application behavior is unchanged.
+
+## 2026-11-23 — Implemented two-week trip bound
+
+- The user requested implementation of the previously selected 14-day option.
+  New and edited trips now accept 1–14 days in runtime, React and Streamlit.
+  An initial 14-day itinerary needs a grounded stop on every day; Chat can add
+  detail. Extension and shortening retain the existing commit gates.
+- Offline tests passed 271 with one optional PostgreSQL skip. Python quality
+  checks, frontend check/build, 48 mocked Playwright checks and diff check
+  passed; two duplicate browser viewport sweeps skipped. The first pytest
+  collection attempt lacked configured test model names; rerun passed.
+- Live 14-day model output, source quality, latency, Auth0 and deployment were
+  not checked. Search/graph and model output-token budgets were not changed.

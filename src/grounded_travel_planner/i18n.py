@@ -97,8 +97,8 @@ def localized_issue_message(code: str, message: str, language: Language) -> str:
             "en": "Destination or place must not be blank.",
         },
         "day_count_out_of_range": {
-            "vi": "Số ngày phải từ 1 đến 7.",
-            "en": "Day count must be between 1 and 7.",
+            "vi": "Số ngày phải từ 1 đến 14.",
+            "en": "Day count must be between 1 and 14.",
         },
         "candidate_request_mismatch": {
             "vi": "Lịch trình đề xuất không khớp điểm đến, ngày bắt đầu hoặc số ngày đã chọn.",

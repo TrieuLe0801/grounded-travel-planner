@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-11-21
+Last updated: 2026-11-23
 
 ## Active scope
 
@@ -14,8 +14,8 @@ runs and experiment records.
 
 | Area | State | Evidence or open gate |
 |---|---|---|
-| Runtime | Implemented; admin model settings source-verified | Coordinator, Planner and Chat retain bounded search, session context and validate-before-commit behavior. Active admins can set role provider/model, additive prompt and bounded generation parameters. Offline and mocked browser checks passed; PostgreSQL settings tables were observed, but backup restore, write-pause evidence and live provider checks remain pending. See ADR 0024. |
-| Web UI | Travel-guide redesign implemented; mocked browser QA passed; live QA pending | Travel-guide redesign implemented with an editorial landing, local decorative landscape/compass SVG, departure form, destination-led journal, numbered days, saved-tour index and consistent chat styling. Frontend check/build and 34 mocked Chromium checks passed; two duplicate viewport sweeps skipped. Live Auth0, providers and deployed behavior remain unverified. |
+| Runtime | Implemented; 14-day bound verified offline | Coordinator, Planner and Chat retain bounded search, session context and validate-before-commit behavior. New and edited trips accept 1–14 days; initial plans require a grounded stop each day. Offline and mocked browser checks passed. Live 14-day model output, providers and latency remain unverified. Active admins can set role settings; backup restore and write-pause evidence remain pending. See ADR 0024. |
+| Web UI | Travel-guide redesign and 14-day selection implemented; mocked browser QA passed; live QA pending | React and Streamlit accept up to 14 days. React submits 14 days and renders 14 day links in mocked desktop/mobile checks. Live Auth0, providers and deployed behavior remain unverified. |
 | Saved tours | PostgreSQL Compose storage available; browser QA pending | Explicitly saved, owner-scoped snapshots are read-only. Verify save, list, detail, delete and owner isolation in a browser. |
 | Authentication | Compose app updated; live verification pending | Public host is www.citedtrip.app. The local app container has its configured Auth0 password connection. Auth0 enablement, sign-in, signup, email verification, OTP, callback, planner access and logout have not been browser-verified. |
 | Account administration | Source and offline integration verified; live QA pending | Account access, usage and deletion are implemented. No live Auth0 deletion request or administrator browser flow was checked. |

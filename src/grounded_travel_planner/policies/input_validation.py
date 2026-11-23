@@ -21,11 +21,11 @@ def validate_trip_request(request: TripRequest | None) -> list[ValidationIssue]:
                 message="Destination or place must not be blank.",
             )
         )
-    if request.day_count < 1 or request.day_count > 7:
+    if request.day_count < 1 or request.day_count > 14:
         issues.append(
             ValidationIssue(
                 code="day_count_out_of_range",
-                message="Day count must be between 1 and 7.",
+                message="Day count must be between 1 and 14.",
             )
         )
     return issues

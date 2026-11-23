@@ -93,6 +93,19 @@ test("authenticated planner accepts ordinary chat before a plan", async ({ page 
   expect((await request).postDataJSON()).toEqual({ message: "Gợi ý cách đi lại trong thành phố?" });
 });
 
+test("planner submits a fourteen-day request", async ({ page }) => {
+  await mockWorkspace(page);
+  await page.route("**/api/turns", (route) => route.fulfill({ contentType: "application/json", body: '{"accepted":true}' }));
+  await page.goto("/");
+  await page.getByLabel("Điểm đến").fill("Huế");
+  await page.getByLabel("Số ngày").selectOption("14");
+  const request = page.waitForRequest((candidate) => candidate.url().endsWith("/api/turns") && candidate.method() === "POST");
+  await page.getByRole("button", { name: "Tạo lịch trình" }).click();
+  const payload = (await request).postDataJSON();
+  expect(payload.request).toMatchObject({ destination: "Huế", day_count: 14 });
+  expect(payload.message).toContain("14 ngày");
+});
+
 test("plan keeps source and estimates visible and chat offers edit examples", async ({ page }) => {
   await mockWorkspace(page, { withPlan: true });
   await page.goto("/");
@@ -138,16 +151,16 @@ test("one-day itinerary has no day links and renders the English singular unit",
   await expect(page.getByText(/December 1, 2026\s*·\s*1 day/)).toBeVisible();
 });
 
-test("multi-day itinerary links navigate to the last day by keyboard", async ({ page }) => {
-  await mockWorkspace(page, { withPlan: true, dayCount: 7 });
+test("fourteen-day itinerary links navigate to the last day by keyboard", async ({ page }) => {
+  await mockWorkspace(page, { withPlan: true, dayCount: 14 });
   await page.goto("/");
   const nav = page.getByRole("navigation", { name: "Điều hướng lịch trình theo ngày" });
-  await expect(nav.getByRole("link")).toHaveCount(7);
-  const lastDayLink = nav.getByRole("link", { name: "Ngày 7" });
+  await expect(nav.getByRole("link")).toHaveCount(14);
+  const lastDayLink = nav.getByRole("link", { name: "Ngày 14" });
   await lastDayLink.focus();
   await lastDayLink.press("Enter");
-  await expect(page).toHaveURL(/#itinerary-day-7$/);
-  await expect(page.locator("#itinerary-day-7")).toBeInViewport();
+  await expect(page).toHaveURL(/#itinerary-day-14$/);
+  await expect(page.locator("#itinerary-day-14")).toBeInViewport();
 });
 
 test("language switch keeps the current plan and pending turn", async ({ page }) => {

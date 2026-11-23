@@ -39,7 +39,8 @@
       per-role providers, models, additive instructions and bounded generation
       settings; new turns use a durable settings snapshot. PostgreSQL settings
       tables exist; backup restore, write-pause evidence and live provider
-      checks remain pending.</p>
+      checks remain pending. New and edited trips accept 1–14 days in offline
+      tests; live 14-day output remains unverified.</p>
     </section>
     <section class="card done">
       <span class="badge">Implemented</span>
@@ -52,7 +53,8 @@
       in the first mobile viewport; multi-day plans include keyboard-accessible
       day links and missing-photo feedback is compact. The travel-guide redesign
       adds an editorial cover, local landscape/compass art and journal-style
-      itinerary, setup, archive and chat. Thirty-four mocked Chromium checks
+      itinerary, setup, archive and chat. Trip setup accepts up to 14 days;
+      fourteen-day navigation passed mocked browser checks. Forty-eight mocked Chromium checks
       passed; two duplicate viewport sweeps skipped. Itinerary stays at
       <code>/</code>; plan and conversation rehydrate from the same server
       session. Live browser QA is pending.</p>
@@ -108,6 +110,10 @@
 
   <h2>Latest checks</h2>
   <ul>
+    <li>2026-11-23 two-week trip: 271 offline tests, Python quality checks,
+      frontend check/build, diff check and 48 mocked Playwright checks passed.
+      One optional PostgreSQL check and two duplicate viewport sweeps skipped.
+      Live model output capacity, latency and deployment were not checked.</li>
     <li>CI/CD local verification: 267 offline tests, Python quality checks,
       frontend check/build, 46 mocked Playwright checks, Compose configuration,
       Mac deployment preflight and diff check passed. One optional PostgreSQL

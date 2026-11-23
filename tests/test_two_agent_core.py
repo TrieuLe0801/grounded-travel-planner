@@ -212,13 +212,13 @@ def two_place_plan() -> SightseeingPlan:
 def test_sightseeing_plan_rejects_more_than_total_entry_limit() -> None:
     existing = plan()
 
-    with pytest.raises(ValidationError, match="at most 28 items"):
+    with pytest.raises(ValidationError, match="at most 56 items"):
         SightseeingPlan(
             plan_id=existing.plan_id,
             destination=existing.destination,
             start_date=existing.start_date,
-            day_count=7,
-            entries=[existing.entries[0]] * 29,
+            day_count=14,
+            entries=[existing.entries[0]] * 57,
             summary=existing.summary,
         )
 
@@ -862,8 +862,32 @@ def test_ordinary_chat_does_not_search_or_mutate_plan() -> None:
     assert "User message: Thanks, that looks good." in service.chat._model.prompts[0]
 
 
-def test_trip_extension_resolves_request_and_commits_new_day() -> None:
-    current = plan()
+@pytest.mark.parametrize("current_days", [2, 13])
+def test_trip_extension_resolves_request_and_commits_new_day(
+    current_days: int,
+) -> None:
+    base = plan()
+    current = base.model_copy(
+        update={
+            "day_count": current_days,
+            "entries": [
+                *base.entries,
+                *[
+                    base.entries[0].model_copy(
+                        update={
+                            "id": f"entry_day_{day}",
+                            "day_index": day,
+                            "place": base.entries[0].place.model_copy(
+                                update={"place_id": f"place_day_{day}"}
+                            ),
+                        }
+                    )
+                    for day in range(3, current_days + 1)
+                ],
+            ],
+        }
+    )
+    new_day = current_days + 1
     pagoda_source = source(
         title="Thien Mu Pagoda Hue visitor guide",
         url="https://travel.example/hue/thien-mu-pagoda",
@@ -871,11 +895,11 @@ def test_trip_extension_resolves_request_and_commits_new_day() -> None:
     )
     new_entry = current.entries[0].model_copy(
         update={
-            "id": "entry_day_3",
-            "day_index": 3,
+            "id": f"entry_day_{new_day}",
+            "day_index": new_day,
             "place": current.entries[0].place.model_copy(
                 update={
-                    "place_id": "place_day_3",
+                    "place_id": f"place_day_{new_day}",
                     "name": "Thien Mu Pagoda",
                     "source_references": [pagoda_source],
                 }
@@ -883,7 +907,7 @@ def test_trip_extension_resolves_request_and_commits_new_day() -> None:
         }
     )
     candidate_plan = current.model_copy(
-        update={"entries": [*current.entries, new_entry], "day_count": 3}
+        update={"entries": [*current.entries, new_entry], "day_count": new_day}
     )
 
     def extension_coordinator(prompt: str, schema: type[BaseModel]) -> BaseModel:
@@ -932,13 +956,14 @@ def test_trip_extension_resolves_request_and_commits_new_day() -> None:
     assert response.status is ResponseStatus.COMMITTED
     assert response.committed is True
     assert response.current_plan is not None
-    assert response.current_plan.day_count == 3
+    assert response.current_plan.day_count == new_day
     assert response.current_plan.revision == 2
-    assert any(entry.day_index == 3 for entry in response.current_plan.entries)
+    assert any(entry.day_index == new_day for entry in response.current_plan.entries)
     assert response.search_calls == 1
     assert len(search.calls) == 1
-    assert "Trip bounds: destination=Hue; start_date=2026-11-01; day_count=3" in (
-        observed_prompts[0]
+    assert (
+        f"Trip bounds: destination=Hue; start_date=2026-11-01; day_count={new_day}"
+        in (observed_prompts[0])
     )
     assert "entry_day_out_of_range" not in {
         issue.code for issue in response.validation_issues
@@ -948,8 +973,8 @@ def test_trip_extension_resolves_request_and_commits_new_day() -> None:
     assert "Current visible itinerary:" in chat_prompt
 
 
-def test_trip_extension_over_seven_rejects_before_planner_or_search() -> None:
-    current = plan().model_copy(update={"day_count": 7})
+def test_trip_extension_over_fourteen_rejects_before_planner_or_search() -> None:
+    current = plan().model_copy(update={"day_count": 14})
 
     def extension_coordinator(prompt: str, schema: type[BaseModel]) -> BaseModel:
         assert schema is CoordinatorDecision
@@ -984,6 +1009,24 @@ def test_trip_extension_over_seven_rejects_before_planner_or_search() -> None:
     assert "day_count_out_of_range" in {
         issue.code for issue in response.validation_issues
     }
+
+
+def test_trip_contract_accepts_fourteen_days_and_rejects_fifteen() -> None:
+    request = TripRequest(destination="Hue", start_date=date(2026, 11, 1), day_count=14)
+    entry = plan().entries[0].model_copy(update={"day_index": 14})
+
+    assert request.day_count == 14
+    assert ScheduleEntry.model_validate(entry.model_dump()).day_index == 14
+    assert (
+        PlanChangeIntent(
+            action=IntentAction.EXTEND_TRIP, day_count_delta=13
+        ).day_count_delta
+        == 13
+    )
+    with pytest.raises(ValidationError):
+        TripRequest(destination="Hue", start_date=date(2026, 11, 1), day_count=15)
+    with pytest.raises(ValidationError):
+        PlanChangeIntent(action=IntentAction.EXTEND_TRIP, day_count=15)
 
 
 @pytest.mark.parametrize(
@@ -1327,7 +1370,7 @@ def test_invalid_input_stops_before_planner_and_search() -> None:
     invalid = TripRequest.model_construct(
         destination="",
         start_date=date(2026, 11, 1),
-        day_count=8,
+        day_count=15,
     )
     service, _, planner_llm, search = service_for(
         IntentAction.CREATE_TRIP,
