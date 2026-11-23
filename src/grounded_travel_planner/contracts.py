@@ -42,7 +42,7 @@ class ResponseStatus(str, Enum):
 class TripRequest(BaseModel):
     destination: str = Field(min_length=1, max_length=160)
     start_date: date
-    day_count: int = Field(ge=1, le=7)
+    day_count: int = Field(ge=1, le=14)
 
     @field_validator("destination")
     @classmethod
@@ -109,7 +109,7 @@ class PlaceRecommendation(BaseModel):
 
 class ScheduleEntry(BaseModel):
     id: str = Field(min_length=1, max_length=80)
-    day_index: int = Field(ge=1, le=7)
+    day_index: int = Field(ge=1, le=14)
     start_time: time
     end_time: time
     place: PlaceRecommendation
@@ -120,10 +120,9 @@ class SightseeingPlan(BaseModel):
     plan_id: str = Field(min_length=1, max_length=80)
     destination: str = Field(min_length=1, max_length=160)
     start_date: date
-    day_count: int = Field(ge=1, le=7)
-    # Four stops per day permits a practical seven-day itinerary while bounding
-    # the structured model output to 28 entries.
-    entries: list[ScheduleEntry] = Field(default_factory=list, max_length=28)
+    day_count: int = Field(ge=1, le=14)
+    # Retain room for four stops per day across the fourteen-day bound.
+    entries: list[ScheduleEntry] = Field(default_factory=list, max_length=56)
     summary: str = Field(default="", max_length=2000)
     revision: int = Field(default=1, ge=1)
 
@@ -191,11 +190,11 @@ class PlanChangeIntent(BaseModel):
     user_message: str = Field(default="", max_length=4000)
     destination: str | None = Field(default=None, max_length=160)
     start_date: date | None = None
-    day_count: int | None = Field(default=None, ge=1, le=7)
+    day_count: int | None = Field(default=None, ge=1, le=14)
     day_count_delta: int | None = Field(
         default=None,
         ge=1,
-        le=6,
+        le=13,
         description=(
             "Positive number of days to add for extend_trip or remove for "
             "shorten_trip."
@@ -206,7 +205,7 @@ class PlanChangeIntent(BaseModel):
     from_index: int | None = Field(default=None, ge=0)
     to_index: int | None = Field(default=None, ge=0)
     entry_id: str | None = Field(default=None, max_length=80)
-    day_index: int | None = Field(default=None, ge=1, le=7)
+    day_index: int | None = Field(default=None, ge=1, le=14)
     start_time: time | None = None
     end_time: time | None = None
 

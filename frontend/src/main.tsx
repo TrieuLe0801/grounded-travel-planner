@@ -2376,7 +2376,7 @@ function App() {
     if (!destination.trim())
       next.destination = "requiredDestination";
     if (!startDate) next.startDate = "requiredStartDate";
-    if (!Number.isInteger(days) || days < 1 || days > 7)
+    if (!Number.isInteger(days) || days < 1 || days > 14)
       next.days = "requiredDays";
     setErrors(next);
     if (Object.keys(next).length) return;
@@ -2920,7 +2920,7 @@ function App() {
                         disabled={state.pending || submitting}
                         className="mt-2 block min-h-12 w-full rounded-xl border border-slate-300 bg-white px-3"
                       >
-                        {[1, 2, 3, 4, 5, 6, 7].map((number) => (
+                        {Array.from({ length: 14 }, (_, index) => index + 1).map((number) => (
                           <option key={number} value={number}>
                             {number} {labels.dayUnit}
                           </option>

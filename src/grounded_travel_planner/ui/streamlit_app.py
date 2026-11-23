@@ -444,7 +444,7 @@ def main(
         day_count = st.number_input(
             labels["days"],
             min_value=1,
-            max_value=7,
+            max_value=14,
             value=2,
             step=1,
             disabled=turn_pending,

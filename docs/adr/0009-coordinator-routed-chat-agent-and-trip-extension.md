@@ -96,3 +96,13 @@ and removes stops from dropped days, or may reschedule an existing stop into a
 retained day. It cannot invent new stops or alter their source data. Both
 changes pass the existing validate-before-commit checks; a rejected candidate
 keeps the prior itinerary.
+
+## User Amendment — 2026-11-23 — Two-Week Trips
+
+The selected duration may be 1–14 days for a new itinerary or a Chat length
+change. A new itinerary must contain at least one grounded stop on every day;
+users can add detail through Chat. Each newly added day in an extension still
+requires a grounded stop, and shortening still preserves retained entries.
+The input, candidate, schedule and source checks remain commit gates. The
+per-turn search and graph limits remain unchanged. Live 14-day output capacity
+and latency require separate measurement before either is claimed.

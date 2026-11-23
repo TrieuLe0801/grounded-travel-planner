@@ -35,9 +35,8 @@ class RuntimeConfig(BaseModel):
     coordinator_provider: ModelProvider | None = None
     planner_provider: ModelProvider | None = None
     chat_provider: ModelProvider | None = None
-    # Bound one model response per role. Planner receives room for a full
-    # seven-day structured itinerary; production may lower these after usage
-    # measurements show a smaller safe cap.
+    # Bound one model response per role. The Planner cap remains unchanged;
+    # measure live fourteen-day output before adjusting it.
     coordinator_max_output_tokens: int = Field(
         default=DEFAULT_COORDINATOR_MAX_OUTPUT_TOKENS, ge=256, le=16384
     )

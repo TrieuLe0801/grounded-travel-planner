@@ -78,7 +78,9 @@ def _search_result() -> SearchResult:
     )
 
 
-def _plan(days: list[int], *, plan_id: str = "candidate") -> SightseeingPlan:
+def _plan(
+    days: list[int], *, plan_id: str = "candidate", day_count: int = 7
+) -> SightseeingPlan:
     source = _source()
     entries = [
         ScheduleEntry(
@@ -99,9 +101,9 @@ def _plan(days: list[int], *, plan_id: str = "candidate") -> SightseeingPlan:
         plan_id=plan_id,
         destination="Hue",
         start_date=date(2026, 11, 1),
-        day_count=7,
+        day_count=day_count,
         entries=entries,
-        summary="Seven-day Hue itinerary.",
+        summary=f"{day_count}-day Hue itinerary.",
     )
 
 
@@ -181,4 +183,45 @@ def test_create_trip_commits_when_every_day_has_a_grounded_stop() -> None:
     assert response.current_plan is not None
     assert {entry.day_index for entry in response.current_plan.entries} == set(
         range(1, 8)
+    )
+
+
+def test_fourteen_day_trip_commits_with_one_grounded_stop_per_day() -> None:
+    candidate = _plan(list(range(1, 15)), day_count=14)
+    service, _planner = _service(candidate)
+
+    response = service.handle_turn(
+        thread_id="fourteen-day-create",
+        message="Tạo lịch Huế 14 ngày",
+        request=TripRequest(
+            destination="Hue", start_date=date(2026, 11, 1), day_count=14
+        ),
+    )
+
+    assert response.status is ResponseStatus.COMMITTED
+    assert response.current_plan is not None
+    assert {entry.day_index for entry in response.current_plan.entries} == set(
+        range(1, 15)
+    )
+
+
+def test_fourteen_day_trip_rejects_missing_last_day() -> None:
+    candidate = _plan(list(range(1, 14)), day_count=14)
+    service, _planner = _service(candidate)
+
+    response = service.handle_turn(
+        thread_id="fourteen-day-missing",
+        message="Tạo lịch Huế 14 ngày",
+        request=TripRequest(
+            destination="Hue", start_date=date(2026, 11, 1), day_count=14
+        ),
+    )
+
+    assert response.status is ResponseStatus.REJECTED
+    assert response.current_plan is None
+    assert {issue.code for issue in response.validation_issues} == {
+        "itinerary_day_missing"
+    }
+    assert response.validation_issues[0].message == (
+        "Day 14 has no grounded itinerary stop."
     )

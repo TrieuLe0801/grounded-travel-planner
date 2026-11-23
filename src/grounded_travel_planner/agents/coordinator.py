@@ -93,7 +93,7 @@ class CoordinatorAgent:
         request_is_valid = bool(
             request is not None
             and request.destination.strip()
-            and 1 <= request.day_count <= 7
+            and 1 <= request.day_count <= 14
         )
         if request_is_valid and request is not None and current_plan is None:
             intent = PlanChangeIntent(

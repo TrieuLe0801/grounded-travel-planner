@@ -1,12 +1,12 @@
 # Project Charter
 
 Status: Active
-Last updated: 2026-11-16
+Last updated: 2026-11-23
 
 ## Product
 
 Grounded Travel Planner is a city/place sightseeing webapp. A user enters a
-destination or place, a concrete start date and a day count from 1 to 7. The app
+destination or place, a concrete start date and a day count from 1 to 14. The app
 creates one current itinerary and lets the user chat to add constraints or make
 bounded changes such as add, remove, replace, reorder, extend or shorten the
 trip, change days and change times.
@@ -180,7 +180,7 @@ integrates its result exactly once when the chat page polls or is reopened.
 - Validate input, schedule range, overlaps and known opening-hour conflicts
   before committing a candidate.
 - Preserve the previous current plan when validation fails.
-- Chat can change trip length in either direction within the 1–7 day bound.
+- Chat can change trip length in either direction within the 1–14 day bound.
   Each added day needs a grounded stop. Shortening keeps stops on retained days
   and removes or reschedules stops from days beyond the new duration before
   committing the updated itinerary.

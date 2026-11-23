@@ -184,11 +184,11 @@ class GraphNodes:
                         ),
                     )
                 ]
-            if not 1 <= target <= 7:
+            if not 1 <= target <= 14:
                 return None, [
                     ValidationIssue(
                         code="day_count_out_of_range",
-                        message="Day count must be between 1 and 7.",
+                        message="Day count must be between 1 and 14.",
                     )
                 ]
             if action is IntentAction.EXTEND_TRIP and target <= current_plan.day_count:

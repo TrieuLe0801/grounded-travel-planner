@@ -1,11 +1,28 @@
 # Implementation Plan
 
 Status: Active
-Last updated: 2026-11-21
+Last updated: 2026-11-23
 
 This plan tracks remaining acceptance and concise changes that affect it.
 Product requirements and accepted architecture are defined in the
 [project charter](project-charter.md) and [ADRs](adr/README.md).
+
+## Implemented update: two-week itineraries — 2026-11-23
+
+New trips and Chat duration changes accept 1–14 days across the shared
+contracts, runtime checks, React and Streamlit. The first itinerary needs at
+least one grounded stop on each selected day; an extension needs one on every
+added day. Source, schedule and validate-before-commit rules remain active.
+The structured plan cap is 56 entries, retaining room for four stops per day.
+Search calls, graph steps and model output-token limits are unchanged.
+
+Offline tests passed 271 with one optional PostgreSQL skip. Python quality
+checks and frontend check/build passed. Mocked Playwright passed 48 checks,
+including 14-day submission and day navigation at desktop and phone widths;
+two duplicate viewport sweeps skipped. The first pytest collection attempt
+failed because test model environment variables were unset; the configured
+rerun passed. Live 14-day generation, source quality, output-token capacity,
+latency, Auth0 and deployed behavior remain unverified.
 
 ## Implemented update: administrator model settings — 2026-11-21
 

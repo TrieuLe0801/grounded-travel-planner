@@ -1,13 +1,13 @@
 {
-  "version": 132,
-  "updated": "2026-11-21",
+  "version": 133,
+  "updated": "2026-11-23",
   "active_scope": "city-place-sightseeing-webapp",
   "current_milestone": "Milestone 1: executable city/place sightseeing vertical slice",
   "workstreams": [
     {
       "id": "runtime",
       "state": "implemented",
-      "summary": "Coordinator, Planner and Chat share bounded context, validated plan changes and Tavily search. Active admins configure provider/model, additive role prompts and bounded generation settings; each turn uses an immutable snapshot.",
+      "summary": "Coordinator, Planner and Chat accept 1–14 day trips with a grounded stop per initial day and bounded validation. Active admins configure provider/model, additive role prompts and bounded generation settings; each turn uses an immutable snapshot. Live 14-day model output and latency are unverified.",
       "records": [
         "docs/project-charter.md",
         "docs/adr/0004-city-sightseeing-two-agent-runtime.md",
@@ -20,7 +20,7 @@
     {
       "id": "web-ui",
       "state": "Travel-guide redesign implemented; mocked browser QA passed; live QA pending",
-      "summary": "Travel-guide redesign implemented with an editorial landing, local decorative landscape/compass SVG, departure form, destination-led journal, numbered days, saved-tour index and consistent chat styling. Frontend check/build and 34 mocked Chromium checks passed; two duplicate viewport sweeps skipped. Live Auth0, providers and deployed behavior remain unverified."
+      "summary": "Travel-guide redesign remains. React and Streamlit accept up to 14 days; mocked React checks cover 14-day submission and navigation. Frontend check/build and 48 mocked Chromium checks passed; two duplicate viewport sweeps skipped. Live Auth0, providers and deployed behavior remain unverified."
     },
     {
       "id": "saved-tours",
@@ -53,11 +53,11 @@
     "session_effect": "App recreation cleared session-only itinerary, conversation and pending-turn state."
   },
   "latest_offline_checks": {
-    "date": "2026-11-21",
-    "result": "267 passed; 1 optional PostgreSQL archive test skipped because opt-in settings were unset.",
+    "date": "2026-11-23",
+    "result": "271 passed; 1 optional PostgreSQL archive test skipped because opt-in settings were unset.",
     "python_and_frontend_checks": "Python quality checks and frontend typecheck/build passed.",
-    "mocked_browser_checks": "46 passed; 2 duplicate viewport sweeps skipped during the CI/CD local verification. Earlier admin settings screenshots were reviewed at 390px and 1440px.",
-    "live_checks": "Mac deployment preflight passed and PostgreSQL settings tables were observed; no live Auth0/provider or app deployment check ran.",
+    "mocked_browser_checks": "48 passed; 2 duplicate viewport sweeps skipped. Four targeted 14-day desktop/mobile checks passed.",
+    "live_checks": "No live 14-day model, Tavily, Auth0 or deployment check ran; planner output-token capacity and latency are unmeasured.",
     "checks_during_2026_11_17_rebuild": "No test suite ran."
   },
   "open_items": [
