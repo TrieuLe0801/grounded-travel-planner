@@ -1,6 +1,6 @@
 ---
 name: requirement-clarification
-description: Clarify an underspecified project goal or run a user-requested deep requirements interview before planning.
+description: Clarify product tradeoffs and missing acceptance decisions during research and planning, or run a user-requested deep requirements interview.
 ---
 
 # Requirement Clarification
@@ -9,6 +9,14 @@ Use for Codex development requirements, not the travel-planner runtime chat.
 Researcher gathers evidence; Planner resolves remaining design branches. The
 primary session asks the user and records answers. Other agents report missing
 decisions to the primary session rather than independently interviewing the user.
+
+For research or proposal requests, complete this decision check before presenting
+a recommended solution. A technical approach does not settle product choices
+such as speed versus source quality, initial result detail, or minimum coverage.
+Researcher reports those choices after checking existing decisions; Planner
+checks again before finalizing its plan. The primary session asks at the
+handoff and returns answers to both roles as needed. Do not present a dependent
+recommendation as final while an answer is pending.
 
 ## Choose the mode
 

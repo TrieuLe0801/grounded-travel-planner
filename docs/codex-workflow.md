@@ -121,3 +121,14 @@ Researcher finds evidence before raising questions; Planner identifies remaining
 decision dependencies; the primary session asks and records answers. This keeps
 routine authorized work moving and avoids re-asking settled decisions. No
 external skill file or runtime agent was adopted.
+
+## Proposal interview handoff — 2026-11-23
+
+Research and proposal work now includes a decision check before a recommendation
+is presented. Researcher identifies unresolved product tradeoffs after reading
+project evidence. The primary session interviews the user and passes answers to
+Planner. Planner checks for new decision dependencies and sends any remaining
+questions back to the primary session before finalizing a dependent plan.
+Proposal-only work ends after this handoff and plan; implementation roles run
+when a code change is in scope. The latency and 14-day trip proposal prompted
+this clarification after its first draft omitted the interview.

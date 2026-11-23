@@ -276,3 +276,23 @@ evidence that the application, a browser flow or a live provider was verified.
   frontend checks/build, 42 mocked browser checks, formatting and lint passed.
   PostgreSQL settings migration, live providers, Auth0, and deployment remain
   unverified. See ADR 0024.
+
+## 2026-11-23 — Latency and 14-day trip proposal
+
+- The user requested research and a proposal for lower suggestion latency and
+  trips of up to 14 days. The current implementation and charter still cap trips
+  at seven days; no runtime change has been made.
+- In the requirements interview, the user selected at least one grounded stop
+  per day in the initial 14-day itinerary, with further detail added through
+  chat. Source quality and correctness take priority; a latency improvement
+  must be demonstrated by measurement before it is claimed.
+- Researcher and Planner proposed measuring per-stage and end-to-end latency,
+  token usage, repair frequency, and source coverage before adjusting model or
+  Tavily budgets. The proposal calls for coordinated 14-day bounds across
+  contracts, graph, validation, both UIs, and tests. Implementation and live
+  measurements remain pending.
+- After the user identified the omitted interview handoff, the project-owned
+  requirement and delivery skills and Researcher/Planner instructions were
+  updated. Proposal work now asks unresolved product questions before Planner
+  finalizes a dependent recommendation. This is a development workflow change;
+  application behavior is unchanged.
