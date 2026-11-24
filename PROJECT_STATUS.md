@@ -17,9 +17,9 @@ runs and experiment records.
 | Runtime | Implemented; 14-day bound verified offline | Coordinator, Planner and Chat retain bounded search, session context and validate-before-commit behavior. New and edited trips accept 1–14 days; initial plans require a grounded stop each day. Offline and mocked browser checks passed. Live 14-day model output, providers and latency remain unverified. Active admins can set role settings; backup restore and write-pause evidence remain pending. See ADR 0024. |
 | Web UI | Travel-guide redesign and 14-day selection implemented; mocked browser QA passed; live QA pending | React and Streamlit accept up to 14 days. React submits 14 days and renders 14 day links in mocked desktop/mobile checks. Live Auth0, providers and deployed behavior remain unverified. |
 | Saved tours | PostgreSQL Compose storage available; browser QA pending | Explicitly saved, owner-scoped snapshots are read-only. Verify save, list, detail, delete and owner isolation in a browser. |
-| Authentication | Remember-login source implemented; migration and live verification pending | Sign-in offers an unchecked remember option: ordinary sessions expire after 30 minutes idle; new opted-in sessions have no fixed server deadline and renew their browser cookie on a successful account check. Older opted-in sessions keep their 30-day limit. Browsers can still clear or limit cookies. SQLite and PostgreSQL require the explicit account-schema migration before rollout. The local Compose app has not been updated. Live Auth0 sign-in, callback, planner access and logout remain unverified. |
+| Authentication | Remember-login PostgreSQL schema repaired; Auth0 browser QA pending | Sign-in offers an unchecked remember option: ordinary sessions expire after 30 minutes idle; new opted-in sessions have no fixed server deadline and renew their browser cookie on a successful account check. Older opted-in sessions keep their 30-day limit. The backed-up, write-paused PostgreSQL migration added `auth_sessions.remember_login`; 55 older sessions defaulted to false. The restarted app is healthy and public `/api/auth/me` with an invalid cookie returns HTTP 200 with `authenticated: false`. Real sign-in, callback, planner access, remembered return and logout remain unverified. |
 | Account administration | Source and offline integration verified; live QA pending | Account access, usage and deletion are implemented. No live Auth0 deletion request or administrator browser flow was checked. |
-| Public app | Read-only smoke observed | On 2026-11-17, the local Compose app and PostgreSQL were healthy and the local root returned HTTP 200. This does not establish browser or Auth0 acceptance. |
+| Public app | Read-only authentication smoke observed | On 2026-11-24, the restarted Compose app was healthy and public `/api/auth/me` with an invalid cookie returned HTTP 200 with `authenticated: false`. This does not establish browser or Auth0 acceptance. |
 
 ## Development workflow
 
@@ -54,6 +54,20 @@ manifests, TOML/JSON/YAML parsing, active references, diff checks and all four
 Python formatting/lint checks passed. Product and live acceptance are unchanged.
 
 ## Latest verification
+
+- Remember-login PostgreSQL repair (2026-11-24): The deployment poller was
+  paused, the app stopped, and a 13 MB owner-only `pg_dump` was restored into a
+  temporary database. Counts matched: 9 users, 55 auth sessions and 19 saved
+  tours. The idempotent schema migration was applied twice; the new boolean
+  column is `NOT NULL DEFAULT false`, and all 55 older sessions are false.
+  After restart, the app was healthy and public `/api/auth/me` changed from
+  HTTP 503 to HTTP 200 for an invalid cookie. The temporary database was
+  removed and the poller lock released. No authenticated browser flow ran.
+- Pre-deploy schema gate source (2026-11-24): New app image checks required
+  PostgreSQL columns before container replacement; a failed check restores the
+  prior image tag. Local and Docker test stages passed 282 tests with one
+  optional PostgreSQL test skipped. Python quality, Bash syntax, diff and
+  runtime/frontend image builds passed. The new gate has not been deployed.
 
 - Remember login without a fixed deadline (2026-11-24): 281 offline tests passed; one optional PostgreSQL test skipped because its opt-in DSN was unset. isort, Black, flake8, Ruff, frontend check/build, and 52 mocked Playwright checks passed; two duplicate mobile sweeps skipped. The 24-hour visible-tab heartbeat and the new 400-day cookie renewal path were tested offline. PostgreSQL, live Auth0, real elapsed browser persistence, and deployment were not checked.
 
@@ -137,20 +151,17 @@ Python formatting/lint checks passed. Product and live acceptance are unchanged.
 
 ## Remaining acceptance work
 
-1. Back up the account database, pause writes, run the remember-login schema
-   migration, and verify it before rolling out the new app image.
-2. Verify Auth0 application settings and complete password, signup, email
+1. Verify Auth0 application settings and complete password, signup, email
    verification, OTP, callback, planner and logout flows on www.citedtrip.app.
-3. In the deployed app, verify saved-tour operations and owner isolation, then
+2. In the deployed app, verify saved-tour operations and owner isolation, then
    complete authenticated browser QA for Home reset, account actions and
    navigation while a turn is pending. Mocked responsive UI checks have passed.
-4. Measure live source relevance, place coverage and host diversity; evaluate
+3. Measure live source relevance, place coverage and host diversity; evaluate
    Chat answer accuracy across factual questions; test reorder and replace
    intents with live evidence.
-5. Verify a full restore of the account backup and confirm write-pause evidence
-   for the existing runtime-model-settings tables before accepting admin edits
-   in deployment.
-6. Treat production rollout as a separate decision and follow the existing
+4. Verify administrator runtime-settings edits in the deployed app; confirm
+   settings records in the restored backup before accepting those edits.
+5. Treat production rollout as a separate decision and follow the existing
    migration, backup and deployment gates.
 
 ## Current risks

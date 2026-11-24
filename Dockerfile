@@ -48,6 +48,9 @@ COPY scripts/live_smoke.py ./scripts/live_smoke.py
 COPY scripts/migrate_saved_tours_index.py ./scripts/migrate_saved_tours_index.py
 COPY scripts/migrate_saved_tours_to_postgres.py ./scripts/migrate_saved_tours_to_postgres.py
 COPY scripts/migrate_saved_tours_account_ownership.py ./scripts/migrate_saved_tours_account_ownership.py
+COPY scripts/migrate_admin_accounts.py ./scripts/migrate_admin_accounts.py
+COPY scripts/check_deploy_schema.py ./scripts/check_deploy_schema.py
+COPY scripts/deploy_macos.sh ./scripts/deploy_macos.sh
 COPY .codex/hooks/format_python.py ./.codex/hooks/format_python.py
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-editable
@@ -57,6 +60,7 @@ RUN uv run --no-sync pytest
 FROM base AS runtime
 
 COPY --from=frontend /frontend/dist /app/frontend/dist
+COPY scripts/check_deploy_schema.py /app/scripts/check_deploy_schema.py
 COPY scripts/migrate_saved_tours_index.py /app/scripts/migrate_saved_tours_index.py
 COPY scripts/migrate_saved_tours_to_postgres.py /app/scripts/migrate_saved_tours_to_postgres.py
 COPY scripts/migrate_saved_tours_account_ownership.py /app/scripts/migrate_saved_tours_account_ownership.py

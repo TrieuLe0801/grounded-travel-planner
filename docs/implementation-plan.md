@@ -7,6 +7,22 @@ This plan tracks remaining acceptance and concise changes that affect it.
 Product requirements and accepted architecture are defined in the
 [project charter](project-charter.md) and [ADRs](adr/README.md).
 
+## PostgreSQL remember-login repair — 2026-11-24
+
+The deployed app attempted to read `auth_sessions.remember_login` before the
+PostgreSQL migration. Public `/api/auth/me` returned HTTP 503 for an invalid
+cookie while root health remained green. The poller was paused, the app stopped,
+and a 13 MB owner-only backup was restored to a temporary database. Counts
+matched 9 users, 55 sessions and 19 saved tours. The idempotent migration was
+applied twice; the column is `NOT NULL DEFAULT false`, and all older sessions
+are false. After restart, the app was healthy and the same public request
+returned HTTP 200 with `authenticated: false`. No authenticated browser flow
+ran. A source-level pre-deploy schema gate now checks the required column from
+the new image before replacing the app; live gate execution remains pending.
+Local and Docker test stages passed 282 tests with one optional PostgreSQL
+skip. Python quality, Bash syntax, diff and runtime/frontend image builds
+passed. The gate has not been deployed.
+
 ## Initial remember-login policy — 2026-11-24
 
 The public sign-in card offers an unchecked remember option for Google,
