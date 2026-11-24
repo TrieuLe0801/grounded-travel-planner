@@ -1718,6 +1718,7 @@ function App() {
   const [visualsLoading, setVisualsLoading] = useState(false);
   const [view, setView] = useState<View>(initialView);
   const [auth, setAuth] = useState<AuthState | null>(null);
+  const [rememberLogin, setRememberLogin] = useState(false);
   const [authError, setAuthError] = useState<LocalizedMessage>("");
   const [authNotice, setAuthNotice] = useState<LocalizedMessage>("");
   const [signingOut, setSigningOut] = useState(false);
@@ -2203,6 +2204,7 @@ function App() {
     const separator = returnTo.includes("?") ? "&" : "?";
     const localizedReturnTo = `${returnTo}${separator}lang=${landingLanguage}`;
     const query = new URLSearchParams({ return_to: localizedReturnTo });
+    if (rememberLogin) query.set("remember_login", "true");
     if (intent !== "login") query.set("intent", intent);
     window.location.assign(`/api/auth/login?${query.toString()}`);
   };
@@ -2490,6 +2492,10 @@ function App() {
             <p className="mt-2 leading-6 text-slate-700">{auth === null ? labels.authChecking : labels.landingAccess}</p>
             {authError && <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-800" role="alert">{labels[authError]}</p>}
             {authError === "authLinkRequired" && <button type="button" onClick={() => signIn("/", "existing")} className="mt-3 inline-flex min-h-11 items-center rounded-xl border border-blue-200 bg-white px-4 font-semibold text-blue-800 focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300">{labels.signInExisting}</button>}
+            {auth !== null && <label className="mt-4 flex min-h-11 cursor-pointer items-center gap-3 text-sm font-semibold text-slate-700">
+              <input type="checkbox" checked={rememberLogin} onChange={(event) => setRememberLogin(event.target.checked)} className="size-5 accent-primary focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300" />
+              <span>{labels.rememberLogin}</span>
+            </label>}
             {auth !== null && <div className="mt-4 grid gap-2 sm:mt-7 sm:gap-3">
               <button type="button" onClick={() => signIn("/", "google")} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 font-bold text-white shadow-lg shadow-blue-500/25 transition hover:bg-blue-500 focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300"><LogIn size={18} aria-hidden="true" />{labels.signInWithGoogle}</button>
               <button type="button" onClick={() => signIn("/", "email")} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-blue-200 bg-white px-5 font-bold text-blue-800 transition hover:bg-blue-50 focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-300"><LogIn size={18} aria-hidden="true" />{labels.signInWithEmail}</button>

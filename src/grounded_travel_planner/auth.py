@@ -205,6 +205,7 @@ class PendingLoginCodec:
         self,
         *,
         return_to: str,
+        remember_login: bool = False,
         link_user_id: str | None = None,
         link_auth_hash: str | None = None,
         link_method: Literal["google", "password", "email_otp"] | None = None,
@@ -220,6 +221,7 @@ class PendingLoginCodec:
             "nonce": secrets.token_urlsafe(32),
             "verifier": secrets.token_urlsafe(64),
             "return_to": safe_return_to(return_to),
+            "remember_login": remember_login,
             "expires_at": _now() + AUTH_PENDING_SECONDS,
         }
         if link_user_id is not None and link_auth_hash is not None and link_method:
@@ -245,9 +247,17 @@ class PendingLoginCodec:
             )
             required = {"state", "nonce", "verifier", "return_to", "expires_at"}
             link_fields = {"link_user_id", "link_auth_hash", "link_method"}
+            optional_fields = {"remember_login"}
             if (
-                set(raw) not in (required, required | link_fields)
+                set(raw)
+                not in (
+                    required,
+                    required | link_fields,
+                    required | optional_fields,
+                    required | link_fields | optional_fields,
+                )
                 or int(raw["expires_at"]) < _now()
+                or not isinstance(raw.get("remember_login", False), bool)
                 or (
                     "link_method" in raw
                     and raw["link_method"] not in {"google", "password", "email_otp"}
@@ -555,6 +565,7 @@ class AuthRepository:
                     verifier_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL, csrf_hash TEXT NOT NULL,
                     idle_expires_at INTEGER NOT NULL, absolute_expires_at INTEGER NOT NULL,
                     revoked_at INTEGER, created_at TEXT NOT NULL,
+                    remember_login INTEGER NOT NULL DEFAULT 0 CHECK (remember_login IN (0, 1)),
                     FOREIGN KEY(user_id) REFERENCES app_users(id)
                 );
                 CREATE INDEX IF NOT EXISTS auth_sessions_expiry ON auth_sessions (idle_expires_at);
@@ -585,6 +596,22 @@ class AuthRepository:
                 CREATE INDEX IF NOT EXISTS account_merges_canonical
                     ON account_merges (canonical_user_id);
                 """)
+
+    def migrate_remember_login(self) -> None:
+        """Add the opt-in flag during a backed-up, write-paused migration."""
+
+        with self._connection() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            columns = {
+                str(row["name"])
+                for row in connection.execute("PRAGMA table_info(auth_sessions)")
+            }
+            if not columns:
+                raise AuthError("Authentication schema is missing.")
+            if "remember_login" not in columns:
+                connection.execute("""ALTER TABLE auth_sessions ADD COLUMN
+                    remember_login INTEGER NOT NULL DEFAULT 0
+                    CHECK (remember_login IN (0, 1))""")
 
     def migrate_admin(self) -> None:
         """Upgrade an existing auth database during an explicit write pause."""
@@ -886,7 +913,9 @@ class AuthRepository:
         except sqlite3.Error as error:
             raise AuthError("Authentication storage is unavailable.") from error
 
-    def issue_session(self, user_id: str, email: str | None) -> tuple[str, str]:
+    def issue_session(
+        self, user_id: str, email: str | None, *, remember_login: bool = False
+    ) -> tuple[str, str]:
         token = secrets.token_urlsafe(48)
         csrf = _csrf_for(token)
         now = _now()
@@ -900,15 +929,22 @@ class AuthRepository:
                     raise AuthError("Account access is blocked.")
                 connection.execute(
                     """INSERT INTO auth_sessions
-                    (verifier_hash, user_id, csrf_hash, idle_expires_at, absolute_expires_at, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?)""",
+                    (verifier_hash, user_id, csrf_hash, idle_expires_at,
+                    absolute_expires_at, created_at, remember_login)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)""",
                     (
                         _hash(token),
                         user_id,
                         _hash(csrf),
-                        now + AUTH_IDLE_SECONDS,
+                        now
+                        + (
+                            AUTH_ABSOLUTE_SECONDS
+                            if remember_login
+                            else AUTH_IDLE_SECONDS
+                        ),
                         now + AUTH_ABSOLUTE_SECONDS,
                         datetime.now(timezone.utc).isoformat(),
+                        int(remember_login),
                     ),
                 )
         except sqlite3.Error as error:
@@ -923,7 +959,7 @@ class AuthRepository:
             with self._connection() as connection:
                 row = connection.execute(
                     """SELECT auth_sessions.user_id, app_users.email, app_users.access_status,
-                    app_users.is_admin, auth_sessions.csrf_hash,
+                    app_users.is_admin, auth_sessions.csrf_hash, auth_sessions.remember_login,
                     auth_sessions.idle_expires_at, auth_sessions.absolute_expires_at,
                     auth_sessions.revoked_at FROM auth_sessions JOIN app_users
                     ON app_users.id = auth_sessions.user_id WHERE verifier_hash = ?""",
@@ -933,16 +969,17 @@ class AuthRepository:
                     row is None
                     or row["revoked_at"] is not None
                     or row["access_status"] != "active"
-                    or now > min(row["idle_expires_at"], row["absolute_expires_at"])
+                    or now >= min(row["idle_expires_at"], row["absolute_expires_at"])
                 ):
                     return None
-                connection.execute(
-                    "UPDATE auth_sessions SET idle_expires_at = ? WHERE verifier_hash = ?",
-                    (
-                        min(now + AUTH_IDLE_SECONDS, row["absolute_expires_at"]),
-                        _hash(token),
-                    ),
-                )
+                if not row["remember_login"]:
+                    connection.execute(
+                        "UPDATE auth_sessions SET idle_expires_at = ? WHERE verifier_hash = ?",
+                        (
+                            min(now + AUTH_IDLE_SECONDS, row["absolute_expires_at"]),
+                            _hash(token),
+                        ),
+                    )
                 return AuthenticatedUser(
                     str(row["user_id"]),
                     row["email"],
@@ -973,7 +1010,7 @@ class AuthRepository:
                     row is None
                     or row["revoked_at"] is not None
                     or row["access_status"] != "active"
-                    or now > min(row["idle_expires_at"], row["absolute_expires_at"])
+                    or now >= min(row["idle_expires_at"], row["absolute_expires_at"])
                 ):
                     return None
                 if not hmac.compare_digest(str(row["csrf_hash"]), _hash(csrf)):
@@ -1592,7 +1629,9 @@ class PostgresAuthRepository:
         except (psycopg.Error, PoolClosed, PoolTimeout) as error:
             raise AuthError("Authentication storage is unavailable.") from error
 
-    def issue_session(self, user_id: str, email: str | None) -> tuple[str, str]:
+    def issue_session(
+        self, user_id: str, email: str | None, *, remember_login: bool = False
+    ) -> tuple[str, str]:
         del email
         token, now = secrets.token_urlsafe(48), _now()
         csrf = _csrf_for(token)
@@ -1607,14 +1646,21 @@ class PostgresAuthRepository:
                     raise AuthError("Account access is blocked.")
                 cursor.execute(
                     """INSERT INTO auth_sessions (verifier_hash, user_id, csrf_hash,
-                    idle_expires_at, absolute_expires_at, created_at) VALUES (%s, %s, %s, %s, %s, %s)""",
+                    idle_expires_at, absolute_expires_at, created_at, remember_login)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)""",
                     (
                         _hash(token),
                         user_id,
                         _hash(csrf),
-                        now + AUTH_IDLE_SECONDS,
+                        now
+                        + (
+                            AUTH_ABSOLUTE_SECONDS
+                            if remember_login
+                            else AUTH_IDLE_SECONDS
+                        ),
                         now + AUTH_ABSOLUTE_SECONDS,
                         datetime.now(timezone.utc).isoformat(),
+                        remember_login,
                     ),
                 )
         except (psycopg.Error, PoolClosed, PoolTimeout) as error:
@@ -1632,7 +1678,8 @@ class PostgresAuthRepository:
                 cursor.execute(
                     """SELECT auth_sessions.user_id, app_users.email,
                     app_users.access_status, app_users.is_admin, auth_sessions.csrf_hash,
-                    auth_sessions.idle_expires_at, auth_sessions.absolute_expires_at, auth_sessions.revoked_at
+                    auth_sessions.idle_expires_at, auth_sessions.absolute_expires_at,
+                    auth_sessions.remember_login, auth_sessions.revoked_at
                     FROM auth_sessions JOIN app_users ON app_users.id = auth_sessions.user_id
                     WHERE verifier_hash = %s""",
                     (_hash(token),),
@@ -1642,14 +1689,14 @@ class PostgresAuthRepository:
                     row is None
                     or row["revoked_at"] is not None
                     or row["access_status"] != "active"
-                    or now > min(row["idle_expires_at"], row["absolute_expires_at"])
+                    or now >= min(row["idle_expires_at"], row["absolute_expires_at"])
                 ):
                     return None
                 if csrf is not None and not hmac.compare_digest(
                     str(row["csrf_hash"]), _hash(csrf)
                 ):
                     return None
-                if rotate:
+                if rotate and not row["remember_login"]:
                     cursor.execute(
                         "UPDATE auth_sessions SET idle_expires_at = %s WHERE verifier_hash = %s",
                         (
@@ -2105,7 +2152,8 @@ def create_postgres_auth_schema(
         cursor.execute("""CREATE TABLE IF NOT EXISTS auth_sessions (
             verifier_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES app_users(id),
             csrf_hash TEXT NOT NULL, idle_expires_at BIGINT NOT NULL, absolute_expires_at BIGINT NOT NULL,
-            revoked_at BIGINT, created_at TEXT NOT NULL)""")
+            revoked_at BIGINT, created_at TEXT NOT NULL,
+            remember_login BOOLEAN NOT NULL DEFAULT FALSE)""")
         cursor.execute(
             "CREATE INDEX IF NOT EXISTS auth_sessions_expiry ON auth_sessions (idle_expires_at)"
         )
@@ -2128,6 +2176,21 @@ def create_postgres_auth_schema(
         cursor.execute(
             "CREATE INDEX IF NOT EXISTS account_merges_canonical ON account_merges (canonical_user_id)"
         )
+
+
+def migrate_postgres_remember_login_schema(
+    connection: psycopg.Connection[dict[str, Any]],
+) -> None:
+    """Add the opt-in flag during a backed-up, write-paused migration."""
+
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT to_regclass('auth_sessions') AS relation")
+        row = cursor.fetchone()
+        relation = row["relation"] if isinstance(row, dict) else row[0]
+        if relation is None:
+            raise AuthError("Authentication schema is missing.")
+        cursor.execute("""ALTER TABLE auth_sessions ADD COLUMN IF NOT EXISTS
+            remember_login BOOLEAN NOT NULL DEFAULT FALSE""")
 
 
 def migrate_postgres_admin_schema(

@@ -53,3 +53,16 @@ decision before public deployment.
 This ADR supersedes ADR 0014 and ADR 0015 only where they limit saved-tour
 ownership to one browser or exclude accounts. Their snapshot, explicit-save,
 storage and session-only live-state decisions remain accepted.
+
+## User Amendment — 2026-11-24 — Remember Login
+
+The public sign-in card offers an unchecked “Remember login” option for Google,
+database password, email OTP, and signup. Without the option, the account cookie
+is a browser-session cookie and the server retains the 30-minute idle limit.
+With the option, the account cookie persists for up to 30 days and the server
+session expires 30 days after the verified callback, regardless of activity.
+The choice travels only in signed, short-lived OIDC state and the server-owned
+session record. Existing sessions default to the 30-minute idle policy after
+the explicit database migration. Logout, administrator revocation, CSRF, owner
+checks and recent-authentication requirements still apply. Remembering an
+account does not persist the live itinerary or conversation.
