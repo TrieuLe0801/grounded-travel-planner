@@ -1963,6 +1963,15 @@ function App() {
     };
   }, []);
   useEffect(() => {
+    if (!auth?.authenticated) return;
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        void api<AuthState>("/api/auth/me").catch(() => undefined);
+      }
+    }, 24 * 60 * 60 * 1000);
+    return () => window.clearInterval(timer);
+  }, [auth?.authenticated]);
+  useEffect(() => {
     if (!state.pending) return;
     const timer = window.setInterval(() => void load(), 1200);
     return () => window.clearInterval(timer);

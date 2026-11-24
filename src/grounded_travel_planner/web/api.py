@@ -23,9 +23,9 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
 
 from grounded_travel_planner.auth import (
-    AUTH_ABSOLUTE_SECONDS,
     AUTH_COOKIE_NAME,
     AUTH_PENDING_COOKIE_NAME,
+    AUTH_REMEMBER_COOKIE_SECONDS,
     AccessChangeConflict,
     AccountLinkConflict,
     AccountLinkRequired,
@@ -816,7 +816,11 @@ def create_app(
         }
 
     @app.get("/api/auth/me")
-    def auth_me(gtp_auth: str | None = Cookie(default=None)) -> dict[str, object]:
+    def auth_me(
+        response: Response,
+        request: Request,
+        gtp_auth: str | None = Cookie(default=None),
+    ) -> dict[str, object]:
         try:
             user = auth.authenticated(gtp_auth)
             methods = auth.login_methods(user.user_id) if user is not None else []
@@ -826,6 +830,16 @@ def create_app(
             ) from error
         if user is None:
             return {"authenticated": False}
+        if user.persistent_login and gtp_auth is not None:
+            response.set_cookie(
+                AUTH_COOKIE_NAME,
+                gtp_auth,
+                max_age=AUTH_REMEMBER_COOKIE_SECONDS,
+                httponly=True,
+                samesite="lax",
+                secure=_secure_cookie(request),
+                path="/",
+            )
         return {
             "authenticated": True,
             "user_id": user.user_id,
@@ -1448,7 +1462,7 @@ def create_app(
         completed.set_cookie(
             AUTH_COOKIE_NAME,
             auth_token,
-            max_age=AUTH_ABSOLUTE_SECONDS if remember_login else None,
+            max_age=AUTH_REMEMBER_COOKIE_SECONDS if remember_login else None,
             httponly=True,
             samesite="lax",
             secure=_secure_cookie(request),

@@ -28,7 +28,7 @@ test("remember login is opt-in for every direct account action", async ({ page }
   ] as const;
   for (const [label, intent] of actions) {
     await page.goto("/");
-    const remember = page.getByRole("checkbox", { name: "Nhớ đăng nhập tối đa 30 ngày" });
+    const remember = page.getByRole("checkbox", { name: "Giữ đăng nhập trên thiết bị này" });
     await expect(remember).not.toBeChecked();
     const ordinary = page.waitForRequest((request) => request.url().includes("/api/auth/login?"));
     await page.getByRole("button", { name: label }).click();
@@ -47,9 +47,42 @@ test("remember login is opt-in for every direct account action", async ({ page }
   await page.goto("/");
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole("button", { name: "Chuyển sang tiếng Anh" }).click();
-  await expect(page.getByRole("checkbox", { name: "Keep me signed in for up to 30 days" })).toBeVisible();
+  await expect(page.getByRole("checkbox", { name: "Keep me signed in on this device" })).toBeVisible();
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.screenshot({ path: testInfo.outputPath("remember-login-en-390.png"), fullPage: true });
+});
+
+test("authenticated open tab rechecks login before persistent cookie ages out", async ({ page }) => {
+  await page.clock.install();
+  let authChecks = 0;
+  await page.route("**/api/auth/me", (route) => {
+    authChecks += 1;
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        authenticated: true,
+        user_id: "test-user",
+        email: "traveler@example.test",
+        csrf_token: "test-csrf",
+        access_status: "active",
+        is_admin: false,
+        login_methods: ["google"],
+      }),
+    });
+  });
+  await page.route("**/api/session", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ language: "vi", plan: null, pending: false, response: null, conversation: [] }),
+  }));
+  await page.goto("/");
+  await expect(page.getByLabel("Điểm đến")).toBeVisible();
+  const initialChecks = authChecks;
+  expect(initialChecks).toBeGreaterThanOrEqual(1);
+  await page.clock.fastForward(24 * 60 * 60 * 1000);
+  await expect.poll(() => authChecks).toBeGreaterThan(initialChecks);
+  await expect(page.getByLabel("Điểm đến")).toBeVisible();
 });
 
 test("primary sign-in action is visible in the first phone viewport", async ({ page }) => {

@@ -66,3 +66,21 @@ session record. Existing sessions default to the 30-minute idle policy after
 the explicit database migration. Logout, administrator revocation, CSRF, owner
 checks and recent-authentication requirements still apply. Remembering an
 account does not persist the live itinerary or conversation.
+
+## User Amendment — 2026-11-24 — No Fixed Remember-Login Deadline
+
+The user selected remembered account sessions without a fixed server expiry.
+New opted-in sessions keep the server-side expiry fields at the maximum signed
+64-bit value; existing remembered sessions retain their original 30-day limit.
+Ordinary sessions still expire after 30 minutes of inactivity. The app refreshes
+the persistent account cookie after a successful `/api/auth/me` check on entry,
+focus, or a 24-hour heartbeat while the authenticated tab is visible. Each
+refresh sets a 400-day `Max-Age`; Chrome caps persistent cookies at 400 days
+([Chrome Developers](https://developer.chrome.com/blog/cookie-max-age-expires)).
+Browser cookie limits, cookie deletion, or a long absence can still require a
+new sign-in; the product must not promise literal permanent access. Logout,
+administrator revocation, CSRF, owner checks and recent-authentication
+requirements remain in force. A stolen remembered cookie
+can remain usable until revoked, so this choice increases credential exposure.
+No additional schema migration is needed beyond the pending remember-login
+flag migration. Live itinerary and conversation state remain session-only.

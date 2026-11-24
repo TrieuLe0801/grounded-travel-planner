@@ -24,8 +24,10 @@ from grounded_travel_planner.auth import (
     AUTH_ABSOLUTE_SECONDS,
     AUTH_COOKIE_NAME,
     AUTH_IDLE_SECONDS,
+    AUTH_NO_EXPIRY,
     AUTH_PENDING_COOKIE_NAME,
     AUTH_PENDING_SECONDS,
+    AUTH_REMEMBER_COOKIE_SECONDS,
     AccessChangeConflict,
     AccountLinkRequired,
     Auth0ManagementApi,
@@ -252,7 +254,7 @@ def test_remember_login_callback_sets_matching_cookie_and_server_expiry(
     )
     assert "httponly" in auth_cookie.lower()
     assert "secure" in auth_cookie.lower()
-    assert (f"Max-Age={AUTH_ABSOLUTE_SECONDS}" in auth_cookie) is remember
+    assert (f"Max-Age={AUTH_REMEMBER_COOKIE_SECONDS}" in auth_cookie) is remember
     with sqlite3.connect(tmp_path / "auth.sqlite") as connection:
         row = connection.execute(
             "SELECT remember_login, idle_expires_at, absolute_expires_at "
@@ -260,9 +262,10 @@ def test_remember_login_callback_sets_matching_cookie_and_server_expiry(
             (auth_module._hash(client.cookies[AUTH_COOKIE_NAME]),),
         ).fetchone()
     assert row[0] == int(remember)
-    assert row[2] - row[1] == (
-        0 if remember else AUTH_ABSOLUTE_SECONDS - AUTH_IDLE_SECONDS
-    )
+    if remember:
+        assert row[1:] == (AUTH_NO_EXPIRY, AUTH_NO_EXPIRY)
+    else:
+        assert row[2] - row[1] == AUTH_ABSOLUTE_SECONDS - AUTH_IDLE_SECONDS
     assert auth.authenticated(client.cookies[AUTH_COOKIE_NAME]) is not None
 
 
@@ -288,9 +291,87 @@ def test_remember_login_server_expiry_and_revocation(
     assert auth.authenticated(normal_token) is None
     assert auth.authenticated(remembered_token) is not None
     assert auth.verify_csrf(remembered_token, csrf) is not None
-    now = 1_700_000_000 + AUTH_ABSOLUTE_SECONDS
-    assert auth.authenticated(remembered_token) is None
-    assert auth.verify_csrf(remembered_token, csrf) is None
+    now = 1_700_000_000 + AUTH_REMEMBER_COOKIE_SECONDS + AUTH_IDLE_SECONDS
+    assert auth.authenticated(remembered_token) is not None
+    assert auth.verify_csrf(remembered_token, csrf) is not None
+
+
+def test_existing_remembered_session_keeps_its_recorded_deadline(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("GTP_AUTH_SESSION_SECRET", "s" * 32)
+    auth = AuthRepository(tmp_path / "auth.sqlite")
+    auth.migrate()
+    user_id, email = auth.find_or_create_user(
+        VerifiedIdentity(
+            "https://tenant.example.test/",
+            "auth0|old-remember",
+            "person@example.test",
+            True,
+        )
+    )
+    now = 1_700_000_000
+    monkeypatch.setattr(auth_module, "_now", lambda: now)
+    token, csrf = auth.issue_session(user_id, email, remember_login=True)
+    with sqlite3.connect(tmp_path / "auth.sqlite") as connection:
+        connection.execute(
+            "UPDATE auth_sessions SET idle_expires_at = ?, absolute_expires_at = ? "
+            "WHERE verifier_hash = ?",
+            (
+                now + AUTH_ABSOLUTE_SECONDS,
+                now + AUTH_ABSOLUTE_SECONDS,
+                auth_module._hash(token),
+            ),
+        )
+    assert auth.authenticated(token) is not None
+    now += AUTH_ABSOLUTE_SECONDS
+    assert auth.authenticated(token) is None
+    assert auth.verify_csrf(token, csrf) is None
+
+
+@pytest.mark.parametrize(
+    "kind", ["remembered", "ordinary", "old_remembered", "invalid"]
+)
+def test_auth_me_renews_only_valid_new_remembered_cookie(
+    tmp_path, monkeypatch: pytest.MonkeyPatch, kind: str
+) -> None:
+    provider = FakeOidcProvider("auth0|cookie-refresh", "person@example.test")
+    client, auth, _ = _client(tmp_path, provider, monkeypatch)
+    user_id, email = auth.find_or_create_user(provider.identity)
+    now = 1_700_000_000
+    monkeypatch.setattr(auth_module, "_now", lambda: now)
+    token, _ = auth.issue_session(user_id, email, remember_login=kind != "ordinary")
+    if kind == "old_remembered":
+        with sqlite3.connect(tmp_path / "auth.sqlite") as connection:
+            connection.execute(
+                "UPDATE auth_sessions SET idle_expires_at = ?, absolute_expires_at = ? "
+                "WHERE verifier_hash = ?",
+                (
+                    now + AUTH_ABSOLUTE_SECONDS,
+                    now + AUTH_ABSOLUTE_SECONDS,
+                    auth_module._hash(token),
+                ),
+            )
+    if kind == "invalid":
+        auth.revoke(token)
+    elif kind == "remembered":
+        now += AUTH_REMEMBER_COOKIE_SECONDS + AUTH_IDLE_SECONDS
+    client.cookies.set(AUTH_COOKIE_NAME, token)
+    response = client.get("/api/auth/me")
+    assert response.status_code == 200
+    assert response.json()["authenticated"] is (kind != "invalid")
+    auth_cookies = [
+        header
+        for header in response.headers.get_list("set-cookie")
+        if header.startswith(f"{AUTH_COOKIE_NAME}=")
+    ]
+    if kind == "remembered":
+        assert len(auth_cookies) == 1
+        assert f"Max-Age={AUTH_REMEMBER_COOKIE_SECONDS}" in auth_cookies[0]
+        assert "httponly" in auth_cookies[0].lower()
+        assert "secure" in auth_cookies[0].lower()
+    else:
+        assert auth_cookies == []
 
 
 def test_pending_login_rejects_changed_remember_choice(
