@@ -69,9 +69,11 @@
       <span class="badge">Live Auth0 QA pending</span>
       <h3>Authentication and accounts</h3>
       <p>Remember-login source offers new opted-in sessions without a fixed
-      server deadline and renews the browser cookie on account checks. Existing
-      account databases need a backed-up, write-paused migration before rollout.
-      The configured public host is www.citedtrip.app. Verify sign-in,
+      server deadline and renews the browser cookie on account checks. The
+      backed-up, write-paused PostgreSQL migration repaired the live schema;
+      public unauthenticated account check now returns HTTP 200. A source-level
+      pre-deploy schema gate is pending release. The configured public host is
+      www.citedtrip.app. Verify sign-in,
       signup, email verification, OTP, account linking, callback, planner,
       administrator actions, remembered return and logout in a live browser.</p>
     </section>

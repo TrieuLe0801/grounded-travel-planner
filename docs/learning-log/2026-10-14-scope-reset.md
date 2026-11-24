@@ -5,6 +5,25 @@ current status. The [charter](../project-charter.md) and accepted ADRs are the
 source of truth for product and architecture. Historical test output belongs
 with its CI run or experiment artifact.
 
+## 2026-11-24 — PostgreSQL remember-login repair
+
+- The new app queried `auth_sessions.remember_login` before the live database
+  had that column. Public `/api/auth/me` returned HTTP 503 for an invalid
+  cookie, although the root health check passed. The deployment path lacked a
+  schema gate before replacing the app container.
+- The poller was paused and the app stopped. A 13 MB owner-only `pg_dump` was
+  restored to a temporary database; counts matched 9 users, 55 sessions and
+  19 saved tours. The idempotent migration was applied twice. The new boolean
+  column is `NOT NULL DEFAULT false`; all 55 existing sessions are false.
+- The restarted app is healthy, and public `/api/auth/me` with an invalid
+  cookie now returns HTTP 200 with `authenticated: false`. The temporary
+  database was removed and the poller lock released. No real authenticated
+  browser flow was checked. A source-level pre-deploy schema gate now checks
+  the new app's required column before container replacement; deployment of
+  that gate itself remains unverified. The source and Docker test stages passed
+  282 tests with one optional PostgreSQL skip; Python quality, Bash syntax,
+  diff and runtime/frontend image builds passed.
+
 ## 2026-11-24 — Remember login without a fixed deadline
 
 - The user changed the opt-in policy to no fixed server deadline and accepted

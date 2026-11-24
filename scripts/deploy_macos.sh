@@ -105,6 +105,12 @@ if [[ -n "$old_container_id" ]]; then
 fi
 
 compose build app
+if ! compose run --rm --no-deps app python /app/scripts/check_deploy_schema.py; then
+    if [[ -n "$old_image_id" ]]; then
+        docker image tag "$old_image_id" grounded-travel-planner:local
+    fi
+    fail "new app requires a database migration; previous app remains active."
+fi
 if ! compose up --detach --no-deps --wait --wait-timeout 180 app; then
     printf 'New app image failed health check.\n' >&2
     if [[ -n "$old_image_id" ]]; then
