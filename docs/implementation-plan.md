@@ -7,12 +7,13 @@ This plan tracks remaining acceptance and concise changes that affect it.
 Product requirements and accepted architecture are defined in the
 [project charter](project-charter.md) and [ADRs](adr/README.md).
 
-## Implemented update: remember login — 2026-11-24
+## Initial remember-login policy — 2026-11-24
 
 The public sign-in card offers an unchecked remember option for Google,
 password, email code and signup. Ordinary account sessions use a browser-session
 cookie and expire after 30 minutes idle. Opted-in sessions use a persistent
-cookie and expire 30 days after the callback, even when used regularly. The
+cookie and originally expired 30 days after the callback. The policy for new
+remembered sessions was amended later the same day, as recorded below. The
 choice crosses Auth0 in signed, short-lived login state; server session records
 enforce expiry. Logout, account revocation, CSRF and owner checks remain active.
 Live itineraries and chat remain session-only.
@@ -23,6 +24,25 @@ before the new app image starts. Offline tests passed 276 with one optional
 PostgreSQL skip. Python quality checks, frontend check/build and 50 mocked
 Playwright checks passed; two duplicate mobile sweeps skipped. The PostgreSQL
 migration, live Auth0 flow and deployment have not been verified.
+
+## Implemented update: remembered sessions without a fixed deadline — 2026-11-24
+
+The user changed the opt-in remember policy. New remembered account sessions
+have no fixed server deadline, while ordinary sessions retain their 30-minute
+idle limit. Existing remembered sessions retain their recorded 30-day expiry.
+The app renews the persistent account cookie for up to 400 days on each
+successful account check, including app entry, focus and a 24-hour heartbeat
+while the authenticated tab is visible. A browser may still delete or limit
+the cookie, so a later sign-in can be required. Logout,
+administrator revocation, CSRF, owner checks and recent-authentication rules
+remain active. This change uses the existing account schema and does not
+replace the pending explicit remember-login migration. Live trip/chat state
+remains session-only.
+
+Offline verification passed 281 tests with one optional PostgreSQL skip.
+Frontend check/build, four Python quality checks and 52 mocked Playwright
+checks passed; two duplicate mobile sweeps skipped. The PostgreSQL migration,
+live Auth0, real elapsed browser persistence and deployment remain unverified.
 
 ## Implemented update: two-week itineraries — 2026-11-23
 

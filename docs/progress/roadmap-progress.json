@@ -30,7 +30,7 @@
     {
       "id": "authentication",
       "state": "remember-login source implemented; migration and live verification pending",
-      "summary": "The landing offers an unchecked remember option. Ordinary sessions expire after 30 minutes idle; opted-in sessions have a 30-day absolute limit. Existing account databases need an explicit migration before rollout. Public host is www.citedtrip.app; live Auth0 and deployed flows remain unverified."
+      "summary": "The landing offers an unchecked remember option. Ordinary sessions expire after 30 minutes idle; new opted-in sessions have no fixed server deadline and renew their browser cookie after a successful account check. Older opted-in sessions retain their 30-day limit; browsers can still delete or limit cookies. Existing account databases need an explicit migration before rollout. Public host is www.citedtrip.app; live Auth0 and deployed flows remain unverified."
     },
     {
       "id": "account-administration",
@@ -57,7 +57,7 @@
     "result": "276 passed; 1 optional PostgreSQL archive test skipped because opt-in settings were unset.",
     "python_and_frontend_checks": "isort, Black, flake8, Ruff and frontend typecheck/build passed.",
     "mocked_browser_checks": "50 passed; 2 duplicate mobile viewport sweeps skipped. Remember-login checkbox and query behavior passed in Chromium.",
-    "live_checks": "No live Auth0, PostgreSQL remember-login migration, persistent browser sign-in or deployment check ran. Live 14-day model and provider quality remain unverified.",
+    "live_checks": "No live Auth0, PostgreSQL remember-login migration, real elapsed persistent browser sign-in or deployment check ran. Offline remember-login update passed 281 tests and 52 mocked Playwright checks. Live 14-day model and provider quality remain unverified.",
     "checks_during_2026_11_17_rebuild": "No test suite ran."
   },
   "open_items": [

@@ -17,7 +17,7 @@ runs and experiment records.
 | Runtime | Implemented; 14-day bound verified offline | Coordinator, Planner and Chat retain bounded search, session context and validate-before-commit behavior. New and edited trips accept 1–14 days; initial plans require a grounded stop each day. Offline and mocked browser checks passed. Live 14-day model output, providers and latency remain unverified. Active admins can set role settings; backup restore and write-pause evidence remain pending. See ADR 0024. |
 | Web UI | Travel-guide redesign and 14-day selection implemented; mocked browser QA passed; live QA pending | React and Streamlit accept up to 14 days. React submits 14 days and renders 14 day links in mocked desktop/mobile checks. Live Auth0, providers and deployed behavior remain unverified. |
 | Saved tours | PostgreSQL Compose storage available; browser QA pending | Explicitly saved, owner-scoped snapshots are read-only. Verify save, list, detail, delete and owner isolation in a browser. |
-| Authentication | Remember-login source implemented; migration and live verification pending | Sign-in now offers an unchecked remember option: ordinary sessions expire after 30 minutes idle; opted-in sessions have a 30-day absolute limit. SQLite and PostgreSQL require the explicit account-schema migration before rollout. The local Compose app has not been updated. Live Auth0 sign-in, callback, planner access and logout remain unverified. |
+| Authentication | Remember-login source implemented; migration and live verification pending | Sign-in offers an unchecked remember option: ordinary sessions expire after 30 minutes idle; new opted-in sessions have no fixed server deadline and renew their browser cookie on a successful account check. Older opted-in sessions keep their 30-day limit. Browsers can still clear or limit cookies. SQLite and PostgreSQL require the explicit account-schema migration before rollout. The local Compose app has not been updated. Live Auth0 sign-in, callback, planner access and logout remain unverified. |
 | Account administration | Source and offline integration verified; live QA pending | Account access, usage and deletion are implemented. No live Auth0 deletion request or administrator browser flow was checked. |
 | Public app | Read-only smoke observed | On 2026-11-17, the local Compose app and PostgreSQL were healthy and the local root returned HTTP 200. This does not establish browser or Auth0 acceptance. |
 
@@ -54,6 +54,8 @@ manifests, TOML/JSON/YAML parsing, active references, diff checks and all four
 Python formatting/lint checks passed. Product and live acceptance are unchanged.
 
 ## Latest verification
+
+- Remember login without a fixed deadline (2026-11-24): 281 offline tests passed; one optional PostgreSQL test skipped because its opt-in DSN was unset. isort, Black, flake8, Ruff, frontend check/build, and 52 mocked Playwright checks passed; two duplicate mobile sweeps skipped. The 24-hour visible-tab heartbeat and the new 400-day cookie renewal path were tested offline. PostgreSQL, live Auth0, real elapsed browser persistence, and deployment were not checked.
 
 - Remember login (2026-11-24): 276 offline tests passed; one optional PostgreSQL test skipped because its opt-in DSN was unset. isort, Black, flake8, Ruff, frontend check/build, and 50 mocked Playwright checks passed; two duplicate mobile sweeps skipped. SQLite migration was tested offline. PostgreSQL migration, live Auth0, browser persistence across a real sign-in, and deployment were not checked.
 

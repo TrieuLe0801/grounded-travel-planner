@@ -5,6 +5,22 @@ current status. The [charter](../project-charter.md) and accepted ADRs are the
 source of truth for product and architecture. Historical test output belongs
 with its CI run or experiment artifact.
 
+## 2026-11-24 — Remember login without a fixed deadline
+
+- The user changed the opt-in policy to no fixed server deadline and accepted
+  cookie renewal on app use. Browser limits or deletion can still require a
+  new sign-in; Chrome caps each persistent cookie to 400 days. Existing
+  remembered sessions retain their recorded 30-day expiry, and ordinary
+  sessions retain the 30-minute idle limit. ADR 0016 records the amendment.
+- The additional change uses existing SQLite and PostgreSQL expiry columns;
+  the pending remember-login schema migration remains required before rollout.
+  Logout, administrator revocation and session-only trip/chat state remain.
+- Offline verification passed 281 tests with one optional PostgreSQL skip,
+  frontend check/build, four Python quality checks and 52 mocked Playwright
+  checks with two duplicate mobile skips. The browser heartbeat was checked
+  with a fake 24-hour clock. PostgreSQL migration, live Auth0, real elapsed
+  browser persistence and deployment were not checked.
+
 ## 2026-11-24 — Remember login
 
 - The user selected an unchecked “Remember login” option. Without it, the

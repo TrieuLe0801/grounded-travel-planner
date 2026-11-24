@@ -33,6 +33,8 @@ AUTH_COOKIE_NAME = "gtp_auth"
 AUTH_PENDING_COOKIE_NAME = "gtp_auth_pending"
 AUTH_IDLE_SECONDS = 30 * 60
 AUTH_ABSOLUTE_SECONDS = 30 * 24 * 60 * 60
+AUTH_REMEMBER_COOKIE_SECONDS = 400 * 24 * 60 * 60
+AUTH_NO_EXPIRY = (1 << 63) - 1
 AUTH_PENDING_SECONDS = 10 * 60
 
 
@@ -121,6 +123,7 @@ class AuthenticatedUser:
     csrf_token: str
     access_status: str = "active"
     is_admin: bool = False
+    persistent_login: bool = False
 
 
 @dataclass(frozen=True)
@@ -936,13 +939,12 @@ class AuthRepository:
                         _hash(token),
                         user_id,
                         _hash(csrf),
-                        now
-                        + (
-                            AUTH_ABSOLUTE_SECONDS
+                        AUTH_NO_EXPIRY if remember_login else now + AUTH_IDLE_SECONDS,
+                        (
+                            AUTH_NO_EXPIRY
                             if remember_login
-                            else AUTH_IDLE_SECONDS
+                            else now + AUTH_ABSOLUTE_SECONDS
                         ),
-                        now + AUTH_ABSOLUTE_SECONDS,
                         datetime.now(timezone.utc).isoformat(),
                         int(remember_login),
                     ),
@@ -986,6 +988,8 @@ class AuthRepository:
                     _csrf_for(token),
                     str(row["access_status"]),
                     bool(row["is_admin"]),
+                    bool(row["remember_login"])
+                    and row["absolute_expires_at"] == AUTH_NO_EXPIRY,
                 )
         except sqlite3.Error as error:
             raise AuthError("Authentication storage is unavailable.") from error
@@ -1652,13 +1656,12 @@ class PostgresAuthRepository:
                         _hash(token),
                         user_id,
                         _hash(csrf),
-                        now
-                        + (
-                            AUTH_ABSOLUTE_SECONDS
+                        AUTH_NO_EXPIRY if remember_login else now + AUTH_IDLE_SECONDS,
+                        (
+                            AUTH_NO_EXPIRY
                             if remember_login
-                            else AUTH_IDLE_SECONDS
+                            else now + AUTH_ABSOLUTE_SECONDS
                         ),
-                        now + AUTH_ABSOLUTE_SECONDS,
                         datetime.now(timezone.utc).isoformat(),
                         remember_login,
                     ),
@@ -1710,6 +1713,8 @@ class PostgresAuthRepository:
                     _csrf_for(token),
                     str(row["access_status"]),
                     bool(row["is_admin"]),
+                    bool(row["remember_login"])
+                    and row["absolute_expires_at"] == AUTH_NO_EXPIRY,
                 )
         except (psycopg.Error, PoolClosed, PoolTimeout) as error:
             raise AuthError("Authentication storage is unavailable.") from error
