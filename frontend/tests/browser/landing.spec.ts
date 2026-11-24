@@ -17,6 +17,41 @@ test("public guide follows the selected language", async ({ page }, testInfo) =>
   await page.screenshot({ path: testInfo.outputPath("landing-en.png"), fullPage: true });
 });
 
+test("remember login is opt-in for every direct account action", async ({ page }, testInfo) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.route("**/api/auth/login?**", (route) => route.fulfill({ status: 204 }));
+  const actions = [
+    ["Tiếp tục với Google", "google"],
+    ["Đăng nhập bằng email và mật khẩu", "email"],
+    ["Đăng ký bằng email", "signup"],
+    ["Đăng nhập bằng mã email", "otp"],
+  ] as const;
+  for (const [label, intent] of actions) {
+    await page.goto("/");
+    const remember = page.getByRole("checkbox", { name: "Nhớ đăng nhập tối đa 30 ngày" });
+    await expect(remember).not.toBeChecked();
+    const ordinary = page.waitForRequest((request) => request.url().includes("/api/auth/login?"));
+    await page.getByRole("button", { name: label }).click();
+    const ordinaryUrl = new URL((await ordinary).url());
+    expect(ordinaryUrl.searchParams.get("intent")).toBe(intent);
+    expect(ordinaryUrl.searchParams.has("remember_login")).toBe(false);
+
+    await page.goto("/");
+    await remember.check();
+    const persistent = page.waitForRequest((request) => request.url().includes("/api/auth/login?"));
+    await page.getByRole("button", { name: label }).click();
+    const persistentUrl = new URL((await persistent).url());
+    expect(persistentUrl.searchParams.get("intent")).toBe(intent);
+    expect(persistentUrl.searchParams.get("remember_login")).toBe("true");
+  }
+  await page.goto("/");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole("button", { name: "Chuyển sang tiếng Anh" }).click();
+  await expect(page.getByRole("checkbox", { name: "Keep me signed in for up to 30 days" })).toBeVisible();
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath("remember-login-en-390.png"), fullPage: true });
+});
+
 test("primary sign-in action is visible in the first phone viewport", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");

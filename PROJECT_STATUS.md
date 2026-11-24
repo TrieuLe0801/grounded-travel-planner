@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-11-23
+Last updated: 2026-11-24
 
 ## Active scope
 
@@ -17,7 +17,7 @@ runs and experiment records.
 | Runtime | Implemented; 14-day bound verified offline | Coordinator, Planner and Chat retain bounded search, session context and validate-before-commit behavior. New and edited trips accept 1–14 days; initial plans require a grounded stop each day. Offline and mocked browser checks passed. Live 14-day model output, providers and latency remain unverified. Active admins can set role settings; backup restore and write-pause evidence remain pending. See ADR 0024. |
 | Web UI | Travel-guide redesign and 14-day selection implemented; mocked browser QA passed; live QA pending | React and Streamlit accept up to 14 days. React submits 14 days and renders 14 day links in mocked desktop/mobile checks. Live Auth0, providers and deployed behavior remain unverified. |
 | Saved tours | PostgreSQL Compose storage available; browser QA pending | Explicitly saved, owner-scoped snapshots are read-only. Verify save, list, detail, delete and owner isolation in a browser. |
-| Authentication | Compose app updated; live verification pending | Public host is www.citedtrip.app. The local app container has its configured Auth0 password connection. Auth0 enablement, sign-in, signup, email verification, OTP, callback, planner access and logout have not been browser-verified. |
+| Authentication | Remember-login source implemented; migration and live verification pending | Sign-in now offers an unchecked remember option: ordinary sessions expire after 30 minutes idle; opted-in sessions have a 30-day absolute limit. SQLite and PostgreSQL require the explicit account-schema migration before rollout. The local Compose app has not been updated. Live Auth0 sign-in, callback, planner access and logout remain unverified. |
 | Account administration | Source and offline integration verified; live QA pending | Account access, usage and deletion are implemented. No live Auth0 deletion request or administrator browser flow was checked. |
 | Public app | Read-only smoke observed | On 2026-11-17, the local Compose app and PostgreSQL were healthy and the local root returned HTTP 200. This does not establish browser or Auth0 acceptance. |
 
@@ -54,6 +54,8 @@ manifests, TOML/JSON/YAML parsing, active references, diff checks and all four
 Python formatting/lint checks passed. Product and live acceptance are unchanged.
 
 ## Latest verification
+
+- Remember login (2026-11-24): 276 offline tests passed; one optional PostgreSQL test skipped because its opt-in DSN was unset. isort, Black, flake8, Ruff, frontend check/build, and 50 mocked Playwright checks passed; two duplicate mobile sweeps skipped. SQLite migration was tested offline. PostgreSQL migration, live Auth0, browser persistence across a real sign-in, and deployment were not checked.
 
 - CI/CD review: `uv sync --frozen`, 267 offline tests, isort, Black, flake8,
   Ruff, frontend install/check/build, 46 mocked Playwright checks, Compose
@@ -133,18 +135,20 @@ Python formatting/lint checks passed. Product and live acceptance are unchanged.
 
 ## Remaining acceptance work
 
-1. Verify Auth0 application settings and complete password, signup, email
+1. Back up the account database, pause writes, run the remember-login schema
+   migration, and verify it before rolling out the new app image.
+2. Verify Auth0 application settings and complete password, signup, email
    verification, OTP, callback, planner and logout flows on www.citedtrip.app.
-2. In the deployed app, verify saved-tour operations and owner isolation, then
+3. In the deployed app, verify saved-tour operations and owner isolation, then
    complete authenticated browser QA for Home reset, account actions and
    navigation while a turn is pending. Mocked responsive UI checks have passed.
-3. Measure live source relevance, place coverage and host diversity; evaluate
+4. Measure live source relevance, place coverage and host diversity; evaluate
    Chat answer accuracy across factual questions; test reorder and replace
    intents with live evidence.
-4. Verify a full restore of the account backup and confirm write-pause evidence
+5. Verify a full restore of the account backup and confirm write-pause evidence
    for the existing runtime-model-settings tables before accepting admin edits
    in deployment.
-5. Treat production rollout as a separate decision and follow the existing
+6. Treat production rollout as a separate decision and follow the existing
    migration, backup and deployment gates.
 
 ## Current risks

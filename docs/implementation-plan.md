@@ -1,11 +1,28 @@
 # Implementation Plan
 
 Status: Active
-Last updated: 2026-11-23
+Last updated: 2026-11-24
 
 This plan tracks remaining acceptance and concise changes that affect it.
 Product requirements and accepted architecture are defined in the
 [project charter](project-charter.md) and [ADRs](adr/README.md).
+
+## Implemented update: remember login — 2026-11-24
+
+The public sign-in card offers an unchecked remember option for Google,
+password, email code and signup. Ordinary account sessions use a browser-session
+cookie and expire after 30 minutes idle. Opted-in sessions use a persistent
+cookie and expire 30 days after the callback, even when used regularly. The
+choice crosses Auth0 in signed, short-lived login state; server session records
+enforce expiry. Logout, account revocation, CSRF and owner checks remain active.
+Live itineraries and chat remain session-only.
+
+Existing SQLite or PostgreSQL account databases need the explicit
+`scripts/migrate_remember_login.py` migration after backup and a write pause,
+before the new app image starts. Offline tests passed 276 with one optional
+PostgreSQL skip. Python quality checks, frontend check/build and 50 mocked
+Playwright checks passed; two duplicate mobile sweeps skipped. The PostgreSQL
+migration, live Auth0 flow and deployment have not been verified.
 
 ## Implemented update: two-week itineraries — 2026-11-23
 

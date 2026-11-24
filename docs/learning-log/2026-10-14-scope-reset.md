@@ -5,6 +5,20 @@ current status. The [charter](../project-charter.md) and accepted ADRs are the
 source of truth for product and architecture. Historical test output belongs
 with its CI run or experiment artifact.
 
+## 2026-11-24 — Remember login
+
+- The user selected an unchecked “Remember login” option. Without it, the
+  account session expires after 30 minutes idle; with it, the server and cookie
+  enforce a 30-day absolute limit. The choice applies to direct Google,
+  password, email-code and signup flows. ADR 0016 records the decision.
+- Source implementation covers signed login state, SQLite and PostgreSQL
+  session records, the bilingual landing card and an explicit schema migration.
+  Existing databases need a backup and write pause before migration and rollout.
+- Offline tests passed 276 with one optional PostgreSQL skip. Python quality,
+  frontend check/build and 50 mocked Playwright checks passed; two duplicate
+  mobile sweeps skipped. SQLite migration was tested offline. PostgreSQL
+  migration, live Auth0 and deployment were not checked.
+
 ## 2026-11-21 — CI/CD review and main branch protection
 
 - The user clarified that a successful merge into `main` must trigger Mac app

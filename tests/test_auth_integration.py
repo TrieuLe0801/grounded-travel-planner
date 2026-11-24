@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import io
 import json
 import os
@@ -18,8 +19,12 @@ import pytest
 from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi.testclient import TestClient
 
+from grounded_travel_planner import auth as auth_module
 from grounded_travel_planner.auth import (
+    AUTH_ABSOLUTE_SECONDS,
     AUTH_COOKIE_NAME,
+    AUTH_IDLE_SECONDS,
+    AUTH_PENDING_COOKIE_NAME,
     AUTH_PENDING_SECONDS,
     AccessChangeConflict,
     AccountLinkRequired,
@@ -222,6 +227,124 @@ def _sign_in(client: TestClient, provider: FakeOidcProvider) -> str:
         == provider.authorization_calls[0]["code_verifier"]
     )
     return client.get("/api/auth/me").json()["csrf_token"]
+
+
+@pytest.mark.parametrize("remember", [False, True])
+def test_remember_login_callback_sets_matching_cookie_and_server_expiry(
+    tmp_path, monkeypatch: pytest.MonkeyPatch, remember: bool
+) -> None:
+    provider = FakeOidcProvider("auth0|remember", "person@example.test")
+    client, auth, _ = _client(tmp_path, provider, monkeypatch)
+    parameters = {"remember_login": "true"} if remember else {}
+    started = client.get("/api/auth/login", params=parameters, follow_redirects=False)
+    state = parse_qs(urlparse(started.headers["location"]).query)["state"][0]
+    callback = client.get(
+        "/api/auth/callback",
+        params={"code": "offline-code", "state": state},
+        follow_redirects=False,
+    )
+
+    assert callback.status_code == 303
+    auth_cookie = next(
+        header
+        for header in callback.headers.get_list("set-cookie")
+        if header.startswith(f"{AUTH_COOKIE_NAME}=")
+    )
+    assert "httponly" in auth_cookie.lower()
+    assert "secure" in auth_cookie.lower()
+    assert (f"Max-Age={AUTH_ABSOLUTE_SECONDS}" in auth_cookie) is remember
+    with sqlite3.connect(tmp_path / "auth.sqlite") as connection:
+        row = connection.execute(
+            "SELECT remember_login, idle_expires_at, absolute_expires_at "
+            "FROM auth_sessions WHERE verifier_hash = ?",
+            (auth_module._hash(client.cookies[AUTH_COOKIE_NAME]),),
+        ).fetchone()
+    assert row[0] == int(remember)
+    assert row[2] - row[1] == (
+        0 if remember else AUTH_ABSOLUTE_SECONDS - AUTH_IDLE_SECONDS
+    )
+    assert auth.authenticated(client.cookies[AUTH_COOKIE_NAME]) is not None
+
+
+def test_remember_login_server_expiry_and_revocation(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("GTP_AUTH_SESSION_SECRET", "s" * 32)
+    auth = AuthRepository(tmp_path / "auth.sqlite")
+    auth.migrate()
+    user_id, email = auth.find_or_create_user(
+        VerifiedIdentity(
+            "https://tenant.example.test/", "auth0|time", "person@example.test", True
+        )
+    )
+    now = 1_700_000_000
+    monkeypatch.setattr(auth_module, "_now", lambda: now)
+    normal_token, _ = auth.issue_session(user_id, email)
+    remembered_token, csrf = auth.issue_session(user_id, email, remember_login=True)
+    revoked_token, _ = auth.issue_session(user_id, email, remember_login=True)
+    auth.revoke(revoked_token)
+    assert auth.authenticated(revoked_token) is None
+    now += AUTH_IDLE_SECONDS
+    assert auth.authenticated(normal_token) is None
+    assert auth.authenticated(remembered_token) is not None
+    assert auth.verify_csrf(remembered_token, csrf) is not None
+    now = 1_700_000_000 + AUTH_ABSOLUTE_SECONDS
+    assert auth.authenticated(remembered_token) is None
+    assert auth.verify_csrf(remembered_token, csrf) is None
+
+
+def test_pending_login_rejects_changed_remember_choice(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    provider = FakeOidcProvider("auth0|remember", "person@example.test")
+    client, _, _ = _client(tmp_path, provider, monkeypatch)
+    started = client.get("/api/auth/login", follow_redirects=False)
+    state = parse_qs(urlparse(started.headers["location"]).query)["state"][0]
+    encoded, signature = client.cookies[AUTH_PENDING_COOKIE_NAME].split(".", 1)
+    payload = json.loads(base64.urlsafe_b64decode(encoded + "=" * (-len(encoded) % 4)))
+    assert payload["remember_login"] is False
+    payload["remember_login"] = True
+    changed = (
+        base64.urlsafe_b64encode(json.dumps(payload).encode()).decode().rstrip("=")
+    )
+    client.cookies.clear()
+    client.cookies.set(
+        AUTH_PENDING_COOKIE_NAME, f"{changed}.{signature}", path="/api/auth"
+    )
+
+    callback = client.get(
+        "/api/auth/callback",
+        params={"code": "offline-code", "state": state},
+        follow_redirects=False,
+    )
+    assert callback.status_code == 303
+    assert callback.headers["location"] == "/?auth_error=login_failed"
+    assert client.get("/api/auth/me").json()["authenticated"] is False
+
+
+def test_remember_login_migration_preserves_legacy_session(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    database = tmp_path / "auth.sqlite"
+    with sqlite3.connect(database) as connection:
+        connection.execute(
+            "CREATE TABLE auth_sessions (verifier_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL, "
+            "csrf_hash TEXT NOT NULL, idle_expires_at INTEGER NOT NULL, "
+            "absolute_expires_at INTEGER NOT NULL, revoked_at INTEGER, created_at TEXT NOT NULL)"
+        )
+        connection.execute(
+            "INSERT INTO auth_sessions VALUES (?, ?, ?, ?, ?, ?, ?)",
+            ("legacy", "user", "csrf", 1234, 5678, None, "2026-11-01T00:00:00+00:00"),
+        )
+    repository = AuthRepository(database)
+    repository.migrate_remember_login()
+    repository.migrate_remember_login()
+    with sqlite3.connect(database) as connection:
+        row = connection.execute(
+            "SELECT remember_login, idle_expires_at, absolute_expires_at "
+            "FROM auth_sessions WHERE verifier_hash = 'legacy'"
+        ).fetchone()
+    assert row == (0, 1234, 5678)
 
 
 def _start_google_link(client: TestClient, csrf_token: str) -> str:

@@ -1175,6 +1175,7 @@ def create_app(
     def auth_login(
         request: Request,
         return_to: str | None = Query(default=None),
+        remember_login: bool = Query(default=False),
         intent: Literal[
             "login", "google", "email", "signup", "otp", "existing"
         ] = Query(default="login"),
@@ -1193,7 +1194,9 @@ def create_app(
                 return _auth_login_failure_redirect(return_to)
         try:
             codec = pending_codec()
-            pending, fields = codec.issue(return_to=safe_return_to(return_to))
+            pending, fields = codec.issue(
+                return_to=safe_return_to(return_to), remember_login=remember_login
+            )
             authorization_parameters = {
                 "state": fields["state"],
                 "nonce": fields["nonce"],
@@ -1421,7 +1424,10 @@ def create_app(
                 return unverified
             user_id, email = auth.find_or_create_user(identity)
             auth.revoke(gtp_auth)
-            auth_token, _ = auth.issue_session(user_id, email)
+            remember_login = pending.get("remember_login") == "True"
+            auth_token, _ = auth.issue_session(
+                user_id, email, remember_login=remember_login
+            )
             session_id, _ = sessions.bind_or_replace(
                 gtp_session, planner_service, user_id
             )
@@ -1442,7 +1448,7 @@ def create_app(
         completed.set_cookie(
             AUTH_COOKIE_NAME,
             auth_token,
-            max_age=AUTH_ABSOLUTE_SECONDS,
+            max_age=AUTH_ABSOLUTE_SECONDS if remember_login else None,
             httponly=True,
             samesite="lax",
             secure=_secure_cookie(request),
