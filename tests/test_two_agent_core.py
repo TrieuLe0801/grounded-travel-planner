@@ -778,16 +778,20 @@ def test_ollama_adapter_uses_structured_output_without_network(
             model: str,
             base_url: str,
             num_predict: int,
+            reasoning: bool,
             temperature: float | None = None,
             top_p: float | None = None,
         ) -> None:
             observed["model"] = model
             observed["base_url"] = base_url
             observed["num_predict"] = num_predict
+            observed["reasoning"] = reasoning
             observed["temperature"] = temperature
             observed["top_p"] = top_p
 
-        def with_structured_output(self, schema):
+        def with_structured_output(self, schema, *, method, include_raw):
+            assert method == "json_schema"
+            assert include_raw is True
             observed["schema"] = schema
             return self
 
@@ -815,6 +819,7 @@ def test_ollama_adapter_uses_structured_output_without_network(
     assert observed["model"] == "ollama-planner-test-model"
     assert observed["base_url"] == "http://localhost:11434"
     assert observed["num_predict"] == 2048
+    assert observed["reasoning"] is False
     assert observed["temperature"] == 0.25
     assert observed["top_p"] == 0.7
     assert observed["schema"] is ChatResponse

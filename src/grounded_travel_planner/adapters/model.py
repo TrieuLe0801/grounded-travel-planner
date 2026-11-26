@@ -3,7 +3,7 @@
 from collections.abc import Callable, Mapping
 from typing import TypeVar
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from grounded_travel_planner.providers import StructuredChatModel, TraceSink
 from grounded_travel_planner.runtime_settings import (
@@ -183,6 +183,14 @@ def _openai_json_schema(schema: type[T]) -> dict[str, object]:
     return generated
 
 
+class OllamaOutputError(ValueError):
+    """Safe, classified final-provider failure without generated content."""
+
+    def __init__(self, reason: str) -> None:
+        self.reason = reason
+        super().__init__(f"Ollama structured output failed: {reason}.")
+
+
 class OllamaStructuredChatModel(StructuredChatModel):
     """ChatOllama adapter with the same bounded structured-output contract."""
 
@@ -218,10 +226,12 @@ class OllamaStructuredChatModel(StructuredChatModel):
         from langchain_core.messages import HumanMessage, SystemMessage
         from langchain_ollama import ChatOllama
 
-        model_options: dict[str, str | int | float] = {
+        model_options: dict[str, str | int | float | bool] = {
             "model": self._model_name,
             # ChatOllama forwards ``num_predict`` to Ollama as its generation cap.
             "num_predict": self._max_completion_tokens,
+            # Structured fallback responses must not spend the budget on thinking.
+            "reasoning": False,
         }
         if self._temperature is not None:
             model_options["temperature"] = self._temperature
@@ -229,7 +239,9 @@ class OllamaStructuredChatModel(StructuredChatModel):
             model_options["top_p"] = self._top_p
         if self._base_url:
             model_options["base_url"] = self._base_url
-        model = ChatOllama(**model_options).with_structured_output(schema)
+        model = ChatOllama(**model_options).with_structured_output(
+            schema, method="json_schema", include_raw=True
+        )
         trace_metadata = dict(metadata or {})
         account_ref = current_account_trace_ref()
         if account_ref:
@@ -257,13 +269,26 @@ class OllamaStructuredChatModel(StructuredChatModel):
             config={"metadata": trace_metadata},
         )
         if isinstance(result, Mapping) and "parsed" in result:
-            parsing_error = result.get("parsing_error")
-            if isinstance(parsing_error, Exception):
-                raise parsing_error
+            raw = result.get("raw")
+            response_metadata = getattr(raw, "response_metadata", {}) or {}
+            if response_metadata.get("done_reason") == "length":
+                raise OllamaOutputError("output_token_limit")
+            content = getattr(raw, "content", None)
+            if content is not None and (
+                content == [] or isinstance(content, str) and not content.strip()
+            ):
+                raise OllamaOutputError("empty_output")
+            if result.get("parsing_error") is not None:
+                raise OllamaOutputError("invalid_structured_output") from None
             result = result["parsed"]
+        if result is None or isinstance(result, str) and not result.strip():
+            raise OllamaOutputError("empty_output")
         if isinstance(result, schema):
             return result
-        return schema.model_validate(result)
+        try:
+            return schema.model_validate(result)
+        except ValidationError:
+            raise OllamaOutputError("invalid_structured_output") from None
 
 
 class OpenAIWithOllamaFallbackStructuredModel(StructuredChatModel):

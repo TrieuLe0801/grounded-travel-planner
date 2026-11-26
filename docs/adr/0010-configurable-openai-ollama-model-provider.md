@@ -116,3 +116,20 @@ variables. `GTP_COORDINATOR_MODEL`, `GTP_PLANNER_MODEL`, `GTP_CHAT_MODEL` and
 structured output. Unit fixtures use synthetic names and do not define runtime
 defaults. Missing required model variables fail configuration instead of
 silently selecting a model.
+
+## User Clarification — 2026-11-26 — Ollama Is the Final Fallback
+
+Ollama is the final provider attempt. Empty, thinking-only, truncated or invalid
+structured responses fail safely; they do not trigger another provider or a
+retry. Preserve the previous committed plan and all normal validation gates.
+The adapter should classify unusable responses with safe diagnostics without
+exposing raw content or reasoning. Token budgets remain unchanged pending
+measurements on the actual workload.
+
+## User Amendment — 2026-11-26 — Disable Ollama Thinking
+
+Disable thinking for every app Ollama request, including the final fallback,
+by passing `reasoning=False` through ChatOllama (`think=False` on the provider
+request). Keep output-token limits and final-failure handling unchanged. This
+supersedes leaving thinking at the model default; it does not alter OpenAI
+reasoning settings or the model server's defaults for other clients.

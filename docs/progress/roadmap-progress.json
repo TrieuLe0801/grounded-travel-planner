@@ -1,13 +1,13 @@
 {
-  "version": 135,
-  "updated": "2026-11-24",
+  "version": 137,
+  "updated": "2026-11-26",
   "active_scope": "city-place-sightseeing-webapp",
   "current_milestone": "Milestone 1: executable city/place sightseeing vertical slice",
   "workstreams": [
     {
       "id": "runtime",
       "state": "implemented",
-      "summary": "Coordinator, Planner and Chat accept 1–14 day trips with a grounded stop per initial day and bounded validation. Active admins configure provider/model, additive role prompts and bounded generation settings; each turn uses an immutable snapshot. Live 14-day model output and latency are unverified.",
+      "summary": "Coordinator, Planner and Chat accept 1–14 day trips with a grounded stop per initial day and bounded validation. Active admins configure provider/model, additive role prompts and bounded generation settings; each turn uses an immutable snapshot. Live 14-day model output and latency are unverified. Ollama remains the final fallback. Empty, thinking-only, truncated and invalid structured output now fail with safe classified errors; no retry or further provider is added, and the previous plan is preserved. Offline verification passed 294 tests with one optional PostgreSQL skip; all four Python quality checks passed. Live workload and deployment were not tested. Ollama thinking is explicitly disabled through ChatOllama reasoning=False; output budgets are unchanged. A direct synthetic live probe with think=False returned valid JSON, no thinking, done_reason=stop and 5 generated tokens at a 128-token cap. This is not deployed-app acceptance.",
       "records": [
         "docs/project-charter.md",
         "docs/adr/0004-city-sightseeing-two-agent-runtime.md",

@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-11-24
+Last updated: 2026-11-26
 
 ## Active scope
 
@@ -20,6 +20,12 @@ runs and experiment records.
 | Authentication | Remember-login PostgreSQL schema repaired; Auth0 browser QA pending | Sign-in offers an unchecked remember option: ordinary sessions expire after 30 minutes idle; new opted-in sessions have no fixed server deadline and renew their browser cookie on a successful account check. Older opted-in sessions keep their 30-day limit. The backed-up, write-paused PostgreSQL migration added `auth_sessions.remember_login`; 55 older sessions defaulted to false. The restarted app is healthy and public `/api/auth/me` with an invalid cookie returns HTTP 200 with `authenticated: false`. Real sign-in, callback, planner access, remembered return and logout remain unverified. |
 | Account administration | Source and offline integration verified; live QA pending | Account access, usage and deletion are implemented. No live Auth0 deletion request or administrator browser flow was checked. |
 | Public app | Read-only authentication smoke observed | On 2026-11-24, the restarted Compose app was healthy and public `/api/auth/me` with an invalid cookie returned HTTP 200 with `authenticated: false`. This does not establish browser or Auth0 acceptance. |
+
+## Local model output handling — 2026-11-26
+
+Ollama thinking is explicitly disabled through ChatOllama reasoning=False; output budgets are unchanged. A direct synthetic live probe with think=False returned valid JSON, no thinking, done_reason=stop and 5 generated tokens at a 128-token cap. This is not deployed-app acceptance.
+
+Ollama remains the final fallback. Empty, thinking-only, truncated and invalid structured output now fail with safe classified errors; no retry or further provider is added, and the previous plan is preserved. Offline verification passed 294 tests with one optional PostgreSQL skip; all four Python quality checks passed. Live workload and deployment were not tested.
 
 ## Development workflow
 
