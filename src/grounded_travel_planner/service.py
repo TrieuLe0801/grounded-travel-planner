@@ -105,7 +105,7 @@ class TravelPlannerService:
             "yes",
         }
         if tracing_enabled and os.getenv("LANGSMITH_API_KEY"):
-            trace_client = LangSmithTraceSink.configure_private_client()
+            trace_client = LangSmithTraceSink.configure_client()
             trace_sink: TraceSink = LangSmithTraceSink(
                 os.getenv("LANGSMITH_PROJECT"), client=trace_client
             )

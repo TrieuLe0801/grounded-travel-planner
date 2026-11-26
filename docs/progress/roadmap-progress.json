@@ -1,5 +1,5 @@
 {
-  "version": 137,
+  "version": 139,
   "updated": "2026-11-26",
   "active_scope": "city-place-sightseeing-webapp",
   "current_milestone": "Milestone 1: executable city/place sightseeing vertical slice",
@@ -7,14 +7,15 @@
     {
       "id": "runtime",
       "state": "implemented",
-      "summary": "Coordinator, Planner and Chat accept 1–14 day trips with a grounded stop per initial day and bounded validation. Active admins configure provider/model, additive role prompts and bounded generation settings; each turn uses an immutable snapshot. Live 14-day model output and latency are unverified. Ollama remains the final fallback. Empty, thinking-only, truncated and invalid structured output now fail with safe classified errors; no retry or further provider is added, and the previous plan is preserved. Offline verification passed 294 tests with one optional PostgreSQL skip; all four Python quality checks passed. Live workload and deployment were not tested. Ollama thinking is explicitly disabled through ChatOllama reasoning=False; output budgets are unchanged. A direct synthetic live probe with think=False returned valid JSON, no thinking, done_reason=stop and 5 generated tokens at a 128-token cap. This is not deployed-app acceptance.",
+      "summary": "Coordinator, Planner and Chat accept 1–14 day trips with a grounded stop per initial day and bounded validation. Active admins configure provider/model, additive role prompts and bounded generation settings; each turn uses an immutable snapshot. Live 14-day model output and latency are unverified. Ollama remains the final fallback. Empty, thinking-only, truncated and invalid structured output now fail with safe classified errors; no retry or further provider is added, and the previous plan is preserved. Offline verification passed 294 tests with one optional PostgreSQL skip; all four Python quality checks passed. Live workload and deployment were not tested. Ollama thinking is explicitly disabled through ChatOllama reasoning=False; output budgets are unchanged. A direct synthetic live probe with think=False returned valid JSON, no thinking, done_reason=stop and 5 generated tokens at a 128-token cap. This is not deployed-app acceptance. New trace visibility policy preserves redacted prompts/answers and fixes custom event completion. Independent checks: 301 passed, one optional PostgreSQL skip; Python quality checks passed. Local synthetic comparison favors Qwen3 8B for Chat-only evaluation; no model passed every schedule check. At benchmark time, runtime model settings and deployment were unchanged. Synthetic LangSmith readback passed all 13 visibility/redaction/metadata/event completion checks; full deployed app flow remains unverified. The user selected Qwen3 8B as the deployed global Ollama fallback; same-image app-only recreation activated it and health/HTTP checks passed. Primary OpenAI roles stayed unchanged. Unsaved session state was cleared; LangSmith source edits remain undeployed.",
       "records": [
         "docs/project-charter.md",
         "docs/adr/0004-city-sightseeing-two-agent-runtime.md",
         "docs/adr/0009-coordinator-routed-chat-agent-and-trip-extension.md",
         "docs/adr/0011-bounded-session-context-and-chat-search.md",
         "docs/adr/0012-shared-tavily-tool-node.md",
-        "docs/adr/0024-administrator-runtime-model-settings.md"
+        "docs/adr/0024-administrator-runtime-model-settings.md",
+        "docs/experiments/2026-11-26-local-model-comparison.md"
       ]
     },
     {
@@ -75,5 +76,12 @@
     "updated": "2026-11-21",
     "summary": "Five project skills and five development roles. CI configuration targets main pushes and uses repository-wide flake8; the main ruleset requires the GitHub Actions verify check. The Mac poller tracks main with its local deployment gate enabled, and waits for a successful push CI run before app-only deployment.",
     "verification": "CI/CD local checks passed: 267 offline tests, Python quality, frontend check/build, 46 mocked browser checks, Compose configuration, Mac deployment preflight and diff check. One optional PostgreSQL test and two duplicate viewport sweeps skipped. The installed poller reported current main push CI pending and left checkout, app image and healthy PostgreSQL unchanged. Edited workflow has not reached main; no live deploy."
+  },
+  "latest_trace_and_model_checks": {
+    "date": "2026-11-26",
+    "offline": "301 passed; 1 optional PostgreSQL skip; isort, Black, flake8, Ruff passed",
+    "live": "13 synthetic LangSmith readback checks passed; 24 local model benchmark responses and 2 application-adapter smoke responses recorded",
+    "model_decision": "Qwen3 8B activated as global Ollama fallback after explicit user selection; primary OpenAI roles unchanged; synthetic Planner failures still limit quality claim.",
+    "record": "docs/experiments/2026-11-26-local-model-comparison.md"
   }
 }

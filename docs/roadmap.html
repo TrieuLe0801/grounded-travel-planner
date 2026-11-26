@@ -149,6 +149,8 @@
 
   <p>Ollama thinking is explicitly disabled through ChatOllama reasoning=False; output budgets are unchanged. A direct synthetic live probe with think=False returned valid JSON, no thinking, done_reason=stop and 5 generated tokens at a 128-token cap. This is not deployed-app acceptance.</p>
 
+  <p>2026-11-26: trace source now retains redacted prompts and answers and completes custom events. Synthetic LangSmith readback passed all 13 checks. Independent checks: 301 passed, one optional PostgreSQL skip; Python quality checks passed. Local comparison favors Qwen3 8B for Chat-only evaluation; no candidate passed every schedule check. User then selected Qwen3 8B as global Ollama fallback; a same-image app-only recreation activated it and health/HTTP checks passed. Primary OpenAI roles remain unchanged. LangSmith source edits remain undeployed. See the <a href="experiments/2026-11-26-local-model-comparison.md">experiment and evidence</a>.</p>
+
   <p>Details: <a href="../PROJECT_STATUS.md">current status</a>,
   <a href="project-charter.md">project charter</a>,
   <a href="implementation-plan.md">implementation plan</a>,
