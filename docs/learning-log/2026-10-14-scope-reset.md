@@ -358,3 +358,44 @@ evidence that the application, a browser flow or a live provider was verified.
   collection attempt lacked configured test model names; rerun passed.
 - Live 14-day model output, source quality, latency, Auth0 and deployment were
   not checked. Search/graph and model output-token budgets were not changed.
+
+## 2026-11-26 — Local empty-output investigation and fallback preference
+
+- The user requested investigation and a proposal, not implementation or deployment.
+- The user permits switching to an explicitly configured fallback model when the
+  local model returns empty output. The fallback destination has not yet been
+  selected; the existing OpenAI-to-Ollama configuration does not define a reverse
+  destination. This is a proposal input, not implemented runtime behavior.
+- An offline probe reproduced validation failure when the Ollama adapter receives
+  `None`. A synthetic native `qwen3.5:4b-mlx` request capped at 128 output tokens
+  returned empty content, nonempty thinking, `done_reason=length`, and 128 evaluated
+  tokens. This demonstrates a possible cause, not the cause of the reported app
+  request at its actual token budget. The existing fallback tests passed (19).
+- Proposed implementation must amend ADR 0010, preserve schema and plan validation,
+  bound failover, prevent cycles, and retain the previous plan on final failure.
+  No runtime code, deployment, or live acceptance status changed.
+
+### Implementation decision — final Ollama fallback
+
+The user authorized implementation and clarified that Ollama is the final
+fallback, with no further destination. This supersedes the unresolved fallback
+destination in the investigation above. Implementation retains one local attempt,
+existing token budgets, and safe failure preserving the previous plan.
+
+Implementation completed: Ollama remains the final fallback. Empty, thinking-only, truncated and invalid structured output now fail with safe classified errors; no retry or further provider is added, and the previous plan is preserved. Offline verification passed 294 tests with one optional PostgreSQL skip; all four Python quality checks passed. Live workload and deployment were not tested.
+
+The first full pytest collection failed because required model environment names
+were absent. Rerunning with the four synthetic CI model names passed. The optional
+PostgreSQL test was skipped because its opt-in settings were absent. Narrow
+regression checks passed 93 tests. No frontend/browser checks, commit, push or
+deployment were performed. This handles unusable output; it does not establish
+that the live model will stop producing empty responses.
+
+### Disable Ollama thinking
+
+The user explicitly requested disabling thinking. Ollama thinking is explicitly disabled through ChatOllama reasoning=False; output budgets are unchanged. A direct synthetic live probe with think=False returned valid JSON, no thinking, done_reason=stop and 5 generated tokens at a 128-token cap. This is not deployed-app acceptance.
+The focused regression suite passed 93 tests. No commit, push or deployment ran.
+Final verification after disabling thinking: 294 tests passed and one optional
+PostgreSQL test skipped without opt-in settings. isort, Black, flake8, Ruff and
+diff checks passed. An offline installed-LangChain probe confirmed the request
+contains `think=False`.

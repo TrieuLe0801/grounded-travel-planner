@@ -20,6 +20,7 @@ from openai import (
 from pydantic import BaseModel, ValidationError
 
 from grounded_travel_planner.adapters.model import (
+    OllamaOutputError,
     OllamaStructuredChatModel,
     OpenAIWithOllamaFallbackStructuredModel,
 )
@@ -285,15 +286,24 @@ class _NoSearch:
         raise AssertionError("A provider failure before routing must not search")
 
 
+@pytest.mark.parametrize(
+    "failure",
+    [
+        RuntimeError("ollama unavailable"),
+        OllamaOutputError("empty_output"),
+        OllamaOutputError("output_token_limit"),
+    ],
+)
 def test_both_model_attempts_failing_preserves_the_current_plan(
     monkeypatch: pytest.MonkeyPatch,
+    failure: Exception,
 ) -> None:
     monkeypatch.setenv("OPENAI_API_KEY", "configured-key")
     current = _existing_plan()
     primary = _RecordingModel(
         "openai-test-model", APIConnectionError(request=_request())
     )
-    fallback = _RecordingModel("ollama-test-model", RuntimeError("ollama unavailable"))
+    fallback = _RecordingModel("ollama-test-model", failure)
     failed_coordinator = OpenAIWithOllamaFallbackStructuredModel(primary, fallback)
     unused = _RecordingModel("unused", AssertionError("must not be called"))
     service = TravelPlannerService(

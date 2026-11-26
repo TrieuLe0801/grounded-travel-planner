@@ -1,11 +1,17 @@
 # Implementation Plan
 
 Status: Active
-Last updated: 2026-11-24
+Last updated: 2026-11-26
 
 This plan tracks remaining acceptance and concise changes that affect it.
 Product requirements and accepted architecture are defined in the
 [project charter](project-charter.md) and [ADRs](adr/README.md).
+
+## Local model output handling — 2026-11-26
+
+Ollama thinking is explicitly disabled through ChatOllama reasoning=False; output budgets are unchanged. A direct synthetic live probe with think=False returned valid JSON, no thinking, done_reason=stop and 5 generated tokens at a 128-token cap. This is not deployed-app acceptance.
+
+Ollama remains the final fallback. Empty, thinking-only, truncated and invalid structured output now fail with safe classified errors; no retry or further provider is added, and the previous plan is preserved. Offline verification passed 294 tests with one optional PostgreSQL skip; all four Python quality checks passed. Live workload and deployment were not tested.
 
 ## PostgreSQL remember-login repair — 2026-11-24
 
