@@ -7,6 +7,34 @@ This plan tracks remaining acceptance and concise changes that affect it.
 Product requirements and accepted architecture are defined in the
 [project charter](project-charter.md) and [ADRs](adr/README.md).
 
+## Local Ollama fallback activated — 2026-11-26
+
+The user selected `qwen3:8b` after the benchmark. The deployment `.env` global
+Ollama fallback was changed from `qwen3.5:4b-mlx`, and an app-only same-image
+Compose recreation activated it. Running container inspection confirms the new
+fallback and unchanged OpenAI primary roles; app health and public HTTP smoke
+passed. Unsaved session state was cleared. The model still failed the synthetic
+Planner schedule checks; this choice is not a Planner quality acceptance. The
+LangSmith source edits remain undeployed.
+
+## Trace visibility and local model comparison — 2026-11-26
+
+The user authorized visible LangSmith inputs and outputs for every traced run,
+including prompts and answers. Source now preserves complete ordinary content,
+redacts recognized credentials, and retains thread and usage metadata. Custom
+trace events now complete correctly when the SDK returns no object from
+`create_run`. ADR 0024 records the policy amendment.
+
+Independent offline verification passed 301 tests with one optional PostgreSQL
+skip; all four Python quality checks passed. Synthetic LangSmith readback
+passed all 13 checks for root/LLM content, credential redaction, thread/model/usage
+metadata, and custom event completion. A paired synthetic M1 16 GiB
+comparison favors `qwen3:8b` for a Chat-only evaluation: median chat latency
+8.45 seconds versus 5.58 seconds for 4B and 9.41 seconds for 9B, with clearer
+sampled bilingual prose. None passed every schedule check. The subsequent fallback activation is
+recorded above. See the [experiment](experiments/2026-11-26-local-model-comparison.md) for artifacts,
+limitations, and live verification evidence.
+
 ## Local model output handling — 2026-11-26
 
 Ollama thinking is explicitly disabled through ChatOllama reasoning=False; output budgets are unchanged. A direct synthetic live probe with think=False returned valid JSON, no thinking, done_reason=stop and 5 generated tokens at a 128-token cap. This is not deployed-app acceptance.

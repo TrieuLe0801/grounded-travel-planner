@@ -1,0 +1,1115 @@
+{
+  "settings": {
+    "reasoning": false,
+    "temperature": 0,
+    "num_ctx": 4096,
+    "num_predict": 768
+  },
+  "cases": [
+    {
+      "id": "chat_vi",
+      "locale": "vi",
+      "structured": false,
+      "prompt": "Trả lời đúng 3 câu bằng tiếng Việt: giải thích khác biệt giữa thời lượng tham quan ước tính và giờ mở cửa chưa được xác minh. Nói rõ người dùng cần kiểm tra giờ mở cửa ở nguồn chính thức. Không nêu địa điểm, giờ cụ thể, URL hoặc giả vờ đã tra cứu."
+    },
+    {
+      "id": "chat_en",
+      "locale": "en",
+      "structured": false,
+      "prompt": "Answer in exactly 3 English sentences: explain the difference between an estimated visit duration and unverified opening hours. Clearly say the user needs to check official sources for opening hours. Do not give any place, specific hours, URL or pretend you researched."
+    },
+    {
+      "id": "json_vi",
+      "locale": "vi",
+      "structured": true,
+      "prompt": "Chỉ dùng dữ liệu giả lập sau. Xếp lịch hai điểm theo đúng thứ tự: Vườn Sen (source_id=src-A), mở 09:00–10:00, tham quan 45 phút; Bảo tàng Mây (source_id=src-B), mở 10:00–12:00, tham quan 60 phút. Bắt đầu Vườn Sen lúc 09:00; di chuyển 15 phút; vào Bảo tàng Mây ngay khi đến. Trả JSON đúng schema, giờ HH:MM, giữ nguyên tên và source_id, note đúng một câu tiếng Việt nói dữ liệu giả lập, không phải thông tin đã xác minh."
+    },
+    {
+      "id": "json_en",
+      "locale": "en",
+      "structured": true,
+      "prompt": "Use only this synthetic data. Schedule these two stops in order: Vườn Sen (source_id=src-A), open 09:00–10:00, visit 45 minutes; Bảo tàng Mây (source_id=src-B), open 10:00–12:00, visit 60 minutes. Start Vườn Sen at 09:00; travel 15 minutes; enter Bảo tàng Mây on arrival. Return JSON matching the schema, times HH:MM, preserve exact names and source_id; note must be one English sentence saying this is synthetic data, not verified information."
+    }
+  ],
+  "models": {
+    "qwen3.5:4b-mlx": {
+      "artifact": {
+        "name": "qwen3.5:4b-mlx",
+        "model": "qwen3.5:4b-mlx",
+        "modified_at": "2026-10-27T19:25:35.993370419+07:00",
+        "size": 3973305013,
+        "digest": "61aa3858e9d3022e8fca725550089addd9289c4446f33bd09dfd12f95f2a6792",
+        "details": {
+          "parent_model": "",
+          "format": "safetensors",
+          "family": "",
+          "families": null,
+          "parameter_size": "",
+          "quantization_level": "nvfp4",
+          "runner": "mlx"
+        },
+        "capabilities": [
+          "completion",
+          "vision",
+          "thinking",
+          "tools"
+        ]
+      },
+      "before": {
+        "ps": {
+          "models": []
+        },
+        "swap": "vm.swapusage: total = 9216.00M  used = 7700.69M  free = 1515.31M  (encrypted)",
+        "memory_pressure": "The system has 17179869184 (1048576 pages with a page size of 16384).\nSystem-wide memory free percentage: 67%"
+      },
+      "calls": [
+        {
+          "case": "chat_vi",
+          "repeat": 1,
+          "wall_seconds": 6.458,
+          "content": "Thời lượng tham quan ước tính là khoảng thời gian dự kiến dành cho khách tham gia dựa trên quy mô trung bình, trong khi giờ mở cửa chưa được xác minh chỉ là thông tin sơ bộ chưa được kiểm chứng bởi cơ quan quản lý. Người dùng cần truy cập trang web chính thức hoặc liên hệ trực tiếp với đơn vị tổ chức để xác nhận lịch khai trương và thời gian hoạt động thực tế trước khi lên kế hoạch di chuyển.",
+          "metadata": {
+            "model": "qwen3.5:4b-mlx",
+            "created_at": "2026-11-26T11:22:57.027156Z",
+            "done": true,
+            "done_reason": "stop",
+            "total_duration": 6451292208,
+            "load_duration": 3549500,
+            "prompt_eval_count": 95,
+            "prompt_eval_duration": 474494583,
+            "eval_count": 89,
+            "eval_duration": 5940233166,
+            "logprobs": null,
+            "model_name": "qwen3.5:4b-mlx",
+            "model_provider": "ollama"
+          },
+          "additional_kwargs": {},
+          "tokens_per_second": 14.98,
+          "no_thinking": true,
+          "not_truncated": true
+        },
+        {
+          "case": "chat_en",
+          "repeat": 1,
+          "wall_seconds": 5.178,
+          "content": "An estimated visit duration is a calculated guess based on average activity times, whereas unverified opening hours are simply listed times without confirmation from the business. Because these data points lack official validation, users must check official sources for accurate opening hours. Relying on estimates or unverified lists can lead to confusion if the actual schedule differs significantly from what is displayed.",
+          "metadata": {
+            "model": "qwen3.5:4b-mlx",
+            "created_at": "2026-11-26T11:23:02.235256Z",
+            "done": true,
+            "done_reason": "stop",
+            "total_duration": 5172129125,
+            "load_duration": 16335125,
+            "prompt_eval_count": 82,
+            "prompt_eval_duration": 324081250,
+            "eval_count": 71,
+            "eval_duration": 4794787083,
+            "logprobs": null,
+            "model_name": "qwen3.5:4b-mlx",
+            "model_provider": "ollama"
+          },
+          "additional_kwargs": {},
+          "tokens_per_second": 14.81,
+          "no_thinking": true,
+          "not_truncated": true
+        },
+        {
+          "case": "json_vi",
+          "repeat": 1,
+          "wall_seconds": 9.603,
+          "content": "{\n  \"stops\": [\n    {\n      \"name\": \"Vườn Sen\",\n      \"start\": \"09:00\",\n      \"end\": \"10:45\",\n      \"source_id\": \"src-A\"\n    },\n    {\n      \"name\": \"Bảo tàng Mây\",\n      \"start\": \"11:00\",\n      \"end\": \"12:00\",\n      \"source_id\": \"src-B\"\n    }\n  ],\n  \"note\": \"Dữ liệu này chỉ là giả lập để minh họa lịch trình.\"\n}",
+          "metadata": {
+            "model": "qwen3.5:4b-mlx",
+            "created_at": "2026-11-26T11:23:11.868869Z",
+            "done": true,
+            "done_reason": "stop",
+            "total_duration": 9589007417,
+            "load_duration": 8214625,
+            "prompt_eval_count": 177,
+            "prompt_eval_duration": 755926042,
+            "eval_count": 135,
+            "eval_duration": 8777753542,
+            "logprobs": null,
+            "model_name": "qwen3.5:4b-mlx",
+            "model_provider": "ollama"
+          },
+          "additional_kwargs": {},
+          "tokens_per_second": 15.38,
+          "no_thinking": true,
+          "not_truncated": true,
+          "checks": {
+            "schema_valid": true,
+            "schedule_and_sources_valid": false,
+            "note_nonempty": true
+          }
+        },
+        {
+          "case": "json_en",
+          "repeat": 1,
+          "wall_seconds": 9.841,
+          "content": "{\n  \"stops\": [\n    {\n      \"name\": \"Vườn Sen\",\n      \"start\": \"09:00\",\n      \"end\": \"09:45\",\n      \"source_id\": \"src-A\"\n    },\n    {\n      \"name\": \"Bảo tàng Mây\",\n      \"start\": \"10:00\",\n      \"end\": \"11:00\",\n      \"source_id\": \"src-B\"\n    }\n  ],\n  \"note\": \"This schedule is based solely on the provided synthetic data and has not been verified against real-world information.\"\n}",
+          "metadata": {
+            "model": "qwen3.5:4b-mlx",
+            "created_at": "2026-11-26T11:23:21.743898Z",
+            "done": true,
+            "done_reason": "stop",
+            "total_duration": 9831245209,
+            "load_duration": 9932792,
+            "prompt_eval_count": 164,
+            "prompt_eval_duration": 743233000,
+            "eval_count": 139,
+            "eval_duration": 9044029084,
+            "logprobs": null,
+            "model_name": "qwen3.5:4b-mlx",
+            "model_provider": "ollama"
+          },
+          "additional_kwargs": {},
+          "tokens_per_second": 15.37,
+          "no_thinking": true,
+          "not_truncated": true,
+          "checks": {
+            "schema_valid": true,
+            "schedule_and_sources_valid": true,
+            "note_nonempty": true
+          }
+        },
+        {
+          "case": "chat_vi",
+          "repeat": 2,
+          "wall_seconds": 5.978,
+          "content": "Thời lượng tham quan ước tính là khoảng thời gian dự kiến dành cho khách tham gia dựa trên quy mô trung bình, trong khi giờ mở cửa chưa được xác minh chỉ là thông tin sơ bộ chưa có sự xác nhận chính thức từ đơn vị quản lý. Người dùng cần kiểm tra kỹ lưỡng tại nguồn chính thức trước khi lên kế hoạch di chuyển để đảm bảo không bị ảnh hưởng bởi các thay đổi bất ngờ về lịch khai thác.",
+          "metadata": {
+            "model": "qwen3.5:4b-mlx",
+            "created_at": "2026-11-26T11:23:27.74233Z",
+            "done": true,
+            "done_reason": "stop",
+            "total_duration": 5973066208,
+            "load_duration": 26510625,
+            "prompt_eval_count": 95,
+            "prompt_eval_duration": 126158458,
+            "eval_count": 88,
+            "eval_duration": 5785876500,
+            "logprobs": null,
+            "model_name": "qwen3.5:4b-mlx",
+            "model_provider": "ollama"
+          },
+          "additional_kwargs": {},
+          "tokens_per_second": 15.21,
+          "no_thinking": true,
+          "not_truncated": true
+        },
+        {
+          "case": "chat_en",
+          "repeat": 2,
+          "wall_seconds": 4.993,
+          "content": "An estimated visit duration is a calculated guess based on average activity times, whereas unverified opening hours are simply listed times without confirmation from the business. Because these data points lack official validation, users must check official sources for accurate and current operating schedules. Relying solely on estimates or unverified lists can lead to confusion if the actual hours differ significantly from what is displayed.",
+          "metadata": {
+            "model": "qwen3.5:4b-mlx",
+            "created_at": "2026-11-26T11:23:32.767557Z",
+            "done": true,
+            "done_reason": "stop",
+            "total_duration": 4990128875,
+            "load_duration": 17298708,
+            "prompt_eval_count": 82,
+            "prompt_eval_duration": 63673750,
+            "eval_count": 74,
+            "eval_duration": 4880730083,
+            "logprobs": null,
+            "model_name": "qwen3.5:4b-mlx",
+            "model_provider": "ollama"
+          },
+          "additional_kwargs": {},
+          "tokens_per_second": 15.16,
+          "no_thinking": true,
+          "not_truncated": true
+        },
+        {
+          "case": "json_vi",
+          "repeat": 2,
+          "wall_seconds": 8.958,
+          "content": "{\n  \"stops\": [\n    {\n      \"name\": \"Vườn Sen\",\n      \"start\": \"09:00\",\n      \"end\": \"10:45\",\n      \"source_id\": \"src-A\"\n    },\n    {\n      \"name\": \"Bảo tàng Mây\",\n      \"start\": \"11:00\",\n      \"end\": \"12:00\",\n      \"source_id\": \"src-B\"\n    }\n  ],\n  \"note\": \"Dữ liệu này chỉ là giả lập để minh họa lịch trình.\"\n}",
+          "metadata": {
+            "model": "qwen3.5:4b-mlx",
+            "created_at": "2026-11-26T11:23:41.730742Z",
+            "done": true,
+            "done_reason": "stop",
+            "total_duration": 8944607459,
+            "load_duration": 30778250,
+            "prompt_eval_count": 177,
+            "prompt_eval_duration": 63250583,
+            "eval_count": 135,
+            "eval_duration": 8817709667,
+            "logprobs": null,
+            "model_name": "qwen3.5:4b-mlx",
+            "model_provider": "ollama"
+          },
+          "additional_kwargs": {},
+          "tokens_per_second": 15.31,
+          "no_thinking": true,
+          "not_truncated": true,
+          "checks": {
+            "schema_valid": true,
+            "schedule_and_sources_valid": false,
+            "note_nonempty": true
+          }
+        },
+        {
+          "case": "json_en",
+          "repeat": 2,
+          "wall_seconds": 9.082,
+          "content": "{\n  \"stops\": [\n    {\n      \"name\": \"Vườn Sen\",\n      \"start\": \"09:00\",\n      \"end\": \"09:45\",\n      \"source_id\": \"src-A\"\n    },\n    {\n      \"name\": \"Bảo tàng Mây\",\n      \"start\": \"10:00\",\n      \"end\": \"11:00\",\n      \"source_id\": \"src-B\"\n    }\n  ],\n  \"note\": \"This schedule is based solely on the provided synthetic data and has not been verified against real-world information.\"\n}",
+          "metadata": {
+            "model": "qwen3.5:4b-mlx",
+            "created_at": "2026-11-26T11:23:50.844646Z",
+            "done": true,
+            "done_reason": "stop",
+            "total_duration": 9072454792,
+            "load_duration": 19187500,
+            "prompt_eval_count": 164,
+            "prompt_eval_duration": 60420708,
+            "eval_count": 139,
+            "eval_duration": 8964377208,
+            "logprobs": null,
+            "model_name": "qwen3.5:4b-mlx",
+            "model_provider": "ollama"
+          },
+          "additional_kwargs": {},
+          "tokens_per_second": 15.51,
+          "no_thinking": true,
+          "not_truncated": true,
+          "checks": {
+            "schema_valid": true,
+            "schedule_and_sources_valid": true,
+            "note_nonempty": true
+          }
+        }
+      ],
+      "warmup": {
+        "case": "warmup",
+        "repeat": 0,
+        "wall_seconds": 4.322,
+        "content": "OK",
+        "metadata": {
+          "model": "qwen3.5:4b-mlx",
+          "created_at": "2026-11-26T11:22:50.492903Z",
+          "done": true,
+          "done_reason": "stop",
+          "total_duration": 4304882291,
+          "load_duration": 3720401541,
+          "prompt_eval_count": 36,
+          "prompt_eval_duration": 318658417,
+          "eval_count": 1,
+          "eval_duration": 92314541,
+          "logprobs": null,
+          "model_name": "qwen3.5:4b-mlx",
+          "model_provider": "ollama"
+        },
+        "additional_kwargs": {},
+        "tokens_per_second": 10.83,
+        "no_thinking": true,
+        "not_truncated": true
+      },
+      "loaded": {
+        "ps": {
+          "models": [
+            {
+              "name": "qwen3.5:4b-mlx",
+              "model": "qwen3.5:4b-mlx",
+              "size": 4065433104,
+              "digest": "61aa3858e9d3022e8fca725550089addd9289c4446f33bd09dfd12f95f2a6792",
+              "details": {
+                "parent_model": "",
+                "format": "safetensors",
+                "family": "",
+                "families": null,
+                "parameter_size": "",
+                "quantization_level": "nvfp4"
+              },
+              "expires_at": "2026-11-26T18:27:50.493671+07:00",
+              "size_vram": 4065433104,
+              "context_length": 4096,
+              "runner": "mlx"
+            }
+          ]
+        },
+        "swap": "vm.swapusage: total = 9216.00M  used = 8043.62M  free = 1172.38M  (encrypted)",
+        "memory_pressure": "The system has 17179869184 (1048576 pages with a page size of 16384).\nSystem-wide memory free percentage: 34%"
+      },
+      "after": {
+        "ps": {
+          "models": [
+            {
+              "name": "qwen3.5:4b-mlx",
+              "model": "qwen3.5:4b-mlx",
+              "size": 4833781264,
+              "digest": "61aa3858e9d3022e8fca725550089addd9289c4446f33bd09dfd12f95f2a6792",
+              "details": {
+                "parent_model": "",
+                "format": "safetensors",
+                "family": "",
+                "families": null,
+                "parameter_size": "",
+                "quantization_level": "nvfp4"
+              },
+              "expires_at": "2026-11-26T18:28:50.845004+07:00",
+              "size_vram": 4833781264,
+              "context_length": 4096,
+              "runner": "mlx"
+            }
+          ]
+        },
+        "swap": "vm.swapusage: total = 9216.00M  used = 8035.62M  free = 1180.38M  (encrypted)",
+        "memory_pressure": "The system has 17179869184 (1048576 pages with a page size of 16384).\nSystem-wide memory free percentage: 34%"
+      },
+      "status": "completed"
+    },
+    "qwen3:8b": {
+      "artifact": {
+        "name": "qwen3:8b",
+        "model": "qwen3:8b",
+        "modified_at": "2025-06-09T10:13:11.813557717+07:00",
+        "size": 5225388164,
+        "digest": "500a1f067a9f782620b40bee6f7b0c89e17ae61f686b92c24933e4ca4b2b8b41",
+        "details": {
+          "parent_model": "",
+          "format": "gguf",
+          "family": "qwen3",
+          "families": [
+            "qwen3"
+          ],
+          "parameter_size": "8.2B",
+          "quantization_level": "Q4_K_M",
+          "context_length": 40960,
+          "embedding_length": 4096,
+          "runner": "ggml"
+        },
+        "capabilities": [
+          "completion",
+          "tools",
+          "thinking"
+        ]
+      },
+      "before": {
+        "ps": {
+          "models": []
+        },
+        "swap": "vm.swapusage: total = 9216.00M  used = 8035.62M  free = 1180.38M  (encrypted)",
+        "memory_pressure": "The system has 17179869184 (1048576 pages with a page size of 16384).\nSystem-wide memory free percentage: 54%"
+      },
+      "calls": [
+        {
+          "case": "chat_vi",
+          "repeat": 1,
+          "wall_seconds": 11.312,
+          "content": "Thời lượng tham quan ước tính là khoảng thời gian mà người dùng có thể dành để tham quan dựa trên thông tin chung hoặc kinh nghiệm trước đó, nhưng không phải là thời gian chính xác. Giờ mở cửa chưa được xác minh là thời gian hoạt động của cơ sở được công bố, nhưng chưa được kiểm chứng hoặc cập nhật chính thức.\n\nNgười dùng cần kiểm tra giờ mở cửa ở nguồn chính thức để đảm bảo thông tin chính xác và tránh hiểu lầm.",
+          "metadata": {
+            "model": "qwen3:8b",
+            "created_at": "2026-11-26T11:24:07.375243Z",
+            "done": true,
+            "done_reason": "stop",
+            "total_duration": 11309310250,
+            "load_duration": 3207500,
+            "prompt_eval_count": 106,
+            "prompt_eval_duration": 882977000,
+            "eval_count": 110,
+            "eval_duration": 10416475000,
+            "logprobs": null,
+            "model_name": "qwen3:8b",
+            "model_provider": "ollama"
+          },
+          "additional_kwargs": {},
+          "tokens_per_second": 10.56,
+          "no_thinking": true,
+          "not_truncated": true
+        },
+        {
+          "case": "chat_en",
+          "repeat": 1,
+          "wall_seconds": 5.911,
+          "content": "Estimated visit duration refers to the approximate time a visitor might spend at a location based on average activity levels. Unverified opening hours are the times a place is said to be open, but they may not be confirmed or accurate. The user needs to check official sources for accurate and verified opening hours.",
+          "metadata": {
+            "model": "qwen3:8b",
+            "created_at": "2026-11-26T11:24:13.29486Z",
+            "done": true,
+            "done_reason": "stop",
+            "total_duration": 5908303416,
+            "load_duration": 4216583,
+            "prompt_eval_count": 86,
+            "prompt_eval_duration": 530717000,
+            "eval_count": 60,
+            "eval_duration": 5360956000,
+            "logprobs": null,
+            "model_name": "qwen3:8b",
+            "model_provider": "ollama"
+          },
+          "additional_kwargs": {},
+          "tokens_per_second": 11.19,
+          "no_thinking": true,
+          "not_truncated": true
+        },
+        {
+          "case": "json_vi",
+          "repeat": 1,
+          "wall_seconds": 19.323,
+          "content": "{\n  \"stops\": [\n    {\n      \"name\": \"Vườn Sen\",\n      \"start\": \"09:00\",\n      \"end\": \"10:00\",\n      \"source_id\": \"src-A\"\n    },\n    {\n      \"name\": \"Bảo tàng Mây\",\n      \"start\": \"10:15\",\n      \"end\": \"12:15\",\n      \"source_id\": \"src-B\"\n    }\n  ],\n  \"note\": \"Dữ liệu giả lập: Vườn Sen mở từ 09:00–10:00, tham quan 45 phút. Di chuyển 15 phút đến Bảo tàng Mây, mở từ 10:00–12:00, tham quan 60 phút.\"\n}",
+          "metadata": {
+            "model": "qwen3:8b",
+            "created_at": "2026-11-26T11:24:32.632632Z",
+            "done": true,
+            "done_reason": "stop",
+            "total_duration": 19305743583,
+            "load_duration": 4474500,
+            "prompt_eval_count": 197,
+            "prompt_eval_duration": 1552204000,
+            "eval_count": 180,
+            "eval_duration": 17730777000,
+            "logprobs": null,
+            "model_name": "qwen3:8b",
+            "model_provider": "ollama"
+          },
+          "additional_kwargs": {},
+          "tokens_per_second": 10.15,
+          "no_thinking": true,
+          "not_truncated": true,
+          "checks": {
+            "schema_valid": true,
+            "schedule_and_sources_valid": false,
+            "note_nonempty": true
+          }
+        },
+        {
+          "case": "json_en",
+          "repeat": 1,
+          "wall_seconds": 13.053,
+          "content": "{\n  \"stops\": [\n    {\n      \"name\": \"Vườn Sen\",\n      \"start\": \"09:00\",\n      \"end\": \"10:00\",\n      \"source_id\": \"src-A\"\n    },\n    {\n      \"name\": \"Bảo tàng Mây\",\n      \"start\": \"10:00\",\n      \"end\": \"12:00\",\n      \"source_id\": \"src-B\"\n    }\n  ],\n  \"note\": \"This is synthetic data, not verified information.\"\n}",
+          "metadata": {
+            "model": "qwen3:8b",
+            "created_at": "2026-11-26T11:24:45.717852Z",
+            "done": true,
+            "done_reason": "stop",
+            "total_duration": 13041321292,
+            "load_duration": 7362750,
+            "prompt_eval_count": 174,
+            "prompt_eval_duration": 1299214000,
+            "eval_count": 116,
+            "eval_duration": 11708839000,
+            "logprobs": null,
+            "model_name": "qwen3:8b",
+            "model_provider": "ollama"
+          },
+          "additional_kwargs": {},
+          "tokens_per_second": 9.91,
+          "no_thinking": true,
+          "not_truncated": true,
+          "checks": {
+            "schema_valid": true,
+            "schedule_and_sources_valid": false,
+            "note_nonempty": true
+          }
+        },
+        {
+          "case": "chat_vi",
+          "repeat": 2,
+          "wall_seconds": 10.982,
+          "content": "Thời lượng tham quan ước tính là khoảng thời gian mà người dùng có thể dành để tham quan dựa trên thông tin chung hoặc kinh nghiệm trước đó, nhưng không phải là thời gian chính xác. Giờ mở cửa chưa được xác minh là thời gian hoạt động của cơ sở được công bố, nhưng chưa được kiểm chứng hoặc cập nhật chính thức.\n\nNgười dùng cần kiểm tra giờ mở cửa ở nguồn chính thức để đảm bảo thông tin chính xác và tránh hiểu lầm.",
+          "metadata": {
+            "model": "qwen3:8b",
+            "created_at": "2026-11-26T11:24:56.736451Z",
+            "done": true,
+            "done_reason": "stop",
+            "total_duration": 10975898417,
+            "load_duration": 13287417,
+            "prompt_eval_count": 106,
+            "prompt_eval_duration": 115427000,
+            "eval_count": 110,
+            "eval_duration": 10810949000,
+            "logprobs": null,
+            "model_name": "qwen3:8b",
+            "model_provider": "ollama"
+          },
+          "additional_kwargs": {},
+          "tokens_per_second": 10.17,
+          "no_thinking": true,
+          "not_truncated": true
+        },
+        {
+          "case": "chat_en",
+          "repeat": 2,
+          "wall_seconds": 5.652,
+          "content": "Estimated visit duration refers to the approximate time a visitor might spend at a location based on average activity levels. Unverified opening hours are the times a place is said to be open, but they may not be confirmed or accurate. The user needs to check official sources for accurate and verified opening hours.",
+          "metadata": {
+            "model": "qwen3:8b",
+            "created_at": "2026-11-26T11:25:02.420163Z",
+            "done": true,
+            "done_reason": "stop",
+            "total_duration": 5646536917,
+            "load_duration": 6037292,
+            "prompt_eval_count": 86,
+            "prompt_eval_duration": 102012000,
+            "eval_count": 60,
+            "eval_duration": 5497675000,
+            "logprobs": null,
+            "model_name": "qwen3:8b",
+            "model_provider": "ollama"
+          },
+          "additional_kwargs": {},
+          "tokens_per_second": 10.91,
+          "no_thinking": true,
+          "not_truncated": true
+        },
+        {
+          "case": "json_vi",
+          "repeat": 2,
+          "wall_seconds": 16.934,
+          "content": "{\n  \"stops\": [\n    {\n      \"name\": \"Vườn Sen\",\n      \"start\": \"09:00\",\n      \"end\": \"10:00\",\n      \"source_id\": \"src-A\"\n    },\n    {\n      \"name\": \"Bảo tàng Mây\",\n      \"start\": \"10:15\",\n      \"end\": \"12:15\",\n      \"source_id\": \"src-B\"\n    }\n  ],\n  \"note\": \"Dữ liệu giả lập: Vườn Sen mở từ 09:00–10:00, tham quan 45 phút. Di chuyển 15 phút đến Bảo tàng Mây, mở từ 10:00–12:00, tham quan 60 phút.\"\n}",
+          "metadata": {
+            "model": "qwen3:8b",
+            "created_at": "2026-11-26T11:25:19.385294Z",
+            "done": true,
+            "done_reason": "stop",
+            "total_duration": 16925572667,
+            "load_duration": 7989834,
+            "prompt_eval_count": 197,
+            "prompt_eval_duration": 120367000,
+            "eval_count": 180,
+            "eval_duration": 16753098999,
+            "logprobs": null,
+            "model_name": "qwen3:8b",
+            "model_provider": "ollama"
+          },
+          "additional_kwargs": {},
+          "tokens_per_second": 10.74,
+          "no_thinking": true,
+          "not_truncated": true,
+          "checks": {
+            "schema_valid": true,
+            "schedule_and_sources_valid": false,
+            "note_nonempty": true
+          }
+        },
+        {
+          "case": "json_en",
+          "repeat": 2,
+          "wall_seconds": 10.799,
+          "content": "{\n  \"stops\": [\n    {\n      \"name\": \"Vườn Sen\",\n      \"start\": \"09:00\",\n      \"end\": \"10:00\",\n      \"source_id\": \"src-A\"\n    },\n    {\n      \"name\": \"Bảo tàng Mây\",\n      \"start\": \"10:00\",\n      \"end\": \"12:00\",\n      \"source_id\": \"src-B\"\n    }\n  ],\n  \"note\": \"This is synthetic data, not verified information.\"\n}",
+          "metadata": {
+            "model": "qwen3:8b",
+            "created_at": "2026-11-26T11:25:30.195289Z",
+            "done": true,
+            "done_reason": "stop",
+            "total_duration": 10789458000,
+            "load_duration": 6120625,
+            "prompt_eval_count": 174,
+            "prompt_eval_duration": 110386000,
+            "eval_count": 116,
+            "eval_duration": 10635866000,
+            "logprobs": null,
+            "model_name": "qwen3:8b",
+            "model_provider": "ollama"
+          },
+          "additional_kwargs": {},
+          "tokens_per_second": 10.91,
+          "no_thinking": true,
+          "not_truncated": true,
+          "checks": {
+            "schema_valid": true,
+            "schedule_and_sources_valid": false,
+            "note_nonempty": true
+          }
+        }
+      ],
+      "warmup": {
+        "case": "warmup",
+        "repeat": 0,
+        "wall_seconds": 4.975,
+        "content": "OK",
+        "metadata": {
+          "model": "qwen3:8b",
+          "created_at": "2026-11-26T11:23:56.015047Z",
+          "done": true,
+          "done_reason": "stop",
+          "total_duration": 4970322167,
+          "load_duration": 4074126417,
+          "prompt_eval_count": 40,
+          "prompt_eval_duration": 754419000,
+          "eval_count": 2,
+          "eval_duration": 129886000,
+          "logprobs": null,
+          "model_name": "qwen3:8b",
+          "model_provider": "ollama"
+        },
+        "additional_kwargs": {},
+        "tokens_per_second": 15.4,
+        "no_thinking": true,
+        "not_truncated": true
+      },
+      "loaded": {
+        "ps": {
+          "models": [
+            {
+              "name": "qwen3:8b",
+              "model": "qwen3:8b",
+              "size": 5076072529,
+              "digest": "500a1f067a9f782620b40bee6f7b0c89e17ae61f686b92c24933e4ca4b2b8b41",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen3",
+                "families": [
+                  "qwen3"
+                ],
+                "parameter_size": "8.2B",
+                "quantization_level": "Q4_K_M"
+              },
+              "expires_at": "2026-11-26T18:28:56.015324+07:00",
+              "size_vram": 5076072529,
+              "context_length": 4096,
+              "runner": "llamacpp"
+            }
+          ]
+        },
+        "swap": "vm.swapusage: total = 9216.00M  used = 8035.62M  free = 1180.38M  (encrypted)",
+        "memory_pressure": "The system has 17179869184 (1048576 pages with a page size of 16384).\nSystem-wide memory free percentage: 29%"
+      },
+      "after": {
+        "ps": {
+          "models": [
+            {
+              "name": "qwen3:8b",
+              "model": "qwen3:8b",
+              "size": 5076072529,
+              "digest": "500a1f067a9f782620b40bee6f7b0c89e17ae61f686b92c24933e4ca4b2b8b41",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen3",
+                "families": [
+                  "qwen3"
+                ],
+                "parameter_size": "8.2B",
+                "quantization_level": "Q4_K_M"
+              },
+              "expires_at": "2026-11-26T18:30:30.195618+07:00",
+              "size_vram": 5076072529,
+              "context_length": 4096,
+              "runner": "llamacpp"
+            }
+          ]
+        },
+        "swap": "vm.swapusage: total = 9216.00M  used = 8027.62M  free = 1188.38M  (encrypted)",
+        "memory_pressure": "The system has 17179869184 (1048576 pages with a page size of 16384).\nSystem-wide memory free percentage: 29%"
+      },
+      "status": "completed"
+    },
+    "qwen3.5:9b": {
+      "artifact": {
+        "name": "qwen3.5:9b",
+        "model": "qwen3.5:9b",
+        "modified_at": "2026-11-26T18:27:21.179160405+07:00",
+        "size": 7639229431,
+        "digest": "d63f830f28d515fefea546f213fca7a75e9dd5176ef51a6deabc952d1c99a911",
+        "details": {
+          "parent_model": "",
+          "format": "safetensors",
+          "family": "",
+          "families": null,
+          "parameter_size": "",
+          "quantization_level": "",
+          "runner": "mlx"
+        },
+        "capabilities": [
+          "completion",
+          "vision",
+          "tools",
+          "thinking"
+        ]
+      },
+      "before": {
+        "ps": {
+          "models": []
+        },
+        "swap": "vm.swapusage: total = 7168.00M  used = 6036.88M  free = 1131.12M  (encrypted)",
+        "memory_pressure": "The system has 17179869184 (1048576 pages with a page size of 16384).\nSystem-wide memory free percentage: 62%"
+      },
+      "calls": [
+        {
+          "case": "chat_vi",
+          "repeat": 1,
+          "wall_seconds": 10.041,
+          "content": "Thời lượng tham quan ước tính chỉ là dự kiến dựa trên dữ liệu lịch sử và có thể thay đổi tùy theo tình hình thực tế. Giờ mở cửa chưa được xác minh là thông tin không còn chính xác hoặc chưa được cập nhật từ chủ sở hữu địa điểm. Người dùng cần kiểm tra giờ mở cửa tại nguồn chính thức để đảm bảo thông tin đúng nhất trước khi đến.",
+          "metadata": {
+            "model": "qwen3.5:9b",
+            "created_at": "2026-11-26T15:20:52.303263Z",
+            "done": true,
+            "done_reason": "stop",
+            "total_duration": 10030223291,
+            "load_duration": 7320375,
+            "prompt_eval_count": 95,
+            "prompt_eval_duration": 939133125,
+            "eval_count": 77,
+            "eval_duration": 9076114916,
+            "logprobs": null,
+            "model_name": "qwen3.5:9b",
+            "model_provider": "ollama"
+          },
+          "additional_kwargs": {},
+          "tokens_per_second": 8.48,
+          "no_thinking": true,
+          "not_truncated": true
+        },
+        {
+          "case": "chat_en",
+          "repeat": 1,
+          "wall_seconds": 9.974,
+          "content": "Estimated visit duration is a predicted amount of time a visitor might spend at a location based on general data, whereas unverified opening hours indicate that the listed times have not been confirmed by the business itself. You must check official sources such as the establishment's website or direct contact information to confirm accurate operating times. Relying solely on unverified listings could lead to confusion if the actual hours differ from what is displayed.",
+          "metadata": {
+            "model": "qwen3.5:9b",
+            "created_at": "2026-11-26T15:21:02.298594Z",
+            "done": true,
+            "done_reason": "stop",
+            "total_duration": 9945973709,
+            "load_duration": 66670459,
+            "prompt_eval_count": 82,
+            "prompt_eval_duration": 604033125,
+            "eval_count": 83,
+            "eval_duration": 9155123542,
+            "logprobs": null,
+            "model_name": "qwen3.5:9b",
+            "model_provider": "ollama"
+          },
+          "additional_kwargs": {},
+          "tokens_per_second": 9.07,
+          "no_thinking": true,
+          "not_truncated": true
+        },
+        {
+          "case": "json_vi",
+          "repeat": 1,
+          "wall_seconds": 14.932,
+          "content": "{\n  \"stops\": [\n    {\n      \"name\": \"Vườn Sen\",\n      \"start\": \"09:00\",\n      \"end\": \"10:00\",\n      \"source_id\": \"src-A\"\n    },\n    {\n      \"name\": \"Bảo tàng Mây\",\n      \"start\": \"10:15\",\n      \"end\": \"11:15\",\n      \"source_id\": \"src-B\"\n    }\n  ],\n  \"note\": \"Dữ liệu này là giả lập và chưa được xác minh.\"\n}",
+          "metadata": {
+            "model": "qwen3.5:9b",
+            "created_at": "2026-11-26T15:21:17.287143Z",
+            "done": true,
+            "done_reason": "stop",
+            "total_duration": 14894359458,
+            "load_duration": 13569500,
+            "prompt_eval_count": 177,
+            "prompt_eval_duration": 1630197042,
+            "eval_count": 134,
+            "eval_duration": 13242797083,
+            "logprobs": null,
+            "model_name": "qwen3.5:9b",
+            "model_provider": "ollama"
+          },
+          "additional_kwargs": {},
+          "tokens_per_second": 10.12,
+          "no_thinking": true,
+          "not_truncated": true,
+          "checks": {
+            "schema_valid": true,
+            "schedule_and_sources_valid": false,
+            "note_nonempty": true
+          }
+        },
+        {
+          "case": "json_en",
+          "repeat": 1,
+          "wall_seconds": 8.598,
+          "content": "{\"stops\": [{\"name\": \"Vườn Sen\", \"start\": \"09:00\", \"end\": \"09:45\", \"source_id\": \"src-A\"}, {\"name\": \"Bảo tàng Mây\", \"start\": \"09:45\", \"end\": \"11:00\", \"source_id\": \"src-B\"}], \"note\": \"This is synthetic data, not verified information.\"}",
+          "metadata": {
+            "model": "qwen3.5:9b",
+            "created_at": "2026-11-26T15:21:25.921396Z",
+            "done": true,
+            "done_reason": "stop",
+            "total_duration": 8583094167,
+            "load_duration": 14902042,
+            "prompt_eval_count": 164,
+            "prompt_eval_duration": 1408678500,
+            "eval_count": 91,
+            "eval_duration": 7153572542,
+            "logprobs": null,
+            "model_name": "qwen3.5:9b",
+            "model_provider": "ollama"
+          },
+          "additional_kwargs": {},
+          "tokens_per_second": 12.72,
+          "no_thinking": true,
+          "not_truncated": true,
+          "checks": {
+            "schema_valid": true,
+            "schedule_and_sources_valid": false,
+            "note_nonempty": true
+          }
+        },
+        {
+          "case": "chat_vi",
+          "repeat": 2,
+          "wall_seconds": 8.655,
+          "content": "Thời lượng tham quan ước tính chỉ là dự kiến dựa trên dữ liệu lịch sử và có thể thay đổi tùy theo tình hình thực tế. Giờ mở cửa chưa được xác minh là thông tin không còn chính xác hoặc chưa được cập nhật từ chủ sở hữu địa điểm. Người dùng bắt buộc phải kiểm tra giờ hoạt động tại nguồn chính thức trước khi đến để tránh sai sót.",
+          "metadata": {
+            "model": "qwen3.5:9b",
+            "created_at": "2026-11-26T15:21:34.591988Z",
+            "done": true,
+            "done_reason": "stop",
+            "total_duration": 8636853459,
+            "load_duration": 12802667,
+            "prompt_eval_count": 95,
+            "prompt_eval_duration": 169520542,
+            "eval_count": 76,
+            "eval_duration": 8446286334,
+            "logprobs": null,
+            "model_name": "qwen3.5:9b",
+            "model_provider": "ollama"
+          },
+          "additional_kwargs": {},
+          "tokens_per_second": 9.0,
+          "no_thinking": true,
+          "not_truncated": true
+        },
+        {
+          "case": "chat_en",
+          "repeat": 2,
+          "wall_seconds": 8.841,
+          "content": "Estimated visit duration is a predicted amount of time a visitor might spend at a location based on general data, whereas unverified opening hours indicate that the listed times have not been confirmed by the business itself. You must check official sources such as the establishment's website or direct contact information to confirm accurate operating times. Relying solely on unverified listings could lead to confusion if the actual hours differ from what is displayed.",
+          "metadata": {
+            "model": "qwen3.5:9b",
+            "created_at": "2026-11-26T15:21:43.463989Z",
+            "done": true,
+            "done_reason": "stop",
+            "total_duration": 8805427375,
+            "load_duration": 17382042,
+            "prompt_eval_count": 82,
+            "prompt_eval_duration": 211234333,
+            "eval_count": 83,
+            "eval_duration": 8567344500,
+            "logprobs": null,
+            "model_name": "qwen3.5:9b",
+            "model_provider": "ollama"
+          },
+          "additional_kwargs": {},
+          "tokens_per_second": 9.69,
+          "no_thinking": true,
+          "not_truncated": true
+        },
+        {
+          "case": "json_vi",
+          "repeat": 2,
+          "wall_seconds": 11.85,
+          "content": "{\n  \"stops\": [\n    {\n      \"name\": \"Vườn Sen\",\n      \"start\": \"09:00\",\n      \"end\": \"10:00\",\n      \"source_id\": \"src-A\"\n    },\n    {\n      \"name\": \"Bảo tàng Mây\",\n      \"start\": \"10:15\",\n      \"end\": \"11:15\",\n      \"source_id\": \"src-B\"\n    }\n  ],\n  \"note\": \"Dữ liệu này là giả lập và chưa được xác minh.\"\n}",
+          "metadata": {
+            "model": "qwen3.5:9b",
+            "created_at": "2026-11-26T15:21:55.351274Z",
+            "done": true,
+            "done_reason": "stop",
+            "total_duration": 11820202542,
+            "load_duration": 20245459,
+            "prompt_eval_count": 177,
+            "prompt_eval_duration": 130299709,
+            "eval_count": 134,
+            "eval_duration": 11661346750,
+            "logprobs": null,
+            "model_name": "qwen3.5:9b",
+            "model_provider": "ollama"
+          },
+          "additional_kwargs": {},
+          "tokens_per_second": 11.49,
+          "no_thinking": true,
+          "not_truncated": true,
+          "checks": {
+            "schema_valid": true,
+            "schedule_and_sources_valid": false,
+            "note_nonempty": true
+          }
+        },
+        {
+          "case": "json_en",
+          "repeat": 2,
+          "wall_seconds": 8.943,
+          "content": "{\n  \"stops\": [\n    {\n      \"name\": \"Vườn Sen\",\n      \"start\": \"09:00\",\n      \"end\": \"09:45\",\n      \"source_id\": \"src-A\"\n    },\n    {\n      \"name\": \"Bảo tàng Mây\",\n      \"start\": \"10:00\",\n      \"end\": \"11:00\",\n      \"source_id\": \"src-B\"\n    }\n  ],\n  \"note\": \"This is synthetic data, not verified information.\"\n}",
+          "metadata": {
+            "model": "qwen3.5:9b",
+            "created_at": "2026-11-26T15:22:04.331202Z",
+            "done": true,
+            "done_reason": "stop",
+            "total_duration": 8915039500,
+            "load_duration": 55142417,
+            "prompt_eval_count": 164,
+            "prompt_eval_duration": 136169916,
+            "eval_count": 128,
+            "eval_duration": 8707783917,
+            "logprobs": null,
+            "model_name": "qwen3.5:9b",
+            "model_provider": "ollama"
+          },
+          "additional_kwargs": {},
+          "tokens_per_second": 14.7,
+          "no_thinking": true,
+          "not_truncated": true,
+          "checks": {
+            "schema_valid": true,
+            "schedule_and_sources_valid": true,
+            "note_nonempty": true
+          }
+        }
+      ],
+      "warmup": {
+        "case": "warmup",
+        "repeat": 0,
+        "wall_seconds": 11.24,
+        "content": "OK",
+        "metadata": {
+          "model": "qwen3.5:9b",
+          "created_at": "2026-11-26T15:20:42.149024Z",
+          "done": true,
+          "done_reason": "stop",
+          "total_duration": 11228771792,
+          "load_duration": 7830123167,
+          "prompt_eval_count": 36,
+          "prompt_eval_duration": 3030808291,
+          "eval_count": 1,
+          "eval_duration": 350320750,
+          "logprobs": null,
+          "model_name": "qwen3.5:9b",
+          "model_provider": "ollama"
+        },
+        "additional_kwargs": {},
+        "tokens_per_second": 2.85,
+        "no_thinking": true,
+        "not_truncated": true
+      },
+      "loaded": {
+        "ps": {
+          "models": [
+            {
+              "name": "qwen3.5:9b",
+              "model": "qwen3.5:9b",
+              "size": 7736871768,
+              "digest": "d63f830f28d515fefea546f213fca7a75e9dd5176ef51a6deabc952d1c99a911",
+              "details": {
+                "parent_model": "",
+                "format": "safetensors",
+                "family": "",
+                "families": null,
+                "parameter_size": "",
+                "quantization_level": ""
+              },
+              "expires_at": "2026-11-26T22:25:42.149264+07:00",
+              "size_vram": 7736871768,
+              "context_length": 4096,
+              "runner": "mlx"
+            }
+          ]
+        },
+        "swap": "vm.swapusage: total = 9216.00M  used = 8717.31M  free = 498.69M  (encrypted)",
+        "memory_pressure": "The system has 17179869184 (1048576 pages with a page size of 16384).\nSystem-wide memory free percentage: 19%"
+      },
+      "after": {
+        "ps": {
+          "models": [
+            {
+              "name": "qwen3.5:9b",
+              "model": "qwen3.5:9b",
+              "size": 8452919784,
+              "digest": "d63f830f28d515fefea546f213fca7a75e9dd5176ef51a6deabc952d1c99a911",
+              "details": {
+                "parent_model": "",
+                "format": "safetensors",
+                "family": "",
+                "families": null,
+                "parameter_size": "",
+                "quantization_level": ""
+              },
+              "expires_at": "2026-11-26T22:27:04.333528+07:00",
+              "size_vram": 8452919784,
+              "context_length": 4096,
+              "runner": "mlx"
+            }
+          ]
+        },
+        "swap": "vm.swapusage: total = 10240.00M  used = 9521.50M  free = 718.50M  (encrypted)",
+        "memory_pressure": "The system has 17179869184 (1048576 pages with a page size of 16384).\nSystem-wide memory free percentage: 19%"
+      },
+      "status": "completed"
+    }
+  },
+  "started": "2026-11-26T18:22:46+0700",
+  "hardware": "Apple M1\n17179869184",
+  "adapter_smoke": [
+    {
+      "model": "qwen3:8b",
+      "locale": "vi",
+      "max_completion_tokens": 2048,
+      "forced_context": false,
+      "schema_valid": true,
+      "response": {
+        "answer": "Thời lượng tham quan ước tính có thể thay đổi tùy theo tình hình thực tế, do đó không thể đảm bảo chính xác. Giờ mở cửa chưa được xác minh, nên bạn nên kiểm tra thông tin từ nguồn chính thức để cập nhật nhất. Đề nghị liên hệ trực tiếp với cơ sở để có thông tin chính xác và kịp thời."
+      },
+      "wall_seconds": 15.452
+    }
+  ],
+  "application_adapter_smoke": {
+    "settings": {
+      "adapter": "OllamaStructuredChatModel",
+      "model": "qwen3:8b",
+      "base_url": "http://localhost:11434",
+      "temperature": 0,
+      "role": "chat",
+      "max_completion_tokens": 2048,
+      "forced_num_ctx": false,
+      "tracing": false
+    },
+    "calls": [
+      {
+        "model": "qwen3:8b",
+        "locale": "vi",
+        "max_completion_tokens": 2048,
+        "forced_context": false,
+        "schema_valid": true,
+        "response": {
+          "answer": "Thời lượng tham quan ước tính có thể thay đổi tùy theo tình hình thực tế, do đó không thể đảm bảo chính xác. Giờ mở cửa chưa được xác minh, nên bạn nên kiểm tra thông tin từ nguồn chính thức để cập nhật nhất. Đề nghị liên hệ trực tiếp với cơ sở để có thông tin chính xác và kịp thời."
+        },
+        "wall_seconds": 15.452,
+        "prompt": "Trả lời bằng tiếng Việt đúng ba câu: giải thích thời lượng tham quan ước tính và giờ mở cửa chưa xác minh, khuyên kiểm tra nguồn chính thức, không nêu địa điểm hoặc giờ cụ thể."
+      },
+      {
+        "model": "qwen3:8b",
+        "locale": "en",
+        "max_completion_tokens": 2048,
+        "forced_context": false,
+        "schema_valid": true,
+        "response": {
+          "answer": "Estimated visit duration can vary depending on your pace and interests, typically ranging from a few hours to a full day. Unverified opening hours may differ, so it's important to confirm details before planning. Always check official sources for the most accurate and up-to-date information."
+        },
+        "wall_seconds": 7.462,
+        "prompt": "Answer in exactly three English sentences: explain estimated visit duration and unverified opening hours, advise checking official sources, and do not give specific places or times."
+      }
+    ],
+    "schema": {
+      "answer": "string; additional properties forbidden"
+    }
+  },
+  "live_trace_verification": {
+    "model": "qwen3:8b",
+    "root_id": "01a21874-54a4-76b2-b0e9-db22eba55b82",
+    "root_url": "https://smith.langchain.com/o/68932dd2-cadf-4d37-a623-c569afd4fa5e/projects/p/352b6d59-4700-4ef9-b27e-60ae81bf0722/r/01a21874-54a4-76b2-b0e9-db22eba55b82?poll=true",
+    "event_id": "28f79ee8-bbd2-41cc-81d8-bf2a2cc0fb06",
+    "llm_count": 1,
+    "checks": {
+      "root_inputs_visible": true,
+      "root_outputs_visible": true,
+      "root_input_credential_redacted": true,
+      "root_output_credential_redacted": true,
+      "root_thread_preserved": true,
+      "llm_child_present": true,
+      "llm_io_visible": true,
+      "llm_thread_preserved": true,
+      "llm_provider_model_preserved": true,
+      "llm_usage_present": true,
+      "event_completed": true,
+      "event_thread_preserved": true,
+      "event_secret_redacted": true
+    },
+    "passed": true
+  }
+}

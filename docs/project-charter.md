@@ -152,7 +152,9 @@ provider endpoints, arbitrary kwargs, or fallback models. Environment
 configuration remains the source for credentials, endpoints, and fallbacks.
 Admin guidance supplements a code-owned runtime guard; deterministic product
 validation and graph/search bounds remain unchanged. LangSmith model inputs and
-outputs are hidden when tracing is enabled. See ADR 0024.
+outputs are visible when tracing is enabled, including role prompts and model
+answers, with recognized credentials redacted. Secrets must never be supplied
+to model inputs. See the 2026-11-26 amendment to ADR 0024.
 
 The webapp keeps the canonical plan, at most 12 conversation messages and a
 rolling summary of at most 1,200 characters in session-only state. Coordinator

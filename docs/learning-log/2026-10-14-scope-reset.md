@@ -1,5 +1,35 @@
 # Learning Log — 2026-10-14 Scope Reset
 
+## 2026-11-26 — User-selected Ollama replacement
+
+After reviewing the local benchmark and its limitations, the user explicitly
+selected `qwen3:8b` to replace the current Ollama model. Apply this to existing
+Ollama model selections without changing provider routing, generation budgets,
+or plan validation. This is a user-selected runtime configuration change, not
+a claim that the model passed the Planner quality gate. The deployment
+`.env` now selects `qwen3:8b`. The app-only container
+recreation used the same image and passed Compose health and HTTP checks; the
+running environment confirms the new fallback and unchanged primary role
+settings. Session-only unsaved state was cleared by app recreation.
+
+## 2026-11-26 — Trace visibility and balanced local model selection
+
+The user explicitly selected LangSmith input/output visibility for every traced
+run, including prompts and answers. This supersedes ADR 0024's blanket hiding
+policy; credentials remain prohibited in model inputs and recognized secrets
+must be redacted. Source implementation and independent offline verification
+are complete: 301 tests passed, one optional PostgreSQL test skipped, and all
+four Python quality checks passed. Synthetic LangSmith readback passed all
+13 checks; evidence is recorded in the experiment.
+
+The user prioritizes both speed and Vietnamese/English response quality on the
+local Apple M1 with 16 GiB RAM. Compare the current 4B model, installed Qwen3 8B,
+and Qwen3.5 9B using paired synthetic tasks before changing runtime settings.
+The comparison favors Qwen3 8B for Chat-only evaluation; all three failed at
+least one schedule check, so no Planner replacement is supported. The user
+subsequently selected 8B as the fallback despite that limitation. See the [experiment](../experiments/2026-11-26-local-model-comparison.md).
+No deployment, commit, or push was requested.
+
 This log keeps recent user decisions and operational events that help explain
 current status. The [charter](../project-charter.md) and accepted ADRs are the
 source of truth for product and architecture. Historical test output belongs

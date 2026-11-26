@@ -85,3 +85,18 @@ would let an edit affect an in-flight turn or another session.
   rather than per-turn database reads.
 - Change LangSmith privacy or usage-accounting requirements.
 - Expand the admin prompt beyond additive guidance.
+
+## User Amendment — 2026-11-26 — Visible LangSmith Inputs and Outputs
+
+The user explicitly selected visible inputs and outputs for every traced run,
+including prompts and answers. This supersedes the blanket hiding decision
+above for all providers, including Ollama. Preserve full ordinary message
+content and usage/thread metadata while redacting recognized credential fields
+and secret patterns. Pattern redaction cannot detect every possible secret;
+credentials must remain excluded from model inputs.
+
+Supplementary administrator guidance may appear in model trace inputs. It must
+still be excluded from audit events and custom trace metadata. Tracing remains
+opt-in through the existing deployment configuration. Previously hidden trace
+content cannot be recovered by changing this policy. This decision does not
+authorize deployment or change model routing, budgets, or plan validation.
