@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import asyncio
 import runpy
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 
 SMOKE = runpy.run_path(Path("scripts/live_smoke.py"))
+CHAT_SEARCH_SMOKE = runpy.run_path(Path("scripts/live_chat_search_smoke.py"))
 query_thread_runs = SMOKE["_query_thread_runs"]
 summarize_thread_runs = SMOKE["_summarize_thread_runs"]
 
@@ -82,3 +84,45 @@ def test_live_smoke_accepts_an_awaitable_v2_query() -> None:
     assert asyncio.run(query_thread_runs(client, "travel-planner", thread_id)) == [
         pager._runs[0]
     ]
+
+
+def test_chat_search_smoke_retries_in_one_event_loop(monkeypatch) -> None:
+    loops = []
+    sleeps = []
+    closed = []
+
+    class RetryingRuns:
+        def query(self, **kwargs: object) -> FakePager:
+            loops.append(asyncio.get_running_loop())
+            if len(loops) == 1:
+                return FakePager([])
+            return FakePager(
+                [
+                    SimpleNamespace(name="tool.tavily.start", thread_id="thread-123"),
+                    SimpleNamespace(name="tool.tavily.success", thread_id="thread-123"),
+                ]
+            )
+
+    client = SimpleNamespace(
+        read_project=lambda *, project_name: SimpleNamespace(id="project-456"),
+        runs=RetryingRuns(),
+        close=lambda: closed.append(True),
+    )
+
+    async def fake_sleep(seconds: int) -> None:
+        sleeps.append(seconds)
+
+    monkeypatch.setenv("LANGSMITH_PROJECT", "travel-planner")
+    monkeypatch.setenv("LANGSMITH_API_KEY", "test-key")
+    monkeypatch.setitem(
+        sys.modules, "langsmith", SimpleNamespace(Client=lambda: client)
+    )
+    monkeypatch.setattr(asyncio, "sleep", fake_sleep)
+
+    events = CHAT_SEARCH_SMOKE["_langsmith_search_events"]("thread-123")
+
+    assert events == ({"tool.tavily.start", "tool.tavily.success"}, True)
+    assert len(loops) == 2
+    assert loops[0] is loops[1]
+    assert sleeps == [2]
+    assert closed == [True]

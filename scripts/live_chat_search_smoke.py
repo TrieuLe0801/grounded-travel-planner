@@ -6,7 +6,6 @@ import asyncio
 import inspect
 import json
 import os
-import time
 from typing import Any
 
 from grounded_travel_planner.service import TravelPlannerService
@@ -27,15 +26,11 @@ async def _query_thread_runs(
     return [run async for run in pager]
 
 
-def _langsmith_search_events(thread_id: str) -> tuple[set[str], bool]:
-    project_name = os.getenv("LANGSMITH_PROJECT")
-    if not os.getenv("LANGSMITH_API_KEY") or not project_name:
-        return set(), False
-    from langsmith import Client
-
-    client = Client()
+async def _poll_search_events(
+    client: Any, project_name: str, thread_id: str
+) -> tuple[set[str], bool]:
     for attempt in range(5):
-        runs = asyncio.run(_query_thread_runs(client, project_name, thread_id))
+        runs = await _query_thread_runs(client, project_name, thread_id)
         if any(
             run.name in {"tool.tavily.start", "tool.tavily.success"} for run in runs
         ):
@@ -44,8 +39,21 @@ def _langsmith_search_events(thread_id: str) -> tuple[set[str], bool]:
                 all(run.thread_id == thread_id for run in runs),
             )
         if attempt < 4:
-            time.sleep(2)
+            await asyncio.sleep(2)
     return set(), False
+
+
+def _langsmith_search_events(thread_id: str) -> tuple[set[str], bool]:
+    project_name = os.getenv("LANGSMITH_PROJECT")
+    if not os.getenv("LANGSMITH_API_KEY") or not project_name:
+        return set(), False
+    from langsmith import Client
+
+    client = Client()
+    try:
+        return asyncio.run(_poll_search_events(client, project_name, thread_id))
+    finally:
+        client.close()
 
 
 def main() -> int:

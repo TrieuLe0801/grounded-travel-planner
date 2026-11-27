@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-11-26
+Last updated: 2026-11-27
 
 ## Active scope
 
@@ -9,6 +9,19 @@ runtime contract live in the [project charter](docs/project-charter.md) and
 accepted ADRs. This file records the current evidence and remaining acceptance
 work; historical implementation detail belongs in the plan, learning log, CI
 runs and experiment records.
+
+## LangSmith endpoint migration — 2026-11-27
+
+The current repository has no direct calls to the deprecated run-retrieval or
+run-query endpoints. The administrator usage reader and two live smoke scripts
+already use the SmithDB-backed run query. The Python dependency now resolves
+LangSmith 0.14.17 on Python 3.10 and 0.16.2 on Python 3.11 or later; the latter
+requires Python 3.11. The live search smoke script now keeps its polling reads
+on one event loop. Offline verification passed 302 tests with one optional
+PostgreSQL skip; isort, Black, flake8, Ruff, lock validation and package build
+passed. No live LangSmith request or deployment ran. The running app container
+was observed with LangSmith 0.14.8 and the SmithDB-backed usage query; the
+source of the workspace's recorded deprecated calls remains unconfirmed.
 
 ## Current snapshot
 
