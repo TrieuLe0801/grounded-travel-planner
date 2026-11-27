@@ -1,5 +1,24 @@
 # Learning Log — 2026-10-14 Scope Reset
 
+## 2026-11-27 — LangSmith deprecated endpoint inventory and SDK upgrade
+
+The user approved a four-phase migration. Read-only inventory found no
+deprecated LangSmith SDK calls or direct HTTP paths in current executable
+source. Three Python run queries already use the SmithDB-backed API. The
+running app container has LangSmith 0.14.8 and the newer usage query, so the
+origin of the recorded deprecated calls is still unverified.
+
+The user approved upgrading the SDK, retaining the synchronous administrator
+handler with a separate client per request, and moving live search smoke retries
+onto one event loop. LangSmith 0.16.2 requires Python 3.11; Python 3.10 remains
+in the project contract, so the lockfile selects 0.14.17 there and 0.16.2 on
+Python 3.11 or later. Focused tests passed on both versions. Independent
+verification passed 302 tests with one optional PostgreSQL skip; isort, Black,
+flake8, Ruff, lock validation, package build, and deprecated-call search passed.
+No live LangSmith request, deployment, push, or pull request ran. Real concurrent
+administrator reads and disappearance of recorded deprecated traffic remain
+unverified.
+
 ## 2026-11-26 — User-selected Ollama replacement
 
 After reviewing the local benchmark and its limitations, the user explicitly
